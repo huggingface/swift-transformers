@@ -9,7 +9,7 @@ let package = Package(
         .library(name: "Transformers", targets: ["Tokenizers"]),
     ],
     targets: [
-        .target(name: "Tokenizers"),
-        .testTarget(name: "tokenizers-tests", dependencies: ["Tokenizers"]),
+        .target(name: "Tokenizers", resources: [.process("Vocabs")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources")]),
     ]
 )

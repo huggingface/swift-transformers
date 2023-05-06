@@ -21,7 +21,7 @@ class BertTokenizer {
     private let ids_to_tokens: [Int: String]
     
     init() {
-        let url = Bundle.main.url(forResource: "vocab", withExtension: "txt")!
+        let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
         let vocabTxt = try! String(contentsOf: url)
         let tokens = vocabTxt.split(separator: "\n").map { String($0) }
         var vocab: [String: Int] = [:]

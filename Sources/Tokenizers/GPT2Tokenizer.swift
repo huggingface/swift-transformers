@@ -50,7 +50,7 @@ class GPT2Tokenizer {
     private let decoder: [Int: String]
     
     init() {
-        let url = Bundle.main.url(forResource: "gpt2-merges", withExtension: "txt")!
+        let url = Bundle.module.url(forResource: "gpt2-merges", withExtension: "txt")!
         let bpeMergesTxt = try! String(contentsOf: url)
         let arr = bpeMergesTxt.split(separator: "\n").map { String($0) }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
@@ -62,7 +62,7 @@ class GPT2Tokenizer {
         self.bpeRanks = bpeRanks
         
         self.encoder = {
-            let url = Bundle.main.url(forResource: "gpt2-vocab", withExtension: "json")!
+            let url = Bundle.module.url(forResource: "gpt2-vocab", withExtension: "json")!
             let json = try! Data(contentsOf: url)
             let decoder = JSONDecoder()
             let vocab = try! decoder.decode([String: Int].self, from: json)
