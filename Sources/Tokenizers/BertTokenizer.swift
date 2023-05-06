@@ -97,6 +97,15 @@ class BertTokenizer {
 }
 
 
+extension BertTokenizer: Tokenizer {
+    func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
+    
+    func decode(tokens: [Int]) -> String {
+        let tokens = unTokenize(tokens: tokens)
+        return convertWordpieceToBasicTokenList(tokens)
+    }
+}
+
 
 class BasicTokenizer {
     let neverSplit = [

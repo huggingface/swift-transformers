@@ -96,4 +96,36 @@ class BertTokenizerTests: XCTestCase {
             XCTAssertEqual(question.basic.joined(separator: " "), tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
         }
     }
+    
+    func testEncoderDecoder() {
+        let text = """
+        Wake up (Wake up)
+        Grab a brush and put a little makeup
+        Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
+        Why'd you leave the keys upon the table?
+        Here you go, create another fable, you wanted to
+        Grab a brush and put a little makeup, you wanted to
+        Hide the scars to fade away the shakeup, you wanted to
+        Why'd you leave the keys upon the table? You wanted to
+        """
+        
+        // Not sure if there's a way to achieve a non-destructive round-trip
+        let decoded = """
+        wake up ( wake up )
+        grab a brush and put a little makeup
+        hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
+        why \' d you leave the keys upon the table ?
+        here you go , create another fable , you wanted to
+        grab a brush and put a little makeup , you wanted to
+        hide the scars to fade away the shakeup , you wanted to
+        why \' d you leave the keys upon the table ? you wanted to
+        """
+        
+        let tokenizer = BertTokenizer()
+        for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {
+            let encoded = tokenizer.encode(text: String(line))
+            let decoded = tokenizer.decode(tokens: encoded)
+            XCTAssertEqual(decoded, String(expected))
+        }
+    }
 }

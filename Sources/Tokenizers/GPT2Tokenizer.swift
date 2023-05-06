@@ -159,3 +159,5 @@ class GPT2Tokenizer {
         return String(decoding: utfCodepoints, as: UTF8.self)
     }
 }
+
+extension GPT2Tokenizer: Tokenizer {}
