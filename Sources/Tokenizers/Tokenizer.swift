@@ -7,8 +7,10 @@
 
 import Foundation
 
-protocol Tokenizer {
+public protocol Tokenizer {
     func tokenize(text: String) -> [String]
     func encode(text: String) -> [Int]
     func decode(tokens: [Int]) -> String
+    
+    init()
 }

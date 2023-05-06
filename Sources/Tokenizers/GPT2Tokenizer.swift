@@ -49,7 +49,7 @@ class GPT2Tokenizer {
     private let encoder: [String: Int]
     private let decoder: [Int: String]
     
-    init() {
+    required init() {
         let url = Bundle.module.url(forResource: "gpt2-merges", withExtension: "txt")!
         let bpeMergesTxt = try! String(contentsOf: url)
         let arr = bpeMergesTxt.split(separator: "\n").map { String($0) }
