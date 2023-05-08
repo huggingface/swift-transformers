@@ -9,16 +9,16 @@ import Foundation
 
 /// Essentials taken from https://github.com/huggingface/transformers/blob/main/src/transformers/generation/configuration_utils.py
 public struct GenerationConfig {
-    var maxLength = 20
-    var maxNewTokens: Int
-    var doSample = false
-    var numBeams = 1
-    var numBeamGroups = 1
-    var penaltyAlpha: Double? = nil
-    var temperature = 1.0
-    var topK = 50
-    var topP = 1.0
-    var repetitionPenalty = 1.0
+    public var maxLength = 20
+    public var maxNewTokens: Int
+    public var doSample = false
+    public var numBeams = 1
+    public var numBeamGroups = 1
+    public var penaltyAlpha: Double? = nil
+    public var temperature = 1.0
+    public var topK = 50
+    public var topP = 1.0
+    public var repetitionPenalty = 1.0
     
     public init(maxLength: Int = 20, maxNewTokens: Int, doSample: Bool = false, numBeams: Int = 1, numBeamGroups: Int = 1, penaltyAlpha: Double? = nil, temperature: Double = 1.0, topK: Int = 50, topP: Double = 1.0, repetitionPenalty: Double = 1.0) {
         self.maxLength = maxLength

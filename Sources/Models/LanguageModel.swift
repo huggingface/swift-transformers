@@ -96,4 +96,4 @@ public extension LanguageModel {
     }
 }
 
-extension LanguageModel: LanguageModelProtocol {}
+extension LanguageModel: TextGenerationModel {}

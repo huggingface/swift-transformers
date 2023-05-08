@@ -25,22 +25,33 @@ public typealias NextTokenModel = (InputTokens) -> Int
 public protocol Generation {
     func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel) -> GenerationOutput
     
-    func generate(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, tokenizer: Tokenizer) -> String
+    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer) -> String
 }
 
 public extension Generation {
     func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel) -> GenerationOutput {
-        return [0]
+        // Iterate until we find the eos token or reach the max length
+        // TODO: additional stopping criteria
+        var outputTokens = tokens
+        while outputTokens.count < config.maxLength {
+            let nextToken = model(outputTokens)
+//            if nextToken == config.eosToken { break }
+            outputTokens.append(nextToken)
+        }
+        return outputTokens
     }
     
-    func generate(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, tokenizer: Tokenizer) -> String {
+    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer) -> String {
+        let tokens = tokenizer.encode(text: prompt)
+        var generationConfig = config
+        generationConfig.maxLength = config.maxNewTokens + tokens.count
+
         let output: GenerationOutput
-        
-        switch config.generationMode {
+        switch generationConfig.generationMode {
         case .greedy:
-            output = greedySearch(config: config, tokens: tokens, model: model)
+            output = greedySearch(config: generationConfig, tokens: tokens, model: model)
         default:
-            fatalError("Generation mode \(config.generationMode) not implemented yet")
+            fatalError("Generation mode \(generationConfig.generationMode) not implemented yet")
         }
         
         return tokenizer.decode(tokens: output)
