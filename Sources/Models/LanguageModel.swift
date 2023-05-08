@@ -47,10 +47,17 @@ public extension LanguageModel {
         return modelName
     }
     
-    var tokenizer: Tokenizer {
+    var architecture: Architecture {
         guard let architecture = Architecture.from(modelName: modelName) else { fatalError("Cannot obtain model architecture") }
+        return architecture
+    }
+    
+    var tokenizer: Tokenizer {
         return architecture.tokenizerClass.init()
     }
+    
+    var bosTokenId: Int? { architecture.bosTokenId }
+    var eosTokenId: Int? { architecture.eosTokenId }
     
     var inputIdsDescription: MLFeatureDescription {
         model.modelDescription.inputDescriptionsByName[input_ids]!

@@ -10,11 +10,17 @@ import Foundation
 public struct Architecture {
     public var name: String
     public var tokenizerClass: Tokenizer.Type
+    
+    /// These will be hardcoded for now. We could:
+    /// - Retrieve them from the compiled Core ML model, storing them as metadata fields
+    /// - The configuration file from the Hub
+    public var bosTokenId: Int? = nil
+    public var eosTokenId: Int? = nil
 }
 
 extension Architecture {
     static let bert: Architecture = Architecture(name: "bert", tokenizerClass: BertTokenizer.self)
-    static let gpt2: Architecture = Architecture(name: "gpt2", tokenizerClass: GPT2Tokenizer.self)
+    static let gpt2: Architecture = Architecture(name: "gpt2", tokenizerClass: GPT2Tokenizer.self, bosTokenId: 50256, eosTokenId: 50256)
 }
 
 public enum SupportedArchitecture: String, CaseIterable {

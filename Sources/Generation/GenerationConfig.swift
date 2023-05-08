@@ -20,6 +20,10 @@ public struct GenerationConfig {
     public var topP = 1.0
     public var repetitionPenalty = 1.0
     
+    public var padTokenId: Int? = nil
+    public var bosTokenId: Int? = nil
+    public var eosTokenId: Int? = nil
+    
     public init(maxLength: Int = 20, maxNewTokens: Int, doSample: Bool = false, numBeams: Int = 1, numBeamGroups: Int = 1, penaltyAlpha: Double? = nil, temperature: Double = 1.0, topK: Int = 50, topP: Double = 1.0, repetitionPenalty: Double = 1.0) {
         self.maxLength = maxLength
         self.maxNewTokens = maxNewTokens

@@ -35,7 +35,10 @@ public extension Generation {
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
             let nextToken = model(outputTokens)
-//            if nextToken == config.eosToken { break }
+            if nextToken == config.eosTokenId {
+                print("jurlrlrlrlr")
+                break
+            }
             outputTokens.append(nextToken)
         }
         return outputTokens
