@@ -27,11 +27,11 @@ public extension LanguageModelProtocol {
 }
 
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
-    func generate(config: GenerationConfig, prompt: String) -> String
+    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async -> String
 }
 
 public extension TextGenerationModel {
-    func generate(config: GenerationConfig, prompt: String) -> String {
-        self.generate(config: config, prompt: prompt, model: self.callAsFunction(_:), tokenizer: self.tokenizer)
+    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async -> String {
+        await self.generate(config: config, prompt: prompt, model: self.callAsFunction(_:), tokenizer: self.tokenizer, callback: callback)
     }
 }
