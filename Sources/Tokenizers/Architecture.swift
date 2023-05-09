@@ -21,17 +21,17 @@ public struct Architecture {
 
 extension Architecture {
     static let bert: Architecture = Architecture(name: "bert", tokenizerClass: BertTokenizer.self)
-    static let gpt2: Architecture = Architecture(name: "gpt2", tokenizerClass: GPT2Tokenizer.self, bosTokenId: 50256, eosTokenId: 50256)
+    static let gpt: Architecture = Architecture(name: "gpt", tokenizerClass: GPT2Tokenizer.self, bosTokenId: 50256, eosTokenId: 50256)
 }
 
 public enum SupportedArchitecture: String, CaseIterable {
     case bert
-    case gpt2
+    case gpt
     
     var architecture: Architecture {
         switch self {
         case .bert: return Architecture.bert
-        case .gpt2: return Architecture.gpt2
+        case .gpt: return Architecture.gpt
         }
     }
 }
