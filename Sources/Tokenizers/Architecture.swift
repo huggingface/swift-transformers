@@ -14,6 +14,7 @@ public struct Architecture {
     /// These will be hardcoded for now. We could:
     /// - Retrieve them from the compiled Core ML model, storing them as metadata fields
     /// - The configuration file from the Hub
+    public var padTokenId: Int? = nil
     public var bosTokenId: Int? = nil
     public var eosTokenId: Int? = nil
 }

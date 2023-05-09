@@ -11,7 +11,9 @@ import Generation
 
 public class LanguageModel {
     public let model: MLModel
-    public let contextLength: Int
+    
+    public let minContextLength: Int
+    public let maxContextLength: Int
     
     let input_ids = "input_ids"
     let attention_mask = "attention_mask"
@@ -22,8 +24,27 @@ public class LanguageModel {
         // We assume inputs named "input_ids" with shape (1, seq_length)
         // Perhaps we should convert to vectors of shape (seq_length) and use sequenceConstraint instead of shapeConstraint
         let inputDescription = model.modelDescription.inputDescriptionsByName["input_ids"]
-        let range = inputDescription?.multiArrayConstraint?.shapeConstraint.sizeRangeForDimension[1] as? NSRange
-        self.contextLength = range?.length ?? 128
+        
+        guard let shapeConstraint = inputDescription?.multiArrayConstraint?.shapeConstraint else {
+            fatalError("Cannot obtain shape information")
+        }
+        
+        switch shapeConstraint.type {
+        case .enumerated:
+            // TODO: support a set of fixed shapes (keeping the first one here)
+            minContextLength = shapeConstraint.enumeratedShapes[0][1].intValue
+            maxContextLength = minContextLength
+        case .range:
+            let range = inputDescription?.multiArrayConstraint?.shapeConstraint.sizeRangeForDimension[1] as? NSRange
+            minContextLength = range?.location ?? 1
+            maxContextLength = range?.length ?? 128
+        case .unspecified:
+            minContextLength = 128
+            maxContextLength = 128
+        @unknown default:
+            minContextLength = 128
+            maxContextLength = 128
+        }
     }
 }
 
@@ -56,6 +77,7 @@ public extension LanguageModel {
         return architecture.tokenizerClass.init()
     }
     
+    var padTokenId: Int? { architecture.padTokenId ?? architecture.eosTokenId }
     var bosTokenId: Int? { architecture.bosTokenId }
     var eosTokenId: Int? { architecture.eosTokenId }
     
@@ -78,11 +100,17 @@ public extension LanguageModel {
     
     func predictNextToken(_ tokens: InputTokens) -> Int {
         // TODO: exceptions
-        let maxTokens = tokens.count
-        let inputIds = MLMultiArray.from(tokens, dims: inputIdsShape.count)
+        
+        // Maybe pad or truncate
+        let maxTokens = min(tokens.count, maxContextLength)
+        let padLength = maxTokens >= minContextLength ? 0 : minContextLength-maxTokens
+        let inputTokens = Array(tokens[0..<maxTokens]) + Array(repeating: padTokenId ?? 0, count: padLength)
+        
+        let inputIds = MLMultiArray.from(inputTokens, dims: inputIdsShape.count)
         var inputDictionary = [inputIdsName: inputIds]
         if requiresAttention {
-            inputDictionary[attention_mask] = MLMultiArray.from(Array(repeating: 1, count: maxTokens), dims: inputIdsShape.count)
+            let mask = Array(repeating: 1, count: maxTokens) + Array(repeating: 0, count: padLength)
+            inputDictionary[attention_mask] = MLMultiArray.from(mask, dims: inputIdsShape.count)
         }
         let input = try! MLDictionaryFeatureProvider(dictionary: inputDictionary)
         
