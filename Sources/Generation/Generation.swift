@@ -55,13 +55,15 @@ public extension Generation {
         // TODO: additional stopping criteria
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
-            let logits = model(outputTokens)
+            var logits = model(outputTokens).toDoubleArray()
             
             let nextToken: Int
             
-            if config.temperature != 1.0 { fatalError("Not supported yet") }
+            if config.temperature > 0 {
+                logits = logits.map { $0 / config.temperature }
+            }
             if config.topK > 0 {
-                let topK = logits.topK(k: config.topK)
+                let topK = Math.topK(arr: logits, k: config.topK)
                 nextToken = Math.sample(indexes: topK.indexes, probs: topK.probs)
             } else {
                 fatalError("topP not implemented yet")
