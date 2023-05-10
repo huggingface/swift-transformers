@@ -15,7 +15,7 @@ import CoreML
 ///
 /// https://github.com/hollance/CoreMLHelpers
 ///
-struct Math {
+public struct Math {
     
     /**
      Returns the index and value of the largest element in the array.
@@ -25,7 +25,7 @@ struct Math {
      - count: How many elements to look at.
      - stride: The distance between two elements in memory.
      */
-    static func argmax(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
+    public static func argmax(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
         var maxValue: Float = 0
         var maxIndex: vDSP_Length = 0
         vDSP_maxvi(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
@@ -39,17 +39,24 @@ struct Math {
      - count: How many elements to look at.
      - stride: The distance between two elements in memory.
      */
-    static func argmax(_ ptr: UnsafePointer<Double>, count: Int, stride: Int = 1) -> (Int, Double) {
+    public static func argmax(_ ptr: UnsafePointer<Double>, count: Int, stride: Int = 1) -> (Int, Double) {
         var maxValue: Double = 0
         var maxIndex: vDSP_Length = 0
         vDSP_maxviD(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
         return (Int(maxIndex), maxValue)
     }
     
+    public static func argmax32(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
+        var maxValue: Float = 0
+        var maxIndex: vDSP_Length = 0
+        vDSP_maxvi(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
+        return (Int(maxIndex), maxValue)
+    }
+    
     
     /// MLMultiArray helper.
     /// Works in our specific use case.
-    static func argmax(_ multiArray: MLMultiArray) -> (Int, Double) {
+    public static func argmax(_ multiArray: MLMultiArray) -> (Int, Double) {
         assert(multiArray.dataType == .double)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(multiArray.dataPointer))
         return Math.argmax(ptr, count: multiArray.count)
@@ -57,14 +64,10 @@ struct Math {
     
     /// MLMultiArray helper.
     /// Works in our specific use case.
-    static func argmax32(_ multiArray: MLMultiArray) -> (Int, Float) {
+    public static func argmax32(_ multiArray: MLMultiArray) -> (Int, Float) {
         assert(multiArray.dataType == .float32)
         let ptr = UnsafeMutablePointer<Float32>(OpaquePointer(multiArray.dataPointer))
-        let count = multiArray.count
-        var maxValue: Float = 0
-        var maxIndex: vDSP_Length = 0
-        vDSP_maxvi(ptr, vDSP_Stride(1), &maxValue, &maxIndex, vDSP_Length(count))
-        return (Int(maxIndex), maxValue)
+        return Math.argmax32(ptr, count: multiArray.count)
     }
     
     /// Top-K.
@@ -72,7 +75,7 @@ struct Math {
     /// and return both the indices (from the original array)
     /// and their softmaxed probabilities.
     /// 
-    static func topK(arr: [Double], k: Int) -> (indexes: [Int], probs: [Float]) {
+    public static func topK(arr: [Double], k: Int) -> (indexes: [Int], probs: [Float]) {
         let x = Array(arr.enumerated().map { ($0, $1) }
             .sorted(by: { a, b -> Bool in a.1 > b.1 })
             .prefix(through: min(k, arr.count) - 1))
@@ -83,7 +86,7 @@ struct Math {
     }
     
     /// Multinomial sampling from an array of probs. Works well with topK
-    static func sample(indexes: [Int], probs: [Float]) -> Int {
+    public static func sample(indexes: [Int], probs: [Float]) -> Int {
         let i = randomNumber(probabilities: probs)
         return indexes[i]
     }
@@ -99,7 +102,7 @@ struct Math {
      First we shift the values of x so that the highest value in the array is 0.
      This ensures numerical stability with the exponents, so they don't blow up.
      */
-    static func softmax(_ x: [Float]) -> [Float] {
+    public static func softmax(_ x: [Float]) -> [Float] {
         var x = x
         let len = vDSP_Length(x.count)
         
@@ -131,7 +134,7 @@ struct Math {
     ///
     /// From https://stackoverflow.com/questions/30309556/generate-random-numbers-with-a-given-distribution
     ///
-    static func randomNumber(probabilities: [Float]) -> Int {
+    public static func randomNumber(probabilities: [Float]) -> Int {
         // Sum of all probabilities (so that we don't have to require that the sum is 1.0):
         let sum = probabilities.reduce(0, +)
         // Random number in the range 0.0 <= rnd < sum :
@@ -148,3 +151,4 @@ struct Math {
         return (probabilities.count - 1)
     }
 }
+

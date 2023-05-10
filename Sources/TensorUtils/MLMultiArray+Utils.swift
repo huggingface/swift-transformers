@@ -9,7 +9,7 @@
 import Foundation
 import CoreML
 
-extension MLMultiArray {
+public extension MLMultiArray {
     /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
     static func from(_ arr: [Int], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
@@ -26,6 +26,22 @@ extension MLMultiArray {
         return o
     }
     
+    /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
+    static func from(_ arr: [Double], dims: Int = 1) -> MLMultiArray {
+        var shape = Array(repeating: 1, count: dims)
+        shape[shape.count - 1] = arr.count
+        /// Examples:
+        /// dims=1 : [arr.count]
+        /// dims=2 : [1, arr.count]
+        ///
+        let o = try! MLMultiArray(shape: shape as [NSNumber], dataType: .float64)
+        let ptr = UnsafeMutablePointer<Double>(OpaquePointer(o.dataPointer))
+        for (i, item) in arr.enumerated() {
+            ptr[i] = Double(item)
+        }
+        return o
+    }
+    
     /// This will concatenate all dimensions into one one-dim array.
     static func toIntArray(_ o: MLMultiArray) -> [Int] {
         var arr = Array(repeating: 0, count: o.count)
@@ -36,6 +52,8 @@ extension MLMultiArray {
         return arr
     }
     
+    func toIntArray() -> [Int] { Self.toIntArray(self) }
+    
     /// This will concatenate all dimensions into one one-dim array.
     static func toDoubleArray(_ o: MLMultiArray) -> [Double] {
         var arr: [Double] = Array(repeating: 0, count: o.count)
@@ -45,6 +63,8 @@ extension MLMultiArray {
         }
         return arr
     }
+    
+    func toDoubleArray() -> [Double] { Self.toDoubleArray(self) }
     
     /// Helper to construct a sequentially-indexed multi array,
     /// useful for debugging and unit tests
@@ -68,7 +88,7 @@ extension MLMultiArray {
 }
 
 
-extension MLMultiArray {
+public extension MLMultiArray {
     /// Provides a way to index n-dimensionals arrays a la numpy.
     enum Indexing: Equatable {
         case select(Int)
@@ -176,5 +196,16 @@ extension MLMultiArray {
             s += " "
         }
         return s + "]"
+    }
+}
+
+/// Convenience shortcuts
+public extension MLMultiArray {
+    func argmax() -> (Int, Double) { Math.argmax(self) }
+    func argmax32() -> (Int, Float) { Math.argmax32(self) }
+    
+    func topK(k: Int) -> (indexes: [Int], probs: [Float]) {
+        let logits = self.toDoubleArray()
+        return Math.topK(arr: logits, k: k)
     }
 }

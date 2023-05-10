@@ -98,7 +98,7 @@ public extension LanguageModel {
         model.modelDescription.inputDescriptionsByName[attention_mask] != nil
     }
     
-    func predictNextToken(_ tokens: InputTokens) -> Int {
+    func predictNextTokenScores(_ tokens: InputTokens) -> MLMultiArray {
         // TODO: exceptions
         
         // Maybe pad or truncate
@@ -116,19 +116,29 @@ public extension LanguageModel {
         
         let output = try! model.prediction(from: input)
         
-        // TODO: maybe do something different if the output is "logits"
-        assert(output.featureNames.first! == "token_scores")
-        
+        // TODO: maybe try to support models with "token_scores" too (default in exporters)
+        assert(output.featureNames.first! == "logits")
+
         let scores = output.featureValue(for: output.featureNames.first!)!.multiArrayValue!
         let nextTokenScores = MLMultiArray.slice(
             scores,
             indexing: [.select(0), .select(maxTokens - 1), .slice]
         )
         
-        // Argmax
-        let (nextToken, _) = Math.argmax(nextTokenScores)
-        return nextToken
+        return nextTokenScores
     }
 }
 
-extension LanguageModel: TextGenerationModel {}
+extension LanguageModel: TextGenerationModel {
+    //TODO: retrieve from the json: https://huggingface.co/nlpcloud/instruct-gpt-j-fp16/blob/main/config.json#L26
+    public var defaultGenerationConfig: GenerationConfig {
+        var config = GenerationConfig(maxNewTokens: 30)
+        switch modelName.lowercased() {
+        case let x where x.contains("gpt"):
+            config.doSample = true
+            config.topK = 10
+        default: break
+        }
+        return config
+    }
+}

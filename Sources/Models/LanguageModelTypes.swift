@@ -10,23 +10,27 @@ import Tokenizers
 import Generation
 
 public protocol LanguageModelProtocol {
+    /// `name_or_path` in the Python world
+    var modelName: String { get }
+
     var tokenizer: Tokenizer { get }
     var model: MLModel { get }
     
     init(model: MLModel)
     
     /// Make prediction callable (this works like __call__ in Python)
-    func predictNextToken(_ tokens: InputTokens) -> Int
-    func callAsFunction(_ tokens: InputTokens) -> Int
+    func predictNextTokenScores(_ tokens: InputTokens) -> MLMultiArray
+    func callAsFunction(_ tokens: InputTokens) -> MLMultiArray
 }
 
 public extension LanguageModelProtocol {
-    func callAsFunction(_ tokens: InputTokens) -> Int {
-        predictNextToken(tokens)
+    func callAsFunction(_ tokens: InputTokens) -> MLMultiArray {
+        predictNextTokenScores(tokens)
     }
 }
 
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
+    var defaultGenerationConfig: GenerationConfig { get }
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async -> String
 }
 

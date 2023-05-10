@@ -11,8 +11,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "Tokenizers", resources: [.process("Vocabs")]),
-        .target(name: "Generation", dependencies: ["Tokenizers"]),
-        .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
+        .target(name: "TensorUtils"),
+        .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
+        .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources")]),
     ]
 )
