@@ -60,7 +60,7 @@ public extension Generation {
             
             let nextToken: Int
             
-            if config.temperature > 0 {
+            if config.temperature > 0 && config.temperature != 1 {
                 logits = logits.map { $0 / Float(config.temperature) }
             }
             if config.topK > 0 {
