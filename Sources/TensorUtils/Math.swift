@@ -76,15 +76,29 @@ public struct Math {
     /// and their softmaxed probabilities.
     /// 
     public static func topK(arr: [Float], k: Int) -> (indexes: [Int], probs: [Float]) {
-        let x = Array(arr.enumerated().map { ($0, $1) }
-            .sorted(by: { a, b -> Bool in a.1 > b.1 })
-            .prefix(through: min(k, arr.count) - 1))
-        let indexes = x.map { $0.0 }
-        let logits = x.map { $0.1 }
+        var minV = -Float.greatestFiniteMagnitude
+        var selected: [(index: Int, value: Float)] = []
+
+        for (i, v) in arr.enumerated() {
+            if v > minV || selected.count < k {
+                // Append and sort
+                if selected.count == k {
+                    selected.remove(at: 0)
+                }
+                selected.append((i, v))
+                selected.sort { $0.value < $1.value }
+                minV = selected.first!.value
+            }
+        }
+
+        selected = selected.reversed()
+        let indexes = selected.map { $0.index }
+        let logits = selected.map { $0.value }
         let probs = softmax(logits)
+
         return (indexes: indexes, probs: probs)
     }
-    
+
     /// Multinomial sampling from an array of probs. Works well with topK
     public static func sample(indexes: [Int], probs: [Float]) -> Int {
         let i = randomNumber(probabilities: probs)
