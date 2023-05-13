@@ -75,12 +75,12 @@ public struct Math {
     /// and return both the indices (from the original array)
     /// and their softmaxed probabilities.
     /// 
-    public static func topK(arr: [Double], k: Int) -> (indexes: [Int], probs: [Float]) {
+    public static func topK(arr: [Float], k: Int) -> (indexes: [Int], probs: [Float]) {
         let x = Array(arr.enumerated().map { ($0, $1) }
             .sorted(by: { a, b -> Bool in a.1 > b.1 })
             .prefix(through: min(k, arr.count) - 1))
         let indexes = x.map { $0.0 }
-        let logits = x.map { Float($0.1) }
+        let logits = x.map { $0.1 }
         let probs = softmax(logits)
         return (indexes: indexes, probs: probs)
     }
@@ -152,3 +152,22 @@ public struct Math {
     }
 }
 
+// MLShapedArray versions
+
+public extension Math {
+    static func argmax(_ shapedArray: MLShapedArray<Float>) -> (Int, Float) {
+        shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
+            assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")
+            return Math.argmax32(ptr.baseAddress!, count: shapedArray.count, stride: strides.first!)
+        }
+    }
+    
+    // TODO: handle Double, etc.
+    static func argmax(_ shapedArray: some MLShapedArrayProtocol) -> (Int, Float) {
+        shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
+            assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")
+            let floatsPtr = ptr.baseAddress as! UnsafePointer<Float>
+            return Math.argmax32(floatsPtr, count: shapedArray.count, stride: strides.first!)
+        }
+    }
+}

@@ -22,7 +22,7 @@ public typealias InputTokens = [Int]
 public typealias GenerationOutput = [Int]
 
 /// A callable (a model, usually), that predicts the next token after a given sequence
-public typealias NextTokenModel = (InputTokens) -> MLMultiArray
+public typealias NextTokenModel = (InputTokens) -> any MLShapedArrayProtocol
 
 public typealias PredictionTokensCallback = (GenerationOutput) -> Void
 public typealias PredictionStringCallback = (String) -> Void
@@ -55,12 +55,13 @@ public extension Generation {
         // TODO: additional stopping criteria
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
-            var logits = model(outputTokens).toDoubleArray()
+            // TODO: check multiArrayDataType, it could be Double, etc
+            var logits = model(outputTokens).scalars as! [Float]
             
             let nextToken: Int
             
             if config.temperature > 0 {
-                logits = logits.map { $0 / config.temperature }
+                logits = logits.map { $0 / Float(config.temperature) }
             }
             if config.topK > 0 {
                 let topK = Math.topK(arr: logits, k: config.topK)

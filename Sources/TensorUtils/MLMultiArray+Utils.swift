@@ -198,14 +198,3 @@ extension MLMultiArray {
         return s + "]"
     }
 }
-
-/// Convenience shortcuts
-public extension MLMultiArray {
-    func argmax() -> (Int, Double) { Math.argmax(self) }
-    func argmax32() -> (Int, Float) { Math.argmax32(self) }
-    
-    func topK(k: Int) -> (indexes: [Int], probs: [Float]) {
-        let logits = self.toDoubleArray()
-        return Math.topK(arr: logits, k: k)
-    }
-}

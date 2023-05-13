@@ -98,7 +98,8 @@ public extension LanguageModel {
         model.modelDescription.inputDescriptionsByName[attention_mask] != nil
     }
     
-    func predictNextTokenScores(_ tokens: InputTokens) -> MLMultiArray {
+    // MLShapedArrayProtocol is either a MLShapedArray or a MLShapedArraySlice
+    func predictNextTokenScores(_ tokens: InputTokens) -> any MLShapedArrayProtocol {
         // TODO: exceptions
         
         // Maybe pad or truncate
@@ -119,12 +120,8 @@ public extension LanguageModel {
         // TODO: maybe try to support models with "token_scores" too (default in exporters)
         assert(output.featureNames.first! == "logits")
 
-        let scores = output.featureValue(for: output.featureNames.first!)!.multiArrayValue!
-        let nextTokenScores = MLMultiArray.slice(
-            scores,
-            indexing: [.select(0), .select(maxTokens - 1), .slice]
-        )
-        
+        let scores = output.featureValue(for: output.featureNames.first!)!.shapedArrayValue(of: Float.self)!
+        let nextTokenScores = scores[0, maxTokens - 1]
         return nextTokenScores
     }
 }
