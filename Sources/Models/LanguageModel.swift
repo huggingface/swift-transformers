@@ -18,6 +18,10 @@ public class LanguageModel {
     let input_ids = "input_ids"
     let attention_mask = "attention_mask"
 
+    lazy public var tokenizer: Tokenizer = {
+        return architecture.tokenizerClass.init()
+    }()
+
     public required init(model: MLModel) {
         self.model = model
         
@@ -72,11 +76,7 @@ public extension LanguageModel {
         guard let architecture = Architecture.from(modelName: modelName) else { fatalError("Cannot obtain model architecture") }
         return architecture
     }
-    
-    var tokenizer: Tokenizer {
-        return architecture.tokenizerClass.init()
-    }
-    
+        
     var padTokenId: Int? { architecture.padTokenId ?? architecture.eosTokenId }
     var bosTokenId: Int? { architecture.bosTokenId }
     var eosTokenId: Int? { architecture.eosTokenId }
