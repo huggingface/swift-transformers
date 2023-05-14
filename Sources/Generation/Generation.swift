@@ -55,11 +55,12 @@ public extension Generation {
         // TODO: additional stopping criteria
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
-            // TODO: check multiArrayDataType, it could be Double, etc
-            var logits = model(outputTokens).scalars as! [Float]
+            let outputs = model(outputTokens)
             
+            /// `floats` can be much faster than `scalars` for a vector with stride 1, as it uses `memcpy` in that case
+            var logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
+                                    
             let nextToken: Int
-            
             if config.temperature > 0 && config.temperature != 1 {
                 logits = logits.map { $0 / Float(config.temperature) }
             }
