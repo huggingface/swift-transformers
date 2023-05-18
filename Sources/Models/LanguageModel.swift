@@ -133,7 +133,7 @@ extension LanguageModel: TextGenerationModel {
         switch modelName.lowercased() {
         case let x where x.contains("gpt"):
             config.doSample = true
-            config.topK = 10
+            config.topK = 50
         default: break
         }
         return config
