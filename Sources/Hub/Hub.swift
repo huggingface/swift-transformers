@@ -53,9 +53,32 @@ public struct Config {
             .map { $0.offset == 0 ? $0.element.lowercased() : $0.element.capitalized }
             .joined()
     }
+    
+    func uncamelCase(_ string: String) -> String {
+        let scalars = string.unicodeScalars
+        var result = ""
+        
+        var previousCharacterIsLowercase = false
+        for scalar in scalars {
+            if CharacterSet.uppercaseLetters.contains(scalar) {
+                if previousCharacterIsLowercase {
+                    result += "_"
+                }
+                let lowercaseChar = Character(scalar).lowercased()
+                result += lowercaseChar
+                previousCharacterIsLowercase = false
+            } else {
+                result += String(scalar)
+                previousCharacterIsLowercase = true
+            }
+        }
+        
+        return result
+    }
+
 
     public subscript(dynamicMember member: String) -> Config? {
-        let key = dictionary[member] != nil ? member : camelCase(member)
+        let key = dictionary[member] != nil ? member : uncamelCase(member)
         if let value = dictionary[key] as? [String: Any] {
             return Config(value)
         } else if let value = dictionary[key] {

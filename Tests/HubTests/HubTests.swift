@@ -19,7 +19,7 @@ class HubTests: XCTestCase {
     }
 
     func testConfigDownload() async {
-        XCTAssertNoThrow {
+        do {
             let config = try await Hub.downloadConfig(repoId: "t5-base", filename: "config.json")
             
             // Test leaf value (Int)
@@ -55,13 +55,14 @@ class HubTests: XCTestCase {
                 return
             }
             XCTAssertEqual(summarizationMaxLength, 200)
-        }        
+        } catch {
+            XCTFail("Cannot download test configuration from the Hub")
+        }
     }
     
     func testConfigCamelCase() async {
-        XCTAssertNoThrow {
+        do {
             let config = try await Hub.downloadConfig(repoId: "t5-base", filename: "config.json")
-            
             // Test leaf value (Int)
             guard let eos = config.eosTokenId?.intValue else {
                 XCTFail("nil leaf value (Int)")
@@ -81,6 +82,8 @@ class HubTests: XCTestCase {
                 return
             }
             XCTAssertEqual(summarizationMaxLength, 200)
+        } catch {
+            XCTFail("Cannot download test configuration from the Hub")
         }
     }
 }
