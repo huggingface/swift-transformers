@@ -22,7 +22,7 @@ public typealias InputTokens = [Int]
 public typealias GenerationOutput = [Int]
 
 /// A callable (a model, usually), that predicts the next token after a given sequence
-public typealias NextTokenModel = (InputTokens) -> any MLShapedArrayProtocol
+public typealias NextTokenModel = (InputTokens, GenerationConfig) -> any MLShapedArrayProtocol
 
 public typealias PredictionTokensCallback = (GenerationOutput) -> Void
 public typealias PredictionStringCallback = (String) -> Void
@@ -40,7 +40,7 @@ public extension Generation {
         // TODO: additional stopping criteria
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
-            let logits = model(outputTokens)
+            let logits = model(outputTokens, config)
             let (nextToken, _) = Math.argmax(logits)
             if nextToken == config.eosTokenId { break }
             outputTokens.append(nextToken)
@@ -55,7 +55,7 @@ public extension Generation {
         // TODO: additional stopping criteria
         var outputTokens = tokens
         while outputTokens.count < config.maxLength {
-            let outputs = model(outputTokens)
+            let outputs = model(outputTokens, config)
             
             /// `floats` can be much faster than `scalars` for a vector with stride 1, as it uses `memcpy` in that case
             var logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]

@@ -45,4 +45,13 @@ extension Architecture {
         }
         return nil
     }
+    
+    public static func from(modelType: String) -> Architecture? {
+        for arch in SupportedArchitecture.allCases {
+            if modelType.contains(arch.rawValue) {
+                return arch.architecture
+            }
+        }
+        return nil
+    }
 }

@@ -54,7 +54,7 @@ public struct Config {
             .joined()
     }
 
-    subscript(dynamicMember member: String) -> Config? {
+    public subscript(dynamicMember member: String) -> Config? {
         let key = dictionary[member] != nil ? member : camelCase(member)
         if let value = dictionary[key] as? [String: Any] {
             return Config(value)
@@ -64,10 +64,11 @@ public struct Config {
         return nil
     }
 
-    var value: Any? {
+    public var value: Any? {
         return dictionary["value"]
     }
     
-    var intValue: Int? { value as? Int }
-    var stringValue: String? { value as? String }
+    public var intValue: Int? { value as? Int }
+    public var boolValue: Bool? { value as? Bool }
+    public var stringValue: String? { value as? String }
 }
