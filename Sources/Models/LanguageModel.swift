@@ -26,10 +26,7 @@ public class LanguageModel {
     }
     
     private var configPromise: Task<Configurations, Error>? = nil
-
-//    lazy public var tokenizer: Tokenizer = {
-//        return architecture.tokenizerClass.init()
-//    }()
+    private var _tokenizer: Tokenizer? = nil
 
     public required init(model: MLModel) {
         self.model = model
@@ -212,13 +209,14 @@ public extension LanguageModel {
     }
     
     var tokenizer: Tokenizer {
-        //TODO: cache, initialize with remote files
         get async throws {
+            guard _tokenizer == nil else { return _tokenizer! }
             guard let architecture = try await architecture else { throw "Cannot retrieve Tokenizer" }
             let tokenizerData = try await tokenizerData
             guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw "Cannot find vocab in tokenizer JSON" }
             let merges = tokenizerData.model?.merges?.value as? [String]
-            return architecture.tokenizerClass.init(vocab: vocab, merges: merges)
+            _tokenizer = architecture.tokenizerClass.init(vocab: vocab, merges: merges)
+            return _tokenizer!
         }
     }
 }
