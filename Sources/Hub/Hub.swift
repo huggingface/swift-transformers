@@ -40,7 +40,7 @@ public extension Hub {
 
 @dynamicMemberLookup
 public struct Config {
-    var dictionary: [String: Any]
+    public private(set) var dictionary: [String: Any]
 
     init(_ dictionary: [String: Any]) {
         self.dictionary = dictionary

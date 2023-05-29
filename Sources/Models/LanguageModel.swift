@@ -215,7 +215,10 @@ public extension LanguageModel {
         //TODO: cache, initialize with remote files
         get async throws {
             guard let architecture = try await architecture else { throw "Cannot retrieve Tokenizer" }
-            return architecture.tokenizerClass.init()
+            let tokenizerData = try await tokenizerData
+            guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw "Cannot find vocab in tokenizer JSON" }
+            let merges = tokenizerData.model?.merges?.value as? [String]
+            return architecture.tokenizerClass.init(vocab: vocab, merges: merges)
         }
     }
 }

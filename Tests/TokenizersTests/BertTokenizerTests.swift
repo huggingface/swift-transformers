@@ -20,6 +20,21 @@ class BertTokenizerTests: XCTestCase {
     override func tearDown() {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
+    
+    lazy var bertTokenizer: BertTokenizer = {
+        let vocab = {
+            let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
+            let vocabTxt = try! String(contentsOf: url)
+            let tokens = vocabTxt.split(separator: "\n").map { String($0) }
+            var vocab: [String: Int] = [:]
+            for (i, token) in tokens.enumerated() {
+                vocab[token] = i
+            }
+            return vocab
+        }()
+        
+        return BertTokenizer(vocab: vocab, merges: nil)
+    }()
 
     func testBasicTokenizer() {
         let basicTokenizer = BasicTokenizer()
@@ -58,7 +73,7 @@ class BertTokenizerTests: XCTestCase {
         let decoder = JSONDecoder()
         let sampleTokens = try! decoder.decode([[Int]].self, from: json)
         
-        let tokenizer = BertTokenizer()
+        let tokenizer = bertTokenizer
         
         XCTAssertEqual(sampleTokens.count, Squad.examples.count)
         
@@ -69,8 +84,8 @@ class BertTokenizerTests: XCTestCase {
     }
     
     func testPerformanceExample() {
-        let tokenizer = BertTokenizer()
-        
+        let tokenizer = bertTokenizer
+
         // This is an example of a performance test case.
         self.measure {
             // Put the code you want to measure the time of here.
@@ -89,8 +104,7 @@ class BertTokenizerTests: XCTestCase {
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let questionTokens = try! decoder.decode([QuestionTokens].self, from: json)
-        
-        let tokenizer = BertTokenizer()
+        let tokenizer = bertTokenizer
         
         for question in questionTokens {
             XCTAssertEqual(question.basic.joined(separator: " "), tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
@@ -121,7 +135,7 @@ class BertTokenizerTests: XCTestCase {
         why \' d you leave the keys upon the table ? you wanted to
         """
         
-        let tokenizer = BertTokenizer()
+        let tokenizer = bertTokenizer
         for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {
             let encoded = tokenizer.encode(text: String(line))
             let decoded = tokenizer.decode(tokens: encoded)

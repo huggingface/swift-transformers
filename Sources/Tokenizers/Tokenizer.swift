@@ -12,5 +12,5 @@ public protocol Tokenizer {
     func encode(text: String) -> [Int]
     func decode(tokens: [Int]) -> String
     
-    init()
+    init(vocab: [String: Int], merges: [String]?)
 }
