@@ -42,32 +42,22 @@ fileprivate extension String {
 }
 
 
-
-
 class GPT2Tokenizer {
     let bpeRanks: Dictionary<BytePair, Int>
     private let encoder: [String: Int]
     private let decoder: [Int: String]
     
-    required init() {
-        let url = Bundle.module.url(forResource: "gpt2-merges", withExtension: "txt")!
-        let bpeMergesTxt = try! String(contentsOf: url)
-        let arr = bpeMergesTxt.split(separator: "\n").map { String($0) }
+    required init(vocab: [String: Int], merges: [String]?) {
+        guard let merges = merges else { fatalError("GPT2 Tokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
-        for i in 1..<arr.count {
-            let tuple = arr[i].split(separator: " ").map { String($0) }
+        for (i, item) in merges.enumerated() {
+            let tuple = item.split(separator: " ").map { String($0) }
             let bp = BytePair(tuple: tuple)
-            bpeRanks[bp] = i - 1
+            bpeRanks[bp] = i
         }
         self.bpeRanks = bpeRanks
         
-        self.encoder = {
-            let url = Bundle.module.url(forResource: "gpt2-vocab", withExtension: "json")!
-            let json = try! Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            let vocab = try! decoder.decode([String: Int].self, from: json)
-            return vocab
-        }()
+        self.encoder = vocab
         self.decoder = Utils.invert(self.encoder)
     }
     

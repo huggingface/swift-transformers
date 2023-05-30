@@ -13,29 +13,29 @@ public protocol LanguageModelProtocol {
     /// `name_or_path` in the Python world
     var modelName: String { get }
 
-    var tokenizer: Tokenizer { get }
+    var tokenizer: Tokenizer { get async throws }
     var model: MLModel { get }
     
     init(model: MLModel)
     
     /// Make prediction callable (this works like __call__ in Python)
-    func predictNextTokenScores(_ tokens: InputTokens) -> any MLShapedArrayProtocol //MLShapedArray<Float>
-    func callAsFunction(_ tokens: InputTokens) -> any MLShapedArrayProtocol //MLShapedArray<Float>
+    func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol //MLShapedArray<Float>
+    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol //MLShapedArray<Float>
 }
 
 public extension LanguageModelProtocol {
-    func callAsFunction(_ tokens: InputTokens) -> any MLShapedArrayProtocol {
-        predictNextTokenScores(tokens)
+    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
+        predictNextTokenScores(tokens, config: config)
     }
 }
 
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     var defaultGenerationConfig: GenerationConfig { get }
-    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async -> String
+    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async throws -> String
 }
 
 public extension TextGenerationModel {
-    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async -> String {
-        await self.generate(config: config, prompt: prompt, model: self.callAsFunction(_:), tokenizer: self.tokenizer, callback: callback)
+    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async throws -> String {
+        try await self.generate(config: config, prompt: prompt, model: self.callAsFunction, tokenizer: self.tokenizer, callback: callback)
     }
 }

@@ -10,10 +10,12 @@ let package = Package(
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
     ],
     targets: [
-        .target(name: "Tokenizers", resources: [.process("Vocabs")]),
+        .target(name: "Hub"),
+        .target(name: "Tokenizers", dependencies: ["Hub"]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "HubTests", dependencies: ["Hub"]),
     ]
 )

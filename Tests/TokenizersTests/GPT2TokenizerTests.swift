@@ -29,10 +29,28 @@ struct EncodingSample {
 
 
 class GPT2TokenizerTests: XCTestCase {
+    lazy var tokenizer: GPT2Tokenizer = {
+        let vocab = {
+            let url = Bundle.module.url(forResource: "gpt2-vocab", withExtension: "json")!
+            let json = try! Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            let vocab = try! decoder.decode([String: Int].self, from: json)
+            return vocab
+        }()
+
+        let merges = {
+            let url = Bundle.module.url(forResource: "gpt2-merges", withExtension: "txt")!
+            let bpeMergesTxt = try! String(contentsOf: url)
+            let arr = bpeMergesTxt.split(separator: "\n").map { String($0) }
+            return Array(arr[1...])
+        }()
+        
+        return GPT2Tokenizer(vocab: vocab, merges: merges)
+    }()
+    
     func testByteEncode() {
         let dataset = EncodingSample.dataset
         
-        let tokenizer = GPT2Tokenizer()
         XCTAssertEqual(
             tokenizer.byteEncode(text: dataset.text),
             dataset.encoded_text
@@ -42,7 +60,6 @@ class GPT2TokenizerTests: XCTestCase {
     func testTokenize() {
         let dataset = EncodingSample.dataset
         
-        let tokenizer = GPT2Tokenizer()
         XCTAssertEqual(
             tokenizer.tokenize(text: dataset.text),
             dataset.bpe_tokens
@@ -52,7 +69,6 @@ class GPT2TokenizerTests: XCTestCase {
     func testEncode() {
         let dataset = EncodingSample.dataset
         
-        let tokenizer = GPT2Tokenizer()
         XCTAssertEqual(
             tokenizer.encode(text: dataset.text),
             dataset.token_ids
@@ -62,7 +78,6 @@ class GPT2TokenizerTests: XCTestCase {
     func testDecode() {
         let dataset = EncodingSample.dataset
         
-        let tokenizer = GPT2Tokenizer()
         print(
             tokenizer.decode(tokens: dataset.token_ids)
         )

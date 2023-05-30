@@ -20,18 +20,9 @@ class BertTokenizer {
     private let vocab: [String: Int]
     private let ids_to_tokens: [Int: String]
     
-    required init() {
-        let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
-        let vocabTxt = try! String(contentsOf: url)
-        let tokens = vocabTxt.split(separator: "\n").map { String($0) }
-        var vocab: [String: Int] = [:]
-        var ids_to_tokens: [Int: String] = [:]
-        for (i, token) in tokens.enumerated() {
-            vocab[token] = i
-            ids_to_tokens[i] = token
-        }
+    required init(vocab: [String: Int], merges: [String]?) {
         self.vocab = vocab
-        self.ids_to_tokens = ids_to_tokens
+        self.ids_to_tokens = Utils.invert(vocab)
         self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
     }
     
