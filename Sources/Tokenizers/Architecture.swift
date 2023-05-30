@@ -37,15 +37,6 @@ public enum SupportedArchitecture: String, CaseIterable {
 }
 
 extension Architecture {
-    public static func from(modelName: String) -> Architecture? {
-        for arch in SupportedArchitecture.allCases {
-            if modelName.contains(arch.rawValue) {
-                return arch.architecture
-            }
-        }
-        return nil
-    }
-    
     public static func from(modelType: String) -> Architecture? {
         for arch in SupportedArchitecture.allCases {
             if modelType.contains(arch.rawValue) {
