@@ -37,6 +37,7 @@ struct TransformersCLI: ParsableCommand {
                     let response = inProgressGeneration.replacingOccurrences(of: "\\n", with: "\n")
                     if printOutput {
                         print(response[(previousIndex ?? response.startIndex)...], terminator: "")
+                        fflush(stdout)
                     }
                     previousIndex = response.endIndex
                 }
