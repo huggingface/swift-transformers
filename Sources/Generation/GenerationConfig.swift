@@ -54,3 +54,5 @@ public extension GenerationConfig {
         }
     }
 }
+
+extension GenerationConfig: Decodable {}

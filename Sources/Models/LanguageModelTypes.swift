@@ -35,6 +35,7 @@ public protocol TextGenerationModel: Generation, LanguageModelProtocol {
 }
 
 public extension TextGenerationModel {
+    @discardableResult
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async throws -> String {
         try await self.generate(config: config, prompt: prompt, model: self.callAsFunction, tokenizer: self.tokenizer, callback: callback)
     }
