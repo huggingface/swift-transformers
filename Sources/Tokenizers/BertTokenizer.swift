@@ -8,10 +8,6 @@
 
 import Foundation
 
-enum TokenizerError: Error {
-    case tooLong(String)
-}
-
 class BertTokenizer {
     private let basicTokenizer = BasicTokenizer()
     private let wordpieceTokenizer: WordpieceTokenizer

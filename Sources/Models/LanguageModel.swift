@@ -220,11 +220,9 @@ public extension LanguageModel {
     var tokenizer: Tokenizer {
         get async throws {
             guard _tokenizer == nil else { return _tokenizer! }
-            guard let architecture = try await architecture else { throw "Cannot retrieve Tokenizer" }
+            guard let tokenizerConfig = try await tokenizerConfig else { throw "Cannot retrieve Tokenizer configuration" }
             let tokenizerData = try await tokenizerData
-            guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw "Cannot find vocab in tokenizer JSON" }
-            let merges = tokenizerData.model?.merges?.value as? [String]
-            _tokenizer = architecture.tokenizerClass.init(vocab: vocab, merges: merges)
+            _tokenizer = try TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
             return _tokenizer!
         }
     }

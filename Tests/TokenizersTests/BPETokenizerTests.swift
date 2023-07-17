@@ -37,7 +37,7 @@ class BPETokenizerTests {
         return dataset
     }()
     
-    lazy var tokenizer: GPT2Tokenizer = {
+    lazy var tokenizer: Tokenizer = {
         let tokenizerConfig = {
             let url = Bundle.module.url(forResource: tokenizerConfigFilename, withExtension: "json")!
             let data = try! Data(contentsOf: url)
@@ -54,10 +54,7 @@ class BPETokenizerTests {
             return Config(dictionary)
         }()
         
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { fatalError("Cannot find vocab in tokenizer JSON") }
-        let merges = tokenizerData.model?.merges?.value as? [String]
-
-        return GPT2Tokenizer(vocab: vocab, merges: merges)
+        return try! TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }()
         
     func testTokenize() {        

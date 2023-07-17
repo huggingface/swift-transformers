@@ -7,6 +7,7 @@
 
 import Foundation
 
+#warning("this file to be replaced by TokenizerFactory and data downloaded from the hub")
 public struct Architecture {
     public var name: String
     public var tokenizerClass: Tokenizer.Type

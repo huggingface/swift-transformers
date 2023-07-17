@@ -42,13 +42,13 @@ fileprivate extension String {
 }
 
 
-class GPT2Tokenizer {
+class BPETokenizer: Tokenizer {
     let bpeRanks: Dictionary<BytePair, Int>
     private let encoder: [String: Int]
     private let decoder: [Int: String]
     
     required init(vocab: [String: Int], merges: [String]?) {
-        guard let merges = merges else { fatalError("GPT2 Tokenizer requires merges") }
+        guard let merges = merges else { fatalError("BPETokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
         for (i, item) in merges.enumerated() {
             let tuple = item.split(separator: " ").map { String($0) }
@@ -150,4 +150,6 @@ class GPT2Tokenizer {
     }
 }
 
-extension GPT2Tokenizer: Tokenizer {}
+class GPT2Tokenizer  : BPETokenizer {}
+class FalconTokenizer: BPETokenizer {}
+class LlamaTokenizer : BPETokenizer {}
