@@ -8,6 +8,7 @@
 
 import XCTest
 @testable import Tokenizers
+import Hub
 
 struct EncodingSampleDataset: Decodable {
     let text: String
@@ -29,6 +30,7 @@ struct EncodingSample {
 
 
 class GPT2TokenizerTests: XCTestCase {
+    // TODO: download from Hub instead
     lazy var tokenizer: GPT2Tokenizer = {
         let vocab = {
             let url = Bundle.module.url(forResource: "gpt2-vocab", withExtension: "json")!
@@ -45,7 +47,9 @@ class GPT2TokenizerTests: XCTestCase {
             return Array(arr[1...])
         }()
         
-        return GPT2Tokenizer(vocab: vocab, merges: merges)
+        let configDict = ["model": ["vocab": vocab, "merges": merges] as [String : Any]]
+        let config = Config(configDict)
+        return try! GPT2Tokenizer(tokenizerData: config)
     }()
     
     func testByteEncode() {

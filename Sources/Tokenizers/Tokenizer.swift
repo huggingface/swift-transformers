@@ -10,7 +10,7 @@ import Hub
 enum TokenizerError : Error {
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
-    case missingVocab(String)
+    case missingVocab
     
     case tooLong(String)
 }
@@ -20,7 +20,7 @@ public protocol Tokenizer {
     func encode(text: String) -> [Int]
     func decode(tokens: [Int]) -> String
     
-    init(vocab: [String: Int], merges: [String]?)
+    init(tokenizerData: Config) throws
 }
 
 public struct TokenizerFactory {
@@ -43,11 +43,6 @@ public struct TokenizerFactory {
             throw TokenizerError.unsupportedTokenizer(tokenizerName)
         }
         
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
-            throw TokenizerError.missingVocab(tokenizerName)
-        }
-        let merges = tokenizerData.model?.merges?.value as? [String]
-
-        return tokenizerClass.init(vocab: vocab, merges: merges)
+        return try tokenizerClass.init(tokenizerData: tokenizerData)
     }
 }

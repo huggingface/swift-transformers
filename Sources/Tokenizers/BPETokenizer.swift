@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Hub
 
 struct BytePair: Hashable {
     let a: String
@@ -47,7 +48,20 @@ class BPETokenizer: Tokenizer {
     private let encoder: [String: Int]
     private let decoder: [Int: String]
     
-    required init(vocab: [String: Int], merges: [String]?) {
+    private let normalizer: Normalizer?
+    
+    required init(tokenizerData: Config) throws {
+        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
+            throw TokenizerError.missingVocab
+        }
+        let merges = tokenizerData.model?.merges?.value as? [String]
+
+        if let normalizerConfig = tokenizerData.normalizer {
+            normalizer = NormalizerFactory.fromConfig(config: normalizerConfig)
+        } else {
+            normalizer = nil
+        }
+        
         guard let merges = merges else { fatalError("BPETokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
         for (i, item) in merges.enumerated() {
@@ -66,6 +80,14 @@ class BPETokenizer: Tokenizer {
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
         return tokens.map { (token) -> String in
             return Array(token.utf8).map { byteEncoder[$0]! }.joined()
+        }
+    }
+    
+    func hexaEncode(text: String) -> [String] {
+        let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
+        let tokens = text.ranges(of: RE).map { String(text[$0]) }
+        return tokens.map { (token) -> String in
+            return Array(token.utf8).map { String(format: "<0x%02X>", $0) }.joined()
         }
     }
     
@@ -128,12 +150,28 @@ class BPETokenizer: Tokenizer {
         return word.joined(separator: " ")
     }
     
+    func normalize(_ text: String) -> String {
+        guard let normalizer = normalizer else { return text }
+        return normalizer(text: text)
+    }
+    
     func tokenize(text: String) -> [String] {
         var tokens: [String] = []
-        for token in self.byteEncode(text: text) {
-            let xx = self.bpe(token: token).split(separator: " ").map { String($0) }
-            tokens.append(contentsOf: xx)
+        let bpeTokens = self.bpe(token: normalize(text)).split(separator: " ").map { String($0) }
+        for token in bpeTokens {
+            if let _ = encoder[token] {
+                tokens.append(token)
+            } else {
+                // TODO: if config.byte_fallback is False, append the unknown token instead
+                print("byte encoding: #\(token)#")
+                tokens.append(contentsOf: self.hexaEncode(text: token))
+            }
         }
+        
+//        for token in self.byteEncode(text: normalized) {
+//            let xx = self.bpe(token: token).split(separator: " ").map { String($0) }
+//            tokens.append(contentsOf: xx)
+//        }
         return tokens
     }
     

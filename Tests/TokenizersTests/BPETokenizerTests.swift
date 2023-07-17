@@ -57,7 +57,7 @@ class BPETokenizerTests {
         return try! TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }()
         
-    func testTokenize() {        
+    func testTokenize() {
         XCTAssertEqual(
             tokenizer.tokenize(text: dataset.text),
             dataset.bpe_tokens
@@ -65,6 +65,8 @@ class BPETokenizerTests {
     }
     
     func testEncode() {
+        let ids = tokenizer.encode(text: dataset.text)
+        
         XCTAssertEqual(
             tokenizer.encode(text: dataset.text),
             dataset.token_ids

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Hub
 
 class BertTokenizer {
     private let basicTokenizer = BasicTokenizer()
@@ -16,10 +17,19 @@ class BertTokenizer {
     private let vocab: [String: Int]
     private let ids_to_tokens: [Int: String]
     
-    required init(vocab: [String: Int], merges: [String]?) {
+    init(vocab: [String: Int], merges: [String]?) {
         self.vocab = vocab
         self.ids_to_tokens = Utils.invert(vocab)
         self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
+    }
+    
+    required init(tokenizerData: Config) {
+        fatalError("pending")
+//        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
+//            throw TokenizerError.missingVocab(tokenizerName)
+//        }
+//        let merges = tokenizerData.model?.merges?.value as? [String]
+//        return init(vocab: vocab, merges: merges)
     }
     
     
