@@ -1,0 +1,8 @@
+{
+  "add_prefix_space": false,
+  "eos_token": "<|endoftext|>",
+  "model_max_length": 2048,
+  "name_or_path": "tiiuae/falcon_tokenizer",
+  "special_tokens_map_file": null,
+  "tokenizer_class": "PreTrainedTokenizerFast"
+}
