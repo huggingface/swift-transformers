@@ -15,17 +15,17 @@ public protocol Normalizer {
     init(config: Config)
 }
 
+extension Normalizer {
+    func callAsFunction(text: String) -> String {
+        return normalize(text: text)
+    }
+}
+
 enum NormalizerType: String {
     case Sequence
     case Prepend
     case Replace
     case Unknown = ""
-}
-
-extension Normalizer {
-    func callAsFunction(text: String) -> String {
-        return normalize(text: text)
-    }
 }
 
 struct NormalizerFactory {

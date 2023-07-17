@@ -14,6 +14,7 @@ struct BPEEncodingSampleDataset: Decodable {
     let text: String
     let bpe_tokens: [String]
     let token_ids: [Int]
+    let decoded_text: String
 }
 
 class BPETokenizerTests {
@@ -65,8 +66,6 @@ class BPETokenizerTests {
     }
     
     func testEncode() {
-        let ids = tokenizer.encode(text: dataset.text)
-        
         XCTAssertEqual(
             tokenizer.encode(text: dataset.text),
             dataset.token_ids
@@ -74,12 +73,9 @@ class BPETokenizerTests {
     }
     
     func testDecode() {
-        print(
-            tokenizer.decode(tokens: dataset.token_ids)
-        )
         XCTAssertEqual(
             tokenizer.decode(tokens: dataset.token_ids),
-            dataset.text
+            dataset.decoded_text
         )
     }
 }

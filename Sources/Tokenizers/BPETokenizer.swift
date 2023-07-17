@@ -45,10 +45,12 @@ fileprivate extension String {
 
 class BPETokenizer: Tokenizer {
     let bpeRanks: Dictionary<BytePair, Int>
-    private let encoder: [String: Int]
-    private let decoder: [Int: String]
+    private let tokensToIds: [String: Int]
+    private let idsToTokens: [Int: String]
     
     private let normalizer: Normalizer?
+    private let postProcessor: PostProcessor?
+    private let decoder: Decoder?
     
     required init(tokenizerData: Config) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
@@ -62,6 +64,18 @@ class BPETokenizer: Tokenizer {
             normalizer = nil
         }
         
+        if let postProcessorConfig = tokenizerData.postProcessor {
+            postProcessor = PostProcessorFactory.fromConfig(config: postProcessorConfig)
+        } else {
+            postProcessor = nil
+        }
+        
+        if let decoderConfig = tokenizerData.decoder {
+            decoder = DecoderFactory.fromConfig(config: decoderConfig)
+        } else {
+            decoder = nil
+        }
+        
         guard let merges = merges else { fatalError("BPETokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
         for (i, item) in merges.enumerated() {
@@ -71,8 +85,8 @@ class BPETokenizer: Tokenizer {
         }
         self.bpeRanks = bpeRanks
         
-        self.encoder = vocab
-        self.decoder = Utils.invert(self.encoder)
+        self.tokensToIds = vocab
+        self.idsToTokens = Utils.invert(self.tokensToIds)
     }
     
     func byteEncode(text: String) -> [String] {
@@ -155,11 +169,21 @@ class BPETokenizer: Tokenizer {
         return normalizer(text: text)
     }
     
+    func postProcess(_ tokens: [String]) -> [String] {
+        guard let postProcessor = postProcessor else { return tokens }
+        return postProcessor(tokens: tokens)
+    }
+    
+    func decodeTokens(_ tokens: [String]) -> [String] {
+        guard let tokenDecoder = decoder else { return tokens }
+        return tokenDecoder(tokens: tokens)
+    }
+    
     func tokenize(text: String) -> [String] {
         var tokens: [String] = []
         let bpeTokens = self.bpe(token: normalize(text)).split(separator: " ").map { String($0) }
         for token in bpeTokens {
-            if let _ = encoder[token] {
+            if let _ = tokensToIds[token] {
                 tokens.append(token)
             } else {
                 // TODO: if config.byte_fallback is False, append the unknown token instead
@@ -177,14 +201,20 @@ class BPETokenizer: Tokenizer {
     
     /// Main entry point
     func encode(text: String) -> [Int] {
-        return tokenize(text: text).map { encoder[$0]! }
+        return postProcess(tokenize(text: text)).map { tokensToIds[$0]! }
     }
     
     /// Decode
     func decode(tokens: [Int]) -> String {
-        let text = tokens.map { decoder[$0]! }.joined(separator: "")
-        let utfCodepoints = text.map { byteDecoder[String($0)]! }
-        return String(decoding: utfCodepoints, as: UTF8.self)
+//        let text = tokens.map { decoder[$0]! }.joined(separator: "")
+//        let utfCodepoints = text.map { byteDecoder[String($0)]! }
+//        return String(decoding: utfCodepoints, as: UTF8.self)
+        
+        // IDs to tokens
+        let tokenStrings = tokens.map { idsToTokens[$0]! }
+        let decoded = decodeTokens(tokenStrings)
+        // At this point we should have a single String
+        return decoded.joined(separator: "")
     }
 }
 
