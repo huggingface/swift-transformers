@@ -23,17 +23,19 @@ extension PostProcessor {
 
 enum PostProcessorType: String {
     case TemplateProcessing
-    case ByteLevelPostProcessor
+    case ByteLevel
 //    case RobertaProcessing
 }
 
 struct PostProcessorFactory {
-    static func fromConfig(config: Config) -> PostProcessor {
-        let type = PostProcessorType(rawValue: config.type?.stringValue ?? "ByteLevelPostProcessor")
+    static func fromConfig(config: Config?) -> PostProcessor? {
+        guard let config = config else { return nil }
+        guard let typeName = config.type?.stringValue else { return nil }
+        let type = PostProcessorType(rawValue: typeName)
         switch type {
         case .TemplateProcessing: return TemplateProcessing(config: config)
-        case .ByteLevelPostProcessor: return ByteLevelPostProcessor(config: config)
-        default: fatalError("Unsupported normalizer type \(String(describing: type))")
+        case .ByteLevel         : return ByteLevelPostProcessor(config: config)
+        default                 : fatalError("Unsupported PostProcessor type: \(typeName)")
         }
     }
 }

@@ -29,13 +29,15 @@ enum NormalizerType: String {
 }
 
 struct NormalizerFactory {
-    static func fromConfig(config: Config) -> Normalizer {
-        let type = NormalizerType(rawValue: config.type?.stringValue ?? "")
+    static func fromConfig(config: Config?) -> Normalizer? {
+        guard let config = config else { return nil }
+        guard let typeName = config.type?.stringValue else { return nil }
+        let type = NormalizerType(rawValue: typeName)
         switch type {
         case .Sequence: return NormalizerSequence(config: config)
-        case .Prepend: return PrependNormalizer(config: config)
-        case .Replace: return ReplaceNormalizer(config: config)
-        default: fatalError("Unsupported normalizer type \(String(describing: type))")
+        case .Prepend : return PrependNormalizer(config: config)
+        case .Replace : return ReplaceNormalizer(config: config)
+        default       : fatalError("Unsupported Normalizer type: \(typeName)")
         }
     }
 }
@@ -45,7 +47,7 @@ class NormalizerSequence: Normalizer {
     
     required public init(config: Config) {
         guard let configs = config.normalizers?.arrayValue else { fatalError("No normalizers in Sequence") }
-        normalizers = configs.map { NormalizerFactory.fromConfig(config: $0) }
+        normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
     }
     
     public func normalize(text: String) -> String {

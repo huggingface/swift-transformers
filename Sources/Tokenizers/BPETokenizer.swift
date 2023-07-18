@@ -30,24 +30,13 @@ struct BytePair: Hashable {
     }
 }
 
-fileprivate extension String {
-    func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
-        var result: [Range<Index>] = []
-        var start = startIndex
-        while let range = range(of: string, options: options, range: start..<endIndex) {
-            result.append(range)
-            start = range.lowerBound < range.upperBound ? range.upperBound : index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
-        }
-        return result
-    }
-}
-
 
 class BPETokenizer: Tokenizer {
     let bpeRanks: Dictionary<BytePair, Int>
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]
     
+    private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
@@ -58,23 +47,10 @@ class BPETokenizer: Tokenizer {
         }
         let merges = tokenizerData.model?.merges?.value as? [String]
 
-        if let normalizerConfig = tokenizerData.normalizer {
-            normalizer = NormalizerFactory.fromConfig(config: normalizerConfig)
-        } else {
-            normalizer = nil
-        }
-        
-        if let postProcessorConfig = tokenizerData.postProcessor {
-            postProcessor = PostProcessorFactory.fromConfig(config: postProcessorConfig)
-        } else {
-            postProcessor = nil
-        }
-        
-        if let decoderConfig = tokenizerData.decoder {
-            decoder = DecoderFactory.fromConfig(config: decoderConfig)
-        } else {
-            decoder = nil
-        }
+        self.preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData.preTokenizer)
+        self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData.normalizer)
+        self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
+        self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         
         guard let merges = merges else { fatalError("BPETokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
@@ -164,6 +140,11 @@ class BPETokenizer: Tokenizer {
         return word.joined(separator: " ")
     }
     
+    func preTokenize(_ text: String) -> [String] {
+        guard let preTokenizer = preTokenizer else { return [text] }
+        return preTokenizer(text: text)
+    }
+    
     func normalize(_ text: String) -> String {
         guard let normalizer = normalizer else { return text }
         return normalizer(text: text)
@@ -181,21 +162,18 @@ class BPETokenizer: Tokenizer {
     
     func tokenize(text: String) -> [String] {
         var tokens: [String] = []
-        let bpeTokens = self.bpe(token: normalize(text)).split(separator: " ").map { String($0) }
+        let sectionTokens = preTokenize(normalize(text))
+        let bpeTokens = sectionTokens.flatMap { token in
+            self.bpe(token: token).split(separator: " ").map { String($0) }
+        }
         for token in bpeTokens {
             if let _ = tokensToIds[token] {
                 tokens.append(token)
             } else {
                 // TODO: if config.byte_fallback is False, append the unknown token instead
-                print("byte encoding: #\(token)#")
                 tokens.append(contentsOf: self.hexaEncode(text: token))
             }
-        }
-        
-//        for token in self.byteEncode(text: normalized) {
-//            let xx = self.bpe(token: token).split(separator: " ").map { String($0) }
-//            tokens.append(contentsOf: xx)
-//        }
+        }        
         return tokens
     }
     

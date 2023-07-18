@@ -25,7 +25,7 @@ enum DecoderType: String {
     case Sequence
 //    case WordPiece
 //    case Metaspace
-//    case ByteLevel
+    case ByteLevel
     case Replace
     case ByteFallback
     case Fuse
@@ -34,15 +34,18 @@ enum DecoderType: String {
 }
 
 struct DecoderFactory {
-    static func fromConfig(config: Config) -> Decoder {
-        let type = DecoderType(rawValue: config.type?.stringValue ?? "")
+    static func fromConfig(config: Config?) -> Decoder? {
+        guard let config = config else { return nil }
+        guard let typeName = config.type?.stringValue else { return nil }
+        let type = DecoderType(rawValue: typeName)
         switch type {
         case .Sequence    : return DecoderSequence(config: config)
+        case .ByteLevel   : return ByteLevelDecoder(config: config)
         case .Replace     : return ReplaceDecoder(config: config)
         case .ByteFallback: return ByteFallbackDecoder(config: config)
         case .Fuse        : return FuseDecoder(config: config)
         case .Strip       : return StripDecoder(config: config)
-        default           : fatalError("Unsupported decoder type \(String(describing: type))")
+        default           : fatalError("Unsupported Decoder type: \(typeName)")
         }
     }
 }
@@ -52,13 +55,51 @@ class DecoderSequence: Decoder {
     
     required public init(config: Config) {
         guard let configs = config.decoders?.arrayValue else { fatalError("No decoders in Sequence") }
-        decoders = configs.map { DecoderFactory.fromConfig(config: $0) }
+        decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
     }
     
     func decode(tokens: [String]) -> [String] {
         decoders.reduce(tokens) { current, decoder in
             decoder(tokens: current)
         }
+    }
+}
+
+class ByteLevelDecoder: Decoder {
+    //FIXME: hardcoded for now
+    let addedTokens = Set(["<|endoftext|>"])
+    
+    required public init(config: Config) {
+    }
+    
+    func decode(tokens: [String]) -> [String] {
+        var subTexts: [String] = []
+        var currentSubText: [String] = []
+        
+        func convertTokensToString(_ tokens: [String]) -> String {
+            let text = tokens.joined(separator: "")
+            
+            let utfCodepoints = text.map { byteDecoder[String($0)]! }
+            return String(decoding: utfCodepoints, as: UTF8.self)
+        }
+        
+        for token in tokens {
+            if addedTokens.contains(token) {
+                if !currentSubText.isEmpty {
+                    subTexts.append(convertTokensToString(currentSubText))
+                    currentSubText = []
+                }
+                subTexts.append(token)
+            } else {
+                currentSubText.append(token)
+            }
+        }
+        
+        if !currentSubText.isEmpty {
+            subTexts.append(convertTokensToString(currentSubText))
+        }
+        
+        return subTexts
     }
 }
 
