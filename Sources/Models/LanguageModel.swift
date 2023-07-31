@@ -25,7 +25,7 @@ public class LanguageModel {
         var tokenizerData: Config
     }
     
-    private var configPromise: Task<Configurations, Error>? = nil
+    private var configuration: LanguageModelConfigurationFromHub? = nil
     private var _tokenizer: Tokenizer? = nil
 
     public required init(model: MLModel) {
@@ -55,10 +55,8 @@ public class LanguageModel {
             minContextLength = 128
             maxContextLength = 128
         }
-        
-        self.configPromise = Task.init {
-            return try await self.loadConfig()
-        }
+                
+        self.configuration = LanguageModelConfigurationFromHub(modelName: modelName)
     }
 }
 
@@ -153,23 +151,19 @@ extension LanguageModel {
 public extension LanguageModel {
     var modelConfig: Config {
         get async throws {
-            try await configPromise!.value.modelConfig
+            try await configuration!.modelConfig
         }
     }
     
     var tokenizerConfig: Config? {
         get async throws {
-            if let hubConfig = try await configPromise!.value.tokenizerConfig { return hubConfig }
-
-            // Fallback tokenizer config, if available
-            guard let modelType = try await modelType else { return nil }
-            return TokenizerFactory.fallbackTokenizerConfig(for: modelType)
+            try await configuration!.tokenizerConfig
         }
     }
     
     var tokenizerData: Config {
         get async throws {
-            try await configPromise!.value.tokenizerData
+            try await configuration!.tokenizerData
         }
     }
     
@@ -243,6 +237,61 @@ extension LanguageModel: TextGenerationModel {
         default: break
         }
         return config
+    }
+}
+
+class LanguageModelConfigurationFromHub {
+    struct Configurations {
+        var modelConfig: Config
+        var tokenizerConfig: Config?
+        var tokenizerData: Config
+    }
+    
+    private var configPromise: Task<Configurations, Error>? = nil
+
+    init(modelName: String) {
+        self.configPromise = Task.init {
+            return try await self.loadConfig(modelName: modelName)
+        }
+    }
+    
+    var modelConfig: Config {
+        get async throws {
+            try await configPromise!.value.modelConfig
+        }
+    }
+    
+    var tokenizerConfig: Config? {
+        get async throws {
+            if let hubConfig = try await configPromise!.value.tokenizerConfig { return hubConfig }
+
+            // Fallback tokenizer config, if available
+            guard let modelType = try await modelType else { return nil }
+            return TokenizerFactory.fallbackTokenizerConfig(for: modelType)
+        }
+    }
+    
+    var tokenizerData: Config {
+        get async throws {
+            try await configPromise!.value.tokenizerData
+        }
+    }
+    
+    var modelType: String? {
+        get async throws {
+            try await modelConfig.modelType?.stringValue
+        }
+    }
+    
+    func loadConfig(modelName: String) async throws -> Configurations {
+        // TODO: caching
+        async let modelConfig = try Hub.downloadConfig(repoId: modelName, filename: "config.json")
+        async let tokenizerConfig = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer_config.json")
+        async let tokenizerVocab = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer.json")
+        
+        // Note tokenizerConfig may be nil (does not exist in all models)
+        let configs = await Configurations(modelConfig: try modelConfig, tokenizerConfig: try? tokenizerConfig, tokenizerData: try tokenizerVocab)
+        return configs
     }
 }
 
