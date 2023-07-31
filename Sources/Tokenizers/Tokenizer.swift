@@ -6,6 +6,7 @@
 //
 
 import Hub
+import Foundation
 
 enum TokenizerError : Error {
     case missingTokenizerClassInConfig
@@ -31,7 +32,6 @@ public struct TokenizerFactory {
         "LlamaTokenizer" : LlamaTokenizer.self,
     ]
 
-    //TODO: some models (gpt2) still don't have a tokenizer_config.json
     public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
             throw TokenizerError.missingTokenizerClassInConfig
@@ -44,5 +44,17 @@ public struct TokenizerFactory {
         }
         
         return try tokenizerClass.init(tokenizerData: tokenizerData)
+    }
+
+    public static func fallbackTokenizerConfig(for modelType: String) -> Config? {
+        guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+            guard let dictionary = parsed as? [String: Any] else { return nil }
+            return Config(dictionary)
+        } catch {
+            return nil
+        }
     }
 }

@@ -15,7 +15,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "Hub"),
-        .target(name: "Tokenizers", dependencies: ["Hub"]),
+        .target(name: "Tokenizers", dependencies: ["Hub"], resources: [.process("FallbackConfigs")]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),

@@ -159,7 +159,11 @@ public extension LanguageModel {
     
     var tokenizerConfig: Config? {
         get async throws {
-            try await configPromise!.value.tokenizerConfig
+            if let hubConfig = try await configPromise!.value.tokenizerConfig { return hubConfig }
+
+            // Fallback tokenizer config, if available
+            guard let modelType = try await modelType else { return nil }
+            return TokenizerFactory.fallbackTokenizerConfig(for: modelType)
         }
     }
     
