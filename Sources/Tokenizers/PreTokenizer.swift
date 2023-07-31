@@ -35,6 +35,9 @@ extension PreTokenizer {
 enum PreTokenizerType: String {
     case Sequence
     case ByteLevel
+    case Punctuation
+    case Digits
+    case Split
     // Several more to be supported
     case Unknown = ""
 }
@@ -47,6 +50,9 @@ struct PreTokenizerFactory {
         switch type {
         case .Sequence : return PreTokenizerSequence(config: config)
         case .ByteLevel: return ByteLevelPreTokenizer(config: config)
+        case .Punctuation: return PunctuationPreTokenizer(config: config)
+        case .Digits: return DigitsPreTokenizer(config: config)
+        case .Split: return SplitPreTokenizer(config: config)
         default       : fatalError("Unsupported PreTokenizer type: \(typeName)")
         }
     }
@@ -81,12 +87,6 @@ class ByteLevelPreTokenizer: PreTokenizer {
     
     public func preTokenize(text: String) -> [String] {
         // Split on whitespace and punctuation
-//        let tokens: [String]
-//        if useRegex {
-//            tokens = text.ranges(of: RE).map { String(text[$0]) }
-//        } else {
-//            tokens = [text]
-//        }
         let tokens = useRegex ? text.ranges(of: RE).map({ String(text[$0]) }) : [text]
         return tokens.map { token in
             if addPrefixSpace && !token.hasPrefix(" ") {
@@ -96,6 +96,76 @@ class ByteLevelPreTokenizer: PreTokenizer {
         }.map { token in
             return Array(token.utf8).map { byteEncoder[$0]! }.joined()
         }
+    }
+}
+
+class PunctuationPreTokenizer: PreTokenizer {
+    let PUNCTUATION_REGEX = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
+    let re: String
+
+    required public init(config: Config) {
+        re = "[^\(PUNCTUATION_REGEX)]+|[\(PUNCTUATION_REGEX)]+"
+    }
+
+    public func preTokenize(text: String) -> [String] {
+        // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
+        return text.ranges(of: re).map { String(text[$0]) }
+    }
+}
+
+class DigitsPreTokenizer: PreTokenizer {
+    let re: String
+
+    required public init(config: Config) {
+        let individualDigits = config.individualDigits?.boolValue ?? false
+        re = "[^\\d]+|\\d\(individualDigits ? "" : "+")"
+    }
+
+    public func preTokenize(text: String) -> [String] {
+        return text.ranges(of: re).map { String(text[$0]) }
+    }
+}
+
+class SplitPreTokenizer: PreTokenizer {
+    let pattern: StringSplitPattern?
+    let invert: Bool
+
+    required public init(config: Config) {
+        pattern = StringSplitPattern.from(config: config)
+        invert = config.invert?.boolValue ?? false
+    }
+
+    public func preTokenize(text: String) -> [String] {
+        guard let pattern = pattern else { return [text] }
+        return pattern.split(text, invert: invert)
+    }
+}
+
+enum StringSplitPattern {
+    case regexp(regexp: String)
+    case string(pattern: String)
+}
+
+extension StringSplitPattern {
+    func split(_ text: String, invert: Bool = true) -> [String] {
+        switch self {
+        case .regexp(let regexp):
+            return text.split(by: regexp, includeSeparators: !invert)
+        case .string(let substring):
+            return text.split(by: substring, options: [], includeSeparators: !invert)
+        }
+    }
+}
+
+extension StringSplitPattern {
+    static func from(config: Config) -> StringSplitPattern? {
+        if let pattern = config.pattern?.String?.stringValue {
+            return StringSplitPattern.string(pattern: pattern)
+        }
+        if let pattern = config.pattern?.Regex?.stringValue {
+            return StringSplitPattern.regexp(regexp: pattern)
+        }
+        return nil
     }
 }
 
@@ -109,4 +179,23 @@ extension String {
         }
         return result
     }
+        
+    func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true) -> [String] {
+        var result: [String] = []
+        var start = startIndex
+        while let range = range(of: string, options: options, range: start..<endIndex) {
+            // Prevent empty strings
+            if omittingEmptySubsequences && start < range.lowerBound {
+                result.append(String(self[start..<range.lowerBound]))
+            }
+            if includeSeparators {
+                result.append(String(self[range]))
+            }
+            start = range.upperBound
+        }
+        
+        result.append(String(self[start...]))
+        return result
+    }
+
 }
