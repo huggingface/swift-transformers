@@ -5,10 +5,10 @@ This is a collection of utilities to help adopt language models in Swift apps.
 ## Roadmap / To Do
 
 - [ ] Tokenizers: download from the Hub, port from [`tokenizers`](https://github.com/huggingface/tokenizers)
-  - [ ] BPE family (in progress)
-  - [ ] Fix Falcon, broken while porting BPE
+  - [ ] BPE family ([in progress](https://github.com/pcuenca/swift-transformers/pull/2))
+  - [x] Fix Falcon, broken while porting BPE
   - [ ] Improve tests, add edge cases, see https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/tests/generate_tests.py#L24
-  - [ ] Include fallback `tokenizer_config.json` for known architectures whose models don't have a configuration in the Hub (GPT2)
+  - [x] Include fallback `tokenizer_config.json` for known architectures whose models don't have a configuration in the Hub (GPT2)
   - [ ] Port more tokenizer types
 - [ ] [`exporters`](https://github.com/huggingface/exporters) – Core ML conversion tool.
   - [ ] Allow max sequence length to be specified.
