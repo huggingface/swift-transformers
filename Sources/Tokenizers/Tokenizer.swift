@@ -30,6 +30,9 @@ public struct TokenizerFactory {
         "GPT2Tokenizer"  : GPT2Tokenizer.self,
         "FalconTokenizer": FalconTokenizer.self,
         "LlamaTokenizer" : LlamaTokenizer.self,
+
+        // Default
+        "PreTrainedTokenizer": BPETokenizer.self
     ]
 
     public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
