@@ -9,6 +9,23 @@
 import XCTest
 @testable import Hub
 @testable import Tokenizers
+@testable import Models
+
+class GPT2TokenizerTests: BPETokenizerTests {
+    override class var hubModelName: String? { "distilgpt2" }
+    override class var encodedSamplesFilename: String? { "gpt2_encoded_tokens" }
+}
+
+class FalconTokenizerTests: BPETokenizerTests {
+    override class var hubModelName: String? { "tiiuae/falcon-7b-instruct" }
+    override class var encodedSamplesFilename: String? { "falcon_encoded" }
+}
+
+class LlamaTokenizerTests: BPETokenizerTests {
+    // meta-llama/Llama-2-7b-chat requires approval, and hf-internal-testing/llama-tokenizer does not have a config.json
+    override class var hubModelName: String? { "pcuenq/Llama-2-7b-chat-coreml" }
+    override class var encodedSamplesFilename: String? { "llama_encoded" }
+}
 
 struct BPEEncodingSampleDataset: Decodable {
     let text: String
@@ -17,16 +34,14 @@ struct BPEEncodingSampleDataset: Decodable {
     let decoded_text: String
 }
 
-class BPETokenizerTests {
-    // Resources in test bundle.
-    // TODO: download from the Hub.
-    let tokenizerConfigFilename: String
-    let tokenizerDataFilename: String
+class BPETokenizerTester {
     let encodedSamplesFilename: String
     
-    init(tokenizerConfigFilename: String, tokenizerDataFilename: String, encodedSamplesFilename: String) {
-        self.tokenizerConfigFilename = tokenizerConfigFilename
-        self.tokenizerDataFilename = tokenizerDataFilename
+    private var configuration: LanguageModelConfigurationFromHub? = nil
+    private var _tokenizer: Tokenizer? = nil
+    
+    init(hubModelName: String, encodedSamplesFilename: String) {
+        configuration = LanguageModelConfigurationFromHub(modelName: hubModelName)
         self.encodedSamplesFilename = encodedSamplesFilename
     }
     
@@ -38,44 +53,77 @@ class BPETokenizerTests {
         return dataset
     }()
     
-    lazy var tokenizer: Tokenizer = {
-        let tokenizerConfig = {
-            let url = Bundle.module.url(forResource: tokenizerConfigFilename, withExtension: "json")!
-            let data = try! Data(contentsOf: url)
-            let parsed = try! JSONSerialization.jsonObject(with: data, options: [])
-            let dictionary = parsed as! [String: Any]
-            return Config(dictionary)
-        }()
+    
+    var tokenizer: Tokenizer {
+        get async {
+            guard _tokenizer == nil else { return _tokenizer! }
+            do {
+                guard let tokenizerConfig = try await configuration!.tokenizerConfig else { throw "Cannot retrieve Tokenizer configuration" }
+                let tokenizerData = try await configuration!.tokenizerData
+                _tokenizer = try TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+            } catch {
+                XCTFail("Cannot load tokenizer: \(error)")
+            }
+            return _tokenizer!
+        }
+    }
         
-        let tokenizerData = {
-            let url = Bundle.module.url(forResource: tokenizerDataFilename, withExtension: "json")!
-            let data = try! Data(contentsOf: url)
-            let parsed = try! JSONSerialization.jsonObject(with: data, options: [])
-            let dictionary = parsed as! [String: Any]
-            return Config(dictionary)
-        }()
-        
-        return try! TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
-    }()
-        
-    func testTokenize() {        
+    func testTokenize() async {
+        let tokenized = await tokenizer.tokenize(text: dataset.text)
         XCTAssertEqual(
-            tokenizer.tokenize(text: dataset.text),
+            tokenized,
             dataset.bpe_tokens
         )
     }
     
-    func testEncode() {
+    func testEncode() async {
+        let encoded = await tokenizer.encode(text: dataset.text)
         XCTAssertEqual(
-            tokenizer.encode(text: dataset.text),
+            encoded,
             dataset.token_ids
         )
     }
     
-    func testDecode() {
+    func testDecode() async {
+        let decoded = await tokenizer.decode(tokens: dataset.token_ids)
         XCTAssertEqual(
-            tokenizer.decode(tokens: dataset.token_ids),
+            decoded,
             dataset.decoded_text
         )
+    }
+}
+
+class BPETokenizerTests: XCTestCase {
+    // Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
+    static var _bpeTester: BPETokenizerTester? = nil
+    
+    class var hubModelName: String? { nil }
+    class var encodedSamplesFilename: String? { nil }
+    
+    override class func setUp() {
+        if let hubModelName = hubModelName, let encodedSamplesFilename = encodedSamplesFilename {
+            _bpeTester = BPETokenizerTester(
+                hubModelName: hubModelName,
+                encodedSamplesFilename: encodedSamplesFilename
+            )
+        }
+    }
+        
+    func testTokenize() async {
+        if let bpeTester = Self._bpeTester {
+            await bpeTester.testTokenize()
+        }
+    }
+    
+    func testEncode() async {
+        if let bpeTester = Self._bpeTester {
+            await bpeTester.testEncode()
+        }
+    }
+    
+    func testDecode() async {
+        if let bpeTester = Self._bpeTester {
+            await bpeTester.testDecode()
+        }
     }
 }

@@ -24,7 +24,7 @@ let package = Package(
             dependencies: [
                 "Models", "Generation", "Tokenizers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
     ]
 )
