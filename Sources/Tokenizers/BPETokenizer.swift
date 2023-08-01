@@ -41,7 +41,9 @@ class BPETokenizer: Tokenizer {
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
     
-    required init(tokenizerData: Config) throws {
+    private let cleanUpTokenizationSpaces: Bool
+
+    required init(tokenizerConfig: Config, tokenizerData: Config) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
         }
@@ -51,7 +53,8 @@ class BPETokenizer: Tokenizer {
         self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData.normalizer)
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
-        
+        self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
+
         guard let merges = merges else { fatalError("BPETokenizer requires merges") }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
         for (i, item) in merges.enumerated() {
@@ -177,6 +180,22 @@ class BPETokenizer: Tokenizer {
         return tokens
     }
     
+    /// Clean up a list of simple English tokenization artifacts like spaces before punctuations and abbreviated forms
+    func cleanUp(text: String) -> String {
+        guard cleanUpTokenizationSpaces else { return text }
+
+        return text.replacingOccurrences(of: " .", with: ".")
+            .replacingOccurrences(of: " ?", with: "?")
+            .replacingOccurrences(of: " !", with: "!")
+            .replacingOccurrences(of: " ,", with: ",")
+            .replacingOccurrences(of: " ' ", with: "'")
+            .replacingOccurrences(of: " n't", with: "n't")
+            .replacingOccurrences(of: " 'm", with: "'m")
+            .replacingOccurrences(of: " 's", with: "'s")
+            .replacingOccurrences(of: " 've", with: "'ve")
+            .replacingOccurrences(of: " 're", with: "'re")
+    }
+
     /// Main entry point
     func encode(text: String) -> [Int] {
         return postProcess(tokenize(text: text)).map { tokensToIds[$0]! }
@@ -184,15 +203,11 @@ class BPETokenizer: Tokenizer {
     
     /// Decode
     func decode(tokens: [Int]) -> String {
-//        let text = tokens.map { decoder[$0]! }.joined(separator: "")
-//        let utfCodepoints = text.map { byteDecoder[String($0)]! }
-//        return String(decoding: utfCodepoints, as: UTF8.self)
-        
         // IDs to tokens
         let tokenStrings = tokens.map { idsToTokens[$0]! }
         let decoded = decodeTokens(tokenStrings)
         // At this point we should have a single String
-        return decoded.joined(separator: "")
+        return cleanUp(text: decoded.joined(separator: ""))
     }
 }
 

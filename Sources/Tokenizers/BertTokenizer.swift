@@ -23,7 +23,7 @@ class BertTokenizer {
         self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
     }
     
-    required init(tokenizerData: Config) {
+    required init(tokenizerConfig: Config, tokenizerData: Config) {
         fatalError("pending")
 //        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
 //            throw TokenizerError.missingVocab(tokenizerName)

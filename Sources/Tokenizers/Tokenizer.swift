@@ -21,7 +21,7 @@ public protocol Tokenizer {
     func encode(text: String) -> [Int]
     func decode(tokens: [Int]) -> String
     
-    init(tokenizerData: Config) throws
+    init(tokenizerConfig: Config, tokenizerData: Config) throws
 }
 
 public struct TokenizerFactory {
@@ -46,7 +46,7 @@ public struct TokenizerFactory {
             throw TokenizerError.unsupportedTokenizer(tokenizerName)
         }
         
-        return try tokenizerClass.init(tokenizerData: tokenizerData)
+        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 
     public static func fallbackTokenizerConfig(for modelType: String) -> Config? {
