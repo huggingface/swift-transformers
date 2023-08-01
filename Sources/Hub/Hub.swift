@@ -42,7 +42,7 @@ public extension Hub {
 public struct Config {
     public private(set) var dictionary: [String: Any]
 
-    init(_ dictionary: [String: Any]) {
+    public init(_ dictionary: [String: Any]) {
         self.dictionary = dictionary
     }
 
@@ -94,4 +94,10 @@ public struct Config {
     public var intValue: Int? { value as? Int }
     public var boolValue: Bool? { value as? Bool }
     public var stringValue: String? { value as? String }
+    
+    // Instead of doing this we could provide custom classes and decode to them
+    public var arrayValue: [Config]? {
+        guard let list = value as? [Any] else { return nil }
+        return list.map { Config($0 as! [String : Any]) }
+    }
 }

@@ -15,7 +15,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "Hub"),
-        .target(name: "Tokenizers", dependencies: ["Hub"]),
+        .target(name: "Tokenizers", dependencies: ["Hub"], resources: [.process("FallbackConfigs")]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
@@ -24,7 +24,7 @@ let package = Package(
             dependencies: [
                 "Models", "Generation", "Tokenizers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
     ]
 )

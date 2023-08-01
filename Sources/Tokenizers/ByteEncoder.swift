@@ -1,5 +1,5 @@
 //
-//  GPT2ByteEncoder.swift
+//  ByteEncoder.swift
 //  CoreMLBert
 //
 //  Created by Julien Chaumond on 18/07/2019.
