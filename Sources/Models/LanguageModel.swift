@@ -134,19 +134,6 @@ public extension LanguageModel {
     }
 }
 
-extension LanguageModel {
-    func loadConfig() async throws -> Configurations {
-        // TODO: caching
-        async let modelConfig = try Hub.downloadConfig(repoId: modelName, filename: "config.json")
-        async let tokenizerConfig = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer_config.json")
-        async let tokenizerVocab = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer.json")
-        
-        // Note tokenizerConfig may be nil (does not exist in all models)
-        let configs = await Configurations(modelConfig: try modelConfig, tokenizerConfig: try? tokenizerConfig, tokenizerData: try tokenizerVocab)
-        return configs
-    }
-}
-
 /// async properties downloaded from the configuration
 public extension LanguageModel {
     var modelConfig: Config {
@@ -263,7 +250,14 @@ class LanguageModelConfigurationFromHub {
     
     var tokenizerConfig: Config? {
         get async throws {
-            if let hubConfig = try await configPromise!.value.tokenizerConfig { return hubConfig }
+            if let hubConfig = try await configPromise!.value.tokenizerConfig {
+                // Try to guess the class if it's not present and the modelType is
+                if let _ = hubConfig.tokenizerClass?.stringValue { return hubConfig }
+                guard let modelType = try await modelType else { return hubConfig }
+                var configuration = hubConfig.dictionary
+                configuration["tokenizer_class"] = "\(modelType.capitalized)Tokenizer"
+                return Config(configuration)
+            }
 
             // Fallback tokenizer config, if available
             guard let modelType = try await modelType else { return nil }
