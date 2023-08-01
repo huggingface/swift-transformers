@@ -79,8 +79,8 @@ class BPETokenizer: Tokenizer {
     func hexaEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
-        return tokens.map { (token) -> String in
-            return Array(token.utf8).map { String(format: "<0x%02X>", $0) }.joined()
+        return tokens.flatMap { (token) -> [String] in
+            return Array(token.utf8).map { String(format: "<0x%02X>", $0) }
         }
     }
     
