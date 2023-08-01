@@ -133,7 +133,7 @@ class BPETokenizerTester {
             )
             XCTAssertEqual(
                 tokenizer.decode(tokens: edgeCase.encoded.input_ids),
-                edgeCase.decoded_without_special
+                edgeCase.decoded_with_special
             )
         }
     }
