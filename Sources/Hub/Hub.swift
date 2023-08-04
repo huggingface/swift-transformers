@@ -101,3 +101,77 @@ public struct Config {
         return list.map { Config($0 as! [String : Any]) }
     }
 }
+
+public class LanguageModelConfigurationFromHub {
+    struct Configurations {
+        var modelConfig: Config
+        var tokenizerConfig: Config?
+        var tokenizerData: Config
+    }
+
+    private var configPromise: Task<Configurations, Error>? = nil
+
+    public init(modelName: String) {
+        self.configPromise = Task.init {
+            return try await self.loadConfig(modelName: modelName)
+        }
+    }
+
+    public var modelConfig: Config {
+        get async throws {
+            try await configPromise!.value.modelConfig
+        }
+    }
+
+    public var tokenizerConfig: Config? {
+        get async throws {
+            if let hubConfig = try await configPromise!.value.tokenizerConfig {
+                // Try to guess the class if it's not present and the modelType is
+                if let _ = hubConfig.tokenizerClass?.stringValue { return hubConfig }
+                guard let modelType = try await modelType else { return hubConfig }
+                var configuration = hubConfig.dictionary
+                configuration["tokenizer_class"] = "\(modelType.capitalized)Tokenizer"
+                return Config(configuration)
+            }
+
+            // Fallback tokenizer config, if available
+            guard let modelType = try await modelType else { return nil }
+            return Self.fallbackTokenizerConfig(for: modelType)
+        }
+    }
+
+    public var tokenizerData: Config {
+        get async throws {
+            try await configPromise!.value.tokenizerData
+        }
+    }
+
+    public var modelType: String? {
+        get async throws {
+            try await modelConfig.modelType?.stringValue
+        }
+    }
+
+    func loadConfig(modelName: String) async throws -> Configurations {
+        // TODO: caching
+        async let modelConfig = try Hub.downloadConfig(repoId: modelName, filename: "config.json")
+        async let tokenizerConfig = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer_config.json")
+        async let tokenizerVocab = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer.json")
+
+        // Note tokenizerConfig may be nil (does not exist in all models)
+        let configs = await Configurations(modelConfig: try modelConfig, tokenizerConfig: try? tokenizerConfig, tokenizerData: try tokenizerVocab)
+        return configs
+    }
+
+    static func fallbackTokenizerConfig(for modelType: String) -> Config? {
+        guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+            guard let dictionary = parsed as? [String: Any] else { return nil }
+            return Config(dictionary)
+        } catch {
+            return nil
+        }
+    }
+}

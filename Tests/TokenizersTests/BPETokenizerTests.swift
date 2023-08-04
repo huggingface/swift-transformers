@@ -88,7 +88,7 @@ class BPETokenizerTester {
             do {
                 guard let tokenizerConfig = try await configuration!.tokenizerConfig else { throw "Cannot retrieve Tokenizer configuration" }
                 let tokenizerData = try await configuration!.tokenizerData
-                _tokenizer = try TokenizerFactory.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+                _tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
             } catch {
                 XCTFail("Cannot load tokenizer: \(error)")
             }
