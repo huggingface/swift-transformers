@@ -19,8 +19,8 @@ public protocol LanguageModelProtocol {
     init(model: MLModel)
     
     /// Make prediction callable (this works like __call__ in Python)
-    func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol //MLShapedArray<Float>
-    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol //MLShapedArray<Float>
+    func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
+    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
 }
 
 public extension LanguageModelProtocol {
