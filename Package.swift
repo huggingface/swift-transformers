@@ -14,8 +14,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.2.0")
     ],
     targets: [
-        .target(name: "Hub"),
-        .target(name: "Tokenizers", dependencies: ["Hub"], resources: [.process("FallbackConfigs")]),
+        .target(name: "Hub", resources: [.process("FallbackConfigs")]),
+        .target(name: "Tokenizers", dependencies: ["Hub"]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),

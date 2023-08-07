@@ -9,6 +9,7 @@ import Hub
 import Foundation
 
 enum TokenizerError : Error {
+    case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
     case missingVocab
@@ -22,9 +23,20 @@ public protocol Tokenizer {
     func decode(tokens: [Int]) -> String
     
     init(tokenizerConfig: Config, tokenizerData: Config) throws
+
+    // Alias for `encode`
+    func callAsFunction(_ text: String) -> [Int]
 }
 
-public struct TokenizerFactory {
+public extension Tokenizer {
+    func callAsFunction(_ text: String) -> [Int] {
+        encode(text: text)
+    }
+}
+
+/// Unfortunately factory methods can't be added to protocols yet; not sure if there's a better pattern
+/// What I'd like: `Tokenizer.from(pretrained: "")`
+public struct AutoTokenizer {
     static let knownTokenizers: [String : Tokenizer.Type] = [
         "BertTokenizer"  : BertTokenizer.self,
         "GPT2Tokenizer"  : GPT2Tokenizer.self,
@@ -42,22 +54,18 @@ public struct TokenizerFactory {
         
         // Some tokenizer_class entries use a Fast suffix
         let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
-        guard let tokenizerClass = TokenizerFactory.knownTokenizers[tokenizerName] else {
+        guard let tokenizerClass = AutoTokenizer.knownTokenizers[tokenizerName] else {
             throw TokenizerError.unsupportedTokenizer(tokenizerName)
         }
         
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
+    
+    public static func from(pretrained model: String) async throws -> Tokenizer {
+        let config = LanguageModelConfigurationFromHub(modelName: model)
+        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
+        let tokenizerData = try await config.tokenizerData
 
-    public static func fallbackTokenizerConfig(for modelType: String) -> Config? {
-        guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
-        do {
-            let data = try Data(contentsOf: url)
-            let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-            guard let dictionary = parsed as? [String: Any] else { return nil }
-            return Config(dictionary)
-        } catch {
-            return nil
-        }
+        return try from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }
