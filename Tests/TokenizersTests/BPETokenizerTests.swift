@@ -23,7 +23,7 @@ class FalconTokenizerTests: BPETokenizerTests {
 
 class LlamaTokenizerTests: BPETokenizerTests {
     // meta-llama/Llama-2-7b-chat requires approval, and hf-internal-testing/llama-tokenizer does not have a config.json
-    override class var hubModelName: String? { "pcuenq/Llama-2-7b-chat-coreml" }
+    override class var hubModelName: String? { "coreml-projects/Llama-2-7b-chat-coreml" }
     override class var encodedSamplesFilename: String? { "llama_encoded" }
 }
 
