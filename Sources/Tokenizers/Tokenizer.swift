@@ -23,6 +23,15 @@ public protocol Tokenizer {
     func decode(tokens: [Int]) -> String
     
     init(tokenizerConfig: Config, tokenizerData: Config) throws
+
+    // Alias for `encode`
+    func callAsFunction(_ text: String) -> [Int]
+}
+
+public extension Tokenizer {
+    func callAsFunction(_ text: String) -> [Int] {
+        encode(text: text)
+    }
 }
 
 /// Unfortunately factory methods can't be added to protocols yet; not sure if there's a better pattern
