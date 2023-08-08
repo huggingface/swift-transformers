@@ -3,6 +3,10 @@
 This is a collection of utilities to help adopt language models in Swift apps. It tries to follow the Python `transformers` API and abstractions whenever possible, but it also aims to provide an idiomatic Swift interface and does not assume prior familiarity with [`transformers`](https://github.com/huggingface/transformers) or [`tokenizers`](https://github.com/huggingface/tokenizers).
 
 
+## Rationale and Overview
+
+Please, check [our post](https://huggingface.co/blog/swift-coreml-llm).
+
 ## Modules
 
 - `Tokenizers`. Utilities to convert text to tokens and back. Follows the abstractions in [`tokenizers`](https://github.com/huggingface/tokenizers) and [`transformers.js`](https://github.com/xenova/transformers.js). Usage example:
