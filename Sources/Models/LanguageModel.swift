@@ -115,17 +115,18 @@ public extension LanguageModel {
         let padLength = maxTokens >= minContextLength ? 0 : minContextLength-maxTokens
         let inputTokens = Array(tokens[0..<maxTokens]) + Array(repeating: config.padTokenId ?? 0, count: padLength)
         
-        let inputIds = MLMultiArray.from(inputTokens, dims: inputIdsShape.count)
-        var inputDictionary = [inputIdsName: inputIds]
+        let inputIds = MLShapedArray<Int32>(scalars: inputTokens.map { Int32($0) }, shape: inputIdsShape)
+        var inputDictionary = [inputIdsName: MLFeatureValue(shapedArray: inputIds)]
         if requiresAttention {
             let mask = Array(repeating: 1, count: maxTokens) + Array(repeating: 0, count: padLength)
-            inputDictionary[attention_mask] = MLMultiArray.from(mask, dims: inputIdsShape.count)
+            let attentionMask = MLShapedArray<Int32>(scalars: mask.map{ Int32($0) }, shape: inputIdsShape)
+            inputDictionary[attention_mask] = MLFeatureValue(shapedArray: attentionMask)
         }
         let input = try! MLDictionaryFeatureProvider(dictionary: inputDictionary)
         
         let output = try! model.prediction(from: input)
         
-        // TODO: maybe try to support models with "token_scores" too (default in exporters)
+        // TODO: maybe try to support models with "token_scores" too (after the softmax)
         assert(output.featureNames.first! == "logits")
 
         let scores = output.featureValue(for: output.featureNames.first!)!.shapedArrayValue(of: Float.self)!
