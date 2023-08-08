@@ -45,7 +45,7 @@ Encoder-decoder models such as T5 and Flan are currently _not supported_. They a
 ## Other Tools
 
 - [`swift-chat`](https://github.com/huggingface/swift-chat), a simple app demonstrating how to use this package.
-- [`exporters`](https://github.com/huggingface/exporters), a Core ML conversion package for transformers models, based on Apple`s [`coremltools`](https://github.com/apple/coremltools).
+- [`exporters`](https://github.com/huggingface/exporters), a Core ML conversion package for transformers models, based on Apple's [`coremltools`](https://github.com/apple/coremltools).
 - [`transformers-to-coreml`](https://huggingface.co/spaces/coreml-projects/transformers-to-coreml), a no-code Core ML conversion tool built on `exporters`.
 
 ## <a name="roadmap"></a> Roadmap / To Do
