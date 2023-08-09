@@ -67,7 +67,7 @@ Encoder-decoder models such as T5 and Flan are currently _not supported_. They a
   - [ ] Support discrete shapes in the underlying Core ML model by selecting the smallest sequence length larger than the input.
 - [ ] Optimization: cache past key-values.
 - [ ] Encoder-decoder models (T5)
-- [ ] [Demo app](https://github.com/pcuenca/swift-chat)
+- [ ] [Demo app](https://github.com/huggingface/swift-chat)
   - [ ] Allow system prompt to be specified.
   - [ ] How to define a system prompt template?
   - [ ] Test a code model (to stretch system prompt definition)
