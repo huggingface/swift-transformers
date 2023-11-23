@@ -55,7 +55,7 @@ struct PreTokenizerFactory {
         case .Digits: return DigitsPreTokenizer(config: config)
         case .Split: return SplitPreTokenizer(config: config)
         case .Whitespace: return WhitespacePreTokenizer(config: config)
-        default       : fatalError("Unsupported PreTokenizer type: \(typeName)")
+        default: fatalError("Unsupported PreTokenizer type: \(typeName)")
         }
     }
 }
