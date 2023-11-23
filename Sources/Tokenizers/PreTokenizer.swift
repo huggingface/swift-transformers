@@ -38,6 +38,7 @@ enum PreTokenizerType: String {
     case Punctuation
     case Digits
     case Split
+    case Whitespace
     // Several more to be supported
     case Unknown = ""
 }
@@ -53,7 +54,8 @@ struct PreTokenizerFactory {
         case .Punctuation: return PunctuationPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
         case .Split: return SplitPreTokenizer(config: config)
-        default       : fatalError("Unsupported PreTokenizer type: \(typeName)")
+        case .Whitespace: return WhitespacePreTokenizer(config: config)
+        default: fatalError("Unsupported PreTokenizer type: \(typeName)")
         }
     }
 }
@@ -61,15 +63,27 @@ struct PreTokenizerFactory {
 class PreTokenizerSequence: PreTokenizer {
     let preTokenizers: [PreTokenizer]
     
-    required public init(config: Config) {
+    required init(config: Config) {
         guard let configs = config.pretokenizers?.arrayValue else { fatalError("No pretokenizers in Sequence") }
         preTokenizers = configs.compactMap { PreTokenizerFactory.fromConfig(config: $0) }
     }
     
-    public func preTokenize(text: String) -> [String] {
+    func preTokenize(text: String) -> [String] {
         preTokenizers.reduce([text]) { current, preTokenizer in
             preTokenizer(texts: current)
         }
+    }
+}
+
+class WhitespacePreTokenizer: PreTokenizer {
+    let re: String
+
+    required init(config: Config) {
+        re = #"\S+"#
+    }
+
+    func preTokenize(text: String) -> [String] {
+        return text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -79,13 +93,13 @@ class ByteLevelPreTokenizer: PreTokenizer {
     let useRegex: Bool
     let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
     
-    required public init(config: Config) {
+    required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         trimOffsets = config.trimOffsets?.boolValue ?? true
         useRegex = config.useRegex?.boolValue ?? true
     }
     
-    public func preTokenize(text: String) -> [String] {
+    func preTokenize(text: String) -> [String] {
         // Split on whitespace and punctuation
         let tokens = useRegex ? text.ranges(of: RE).map({ String(text[$0]) }) : [text]
         return tokens.map { token in
@@ -103,11 +117,11 @@ class PunctuationPreTokenizer: PreTokenizer {
     let PUNCTUATION_REGEX = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
     let re: String
 
-    required public init(config: Config) {
+    required init(config: Config) {
         re = "[^\(PUNCTUATION_REGEX)]+|[\(PUNCTUATION_REGEX)]+"
     }
 
-    public func preTokenize(text: String) -> [String] {
+    func preTokenize(text: String) -> [String] {
         // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
         return text.ranges(of: re).map { String(text[$0]) }
     }
@@ -116,12 +130,12 @@ class PunctuationPreTokenizer: PreTokenizer {
 class DigitsPreTokenizer: PreTokenizer {
     let re: String
 
-    required public init(config: Config) {
+    required init(config: Config) {
         let individualDigits = config.individualDigits?.boolValue ?? false
         re = "[^\\d]+|\\d\(individualDigits ? "" : "+")"
     }
 
-    public func preTokenize(text: String) -> [String] {
+    func preTokenize(text: String) -> [String] {
         return text.ranges(of: re).map { String(text[$0]) }
     }
 }
@@ -130,12 +144,12 @@ class SplitPreTokenizer: PreTokenizer {
     let pattern: StringSplitPattern?
     let invert: Bool
 
-    required public init(config: Config) {
+    required init(config: Config) {
         pattern = StringSplitPattern.from(config: config)
         invert = config.invert?.boolValue ?? false
     }
 
-    public func preTokenize(text: String) -> [String] {
+    func preTokenize(text: String) -> [String] {
         guard let pattern = pattern else { return [text] }
         return pattern.split(text, invert: invert)
     }
