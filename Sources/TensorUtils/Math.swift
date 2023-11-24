@@ -53,7 +53,6 @@ public struct Math {
         return (Int(maxIndex), maxValue)
     }
     
-    
     /// MLMultiArray helper.
     /// Works in our specific use case.
     public static func argmax(_ multiArray: MLMultiArray) -> (Int, Double) {
@@ -76,27 +75,38 @@ public struct Math {
     /// and their softmaxed probabilities.
     /// 
     public static func topK(arr: [Float], k: Int) -> (indexes: [Int], probs: [Float]) {
-        var minV = -Float.greatestFiniteMagnitude
-        var selected: [(index: Int, value: Float)] = []
-
-        for (i, v) in arr.enumerated() {
-            if v > minV || selected.count < k {
-                // Append and sort
-                if selected.count == k {
-                    selected.remove(at: 0)
-                }
-                selected.append((i, v))
-                selected.sort { $0.value < $1.value }
-                minV = selected.first!.value
-            }
+        guard !arr.isEmpty else {
+            return (indexes: [], probs: [])
         }
-
-        selected = selected.reversed()
-        let indexes = selected.map { $0.index }
-        let logits = selected.map { $0.value }
-        let probs = softmax(logits)
-
-        return (indexes: indexes, probs: probs)
+        let k = min(k, arr.count)
+        let arrDescriptor = BNNSNDArrayDescriptor.allocate(
+            initializingFrom: arr,
+            shape: .vector(arr.count)
+        )
+        let bestIndices = BNNSNDArrayDescriptor.allocateUninitialized(
+            scalarType: Int32.self,
+            shape: .vector(k)
+        )
+        let bestValues = BNNSNDArrayDescriptor.allocateUninitialized(
+            scalarType: Float.self,
+            shape: .vector(k)
+        )
+        try? Accelerate.BNNS.applyTopK(
+            k: k,
+            input: arrDescriptor,
+            bestValues: bestValues,
+            bestIndices: bestIndices,
+            axis: 0,
+            batchSize: 1,
+            filterParameters: nil
+        )
+        let distances = bestValues.data!.withMemoryRebound(to: Float.self, capacity: k) { ptr in
+            Array(UnsafeBufferPointer(start: ptr, count: k))
+        }
+        let indices = bestIndices.data!.withMemoryRebound(to: Int32.self, capacity: k) { ptr in
+            Array(UnsafeBufferPointer(start: ptr, count: k))
+        }
+        return (indexes: indices.map { Int($0) }, probs: softmax(distances))
     }
 
     /// Multinomial sampling from an array of probs. Works well with topK
