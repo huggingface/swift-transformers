@@ -38,6 +38,7 @@ class TensorUtilsTests: XCTestCase {
 
         XCTAssertEqual(result5.indexes, [4, 2, 0, 1])
         XCTAssertEqual(result5.probs, [1.0, 0.0, 0.0, 0.0], accuracy: accuracy)
+        XCTAssertEqual(result5.probs.reduce(0, +), 1.0, accuracy: accuracy)
     }
 
     func testArgMax() throws {
