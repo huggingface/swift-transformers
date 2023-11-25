@@ -14,18 +14,19 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.2.0")
     ],
     targets: [
-        .target(name: "Hub", resources: [.process("FallbackConfigs")]),
-        .target(name: "Tokenizers", dependencies: ["Hub"]),
-        .target(name: "TensorUtils"),
-        .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
-        .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
         .executableTarget(
             name: "TransformersCLI",
             dependencies: [
                 "Models", "Generation", "Tokenizers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+        .target(name: "Hub", resources: [.process("FallbackConfigs")]),
+        .target(name: "Tokenizers", dependencies: ["Hub"]),
+        .target(name: "TensorUtils"),
+        .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
+        .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
-        .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"])
+        .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
+        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils"])
     ]
 )
