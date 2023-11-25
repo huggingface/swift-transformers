@@ -83,15 +83,24 @@ public struct Math {
             initializingFrom: arr,
             shape: .vector(arr.count)
         )
+        defer {
+            arrDescriptor.deallocate()
+        }
         let bestIndices = BNNSNDArrayDescriptor.allocateUninitialized(
             scalarType: Int32.self,
             shape: .vector(k)
         )
+        defer {
+            bestIndices.deallocate()
+        }
         let bestValues = BNNSNDArrayDescriptor.allocateUninitialized(
             scalarType: Float.self,
             shape: .vector(k)
         )
-        try? Accelerate.BNNS.applyTopK(
+        defer {
+            bestValues.deallocate()
+        }
+        try! Accelerate.BNNS.applyTopK(
             k: k,
             input: arrDescriptor,
             bestValues: bestValues,
