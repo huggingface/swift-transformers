@@ -68,6 +68,48 @@ public struct Math {
         let ptr = UnsafeMutablePointer<Float32>(OpaquePointer(multiArray.dataPointer))
         return Math.argmax32(ptr, count: multiArray.count)
     }
+
+    /// Returns the cumulative sum of the array.
+    public static func cumsum(_ arr: [Float]) -> [Float] {
+        guard !arr.isEmpty else {
+            return []
+        }
+        let arrCount = vDSP_Length(arr.count)
+        var weight: Float = 1.0
+        var result: [Float] = Array(repeating: 0.0, count: arr.count)
+        var firstItem = arr[0]
+        vDSP_vrsum(arr, 1, &weight, &result, 1, arrCount)
+        vDSP_vsadd(result, 1, &firstItem, &result, 1, arrCount)
+        return result
+    }
+
+    /// Top-P.
+    /// Select the smallest set of elements whose cumulative probability exceeds the probability `p`.
+    /// Based on https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+    public static func topP(arr: [Float], p: Float) -> (indexes: [Int], probs: [Float]) {
+        guard !arr.isEmpty else {
+            return (indexes: [], probs: [])
+        }
+
+        let arrSoftmax = softmax(arr)
+        var indexLogitProb = [(index: Int, logit: Float, prob: Float)]()
+        indexLogitProb.reserveCapacity(arr.count)
+        for (index, data) in zip(arr, arrSoftmax).enumerated() {
+            indexLogitProb.append((index: index, logit: data.0, prob: data.1))
+        }
+        indexLogitProb.sort { $0.prob > $1.prob }
+
+        let cumsum = cumsum(indexLogitProb.map(\.prob))
+        var sliceIndex = cumsum.count - 1
+        for (index, element) in cumsum.enumerated() where element > p {
+            sliceIndex = index
+            break
+        }
+
+        let indexes = indexLogitProb[0 ... sliceIndex].map(\.index)
+        let probs = softmax(indexLogitProb[0 ... sliceIndex].map(\.logit))
+        return (indexes: indexes, probs: probs)
+    }
     
     /// Top-K.
     /// Select the k most-probable elements indices from `arr`

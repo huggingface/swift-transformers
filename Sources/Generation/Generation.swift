@@ -67,8 +67,11 @@ public extension Generation {
             if config.topK > 0 {
                 let topK = Math.topK(arr: logits, k: config.topK)
                 nextToken = Math.sample(indexes: topK.indexes, probs: topK.probs)
+            } else if config.topP < 1.0 {
+                let topP = Math.topP(arr: logits, p: Float(config.topP))
+                nextToken = Math.sample(indexes: topP.indexes, probs: topP.probs)
             } else {
-                fatalError("topP not implemented yet")
+                fatalError("not implemented yet")
             }
             
             if nextToken == config.eosTokenId { break }
