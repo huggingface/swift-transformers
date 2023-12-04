@@ -41,6 +41,33 @@ class TensorUtilsTests: XCTestCase {
         XCTAssertEqual(result5.probs.reduce(0, +), 1.0, accuracy: accuracy)
     }
 
+    func testTopP() {
+        let result1 = Math.topP(arr: [], p: 0.99)
+        XCTAssertTrue(result1.indexes.isEmpty)
+        XCTAssertTrue(result1.probs.isEmpty)
+
+        let result2 = Math.topP(arr: (0 ..< 10).map { Float($0) }, p: 0.99)
+        XCTAssertEqual(result2.indexes, [9, 8, 7, 6, 5])
+        XCTAssertEqual(result2.probs, [0.63640857, 0.23412164, 0.08612853, 0.031684916, 0.011656229], accuracy: accuracy)
+        XCTAssertEqual(result2.probs.reduce(0, +), 1.0, accuracy: accuracy)
+
+        let result3 = Math.topP(arr: (0 ..< 10).map { Float($0) }, p: 0.95)
+        XCTAssertEqual(result3.indexes, [9, 8, 7])
+        XCTAssertEqual(result3.probs, [0.6652409, 0.24472845, 0.090030566], accuracy: accuracy)
+        XCTAssertEqual(result3.probs.reduce(0, +), 1.0, accuracy: accuracy)
+
+        let result4 = Math.topP(arr: (0 ..< 10).map { Float($0) }, p: 0.6321493)
+        XCTAssertEqual(result4.indexes, [9, 8])
+        XCTAssertEqual(result4.probs, [0.7310586, 0.26894143], accuracy: accuracy)
+        XCTAssertEqual(result4.probs.reduce(0, +), 1.0, accuracy: accuracy)
+    }
+
+    func testCumsum() {
+        XCTAssertTrue(Math.cumsum([]).isEmpty)
+        XCTAssertEqual(Math.cumsum([1]), [1])
+        XCTAssertEqual(Math.cumsum([1, 2, 3, 4]), [1, 3, 6, 10])
+    }
+
     func testArgMax() throws {
         let result1 = Math.argmax([3.0, 4.0, 1.0, 2.0] as [Float], count: 4)
         
