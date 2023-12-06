@@ -54,10 +54,15 @@ struct TransformersCLI: ParsableCommand {
         semaphore.wait()
     }
     
+    func compile(at url: URL) throws -> URL {
+        if url.pathExtension == "mlmodelc" { return url }
+        print("Compiling model \(url)")
+        return try MLModel.compileModel(at: url)
+    }
+    
     func run() throws {
         let url = URL(filePath: modelPath)
-        print("Compiling model \(url)")
-        let compiledURL = try MLModel.compileModel(at: url)
+        let compiledURL = try compile(at: url)
         print("Loading model \(compiledURL)")
         let model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
         
