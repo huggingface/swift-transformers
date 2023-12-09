@@ -54,26 +54,13 @@ public extension Generation {
         // Iterate until we find the eos token or reach the max length
         // TODO: additional stopping criteria
         var outputTokens = tokens
+        let logitsProcessor = LogitsProcessor(logitsWrappers: logitsWrappers(config: config))
         while outputTokens.count < config.maxLength {
             let outputs = model(outputTokens, config)
-            
             /// `floats` can be much faster than `scalars` for a vector with stride 1, as it uses `memcpy` in that case
-            var logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
-                                    
-            let nextToken: Int
-            if config.temperature > 0 && config.temperature != 1 {
-                logits = logits.map { $0 / Float(config.temperature) }
-            }
-            if config.topK > 0 {
-                let topK = Math.topK(arr: logits, k: config.topK)
-                nextToken = Math.sample(indexes: topK.indexes, probs: topK.probs)
-            } else if config.topP < 1.0 {
-                let topP = Math.topP(arr: logits, p: Float(config.topP))
-                nextToken = Math.sample(indexes: topP.indexes, probs: topP.probs)
-            } else {
-                fatalError("not implemented yet")
-            }
-            
+            let logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
+            let (indexes, processedLogits) = logitsProcessor(logits)
+            let nextToken = Math.sample(indexes: indexes, probs: Math.softmax(processedLogits))
             if nextToken == config.eosTokenId { break }
             outputTokens.append(nextToken)
             callback?(outputTokens)
@@ -101,5 +88,19 @@ public extension Generation {
         }
         
         return tokenizer.decode(tokens: output)
+    }
+
+    private func logitsWrappers(config: GenerationConfig) -> [any LogitsWarper] {
+        var logitsWrappers = [any LogitsWarper]()
+        if config.temperature > 0 && config.temperature != 1 {
+            logitsWrappers.append(TemperatureLogitsWraper(temperature: Float(config.temperature)))
+        }
+        if config.topK > 0 {
+            logitsWrappers.append(TopKLogitsWarper(k: config.topK))
+        }
+        if config.topP < 1.0 {
+            logitsWrappers.append(TopPLogitsWarper(p: Float(config.topP)))
+        }
+        return logitsWrappers
     }
 }
