@@ -211,6 +211,7 @@ class BPETokenizer: Tokenizer {
     }
 }
 
-class GPT2Tokenizer  : BPETokenizer {}
-class FalconTokenizer: BPETokenizer {}
-class LlamaTokenizer : BPETokenizer {}
+class GPT2Tokenizer    : BPETokenizer {}
+class FalconTokenizer  : BPETokenizer {}
+class LlamaTokenizer   : BPETokenizer {}
+class CodeGenTokenizer : BPETokenizer {}
