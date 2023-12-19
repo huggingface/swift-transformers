@@ -2,7 +2,7 @@ import Foundation
 import Accelerate
 
 /// Top-K.
-/// Select the k most-probable elements indices from `arr`
+/// Select the k most-probable element indices from `arr`
 /// and return both the indices (from the original array)
 /// and their probabilities.
 public struct TopKLogitsWarper: LogitsWarper {
@@ -12,7 +12,7 @@ public struct TopKLogitsWarper: LogitsWarper {
         self.k = k
     }
 
-    public func callAsFunction(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
+    public func warp(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
         guard !arr.isEmpty else {
             return (indexes: [], logits: [])
         }

@@ -10,7 +10,7 @@ public struct TopPLogitsWarper: LogitsWarper {
         self.p = p
     }
 
-    public func callAsFunction(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
+    public func warp(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
         guard !arr.isEmpty else {
             return (indexes: [], logits: [])
         }
