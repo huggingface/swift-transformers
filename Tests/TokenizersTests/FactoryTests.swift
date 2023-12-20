@@ -14,4 +14,10 @@ class FactoryTests: XCTestCase {
         let inputIds = tokenizer("Today she took a train to the West")
         XCTAssertEqual(inputIds, [1, 20628, 1183, 3614, 263, 7945, 304, 278, 3122])
     }
+    
+    func testWhisper() async throws {
+        let tokenizer = try await AutoTokenizer.from(pretrained: "openai/whisper-large-v2")
+        let inputIds = tokenizer("Today she took a train to the West")
+        XCTAssertEqual(inputIds, [50258, 50363, 27676, 750, 220, 83, 1212, 257, 220, 83, 7146, 220, 1353, 220, 3322, 4055, 50257])
+    }
 }

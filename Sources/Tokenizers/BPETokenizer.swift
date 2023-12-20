@@ -215,3 +215,4 @@ class GPT2Tokenizer    : BPETokenizer {}
 class FalconTokenizer  : BPETokenizer {}
 class LlamaTokenizer   : BPETokenizer {}
 class CodeGenTokenizer : BPETokenizer {}
+class WhisperTokenizer : BPETokenizer {}

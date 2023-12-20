@@ -27,6 +27,16 @@ class LlamaTokenizerTests: BPETokenizerTests {
     override class var encodedSamplesFilename: String? { "llama_encoded" }
 }
 
+class WhisperLargeTokenizerTests: BPETokenizerTests {
+    override class var hubModelName: String? { "openai/whisper-large-v2" }
+    override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }
+}
+
+class WhisperTinyTokenizerTests: BPETokenizerTests {
+    override class var hubModelName: String? { "openai/whisper-tiny.en" }
+    override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
+}
+
 struct BPEEncodingSampleDataset: Decodable {
     let text: String
     let bpe_tokens: [String]
