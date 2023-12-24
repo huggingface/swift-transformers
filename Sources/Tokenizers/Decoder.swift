@@ -34,13 +34,14 @@ enum DecoderType: String {
 }
 
 struct DecoderFactory {
-    static func fromConfig(config: Config?) -> Decoder? {
+    static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
+        // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
         guard let config = config else { return nil }
         guard let typeName = config.type?.stringValue else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
         case .Sequence    : return DecoderSequence(config: config)
-        case .ByteLevel   : return ByteLevelDecoder(config: config)
+        case .ByteLevel   : return ByteLevelDecoder(config: config, addedTokens: addedTokens)
         case .Replace     : return ReplaceDecoder(config: config)
         case .ByteFallback: return ByteFallbackDecoder(config: config)
         case .Fuse        : return FuseDecoder(config: config)
@@ -66,10 +67,14 @@ class DecoderSequence: Decoder {
 }
 
 class ByteLevelDecoder: Decoder {
-    //FIXME: hardcoded for now
-    let addedTokens = Set(["<|endoftext|>"])
+    let addedTokens: Set<String>
     
     required public init(config: Config) {
+        self.addedTokens = []
+    }
+    
+    init(config: Config, addedTokens: Set<String>?) {
+        self.addedTokens = addedTokens ?? []
     }
     
     func decode(tokens: [String]) -> [String] {

@@ -43,6 +43,7 @@ public struct AutoTokenizer {
         "FalconTokenizer" : FalconTokenizer.self,
         "LlamaTokenizer"  : LlamaTokenizer.self,
         "CodeGenTokenizer": CodeGenTokenizer.self,
+        "WhisperTokenizer": WhisperTokenizer.self,
 
         // Default
         "PreTrainedTokenizer": BPETokenizer.self
