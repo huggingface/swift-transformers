@@ -35,6 +35,8 @@ class BPETokenizer: Tokenizer {
     let bpeRanks: Dictionary<BytePair, Int>
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]
+    private let addedTokens: Set<String>
+    private let specialTokens: [String: Int]
     
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
@@ -48,6 +50,21 @@ class BPETokenizer: Tokenizer {
             throw TokenizerError.missingVocab
         }
         let merges = tokenizerData.model?.merges?.value as? [String]
+        
+        var addedTokens: [String : Int] = [:]
+        var specialTokens: [String : Int] = [:]
+        for addedToken in tokenizerData.addedTokens?.arrayValue ?? [] {
+            guard let id = addedToken.id?.intValue else { continue /* malformed: token with no id */ }
+            guard let content = addedToken.content?.stringValue else { continue /* malformed: token with no content */ }
+            addedTokens[content] = id
+            
+            if addedToken.special?.boolValue ?? false {
+                specialTokens[content] = id
+            }
+        }
+        // TODO: specialTokens are stored but never used
+        self.specialTokens = specialTokens
+        self.addedTokens = Set(addedTokens.keys)
 
         self.preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData.preTokenizer)
         self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData.normalizer)
@@ -64,7 +81,7 @@ class BPETokenizer: Tokenizer {
         }
         self.bpeRanks = bpeRanks
         
-        self.tokensToIds = vocab
+        self.tokensToIds = vocab.merging(addedTokens) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
     }
     
