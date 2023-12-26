@@ -85,6 +85,15 @@ class BPETokenizer: Tokenizer {
         self.idsToTokens = Utils.invert(self.tokensToIds)
     }
     
+    func convertTokenToId(_ token: String) -> Int {
+        // TODO: use unknown token id
+        return tokensToIds[token] ?? 0
+    }
+    
+    func convertIdToToken(_ id: Int) -> String {
+        return idsToTokens[id] ?? ""
+    }
+
     func byteEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }

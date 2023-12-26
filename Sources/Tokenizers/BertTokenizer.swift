@@ -100,6 +100,15 @@ extension BertTokenizer: Tokenizer {
         let tokens = unTokenize(tokens: tokens)
         return convertWordpieceToBasicTokenList(tokens)
     }
+    
+    func convertTokenToId(_ token: String) -> Int {
+        // TODO: use unknown token id
+        return vocab[token] ?? 0
+    }
+    
+    func convertIdToToken(_ id: Int) -> String {
+        return ids_to_tokens[id] ?? ""
+    }
 }
 
 
