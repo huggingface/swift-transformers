@@ -48,6 +48,10 @@ class BPETokenizer: Tokenizer {
     
     private let cleanUpTokenizationSpaces: Bool
 
+    class func unknownToken(from tokenizerConfig: Config) -> String? {
+        return tokenizerConfig.unkToken?.content?.stringValue ?? tokenizerConfig.unkToken?.stringValue
+    }
+    
     required init(tokenizerConfig: Config, tokenizerData: Config) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
@@ -88,7 +92,7 @@ class BPETokenizer: Tokenizer {
         self.idsToTokens = Utils.invert(self.tokensToIds)
         
         // Populate unknown token
-        if let unknownToken = tokenizerConfig.unkToken?.content?.stringValue {
+        if let unknownToken = Self.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
             self.unknownTokenId = self.tokensToIds[unknownToken]
         } else {
