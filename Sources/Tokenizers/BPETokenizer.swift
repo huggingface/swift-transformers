@@ -38,8 +38,8 @@ class BPETokenizer: Tokenizer {
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
     
-    public let unknownToken: String
-    public let unknownTokenId: Int
+    public let unknownToken: String?
+    public let unknownTokenId: Int?
     
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
@@ -88,22 +88,21 @@ class BPETokenizer: Tokenizer {
         self.idsToTokens = Utils.invert(self.tokensToIds)
         
         // Populate unknown token
-        guard let unknownToken = tokenizerConfig.unkToken?.content?.stringValue else {
-            throw TokenizerError.missingItem("Missing unk_token in tokenizer configuration")
+        if let unknownToken = tokenizerConfig.unkToken?.content?.stringValue {
+            self.unknownToken = unknownToken
+            self.unknownTokenId = self.tokensToIds[unknownToken]
+        } else {
+            self.unknownToken = nil
+            self.unknownTokenId = nil
         }
-        guard let unknownTokenId = self.tokensToIds[unknownToken] else {
-            throw TokenizerError.missingItem("No mapping in vocab for unk_token '\(unknownToken)'")
-        }
-        self.unknownToken = unknownToken
-        self.unknownTokenId = unknownTokenId
     }
     
-    func convertTokenToId(_ token: String) -> Int {
+    func convertTokenToId(_ token: String) -> Int? {
         return tokensToIds[token] ?? self.unknownTokenId
     }
     
-    func convertIdToToken(_ id: Int) -> String {
-        return idsToTokens[id] ?? self.unknownToken
+    func convertIdToToken(_ id: Int) -> String? {
+        return idsToTokens[id]
     }
 
     func byteEncode(text: String) -> [String] {

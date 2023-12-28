@@ -14,27 +14,32 @@ import XCTest
 class GPT2TokenizerTests: BPETokenizerTests {
     override class var hubModelName: String? { "distilgpt2" }
     override class var encodedSamplesFilename: String? { "gpt2_encoded_tokens" }
+    override class var unknownTokenId: Int? { 50256 }
 }
 
 class FalconTokenizerTests: BPETokenizerTests {
     override class var hubModelName: String? { "tiiuae/falcon-7b" }
     override class var encodedSamplesFilename: String? { "falcon_encoded" }
+    override class var unknownTokenId: Int? { nil }
 }
 
 class LlamaTokenizerTests: BPETokenizerTests {
     // meta-llama/Llama-2-7b-chat requires approval, and hf-internal-testing/llama-tokenizer does not have a config.json
     override class var hubModelName: String? { "coreml-projects/Llama-2-7b-chat-coreml" }
     override class var encodedSamplesFilename: String? { "llama_encoded" }
+    override class var unknownTokenId: Int? { 0 }
 }
 
 class WhisperLargeTokenizerTests: BPETokenizerTests {
     override class var hubModelName: String? { "openai/whisper-large-v2" }
     override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }
+    override class var unknownTokenId: Int? { 50257 }
 }
 
 class WhisperTinyTokenizerTests: BPETokenizerTests {
     override class var hubModelName: String? { "openai/whisper-tiny.en" }
     override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
+    override class var unknownTokenId: Int? { 50256 }
 }
 
 struct BPEEncodingSampleDataset: Decodable {
@@ -63,14 +68,16 @@ struct EncodedData: Decodable {
 
 class BPETokenizerTester {
     let encodedSamplesFilename: String
+    let unknownTokenId: Int?
     
     private var configuration: LanguageModelConfigurationFromHub? = nil
     private var edgeCases: [EdgeCase]? = nil
     private var _tokenizer: Tokenizer? = nil
     
-    init(hubModelName: String, encodedSamplesFilename: String) {
+    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName)
         self.encodedSamplesFilename = encodedSamplesFilename
+        self.unknownTokenId = unknownTokenId
         
         // Read the edge cases dataset
         edgeCases = {
@@ -149,14 +156,19 @@ class BPETokenizerTester {
     
     func testUnknownToken() async {
         guard let tokenizer = await tokenizer else { return }
+        XCTAssertEqual(tokenizer.unknownTokenId, unknownTokenId)
         XCTAssertEqual(
             tokenizer.unknownTokenId,
             tokenizer.convertTokenToId("_this_token_does_not_exist_")
         )
-        XCTAssertEqual(
-            tokenizer.unknownToken,
-            tokenizer.convertIdToToken(tokenizer.unknownTokenId)
-        )
+        if let unknownTokenId = tokenizer.unknownTokenId {
+            XCTAssertEqual(
+                tokenizer.unknownToken,
+                tokenizer.convertIdToToken(unknownTokenId)
+            )
+        } else {
+            XCTAssertNil(tokenizer.unknownTokenId)
+        }
     }
 }
 
@@ -167,11 +179,15 @@ class BPETokenizerTests: XCTestCase {
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }
     
+    // Known id retrieved from Python, to verify it was parsed correctly
+    class var unknownTokenId: Int? { nil }
+    
     override class func setUp() {
         if let hubModelName = hubModelName, let encodedSamplesFilename = encodedSamplesFilename {
             _bpeTester = BPETokenizerTester(
                 hubModelName: hubModelName,
-                encodedSamplesFilename: encodedSamplesFilename
+                encodedSamplesFilename: encodedSamplesFilename,
+                unknownTokenId: unknownTokenId
             )
         }
     }
