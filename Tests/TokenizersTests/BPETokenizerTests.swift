@@ -92,7 +92,7 @@ class BPETokenizerTester {
     }()
     
     
-    var tokenizer: Tokenizer {
+    var tokenizer: Tokenizer? {
         get async {
             guard _tokenizer == nil else { return _tokenizer! }
             do {
@@ -102,12 +102,12 @@ class BPETokenizerTester {
             } catch {
                 XCTFail("Cannot load tokenizer: \(error)")
             }
-            return _tokenizer!
+            return _tokenizer
         }
     }
         
     func testTokenize() async {
-        let tokenized = await tokenizer.tokenize(text: dataset.text)
+        let tokenized = await tokenizer?.tokenize(text: dataset.text)
         XCTAssertEqual(
             tokenized,
             dataset.bpe_tokens
@@ -115,7 +115,7 @@ class BPETokenizerTester {
     }
     
     func testEncode() async {
-        let encoded = await tokenizer.encode(text: dataset.text)
+        let encoded = await tokenizer?.encode(text: dataset.text)
         XCTAssertEqual(
             encoded,
             dataset.token_ids
@@ -123,7 +123,7 @@ class BPETokenizerTester {
     }
     
     func testDecode() async {
-        let decoded = await tokenizer.decode(tokens: dataset.token_ids)
+        let decoded = await tokenizer?.decode(tokens: dataset.token_ids)
         XCTAssertEqual(
             decoded,
             dataset.decoded_text
@@ -133,8 +133,7 @@ class BPETokenizerTester {
     /// Test encode and decode for a few edge cases
     func testEdgeCases() async {
         guard let edgeCases = edgeCases else { return }
-        
-        let tokenizer = await tokenizer
+        guard let tokenizer = await tokenizer else { return }
         for edgeCase in edgeCases {
             print("Testing \(edgeCase.input)")
             XCTAssertEqual(
@@ -146,6 +145,18 @@ class BPETokenizerTester {
                 edgeCase.decoded_with_special
             )
         }
+    }
+    
+    func testUnknownToken() async {
+        guard let tokenizer = await tokenizer else { return }
+        XCTAssertEqual(
+            tokenizer.unknownTokenId,
+            tokenizer.convertTokenToId("_this_token_does_not_exist_")
+        )
+        XCTAssertEqual(
+            tokenizer.unknownToken,
+            tokenizer.convertIdToToken(tokenizer.unknownTokenId)
+        )
     }
 }
 
@@ -186,6 +197,12 @@ class BPETokenizerTests: XCTestCase {
     func testEdgeCases() async {
         if let bpeTester = Self._bpeTester {
             await bpeTester.testEdgeCases()
+        }
+    }
+    
+    func testUnknownToken() async {
+        if let bpeTester = Self._bpeTester {
+            await bpeTester.testUnknownToken()
         }
     }
 }

@@ -13,6 +13,7 @@ enum TokenizerError : Error {
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
     case missingVocab
+    case missingItem(String)
     
     case tooLong(String)
 }
@@ -32,6 +33,9 @@ public protocol Tokenizer {
     
     func convertIdToToken(_ id: Int) -> String
     func convertIdsToTokens(_ ids: [Int]) -> [String]
+    
+    var unknownToken: String { get }
+    var unknownTokenId: Int { get }
 }
 
 public extension Tokenizer {
