@@ -94,11 +94,22 @@ class BertTokenizer {
 
 
 extension BertTokenizer: Tokenizer {
+    var unknownToken: String? { wordpieceTokenizer.unkToken }
+    var unknownTokenId: Int? { vocab[unknownToken!] }
+    
     func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
     
     func decode(tokens: [Int]) -> String {
         let tokens = unTokenize(tokens: tokens)
         return convertWordpieceToBasicTokenList(tokens)
+    }
+    
+    func convertTokenToId(_ token: String) -> Int? {
+        return vocab[token] ?? unknownTokenId
+    }
+    
+    func convertIdToToken(_ id: Int) -> String? {
+        return ids_to_tokens[id]
     }
 }
 
@@ -139,7 +150,7 @@ class BasicTokenizer {
 
 
 class WordpieceTokenizer {
-    private let unkToken = "[UNK]"
+    let unkToken = "[UNK]"
     private let maxInputCharsPerWord = 100
     private let vocab: [String: Int]
     

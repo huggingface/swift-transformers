@@ -38,6 +38,9 @@ class BPETokenizer: Tokenizer {
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
     
+    public let unknownToken: String?
+    public let unknownTokenId: Int?
+    
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
@@ -45,6 +48,10 @@ class BPETokenizer: Tokenizer {
     
     private let cleanUpTokenizationSpaces: Bool
 
+    class func unknownToken(from tokenizerConfig: Config) -> String? {
+        return tokenizerConfig.unkToken?.content?.stringValue ?? tokenizerConfig.unkToken?.stringValue
+    }
+    
     required init(tokenizerConfig: Config, tokenizerData: Config) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
@@ -83,8 +90,25 @@ class BPETokenizer: Tokenizer {
         
         self.tokensToIds = vocab.merging(addedTokens) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
+        
+        // Populate unknown token
+        if let unknownToken = Self.unknownToken(from: tokenizerConfig) {
+            self.unknownToken = unknownToken
+            self.unknownTokenId = self.tokensToIds[unknownToken]
+        } else {
+            self.unknownToken = nil
+            self.unknownTokenId = nil
+        }
     }
     
+    func convertTokenToId(_ token: String) -> Int? {
+        return tokensToIds[token] ?? self.unknownTokenId
+    }
+    
+    func convertIdToToken(_ id: Int) -> String? {
+        return idsToTokens[id]
+    }
+
     func byteEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
