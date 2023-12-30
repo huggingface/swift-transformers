@@ -38,6 +38,8 @@ public extension Hub {
     }
 }
 
+// MARK: - Dynamic parsing of configuration files
+
 @dynamicMemberLookup
 public struct Config {
     public private(set) var dictionary: [String: Any]
