@@ -76,5 +76,66 @@ class HubApiTests: XCTestCase {
             XCTFail("\(error)")
         }
     }
+}
 
+class SnapshotDownloadTests: XCTestCase {
+    let repo = "coreml-projects/Llama-2-7b-chat-coreml"
+    let downloadDestination: URL = {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return base.appending(component: "huggingface-tests")
+    }()
+    
+    override func setUp() {
+    }
+
+    override func tearDown() {
+        do {
+            try FileManager.default.removeItem(at: downloadDestination)
+        } catch {
+            print("Can't remove test download destination \(downloadDestination), error: \(error)")
+        }
+    }
+
+    func getRelativeFiles(url: URL) -> [String] {
+        var filenames: [String] = []
+        let prefix = downloadDestination.appending(path: "models/\(repo)").path.appending("/")
+
+        if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles], errorHandler: nil) {
+            for case let fileURL as URL in enumerator {
+                do {
+                    let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
+                    if resourceValues.isRegularFile == true {
+                        filenames.append(String(fileURL.path.suffix(from: prefix.endIndex)))
+                    }
+                } catch {
+                    print("Error reading file resources: \(error)")
+                }
+            }
+        }
+        return filenames
+    }
+    
+    func testDownload() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+    }
 }
