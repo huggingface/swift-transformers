@@ -124,6 +124,10 @@ public extension Hub {
     static func getFilenames(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil) async throws -> [String] {
         return try await HubApi.shared.getFilenames(from: repoId, repoType: repoType, matching: glob)
     }
+    
+    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+        return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: glob, progressHandler: progressHandler)
+    }
 }
 
 public extension Array<String> {
