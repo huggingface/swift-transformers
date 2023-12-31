@@ -1,7 +1,7 @@
 //
 //  HubApiTests.swift
 //
-//  Created by Pedro Cuenca on 20233012.
+//  Created by Pedro Cuenca on 20231230.
 //
 
 import XCTest
