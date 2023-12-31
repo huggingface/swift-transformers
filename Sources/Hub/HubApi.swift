@@ -10,11 +10,18 @@ import Foundation
 public struct HubApi {
     let endpoint = "https://huggingface.co/api"
     var downloadBase: URL
+    var hfToken: String? = nil
     
-    static let shared = {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return HubApi(downloadBase: documents.appending(component: "huggingface"))
-    }()
+    public init(downloadBase: URL? = nil, hfToken: String? = nil) {
+        if downloadBase == nil {
+            self.downloadBase = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        } else {
+            self.downloadBase = downloadBase!
+        }
+        self.hfToken = hfToken
+    }
+    
+    static let shared = HubApi()
 }
 
 /// File retrieval
@@ -42,6 +49,24 @@ public extension HubApi {
         let filenames = response.siblings.map { $0.rfilename }
         guard let glob = glob else { return filenames }
         return filenames.matching(glob: glob)
+    }
+    
+    func whoami() async throws -> Config {
+        guard let hfToken = hfToken else { throw Hub.HubClientError.authorizationRequired }
+        
+        let url = URL(string: "\(endpoint)/whoami-v2")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
+        switch response.statusCode {
+        case 200..<300: break
+        case 400..<500: throw Hub.HubClientError.authorizationRequired
+        default       : throw Hub.HubClientError.httpStatusCode(response.statusCode)
+        }
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
     }
 }
 

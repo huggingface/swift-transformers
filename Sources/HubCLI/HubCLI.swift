@@ -7,13 +7,14 @@ import Hub
 struct HubCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Hugging Face Hub Client",
-        version: "0.0.1"
+        version: "0.0.1",
+        subcommands: [Download.self, Whoami.self]
     )
+}
 
-    enum Action: String, ExpressibleByArgument {
-        case download
-    }
-    
+struct Download: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Snapshot download from the Hub")
+
     enum RepoType: String, ExpressibleByArgument {
         case model
         case dataset
@@ -28,9 +29,6 @@ struct HubCLI: AsyncParsableCommand {
         }
     }
     
-    @Argument(help: "Action")
-    var action: Action
-
     @Argument(help: "Repo ID")
     var repo: String
 
@@ -49,6 +47,33 @@ struct HubCLI: AsyncParsableCommand {
             }
         }
         print("Snapshot downloaded to: \(downloadedTo.path)")
+    }
+}
+
+struct Whoami: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "whoami")
+    
+    static let defaultTokenLocation = NSString("~/.cache/huggingface/token").expandingTildeInPath
+     
+    @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(Self.defaultTokenLocation)")
+    var token: String? = nil
+    
+    var hfToken: String? {
+        if let token = token { return token }
+        return try? String(contentsOfFile: Self.defaultTokenLocation, encoding: .utf8)
+    }
+
+    func run() async throws {
+        let hubApi = HubApi(downloadBase: nil, hfToken: hfToken)
+        let userInfo = try await hubApi.whoami()
+        if let name = userInfo.name?.stringValue,
+           let fullname = userInfo.fullname?.stringValue,
+           let email = userInfo.email?.stringValue
+        {
+            print("\(name) (\(fullname) <\(email)>)")
+        } else {
+            print("Cannot retrieve user info")
+        }
     }
 }
 

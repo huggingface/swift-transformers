@@ -13,6 +13,9 @@ public extension Hub {
     enum HubClientError: Error {
         case download
         case parse
+        case authorizationRequired
+        case unexpectedError
+        case httpStatusCode(Int)
     }
     
     static func download(url: URL) async throws -> Data {
@@ -28,6 +31,7 @@ public extension Hub {
     
     /// Downloads file from the given repo, and JSON-decodes it
     /// Returns a `Config` (just a dictionary wrapper) as I'm not sure we can use the same object structure for all tokenizers or models
+    // TODO: integrate with HubApi so we can use authentication
     static func downloadConfig(repoId: String, filename: String) async throws -> Config {
         let url = "https://huggingface.co/\(repoId)/resolve/main/\(filename)"
         let data = try await download(url: url)
