@@ -91,11 +91,13 @@ public extension HubApi {
             
             try prepareDestination()
             let downloader = Downloader(from: source, to: destination)
-            let _ = downloader.downloadState.sink { state in
+            let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
                 }
             }
+            // We need to assign the cancellable to a var so we keep receiving events, so we suppress the "unused var" warning here
+            let _ = downloadSubscriber
             try downloader.waitUntilDone()
             return destination
         }
