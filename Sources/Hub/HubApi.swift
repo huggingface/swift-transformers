@@ -14,7 +14,8 @@ public struct HubApi {
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil) {
         if downloadBase == nil {
-            self.downloadBase = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            self.downloadBase = documents.appending(component: "huggingface")
         } else {
             self.downloadBase = downloadBase!
         }
@@ -146,7 +147,7 @@ public extension HubApi {
     }
 }
 
-/// Hub API wrapper (simple, incomplete)
+/// Stateless wrappers that use `HubApi` instances
 public extension Hub {
     static func getFilenames(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil) async throws -> [String] {
         return try await HubApi.shared.getFilenames(from: repoId, repoType: repoType, matching: glob)
@@ -154,6 +155,10 @@ public extension Hub {
     
     static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: glob, progressHandler: progressHandler)
+    }
+    
+    static func whoami(token: String) async throws -> Config {
+        return try await HubApi(hfToken: token).whoami()
     }
 }
 
