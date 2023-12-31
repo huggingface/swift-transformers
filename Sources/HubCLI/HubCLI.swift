@@ -3,6 +3,8 @@ import Foundation
 
 import Hub
 
+let defaultTokenLocation = NSString("~/.cache/huggingface/token").expandingTildeInPath
+
 @main
 struct HubCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -12,7 +14,19 @@ struct HubCLI: AsyncParsableCommand {
     )
 }
 
-struct Download: AsyncParsableCommand {
+protocol SubcommandWithToken {
+
+    var token: String? { get }
+}
+
+extension SubcommandWithToken {
+    var hfToken: String? {
+        if let token = token { return token }
+        return try? String(contentsOfFile: defaultTokenLocation, encoding: .utf8)
+    }
+}
+
+struct Download: AsyncParsableCommand, SubcommandWithToken {
     static let configuration = CommandConfiguration(abstract: "Snapshot download from the Hub")
 
     enum RepoType: String, ExpressibleByArgument {
@@ -37,9 +51,13 @@ struct Download: AsyncParsableCommand {
 
     @Option(help: "Glob pattern for files to include")
     var include: String?
+    
+    @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
+    var token: String? = nil
         
     func run() async throws {
-        let downloadedTo = try await Hub.snapshot(from: repo, repoType: repoType.asHubApiRepoType, matching: include) { progress in
+        let hubApi = HubApi(hfToken: hfToken)
+        let downloadedTo = try await hubApi.snapshot(from: repo, repoType: repoType.asHubApiRepoType, matching: include) { progress in
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%", terminator: "\r")
@@ -50,21 +68,14 @@ struct Download: AsyncParsableCommand {
     }
 }
 
-struct Whoami: AsyncParsableCommand {
+struct Whoami: AsyncParsableCommand, SubcommandWithToken {
     static let configuration = CommandConfiguration(abstract: "whoami")
-    
-    static let defaultTokenLocation = NSString("~/.cache/huggingface/token").expandingTildeInPath
-     
-    @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(Self.defaultTokenLocation)")
+         
+    @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
     
-    var hfToken: String? {
-        if let token = token { return token }
-        return try? String(contentsOfFile: Self.defaultTokenLocation, encoding: .utf8)
-    }
-
     func run() async throws {
-        let hubApi = HubApi(downloadBase: nil, hfToken: hfToken)
+        let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()
         if let name = userInfo.name?.stringValue,
            let fullname = userInfo.fullname?.stringValue,

@@ -42,10 +42,28 @@ public extension HubApi {
         case spaces
     }
     
+    /// Throws error if the response code is not 20X
+    func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
+        var request = URLRequest(url: url)
+        if let hfToken = hfToken {
+            request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
+        
+        switch response.statusCode {
+        case 200..<300: break
+        case 400..<500: throw Hub.HubClientError.authorizationRequired
+        default       : throw Hub.HubClientError.httpStatusCode(response.statusCode)
+        }
+
+        return (data, response)
+    }
+    
     func getFilenames(from repoId: String, repoType: RepoType = .models, matching glob: String? = nil) async throws -> [String] {
         // Read repo info and only parse "siblings"
         let url = URL(string: "\(endpoint)/\(repoType)/\(repoId)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let (data, _) = try await httpGet(for: url)
         let response = try JSONDecoder().decode(SiblingsResponse.self, from: data)
         let filenames = response.siblings.map { $0.rfilename }
         guard let glob = glob else { return filenames }
@@ -53,18 +71,11 @@ public extension HubApi {
     }
     
     func whoami() async throws -> Config {
-        guard let hfToken = hfToken else { throw Hub.HubClientError.authorizationRequired }
+        guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
         
         let url = URL(string: "\(endpoint)/whoami-v2")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
-        switch response.statusCode {
-        case 200..<300: break
-        case 400..<500: throw Hub.HubClientError.authorizationRequired
-        default       : throw Hub.HubClientError.httpStatusCode(response.statusCode)
-        }
+        let (data, _) = try await httpGet(for: url)
+
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
         guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
         return Config(dictionary)
@@ -82,6 +93,7 @@ public extension HubApi {
         let repoType: RepoType
         let repoDestination: URL
         let relativeFilename: String
+        let hfToken: String?
         
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
@@ -116,7 +128,7 @@ public extension HubApi {
             guard !downloaded else { return destination }
             
             try prepareDestination()
-            let downloader = Downloader(from: source, to: destination)
+            let downloader = Downloader(from: source, to: destination, using: hfToken)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
@@ -135,7 +147,7 @@ public extension HubApi {
         let repoDestination = destination(repoId: repoId, repoType: repoType)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
-            let downloader = HubFileDownloader(repoId: repoId, repoType: repoType, repoDestination: repoDestination, relativeFilename: filename)
+            let downloader = HubFileDownloader(repoId: repoId, repoType: repoType, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken)
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
