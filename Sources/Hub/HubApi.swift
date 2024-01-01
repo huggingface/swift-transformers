@@ -85,7 +85,7 @@ public extension HubApi {
     /// Assumes the file has already been downloaded.
     /// `filename` is relative to the download base.
     func configuration(from filename: String, in repoId: String, repoType: RepoType = .models) throws -> Config {
-        let url = destination(repoId: repoId, repoType: repoType).appending(path: filename)
+        let url = localRepoLocation(repoId: repoId, repoType: repoType).appending(path: filename)
         let data = try Data(contentsOf: url)
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
         guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
@@ -109,7 +109,7 @@ public extension HubApi {
 
 /// Snaphsot download
 public extension HubApi {
-    func destination(repoId: String, repoType: RepoType = .models) -> URL {
+    func localRepoLocation(repoId: String, repoType: RepoType = .models) -> URL {
         downloadBase.appending(component: repoType.rawValue).appending(component: repoId)
     }
     
@@ -170,7 +170,7 @@ public extension HubApi {
     func snapshot(from repoId: String, repoType: RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         let filenames = try await getFilenames(from: repoId, repoType: repoType, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
-        let repoDestination = destination(repoId: repoId, repoType: repoType)
+        let repoDestination = localRepoLocation(repoId: repoId, repoType: repoType)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
             let downloader = HubFileDownloader(repoId: repoId, repoType: repoType, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken)
