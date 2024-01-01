@@ -9,7 +9,6 @@ import XCTest
 
 
 class HubApiTests: XCTestCase {
-
     override func setUp() {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -71,6 +70,19 @@ class HubApiTests: XCTestCase {
                     "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
 
                 ])
+            )
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+    
+    func testFilenameRetrievalWithMultiplePatterns() async {
+        do {
+            let patterns = ["config.json", "tokenizer.json", "tokenizer_*.json"]
+            let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: patterns)
+            XCTAssertEqual(
+                Set(filenames),
+                Set(["config.json", "tokenizer.json", "tokenizer_config.json"])
             )
         } catch {
             XCTFail("\(error)")

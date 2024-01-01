@@ -60,14 +60,23 @@ public extension HubApi {
         return (data, response)
     }
     
-    func getFilenames(from repoId: String, repoType: RepoType = .models, matching glob: String? = nil) async throws -> [String] {
+    func getFilenames(from repoId: String, repoType: RepoType = .models, matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
         let url = URL(string: "\(endpoint)/\(repoType)/\(repoId)")!
         let (data, _) = try await httpGet(for: url)
         let response = try JSONDecoder().decode(SiblingsResponse.self, from: data)
         let filenames = response.siblings.map { $0.rfilename }
-        guard let glob = glob else { return filenames }
-        return filenames.matching(glob: glob)
+        guard globs.count > 0 else { return filenames }
+        
+        var selected: Set<String> = []
+        for glob in globs {
+            selected = selected.union(filenames.matching(glob: glob))
+        }
+        return Array(selected)
+    }
+    
+    func getFilenames(from repoId: String, repoType: RepoType = .models, matching glob: String) async throws -> [String] {
+        return try await getFilenames(from: repoId, repoType: repoType, matching: [glob])
     }
     
     func whoami() async throws -> Config {
@@ -141,8 +150,8 @@ public extension HubApi {
         }
     }
     
-    func snapshot(from repoId: String, repoType: RepoType = .models, matching glob: String? = nil, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
-        let filenames = try await getFilenames(from: repoId, repoType: repoType, matching: glob)
+    func snapshot(from repoId: String, repoType: RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+        let filenames = try await getFilenames(from: repoId, repoType: repoType, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         let repoDestination = destination(repoId: repoId, repoType: repoType)
         for filename in filenames {
@@ -157,15 +166,27 @@ public extension HubApi {
         progressHandler(progress)
         return repoDestination
     }
+    
+    func snapshot(from repoId: String, repoType: RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+        return try await snapshot(from: repoId, repoType: repoType, matching: [glob], progressHandler: progressHandler)
+    }
 }
 
 /// Stateless wrappers that use `HubApi` instances
 public extension Hub {
-    static func getFilenames(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil) async throws -> [String] {
+    static func getFilenames(from repoId: String, repoType: HubApi.RepoType = .models, matching globs: [String] = []) async throws -> [String] {
+        return try await HubApi.shared.getFilenames(from: repoId, repoType: repoType, matching: globs)
+    }
+    
+    static func getFilenames(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String) async throws -> [String] {
         return try await HubApi.shared.getFilenames(from: repoId, repoType: repoType, matching: glob)
     }
     
-    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String? = nil, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+        return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: globs, progressHandler: progressHandler)
+    }
+    
+    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: glob, progressHandler: progressHandler)
     }
     

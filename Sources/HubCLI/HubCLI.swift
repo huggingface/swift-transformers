@@ -49,8 +49,8 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
     @Option(help: "Repo type")
     var repoType: RepoType = .model
 
-    @Option(help: "Glob pattern for files to include")
-    var include: String?
+    @Option(help: "Glob patterns for files to include")
+    var include: [String] = []
     
     @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
