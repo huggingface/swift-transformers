@@ -9,7 +9,6 @@ import XCTest
 
 
 class HubTests: XCTestCase {
-
     override func setUp() {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -20,7 +19,8 @@ class HubTests: XCTestCase {
 
     func testConfigDownload() async {
         do {
-            let config = try await Hub.downloadConfig(repoId: "t5-base", filename: "config.json")
+            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base")
+            let config = try await configLoader.modelConfig
             
             // Test leaf value (Int)
             guard let eos = config.eos_token_id?.intValue else {
@@ -56,13 +56,15 @@ class HubTests: XCTestCase {
             }
             XCTAssertEqual(summarizationMaxLength, 200)
         } catch {
-            XCTFail("Cannot download test configuration from the Hub")
+            XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
     
     func testConfigCamelCase() async {
         do {
-            let config = try await Hub.downloadConfig(repoId: "t5-base", filename: "config.json")
+            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base")
+            let config = try await configLoader.modelConfig
+
             // Test leaf value (Int)
             guard let eos = config.eosTokenId?.intValue else {
                 XCTFail("nil leaf value (Int)")
@@ -83,7 +85,7 @@ class HubTests: XCTestCase {
             }
             XCTAssertEqual(summarizationMaxLength, 200)
         } catch {
-            XCTFail("Cannot download test configuration from the Hub")
+            XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
 }

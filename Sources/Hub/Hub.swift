@@ -16,33 +16,10 @@ public extension Hub {
         case authorizationRequired
         case unexpectedError
         case httpStatusCode(Int)
-    }
-    
-    static func download(url: URL) async throws -> Data {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return data
-    }
-    
-    static func download(url: String) async throws -> Data {
-        guard let realUrl = URL(string: url) else { throw HubClientError.download }
-        let (data, _) = try await URLSession.shared.data(from: realUrl)
-        return data
-    }
-    
-    /// Downloads file from the given repo, and JSON-decodes it
-    /// Returns a `Config` (just a dictionary wrapper) as I'm not sure we can use the same object structure for all tokenizers or models
-    // TODO: integrate with HubApi so we can use authentication
-    static func downloadConfig(repoId: String, filename: String) async throws -> Config {
-        let url = "https://huggingface.co/\(repoId)/resolve/main/\(filename)"
-        let data = try await download(url: url)
-        
-        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-        guard let dictionary = parsed as? [String: Any] else { throw HubClientError.parse }
-        return Config(dictionary)
-    }
+    }    
 }
 
-// MARK: - Dynamic parsing of configuration files
+// MARK: - Configuration files with dynamic lookup
 
 @dynamicMemberLookup
 public struct Config {
@@ -158,14 +135,17 @@ public class LanguageModelConfigurationFromHub {
         }
     }
 
-    func loadConfig(modelName: String) async throws -> Configurations {
-        // TODO: caching
-        async let modelConfig = try Hub.downloadConfig(repoId: modelName, filename: "config.json")
-        async let tokenizerConfig = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer_config.json")
-        async let tokenizerVocab = try Hub.downloadConfig(repoId: modelName, filename: "tokenizer.json")
+    func loadConfig(modelName: String, hfToken: String? = nil) async throws -> Configurations {
+        let hubApi = HubApi(hfToken: hfToken)
+        let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
+        try await hubApi.snapshot(from: modelName, matching: filesToDownload)
 
         // Note tokenizerConfig may be nil (does not exist in all models)
-        let configs = await Configurations(modelConfig: try modelConfig, tokenizerConfig: try? tokenizerConfig, tokenizerData: try tokenizerVocab)
+        let modelConfig = try hubApi.configuration(from: "config.json", in: modelName)
+        let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: modelName)
+        let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: modelName)
+        
+        let configs = Configurations(modelConfig: modelConfig, tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerVocab)
         return configs
     }
 

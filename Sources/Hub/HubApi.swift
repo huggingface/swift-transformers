@@ -78,7 +78,23 @@ public extension HubApi {
     func getFilenames(from repoId: String, repoType: RepoType = .models, matching glob: String) async throws -> [String] {
         return try await getFilenames(from: repoId, repoType: repoType, matching: [glob])
     }
-    
+}
+
+/// Configuration loading helpers
+public extension HubApi {
+    /// Assumes the file has already been downloaded.
+    /// `filename` is relative to the download base.
+    func configuration(from filename: String, in repoId: String, repoType: RepoType = .models) throws -> Config {
+        let url = destination(repoId: repoId, repoType: repoType).appending(path: filename)
+        let data = try Data(contentsOf: url)
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
+    }
+}
+
+/// Whoami
+public extension HubApi {
     func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
         
@@ -150,7 +166,8 @@ public extension HubApi {
         }
     }
     
-    func snapshot(from repoId: String, repoType: RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+    @discardableResult
+    func snapshot(from repoId: String, repoType: RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         let filenames = try await getFilenames(from: repoId, repoType: repoType, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         let repoDestination = destination(repoId: repoId, repoType: repoType)
@@ -167,7 +184,8 @@ public extension HubApi {
         return repoDestination
     }
     
-    func snapshot(from repoId: String, repoType: RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+    @discardableResult
+    func snapshot(from repoId: String, repoType: RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         return try await snapshot(from: repoId, repoType: repoType, matching: [glob], progressHandler: progressHandler)
     }
 }
@@ -182,11 +200,11 @@ public extension Hub {
         return try await HubApi.shared.getFilenames(from: repoId, repoType: repoType, matching: glob)
     }
     
-    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: globs, progressHandler: progressHandler)
     }
     
-    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void) async throws -> URL {
+    static func snapshot(from repoId: String, repoType: HubApi.RepoType = .models, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repoId, repoType: repoType, matching: glob, progressHandler: progressHandler)
     }
     
