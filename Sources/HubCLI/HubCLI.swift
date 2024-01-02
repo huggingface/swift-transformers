@@ -57,7 +57,8 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
         
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
-        let downloadedTo = try await hubApi.snapshot(from: repo, repoType: repoType.asHubApiRepoType, matching: include) { progress in
+        let repo = Hub.Repo(id: repo, type: repoType.asHubApiRepoType)
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: include) { progress in
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%", terminator: "\r")

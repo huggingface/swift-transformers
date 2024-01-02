@@ -16,7 +16,23 @@ public extension Hub {
         case authorizationRequired
         case unexpectedError
         case httpStatusCode(Int)
-    }    
+    }
+    
+    enum RepoType: String {
+        case models
+        case datasets
+        case spaces
+    }
+    
+    struct Repo {
+        let id: String
+        let type: RepoType
+        
+        public init(id: String, type: RepoType = .models) {
+            self.id = id
+            self.type = type
+        }
+    }
 }
 
 // MARK: - Configuration files with dynamic lookup
@@ -138,12 +154,13 @@ public class LanguageModelConfigurationFromHub {
     func loadConfig(modelName: String, hfToken: String? = nil) async throws -> Configurations {
         let hubApi = HubApi(hfToken: hfToken)
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
-        try await hubApi.snapshot(from: modelName, matching: filesToDownload)
+        let repo = Hub.Repo(id: modelName)
+        try await hubApi.snapshot(from: repo, matching: filesToDownload)
 
         // Note tokenizerConfig may be nil (does not exist in all models)
-        let modelConfig = try hubApi.configuration(from: "config.json", in: modelName)
-        let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: modelName)
-        let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: modelName)
+        let modelConfig = try hubApi.configuration(from: "config.json", in: repo)
+        let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: repo)
+        let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: repo)
         
         let configs = Configurations(modelConfig: modelConfig, tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerVocab)
         return configs
