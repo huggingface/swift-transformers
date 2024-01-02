@@ -11,7 +11,6 @@ public struct Hub {}
 
 public extension Hub {
     enum HubClientError: Error {
-        case download
         case parse
         case authorizationRequired
         case unexpectedError
