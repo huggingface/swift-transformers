@@ -9,9 +9,10 @@ let package = Package(
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         .executable(name: "transformers", targets: ["TransformersCLI"]),
+        .executable(name: "hub", targets: ["HubCLI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.2.0")
+        .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.3.0")
     ],
     targets: [
         .executableTarget(
@@ -19,6 +20,7 @@ let package = Package(
             dependencies: [
                 "Models", "Generation", "Tokenizers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+        .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
         .target(name: "Tokenizers", dependencies: ["Hub"]),
         .target(name: "TensorUtils"),
