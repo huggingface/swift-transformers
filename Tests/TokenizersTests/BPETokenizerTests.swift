@@ -7,7 +7,7 @@
 //
 
 import XCTest
-@testable import Hub
+import Hub
 @testable import Tokenizers
 @testable import Models
 
