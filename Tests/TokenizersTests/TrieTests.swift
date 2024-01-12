@@ -44,4 +44,19 @@ class TrieTests: XCTestCase {
         let leaves = trie.commonPrefixSearch("carpooling").map { String($0) }
         XCTAssertEqual(leaves, ["car", "carp"])
     }
+    
+    func testTrieCommonPrefixSearchIterator() {
+        // https://guillaume-be.github.io/2020-05-30/sentence_piece
+        let trie = Trie<Character>()
+        trie.insert("cat")
+        trie.insert("carp")
+        trie.insert("car")
+
+        var expected = Set(["car", "carp"])
+        for leaf in trie.commonPrefixSearchIterator("carpooling").map({ String($0) }) {
+            XCTAssert(expected.contains(leaf))
+            expected.remove(leaf)
+        }
+        XCTAssertEqual(expected.count, 0)
+    }
 }

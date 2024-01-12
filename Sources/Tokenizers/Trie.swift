@@ -18,8 +18,8 @@ public struct Trie<T: Hashable> {
     }
 }
 
-extension Trie {
-    public func insert(_ element: any Sequence<T>) {
+public extension Trie {
+    func insert(_ element: any Sequence<T>) {
         var node = root
         for item in element {
             if let child = node.children[item] {
@@ -32,19 +32,10 @@ extension Trie {
         }
         node.isLeaf = true
     }
-    
-    public func get(_ element: any Sequence<T>) -> Node? {
-        var node = root
-        for item in element {
-            guard let child = node.children[item] else { return nil }
-            node = child
-        }
-        return node
-    }
-    
+        
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
-    // TODO: make this conform to `IteratorProtocol` instead of materializing the array
-    public func commonPrefixSearch(_ text: any Sequence<T>) -> [[T]] {
+    /// Returns an array
+    func commonPrefixSearch(_ text: any Sequence<T>) -> [[T]] {
         var node = root
         var seqs: [[T]] = []
         var seq: [T] = []
@@ -57,11 +48,48 @@ extension Trie {
             }
         }
         return seqs
-    }    
+    }
+    
+    /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
+    /// Returns an iterator
+    func commonPrefixSearchIterator(_ text: any Sequence<T>) -> LeavesWithCommonPrefixIterator<T> {
+        return LeavesWithCommonPrefixIterator(node: root, text: text)
+    }
+}
+
+public extension Trie {
+    // Only used for testing, could migrate to collection
+    func get(_ element: any Sequence<T>) -> Node? {
+        var node = root
+        for item in element {
+            guard let child = node.children[item] else { return nil }
+            node = child
+        }
+        return node
+    }
 }
 
 // TODO: maybe store the scores here if it's helpful?
 public class TrieNode<T: Hashable> {
     var isLeaf: Bool = false
     var children: [T: TrieNode] = [:]
+}
+
+public struct LeavesWithCommonPrefixIterator<T: Hashable> : Sequence, IteratorProtocol {
+    var node: TrieNode<T>
+    var text: any Sequence<T>
+    var seq: [T] = []
+    lazy var iterator = text.makeIterator() as any IteratorProtocol<T>
+    
+    public mutating func next() -> [T]? {
+        while true {
+            guard let item = iterator.next() else { return nil }
+            seq.append(item)
+            guard let child = node.children[item] else { return nil }
+            node = child
+            if node.isLeaf {
+                return seq
+            }
+        }
+    }
 }
