@@ -17,13 +17,11 @@ enum TokenizerError : Error {
     case tooLong(String)
 }
 
-public protocol Tokenizer {
+public protocol Tokenizing {
     func tokenize(text: String) -> [String]
     func encode(text: String) -> [Int]
     func decode(tokens: [Int]) -> String
     
-    init(tokenizerConfig: Config, tokenizerData: Config) throws
-
     // Alias for `encode`
     func callAsFunction(_ text: String) -> [Int]
     
@@ -37,13 +35,18 @@ public protocol Tokenizer {
     var unknownTokenId: Int? { get }
 }
 
-public extension Tokenizer {
+/// A tokenizer that is set up with Hub configuration data
+public protocol PreTrainedTokenizer: Tokenizing {
+    init(tokenizerConfig: Config, tokenizerData: Config) throws
+}
+
+public extension Tokenizing {
     func callAsFunction(_ text: String) -> [Int] {
         encode(text: text)
     }
 }
 
-public extension Tokenizer {
+public extension Tokenizing {
     func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         return tokens.map { convertTokenToId($0) }
     }
@@ -53,22 +56,23 @@ public extension Tokenizer {
     }
 }
 
-/// Unfortunately factory methods can't be added to protocols yet; not sure if there's a better pattern
-/// What I'd like: `Tokenizer.from(pretrained: "")`
-public struct AutoTokenizer {
-    static let knownTokenizers: [String : Tokenizer.Type] = [
+public class Tokenizer {
+    let model: Tokenizing
+    
+    static let knownTokenizers: [String : PreTrainedTokenizer.Type] = [
         "BertTokenizer"   : BertTokenizer.self,
         "GPT2Tokenizer"   : GPT2Tokenizer.self,
         "FalconTokenizer" : FalconTokenizer.self,
         "LlamaTokenizer"  : LlamaTokenizer.self,
         "CodeGenTokenizer": CodeGenTokenizer.self,
         "WhisperTokenizer": WhisperTokenizer.self,
+        "T5Tokenizer"     : T5Tokenizer.self,
 
         // Default
         "PreTrainedTokenizer": BPETokenizer.self
     ]
 
-    public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
+    public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizing {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
@@ -82,11 +86,27 @@ public struct AutoTokenizer {
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
     
-    public static func from(pretrained model: String) async throws -> Tokenizer {
+    public static func from(pretrained model: String) async throws -> Tokenizing {
         let config = LanguageModelConfigurationFromHub(modelName: model)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
 
         return try from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
+
+    required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
+        model = try Tokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+    }
 }
+
+extension Tokenizer: Tokenizing {
+    public func tokenize(text: String) -> [String] { model.tokenize(text: text) }
+    public func encode(text: String) -> [Int] { model.encode(text: text) }
+    public func decode(tokens: [Int]) -> String { model.decode(tokens: tokens) }
+    public func convertTokenToId(_ token: String) -> Int? { model.convertTokenToId(token) }
+    public func convertIdToToken(_ id: Int) -> String? { model.convertIdToToken(id) }
+    public var unknownToken: String? { model.unknownToken }
+    public var unknownTokenId: Int? { model.unknownTokenId }
+}
+
+public typealias AutoTokenizer = Tokenizer

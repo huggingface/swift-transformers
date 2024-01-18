@@ -26,7 +26,7 @@ public class LanguageModel {
     }
     
     private var configuration: LanguageModelConfigurationFromHub? = nil
-    private var _tokenizer: Tokenizer? = nil
+    private var _tokenizer: Tokenizing? = nil
 
     public required init(model: MLModel) {
         self.model = model
@@ -203,7 +203,7 @@ public extension LanguageModel {
         }
     }
     
-    var tokenizer: Tokenizer {
+    var tokenizer: Tokenizing {
         get async throws {
             guard _tokenizer == nil else { return _tokenizer! }
             guard let tokenizerConfig = try await tokenizerConfig else { throw "Cannot retrieve Tokenizer configuration" }

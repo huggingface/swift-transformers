@@ -93,7 +93,7 @@ class BertTokenizer {
 }
 
 
-extension BertTokenizer: Tokenizer {
+extension BertTokenizer: PreTrainedTokenizer {
     var unknownToken: String? { wordpieceTokenizer.unkToken }
     var unknownTokenId: Int? { vocab[unknownToken!] }
     

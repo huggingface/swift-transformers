@@ -42,6 +42,12 @@ class WhisperTinyTokenizerTests: BPETokenizerTests {
     override class var unknownTokenId: Int? { 50256 }
 }
 
+class T5TokenizerTests: BPETokenizerTests {
+    override class var hubModelName: String? { "t5-base" }
+    override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
+}
+
+
 struct BPEEncodingSampleDataset: Decodable {
     let text: String
     let bpe_tokens: [String]
@@ -72,7 +78,7 @@ class BPETokenizerTester {
     
     private var configuration: LanguageModelConfigurationFromHub? = nil
     private var edgeCases: [EdgeCase]? = nil
-    private var _tokenizer: Tokenizer? = nil
+    private var _tokenizer: Tokenizing? = nil
     
     init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName)
@@ -99,7 +105,7 @@ class BPETokenizerTester {
     }()
     
     
-    var tokenizer: Tokenizer? {
+    var tokenizer: Tokenizing? {
         get async {
             guard _tokenizer == nil else { return _tokenizer! }
             do {
