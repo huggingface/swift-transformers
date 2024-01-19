@@ -31,7 +31,7 @@ public typealias PredictionStringCallback = (String) -> Void
 public protocol Generation {
     func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback?) async -> GenerationOutput
     
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizing, callback: PredictionStringCallback?) async -> String
+    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
 }
 
 public extension Generation {
@@ -68,7 +68,7 @@ public extension Generation {
         return outputTokens
     }
 
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizing, callback: PredictionStringCallback? = nil) async -> String {
+    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback? = nil) async -> String {
         let tokens = tokenizer.encode(text: prompt)
         var generationConfig = config
         generationConfig.maxLength = config.maxNewTokens + tokens.count

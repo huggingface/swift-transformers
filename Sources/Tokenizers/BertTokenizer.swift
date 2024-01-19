@@ -23,7 +23,7 @@ class BertTokenizer {
         self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
     }
     
-    required convenience init(tokenizerConfig: Config, tokenizerData: Config) throws {
+    required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
         }
@@ -93,7 +93,12 @@ class BertTokenizer {
 }
 
 
-extension BertTokenizer: PreTrainedTokenizer {
+extension BertTokenizer: PreTrainedTokenizerModel {
+    // FIXME: remove
+    func callAsFunction(_ text: String) -> [Int] {
+        return []
+    }
+    
     var unknownToken: String? { wordpieceTokenizer.unkToken }
     var unknownTokenId: Int? { vocab[unknownToken!] }
     

@@ -10,7 +10,7 @@ import Foundation
 #warning("this file to be replaced by TokenizerFactory and data downloaded from the hub")
 public struct Architecture {
     public var name: String
-    public var tokenizerClass: Tokenizing.Type
+    public var tokenizerClass: TokenizingModel.Type
     
     /// These will be hardcoded for now. We could:
     /// - Retrieve them from the compiled Core ML model, storing them as metadata fields

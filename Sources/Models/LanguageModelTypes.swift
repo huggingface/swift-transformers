@@ -13,7 +13,7 @@ public protocol LanguageModelProtocol {
     /// `name_or_path` in the Python world
     var modelName: String { get }
 
-    var tokenizer: Tokenizing { get async throws }
+    var tokenizer: Tokenizer { get async throws }
     var model: MLModel { get }
     
     init(model: MLModel)

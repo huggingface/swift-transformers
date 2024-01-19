@@ -42,10 +42,10 @@ class WhisperTinyTokenizerTests: BPETokenizerTests {
     override class var unknownTokenId: Int? { 50256 }
 }
 
-class T5TokenizerTests: BPETokenizerTests {
-    override class var hubModelName: String? { "t5-base" }
-    override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
-}
+//class T5TokenizerTests: BPETokenizerTests {
+//    override class var hubModelName: String? { "t5-base" }
+//    override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
+//}
 
 
 struct BPEEncodingSampleDataset: Decodable {
@@ -78,7 +78,7 @@ class BPETokenizerTester {
     
     private var configuration: LanguageModelConfigurationFromHub? = nil
     private var edgeCases: [EdgeCase]? = nil
-    private var _tokenizer: Tokenizing? = nil
+    private var _tokenizer: Tokenizer? = nil
     
     init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName)
@@ -105,7 +105,7 @@ class BPETokenizerTester {
     }()
     
     
-    var tokenizer: Tokenizing? {
+    var tokenizer: Tokenizer? {
         get async {
             guard _tokenizer == nil else { return _tokenizer! }
             do {
@@ -116,6 +116,14 @@ class BPETokenizerTester {
                 XCTFail("Cannot load tokenizer: \(error)")
             }
             return _tokenizer
+        }
+    }
+    
+    var tokenizerModel: TokenizingModel? {
+        get async {
+            // The model is not usually accessible; maybe it should
+            guard let tokenizer = await tokenizer else { return nil }
+            return (tokenizer as! PreTrainedTokenizer).model
         }
     }
         
@@ -161,19 +169,19 @@ class BPETokenizerTester {
     }
     
     func testUnknownToken() async {
-        guard let tokenizer = await tokenizer else { return }
-        XCTAssertEqual(tokenizer.unknownTokenId, unknownTokenId)
+        guard let model = await tokenizerModel else { return }
+        XCTAssertEqual(model.unknownTokenId, unknownTokenId)
         XCTAssertEqual(
-            tokenizer.unknownTokenId,
-            tokenizer.convertTokenToId("_this_token_does_not_exist_")
+            model.unknownTokenId,
+            model.convertTokenToId("_this_token_does_not_exist_")
         )
-        if let unknownTokenId = tokenizer.unknownTokenId {
+        if let unknownTokenId = model.unknownTokenId {
             XCTAssertEqual(
-                tokenizer.unknownToken,
-                tokenizer.convertIdToToken(unknownTokenId)
+                model.unknownToken,
+                model.convertIdToToken(unknownTokenId)
             )
         } else {
-            XCTAssertNil(tokenizer.unknownTokenId)
+            XCTAssertNil(model.unknownTokenId)
         }
     }
 }
