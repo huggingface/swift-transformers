@@ -25,6 +25,14 @@ enum NormalizerType: String {
     case Sequence
     case Prepend
     case Replace
+    case Lowercase
+    case NFD
+    case NFC
+    case NFKD
+    case NFKC
+//    case Bert
+//    case Precompiled
+//    case StripAccents
     case Unknown = ""
 }
 
@@ -37,6 +45,14 @@ struct NormalizerFactory {
         case .Sequence: return NormalizerSequence(config: config)
         case .Prepend : return PrependNormalizer(config: config)
         case .Replace : return ReplaceNormalizer(config: config)
+        case .Lowercase : return LowercaseNormalizer(config: config)
+        case .NFD : return NFDNormalizer(config: config)
+        case .NFC : return NFCNormalizer(config: config)
+        case .NFKD : return NFKDNormalizer(config: config)
+        case .NFKC : return NFKCNormalizer(config: config)
+//        case .Bert : return BertNormalizer(config: config)
+//        case .Precompiled : return PrecompiledNormalizer(config: config)
+//        case .StripAccents : return StripAccentsNormalizer(config: config)
         default       : fatalError("Unsupported Normalizer type: \(typeName)")
         }
     }
@@ -79,6 +95,46 @@ class ReplaceNormalizer: Normalizer {
     public func normalize(text: String) -> String {
         guard let pattern = pattern else { return text }
         return pattern.replace(text)
+    }
+}
+
+class LowercaseNormalizer: Normalizer {
+    required public init(config: Config) {}
+
+    public func normalize(text: String) -> String {
+        text.lowercased()
+    }
+}
+
+class NFDNormalizer: Normalizer { 
+    required public init(config: Config) {}
+
+    public func normalize(text: String) -> String {
+        text.decomposedStringWithCanonicalMapping
+    }
+}
+
+class NFCNormalizer: Normalizer {
+    required public init(config: Config) {}
+
+    public func normalize(text: String) -> String {
+        text.precomposedStringWithCanonicalMapping
+    }
+}
+
+class NFKDNormalizer: Normalizer { 
+    required init(config: Config) { }
+
+    func normalize(text: String) -> String {
+        text.decomposedStringWithCompatibilityMapping
+    }
+}
+
+class NFKCNormalizer: Normalizer {
+    required init(config: Config) {}
+
+    func normalize(text: String) -> String {
+        text.precomposedStringWithCompatibilityMapping
     }
 }
 
