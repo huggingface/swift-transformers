@@ -30,9 +30,9 @@ enum NormalizerType: String {
     case NFC
     case NFKD
     case NFKC
-//    case Bert
-//    case Precompiled
-//    case StripAccents
+    case Bert
+    case Precompiled
+    case StripAccents
     case Unknown = ""
 }
 
@@ -50,9 +50,9 @@ struct NormalizerFactory {
         case .NFC : return NFCNormalizer(config: config)
         case .NFKD : return NFKDNormalizer(config: config)
         case .NFKC : return NFKCNormalizer(config: config)
-//        case .Bert : return BertNormalizer(config: config)
-//        case .Precompiled : return PrecompiledNormalizer(config: config)
-//        case .StripAccents : return StripAccentsNormalizer(config: config)
+        case .Bert : return BertNormalizer(config: config)
+        case .Precompiled : return PrecompiledNormalizer(config: config)
+        case .StripAccents : return StripAccentsNormalizer(config: config)
         default       : fatalError("Unsupported Normalizer type: \(typeName)")
         }
     }
@@ -123,7 +123,7 @@ class NFCNormalizer: Normalizer {
 }
 
 class NFKDNormalizer: Normalizer { 
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.decomposedStringWithCompatibilityMapping
@@ -131,6 +131,148 @@ class NFKDNormalizer: Normalizer {
 }
 
 class NFKCNormalizer: Normalizer {
+    required init(config: Config) {}
+
+    func normalize(text: String) -> String {
+        text.precomposedStringWithCompatibilityMapping
+    }
+}
+
+class BertNormalizer: Normalizer {
+    let shouldCleanText: Bool
+    let shouldHandleChineseChars: Bool
+    let shouldStripAccents: Bool?
+    let shouldLowercase: Bool
+
+    required init(config: Config) {
+        self.shouldCleanText = config.cleanText?.boolValue ?? true
+        self.shouldHandleChineseChars = config.handleChineseChars?.boolValue ?? true
+        self.shouldStripAccents = config.stripAccents?.boolValue
+        self.shouldLowercase = config.lowercase?.boolValue ?? true
+    }
+
+    func normalize(text: String) -> String {
+        var output = text
+        if shouldCleanText {
+            output = cleanText(text: output)
+        }
+        if shouldHandleChineseChars {
+            output = handleChineseChars(text: output)
+        }
+        if shouldStripAccents ?? false {
+            output = stripAccents(text: output)
+        }
+        if shouldLowercase {
+            output = output.lowercased()
+        }
+
+        return output
+    }
+
+    private func cleanText(text: String) -> String {
+        text.map { c in
+            guard let scalar = c.unicodeScalars.first,
+                  scalar.value != 0x0,
+                  scalar.value != 0xFFFD,
+                  !isControl(scalar)
+            else { return "\(c)" }
+
+            // Replace whitespace: \t, \n, \r
+            if scalar.value == 0x009 ||
+                scalar.value == 0x00A ||
+                scalar.value == 0x000D {
+                return " "
+            } else {
+                return "\(c)"
+            }
+        }
+        .joined()
+    }
+
+    private func isControl(_ c: UnicodeScalar) -> Bool {
+        if c.value == 0x009 || c.value == 0x00A || c.value == 0x000D {
+            // Except \t, \n, \r that will be spaces.
+            return false
+        } else {
+            // https://unicode.org/reports/tr44/#GC_Values_Table
+            // Other Cc | Cf | Cs | Co | Cn
+            return isOther(c.properties.generalCategory)
+        }
+    }
+
+    private func isOther(_ c: Unicode.GeneralCategory) -> Bool {
+        c == .control ||
+        c == .format ||
+        c == .surrogate ||
+        c == .privateUse ||
+        c == .unassigned
+    }
+
+    private func handleChineseChars(text: String) -> String {
+        text.map { c in
+            if let scalar = c.unicodeScalars.first, isChineseChar(scalar) {
+                " \(c) "
+            } else {
+               "\(c)"
+            }
+        }
+        .joined()
+    }
+
+    private func stripAccents(text: String) -> String {
+        text.decomposedStringWithCanonicalMapping
+            .filter { $0.unicodeScalars.allSatisfy { scalar in
+                !(0x0300 <= scalar.value && scalar.value <= 0x036F)
+            }}
+    }
+
+    private func isChineseChar(_ c: UnicodeScalar) -> Bool {
+        (c.value >= 0x4E00 && c.value <= 0x9FFF) ||
+        (c.value >= 0x3400 && c.value <= 0x4DBF) ||
+        (c.value >= 0x20000 && c.value <= 0x2A6DF) ||
+        (c.value >= 0x2A700 && c.value <= 0x2B73F) ||
+        (c.value >= 0x2B740 && c.value <= 0x2B81F) ||
+        (c.value >= 0x2B820 && c.value <= 0x2CEAF) ||
+        (c.value >= 0xF900 && c.value <= 0xFAFF) ||
+        (c.value >= 0x2F800 && c.value <= 0x2FA1F)
+    }
+}
+
+class PrecompiledNormalizer: Normalizer {
+    required init(config: Config) {}
+
+    func normalize(text: String) -> String {
+        var output: String = ""
+        var hasFullwidthTilde = false
+
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x0001...0x0008, 0x000B, 0x000E...0x001F, 0x007F, 0x008F, 0x009F:
+                // Non-printing control characters
+                output.append("")
+            case 0x0009, 0x000A, 0x000C, 0x000D, 0x1680, 0x200B...0x200F, 0x2028, 0x2029, 0x2581, 0xFEFF, 0xFFFD:
+                // Separators
+                output.append(" ")
+            case 0xFF5E:
+                hasFullwidthTilde = true
+                fallthrough
+            default:
+                output.append(Character(scalar))
+            }
+        }
+
+        if hasFullwidthTilde {
+            return output
+                .split(by: "\u{FF5E}")
+                .map({ $0.precomposedStringWithCompatibilityMapping })
+                .joined(separator: "\u{FF5E}")
+        } else {
+            return output.precomposedStringWithCompatibilityMapping
+        }
+    }
+}
+
+class StripAccentsNormalizer: Normalizer {
     required init(config: Config) {}
 
     func normalize(text: String) -> String {
