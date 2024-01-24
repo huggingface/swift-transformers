@@ -39,6 +39,8 @@ enum PreTokenizerType: String {
     case Digits
     case Split
     case Whitespace
+    case WhitespaceSplit
+    case Metaspace
     // Several more to be supported
     case Unknown = ""
 }
@@ -54,7 +56,8 @@ struct PreTokenizerFactory {
         case .Punctuation: return PunctuationPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
         case .Split: return SplitPreTokenizer(config: config)
-        case .Whitespace: return WhitespacePreTokenizer(config: config)
+        case .Whitespace, .WhitespaceSplit: return WhitespacePreTokenizer(config: config)
+        case .Metaspace: return MetaspacePreTokenizer(config: config)
         default: fatalError("Unsupported PreTokenizer type: \(typeName)")
         }
     }
@@ -84,6 +87,68 @@ class WhitespacePreTokenizer: PreTokenizer {
 
     func preTokenize(text: String) -> [String] {
         return text.ranges(of: re).map { String(text[$0]) }
+    }
+}
+
+/// PreTokenizer that replaces spaces with the given replacement character, adds a prefix space if requested,
+class MetaspacePreTokenizer: PreTokenizer {
+    /// Whether to add a prefix space to the first token
+    let addPrefixSpace: Bool
+    
+    /// Replacement character
+    let replacement: String
+    
+    /// Optional string representation of the replacement character.
+    let stringReplacement: String
+    
+    enum PrependScheme: String {
+        case first
+        case never
+        case always
+        
+        static var defaultScheme: PrependScheme { .always }
+        static func from(rawValue value: String?) -> PrependScheme {
+            guard let value = value else { return defaultScheme }
+            return PrependScheme(rawValue: value) ?? defaultScheme
+        }
+    }
+    
+    /// The metaspace prepend scheme, see https://github.com/huggingface/tokenizers/pull/1357
+    let prependScheme: PrependScheme
+    
+    required init(config: Config) {
+        addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
+        replacement = config.replacement?.stringValue ?? " "
+        stringReplacement = config.strRep?.stringValue ?? replacement
+        prependScheme = PrependScheme.from(rawValue: config.prependScheme?.stringValue)
+    }
+    
+    // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
+    // https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
+    func preTokenize(text: String) -> [String] {
+        let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
+        
+        // We add a prefix space if:
+        //  (1) The addPrefixSpace option is enabled and the normalized
+        //      token does not already start with the replacement character.
+        //  and (2) either:
+        //  (a) prependScheme is 'always'
+        //  (b) prependScheme is 'first' and this is the first section
+        // FIXME: (2b) always prepends, we are not passing section info
+
+        var prepend = ""
+        if addPrefixSpace && !normalized.hasPrefix(replacement) {
+            if prependScheme == .always {
+                prepend = stringReplacement
+            }
+            if prependScheme == .first /* && first_section */ {
+                prepend = stringReplacement
+            }
+        }
+        
+        // Split in `MergedWithNext` mode, although usually the input to this function is already pre-tokenized
+        // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L127
+        return (prepend + normalized).split(by: replacement, behavior: .mergedWithNext)
     }
 }
 
@@ -212,4 +277,63 @@ extension String {
         return result
     }
 
+}
+
+public enum SplitDelimiterBehavior {
+    case removed
+    case isolated
+    case mergedWithPrevious
+    case mergedWithNext
+}
+
+public extension String {
+    func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
+        func mergedWithNext(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
+            var merged: [Range<String.Index>] = []
+            var currentStart = startIndex
+            for range in ranges {
+                if range.lowerBound == startIndex { continue }
+                let mergedRange = currentStart..<range.lowerBound
+                currentStart = range.lowerBound
+                merged.append(mergedRange)
+            }
+            if currentStart < endIndex {
+                merged.append(currentStart..<endIndex)
+            }
+            return merged
+        }
+        
+        func mergedWithPrevious(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
+            var merged: [Range<String.Index>] = []
+            var currentStart = startIndex
+            for range in ranges {
+                let mergedRange = currentStart..<range.upperBound
+                currentStart = range.upperBound
+                merged.append(mergedRange)
+            }
+            if currentStart < endIndex {
+                merged.append(currentStart..<endIndex)
+            }
+            return merged
+        }
+
+        switch behavior {
+        case .removed:
+            return split(by: string, options: options, includeSeparators: false)
+        case .isolated:
+            return split(by: string, options: options, includeSeparators: true)
+        case .mergedWithNext:
+            // Obtain ranges and merge them
+            // "the-final--countdown" -> (3, 4), (9, 10), (10, 11) -> (start, 2), (3, 8), (9, 9), (10, end)
+            let ranges = ranges(of: string, options: options)
+            let merged = mergedWithNext(ranges: ranges)
+            return merged.map { String(self[$0]) }
+        case .mergedWithPrevious:
+            // Obtain ranges and merge them
+            // "the-final--countdown" -> (3, 4), (9, 10), (10, 11) -> (start, 3), (4, 9), (10, 10), (11, end)
+            let ranges = ranges(of: string, options: options)
+            let merged = mergedWithPrevious(ranges: ranges)
+            return merged.map { String(self[$0]) }
+        }
+    }
 }
