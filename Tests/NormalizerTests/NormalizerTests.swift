@@ -143,7 +143,7 @@ class NormalizerTests: XCTestCase {
     }
     func testPrecompiledNormalizer() {
         let testCases: [(String, String)] = [
-            ("café", "cafe\u{301}"),
+            ("café", "café"),
             ("François", "François"),
             ("Ωmega", "Ωmega"),
             ("über", "über"),
@@ -152,6 +152,8 @@ class NormalizerTests: XCTestCase {
             ("你好!", "你好!"),
             ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
             ("\u{00C5}", "\u{00C5}"),
+            ("™\u{001e}g", "TMg"),
+            ("full-width～tilde", "full-width～tilde"),
         ]
 
         for (arg, expect) in testCases {
@@ -173,7 +175,7 @@ class NormalizerTests: XCTestCase {
             ("háček", "háček"),
             ("Häagen-Dazs", "Häagen-Dazs"),
             ("你好!", "你好!"),
-            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼"),
+            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
             ("\u{00C5}", "\u{00C5}"),
         ]
 

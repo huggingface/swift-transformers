@@ -228,9 +228,15 @@ class BertNormalizer: Normalizer {
 }
 
 class PrecompiledNormalizer: Normalizer {
+    // TODO: use `precompiledCharsmap` (base64-encoded string) from the configuration
     required init(config: Config) {}
 
     func normalize(text: String) -> String {
+        // TODO: This is a simplified implementation.
+        // - The following comments also apply here:
+        // https://github.com/xenova/transformers.js/blob/main/src/tokenizers.js#L2237-L2247
+        // - For a proper implementation, see:
+        // https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/normalizers/precompiled.rs#L36
         var output: String = ""
         var hasFullwidthTilde = false
 
