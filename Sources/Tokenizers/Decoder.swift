@@ -24,12 +24,12 @@ extension Decoder {
 enum DecoderType: String {
     case Sequence
 //    case WordPiece
-//    case Metaspace
     case ByteLevel
     case Replace
     case ByteFallback
     case Fuse
     case Strip
+    case Metaspace
     case Unknown = ""
 }
 
@@ -46,6 +46,7 @@ struct DecoderFactory {
         case .ByteFallback: return ByteFallbackDecoder(config: config)
         case .Fuse        : return FuseDecoder(config: config)
         case .Strip       : return StripDecoder(config: config)
+        case .Metaspace   : return MetaspaceDecoder(config: config)
         default           : fatalError("Unsupported Decoder type: \(typeName)")
         }
     }
@@ -180,6 +181,26 @@ class StripDecoder: Decoder {
         tokens.map { token in
             token.trimmingFromStart(upto: start).trimmingFromEnd(upto: stop)
         }
+    }
+}
+
+class MetaspaceDecoder: Decoder {
+    let addPrefixSpace: Bool
+    let replacement: String
+    
+    required public init(config: Config) {
+        addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
+        replacement = config.replacement?.stringValue ?? "_"
+    }
+
+    func decode(tokens: [String]) -> [String] {
+        var replaced = tokens.map { token in
+            token.replacingOccurrences(of: replacement, with: " ")
+        }
+        if addPrefixSpace && replaced.first?.starts(with: " ") ?? false {
+            replaced[0].removeFirst()
+        }
+        return replaced
     }
 }
 
