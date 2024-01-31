@@ -13,6 +13,7 @@ enum TokenizerError : Error {
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
     case missingVocab
+    case malformedVocab
     
     case tooLong(String)
 }
@@ -21,7 +22,7 @@ public protocol TokenizingModel {
     func tokenize(text: String) -> [String]
     
     // Alias for `tokenize`
-    func callAsFunction(_ text: String) -> [Int]
+    func callAsFunction(_ text: String) -> [String]
     
     func convertTokenToId(_ token: String) -> Int?
     func convertTokensToIds(_ tokens: [String]) -> [Int?]
@@ -212,3 +213,14 @@ extension AutoTokenizer {
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }
+
+// MARK: - Tokenizer model classes
+
+class GPT2Tokenizer    : BPETokenizer {}
+class FalconTokenizer  : BPETokenizer {}
+class LlamaTokenizer   : BPETokenizer {}
+class CodeGenTokenizer : BPETokenizer {}
+class WhisperTokenizer : BPETokenizer {}
+
+class T5Tokenizer      : UnigramTokenizer {}
+

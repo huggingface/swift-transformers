@@ -32,11 +32,6 @@ struct BytePair: Hashable {
 
 
 class BPETokenizer: PreTrainedTokenizerModel {
-    //FIXME: remove
-    func callAsFunction(_ text: String) -> [Int] {
-        return []
-    }
-    
     let bpeRanks: Dictionary<BytePair, Int>
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]
@@ -167,11 +162,3 @@ class BPETokenizer: PreTrainedTokenizerModel {
         return tokens
     }
 }
-
-class GPT2Tokenizer    : BPETokenizer {}
-class FalconTokenizer  : BPETokenizer {}
-class LlamaTokenizer   : BPETokenizer {}
-class CodeGenTokenizer : BPETokenizer {}
-class WhisperTokenizer : BPETokenizer {}
-//FIXME: UnigramTokenizer
-class T5Tokenizer      : BPETokenizer {}
