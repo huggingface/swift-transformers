@@ -61,7 +61,7 @@ extension TokenLattice {
     /// It's unfortunate that it can't be lazy or cached as the node arrays are not immutable.
     /// We could create another type that holds the nodes and use it as an immutable var  in TokenLattice.
     func viterbi() -> [TokenLatticeNode] {
-        for offset in 0..<count {
+        for offset in 0...count {
             guard beginNodes[offset].count > 0 else { return [] }
             
             for rnode in beginNodes[offset] {
@@ -146,5 +146,11 @@ extension TokenLatticeNode {
     // We could implement NSCopying, but frankly I don't see the point
     func clone() -> TokenLatticeNode {
         TokenLatticeNode(tokenId: tokenId, nodeId: tokenId, startOffset: startOffset, length: length, score: score, prev: prev, backtraceScore: backtraceScore)
+    }
+}
+
+extension TokenLatticeNode: CustomStringConvertible {
+    var description: String {
+        "TokenLatticeNode(nodeId: \(nodeId), startOffset: \(startOffset), length: \(length), score: \(score), prev: \(prev != nil), backtraceScore: \(backtraceScore)"
     }
 }
