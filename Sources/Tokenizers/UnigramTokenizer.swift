@@ -8,25 +8,18 @@
 
 import Hub
 
-class UnigramTokenizer: PreTrainedTokenizerModel {    
-//    let bpeRanks: Dictionary<BytePair, Int>
-//    private let tokensToIds: [String: Int]
-//    private let idsToTokens: [Int: String]
-//    private let addedTokens: Set<String>
-//    private let specialTokens: [String: Int]
-
+class UnigramTokenizer: PreTrainedTokenizerModel {
     struct SentencePieceToken {
         var token: String
         var score: Float
     }
     let vocab: [SentencePieceToken]
     
-    let unknownPiece: SentencePieceToken?
+    let unknownPiece: SentencePieceToken
+    var unknownTokenScore: Float { unknownPiece.score }
     
     public let unknownTokenId: Int?
-    public var unknownToken: String? { unknownPiece?.token }
-    //TODO: make this not optional
-    var unknownTokenScore: Float? { unknownPiece?.score }
+    public var unknownToken: String? { unknownPiece.token }
     
     let minScore: Float
     let tokensToIds: [String: Int]
@@ -53,13 +46,9 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
             min(partial, token.score)
         }
         
-        if let unknownTokenId = tokenizerData.model?.unkId?.intValue {
-            self.unknownTokenId = unknownTokenId
-            self.unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
-        } else {
-            self.unknownTokenId = nil
-            self.unknownPiece = nil
-        }
+        guard let unknownTokenId = tokenizerData.model?.unkId?.intValue else { throw TokenizerError.malformedVocab }
+        self.unknownTokenId = unknownTokenId
+        self.unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
         
         tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token }.enumerated().map { ($1, $0) })
         bosTokenId = tokensToIds[bosToken]      // May be nil
@@ -67,7 +56,6 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]
         
-        // TODO: store the scores in the Trie if it's handy
         trie = Trie()
         trie.append(contentsOf: vocab.map { $0.token })
                 
@@ -92,19 +80,17 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
             let mblen = 1
             var hasSingleNode = false
             
-//            var tokens: [String] = []
             let beginIndex = sentence.index(sentence.startIndex, offsetBy: beginPos)
             for token in trie.commonPrefixSearchIterator(sentence[beginIndex...]).map({ String($0) }) {
                 guard let tokenId = tokensToIds[token] else { fatalError("Token not in vocab: \(token)") }
                 let tokenScore = vocab[tokenId].score
                 lattice.insert(startOffset: beginPos, length: token.count, score: tokenScore, tokenId: tokenId)
-//                tokens.append(token)
                 if !hasSingleNode && token.count == mblen {
                     hasSingleNode = true
                 }
             }
             if !hasSingleNode {
-                lattice.insert(startOffset: beginPos, length: mblen, score: unknownTokenScore ?? -10, tokenId: unknownTokenId ?? 0)
+                lattice.insert(startOffset: beginPos, length: mblen, score: unknownTokenScore, tokenId: unknownTokenId ?? 0)
             }
             beginPos += mblen
         }
