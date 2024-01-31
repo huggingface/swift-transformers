@@ -29,8 +29,8 @@ public struct TokenLattice {
         beginNodes = Array(repeating: [], count: sentence.count+1)
         endNodes = Array(repeating: [], count: sentence.count+1)
         
-        let bos = TokenLatticeNode(tokenId: bosTokenId, nodeId: 0, startOffset: 0, length: 0, score: 0)
-        let eos = TokenLatticeNode(tokenId: eosTokenId, nodeId: 1, startOffset: sentence.count, length: 0, score: 0)
+        let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
+        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: sentence.count, length: 0, score: 0)
         
         nodes.append(bos)
         nodes.append(eos)
@@ -49,7 +49,7 @@ public extension TokenLattice {
     ///      - score: Token score.
     ///      - tokenId: Token id in the tokenizer.
     mutating func insert(startOffset: Int, length: Int, score: Float, tokenId: Int) {
-        let node = TokenLatticeNode(tokenId: tokenId, nodeId: nodes.count, startOffset: startOffset, length: length, score: score)
+        let node = TokenLatticeNode(tokenId: tokenId, startOffset: startOffset, length: length, score: score)
         beginNodes[startOffset].append(node)
         endNodes[startOffset + length].append(node)
         nodes.append(node)
@@ -121,8 +121,6 @@ public extension TokenLattice {
 
 class TokenLatticeNode {
     let tokenId: Int
-    // TODO: I don't know what's the use of this
-    let nodeId: Int
     let startOffset: Int
     let length: Int
     let score: Float
@@ -130,9 +128,8 @@ class TokenLatticeNode {
     var prev: TokenLatticeNode? = nil
     var backtraceScore: Float = 0
     
-    init(tokenId: Int, nodeId: Int, startOffset: Int, length: Int, score: Float, prev: TokenLatticeNode? = nil, backtraceScore: Float = 0) {
+    init(tokenId: Int, startOffset: Int, length: Int, score: Float, prev: TokenLatticeNode? = nil, backtraceScore: Float = 0) {
         self.tokenId = tokenId
-        self.nodeId = nodeId
         self.startOffset = startOffset
         self.length = length
         self.score = score
@@ -145,12 +142,12 @@ extension TokenLatticeNode {
     // This is a reference type because structs can't contain references to the same type
     // We could implement NSCopying, but frankly I don't see the point
     func clone() -> TokenLatticeNode {
-        TokenLatticeNode(tokenId: tokenId, nodeId: tokenId, startOffset: startOffset, length: length, score: score, prev: prev, backtraceScore: backtraceScore)
+        TokenLatticeNode(tokenId: tokenId, startOffset: startOffset, length: length, score: score, prev: prev, backtraceScore: backtraceScore)
     }
 }
 
 extension TokenLatticeNode: CustomStringConvertible {
     var description: String {
-        "TokenLatticeNode(nodeId: \(nodeId), startOffset: \(startOffset), length: \(length), score: \(score), prev: \(prev != nil), backtraceScore: \(backtraceScore)"
+        "TokenLatticeNode(tokenId: \(tokenId), startOffset: \(startOffset), length: \(length), score: \(score), prev: \(prev != nil), backtraceScore: \(backtraceScore)"
     }
 }
