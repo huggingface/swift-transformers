@@ -1,6 +1,6 @@
 //
 //  Tokenizer.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 6/5/23.
 //
@@ -14,22 +14,22 @@ enum TokenizerError : Error {
     case unsupportedTokenizer(String)
     case missingVocab
     case malformedVocab
-    
+
     case tooLong(String)
 }
 
 public protocol TokenizingModel {
     func tokenize(text: String) -> [String]
-    
+
     // Alias for `tokenize`
     func callAsFunction(_ text: String) -> [String]
-    
+
     func convertTokenToId(_ token: String) -> Int?
     func convertTokensToIds(_ tokens: [String]) -> [Int?]
-    
+
     func convertIdToToken(_ id: Int) -> String?
     func convertIdsToTokens(_ ids: [Int]) -> [String?]
-    
+
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
 }
@@ -42,7 +42,7 @@ public extension TokenizingModel {
     func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         return tokens.map { convertTokenToId($0) }
     }
-    
+
     func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         return ids.map { convertIdToToken($0) }
     }
@@ -70,18 +70,18 @@ struct TokenizerModel {
     static func unknownToken(from tokenizerConfig: Config) -> String? {
         return tokenizerConfig.unkToken?.content?.stringValue ?? tokenizerConfig.unkToken?.stringValue
     }
-    
+
     public static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws -> TokenizingModel {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
-        
+
         // Some tokenizer_class entries use a Fast suffix
         let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
         guard let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] else {
             throw TokenizerError.unsupportedTokenizer(tokenizerName)
         }
-        
+
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 }
@@ -143,7 +143,7 @@ public class PreTrainedTokenizer: Tokenizer {
             guard let id = addedToken.id?.intValue else { continue /* malformed: token with no id */ }
             guard let content = addedToken.content?.stringValue else { continue /* malformed: token with no content */ }
             addedTokens[content] = id
-            
+
             if addedToken.special?.boolValue ?? false {
                 specialTokens[content] = id
             }
@@ -157,30 +157,30 @@ public class PreTrainedTokenizer: Tokenizer {
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
-        
+
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
-    
+
     func preTokenize(_ text: String) -> [String] {
         guard let preTokenizer = preTokenizer else { return [text] }
         return preTokenizer(text: text)
     }
-    
+
     func normalize(_ text: String) -> String {
         guard let normalizer = normalizer else { return text }
         return normalizer(text: text)
     }
-    
+
     func postProcess(_ tokens: [String]) -> [String] {
         guard let postProcessor = postProcessor else { return tokens }
         return postProcessor(tokens: tokens)
     }
-    
+
     func decodeTokens(_ tokens: [String]) -> [String] {
         guard let tokenDecoder = decoder else { return tokens }
         return tokenDecoder(tokens: tokens)
     }
-        
+
     /// Clean up a list of simple English tokenization artifacts like spaces before punctuations and abbreviated forms
     func cleanUp(text: String) -> String {
         guard cleanUpTokenizationSpaces else { return text }
@@ -196,7 +196,7 @@ public class PreTrainedTokenizer: Tokenizer {
             .replacingOccurrences(of: " 've", with: "'ve")
             .replacingOccurrences(of: " 're", with: "'re")
     }
-    
+
     public func tokenize(text: String) -> [String] {
         preTokenize(normalize(text)).flatMap { model($0) }
     }
@@ -205,7 +205,7 @@ public class PreTrainedTokenizer: Tokenizer {
     public func encode(text: String) -> [Int] {
         return postProcess(tokenize(text: text)).map { model.convertTokenToId($0)! }
     }
-        
+
     /// Decode
     public func decode(tokens: [Int]) -> String {
         // IDs to tokens
@@ -232,7 +232,7 @@ extension AutoTokenizer {
     public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
-    
+
     public static func from(pretrained model: String) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelName: model)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
