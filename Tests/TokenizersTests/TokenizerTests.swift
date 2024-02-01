@@ -1,5 +1,5 @@
 //
-//  BPETokenizerTests.swift
+//  TokenizerTests.swift
 //
 //  Created by Pedro Cuenca on July 2023.
 //  Based on GPT2TokenizerTests by Julien Chaumond.
@@ -11,39 +11,48 @@ import Hub
 @testable import Tokenizers
 @testable import Models
 
-class GPT2TokenizerTests: BPETokenizerTests {
+class GPT2TokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "distilgpt2" }
     override class var encodedSamplesFilename: String? { "gpt2_encoded_tokens" }
     override class var unknownTokenId: Int? { 50256 }
 }
 
-class FalconTokenizerTests: BPETokenizerTests {
+class FalconTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "tiiuae/falcon-7b" }
     override class var encodedSamplesFilename: String? { "falcon_encoded" }
     override class var unknownTokenId: Int? { nil }
 }
 
-class LlamaTokenizerTests: BPETokenizerTests {
+class LlamaTokenizerTests: TokenizerTests {
     // meta-llama/Llama-2-7b-chat requires approval, and hf-internal-testing/llama-tokenizer does not have a config.json
     override class var hubModelName: String? { "coreml-projects/Llama-2-7b-chat-coreml" }
     override class var encodedSamplesFilename: String? { "llama_encoded" }
     override class var unknownTokenId: Int? { 0 }
 }
 
-class WhisperLargeTokenizerTests: BPETokenizerTests {
+class WhisperLargeTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "openai/whisper-large-v2" }
     override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }
     override class var unknownTokenId: Int? { 50257 }
 }
 
-class WhisperTinyTokenizerTests: BPETokenizerTests {
+class WhisperTinyTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "openai/whisper-tiny.en" }
     override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
     override class var unknownTokenId: Int? { 50256 }
 }
 
-struct BPEEncodingSampleDataset: Decodable {
+class T5TokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "t5-base" }
+    override class var encodedSamplesFilename: String? { "t5_base_encoded" }
+    override class var unknownTokenId: Int? { 2 }
+}
+
+
+struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String
+    // Bad naming, not just for bpe.
+    // We are going to replace this testing method anyway.
     let bpe_tokens: [String]
     let token_ids: [Int]
     let decoded_text: String
@@ -66,7 +75,7 @@ struct EncodedData: Decodable {
 }
 
 
-class BPETokenizerTester {
+class TokenizerTester {
     let encodedSamplesFilename: String
     let unknownTokenId: Int?
     
@@ -90,11 +99,11 @@ class BPETokenizerTester {
         }()
     }
     
-    lazy var dataset: BPEEncodingSampleDataset = {
+    lazy var dataset: EncodedTokenizerSamplesDataset = {
         let url = Bundle.module.url(forResource: encodedSamplesFilename, withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
-        let dataset = try! decoder.decode(BPEEncodingSampleDataset.self, from: json)
+        let dataset = try! decoder.decode(EncodedTokenizerSamplesDataset.self, from: json)
         return dataset
     }()
     
@@ -110,6 +119,14 @@ class BPETokenizerTester {
                 XCTFail("Cannot load tokenizer: \(error)")
             }
             return _tokenizer
+        }
+    }
+    
+    var tokenizerModel: TokenizingModel? {
+        get async {
+            // The model is not usually accessible; maybe it should
+            guard let tokenizer = await tokenizer else { return nil }
+            return (tokenizer as! PreTrainedTokenizer).model
         }
     }
         
@@ -155,26 +172,26 @@ class BPETokenizerTester {
     }
     
     func testUnknownToken() async {
-        guard let tokenizer = await tokenizer else { return }
-        XCTAssertEqual(tokenizer.unknownTokenId, unknownTokenId)
+        guard let model = await tokenizerModel else { return }
+        XCTAssertEqual(model.unknownTokenId, unknownTokenId)
         XCTAssertEqual(
-            tokenizer.unknownTokenId,
-            tokenizer.convertTokenToId("_this_token_does_not_exist_")
+            model.unknownTokenId,
+            model.convertTokenToId("_this_token_does_not_exist_")
         )
-        if let unknownTokenId = tokenizer.unknownTokenId {
+        if let unknownTokenId = model.unknownTokenId {
             XCTAssertEqual(
-                tokenizer.unknownToken,
-                tokenizer.convertIdToToken(unknownTokenId)
+                model.unknownToken,
+                model.convertIdToToken(unknownTokenId)
             )
         } else {
-            XCTAssertNil(tokenizer.unknownTokenId)
+            XCTAssertNil(model.unknownTokenId)
         }
     }
 }
 
-class BPETokenizerTests: XCTestCase {
+class TokenizerTests: XCTestCase {
     // Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
-    static var _bpeTester: BPETokenizerTester? = nil
+    static var _tester: TokenizerTester? = nil
     
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }
@@ -184,7 +201,7 @@ class BPETokenizerTests: XCTestCase {
     
     override class func setUp() {
         if let hubModelName = hubModelName, let encodedSamplesFilename = encodedSamplesFilename {
-            _bpeTester = BPETokenizerTester(
+            _tester = TokenizerTester(
                 hubModelName: hubModelName,
                 encodedSamplesFilename: encodedSamplesFilename,
                 unknownTokenId: unknownTokenId
@@ -193,32 +210,32 @@ class BPETokenizerTests: XCTestCase {
     }
         
     func testTokenize() async {
-        if let bpeTester = Self._bpeTester {
-            await bpeTester.testTokenize()
+        if let tester = Self._tester {
+            await tester.testTokenize()
         }
     }
     
     func testEncode() async {
-        if let bpeTester = Self._bpeTester {
-            await bpeTester.testEncode()
+        if let tester = Self._tester {
+            await tester.testEncode()
         }
     }
     
     func testDecode() async {
-        if let bpeTester = Self._bpeTester {
-            await bpeTester.testDecode()
+        if let tester = Self._tester {
+            await tester.testDecode()
         }
     }
     
     func testEdgeCases() async {
-        if let bpeTester = Self._bpeTester {
-            await bpeTester.testEdgeCases()
+        if let tester = Self._tester {
+            await tester.testEdgeCases()
         }
     }
     
     func testUnknownToken() async {
-        if let bpeTester = Self._bpeTester {
-            await bpeTester.testUnknownToken()
+        if let tester = Self._tester {
+            await tester.testUnknownToken()
         }
     }
 }
