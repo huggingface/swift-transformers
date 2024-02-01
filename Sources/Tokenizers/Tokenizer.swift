@@ -92,20 +92,40 @@ public protocol Tokenizer {
     /// Main entry point
     func encode(text: String) -> [Int]
     func callAsFunction(_ text: String) -> [Int]
-    
+
     /// Decode
     func decode(tokens: [Int]) -> String
+
+    func convertTokenToId(_ token: String) -> Int?
+    func convertTokensToIds(_ tokens: [String]) -> [Int?]
+
+    func convertIdToToken(_ id: Int) -> String?
+    func convertIdsToTokens(_ ids: [Int]) -> [String?]
+
+    var unknownToken: String? { get }
+    var unknownTokenId: Int? { get }
 }
 
-extension Tokenizer {
-    public func callAsFunction(_ text: String) -> [Int] {
+public extension Tokenizer {
+    func callAsFunction(_ text: String) -> [Int] {
         encode(text: text)
+    }
+
+    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+        return tokens.map { convertTokenToId($0) }
+    }
+
+    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+        return ids.map { convertIdToToken($0) }
     }
 }
 
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
-    
+
+    public var unknownToken: String? { model.unknownToken }
+    public var unknownTokenId: Int? { model.unknownTokenId }
+
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
 
@@ -113,7 +133,7 @@ public class PreTrainedTokenizer: Tokenizer {
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
-    
+
     private let cleanUpTokenizationSpaces: Bool
 
     required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
@@ -194,6 +214,14 @@ public class PreTrainedTokenizer: Tokenizer {
         // At this point we should have a single String
         return cleanUp(text: decoded.joined(separator: ""))
     }
+
+    public func convertTokenToId(_ token: String) -> Int? {
+        model.convertTokenToId(token)
+    }
+
+    public func convertIdToToken(_ id: Int) -> String? {
+        model.convertIdToToken(id)
+    }
 }
 
 // MARK: - Building
@@ -223,4 +251,3 @@ class CodeGenTokenizer : BPETokenizer {}
 class WhisperTokenizer : BPETokenizer {}
 
 class T5Tokenizer      : UnigramTokenizer {}
-
