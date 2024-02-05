@@ -83,6 +83,42 @@ class BertTokenizerTests: XCTestCase {
         }
     }
     
+    func testMixedChineseEnglishTokenization() {
+        let tokenizer = bertTokenizer
+        let text = "你好，世界！Hello, world!"
+        let expectedTokens = ["[UNK]", "[UNK]", "，", "世", "[UNK]", "！", "hello", ",", "world", "!"]
+        let tokens = tokenizer.tokenize(text: text)
+        
+        XCTAssertEqual(tokens, expectedTokens)
+    }
+    
+    func testPureChineseTokenization() {
+        let tokenizer = bertTokenizer
+        let text = "明日，大家上山看日出。"
+        let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出","。"]
+        let tokens = tokenizer.tokenize(text: text)
+        
+        XCTAssertEqual(tokens, expectedTokens)
+    }
+    
+    func testChineseWithNumeralsTokenization() {
+        let tokenizer = bertTokenizer
+        let text = "2020年奥运会在东京举行。"
+        let expectedTokens = ["2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。"]
+        let tokens = tokenizer.tokenize(text: text)
+        
+        XCTAssertEqual(tokens, expectedTokens)
+    }
+    
+    func testChineseWithSpecialTokens() {
+        let tokenizer = bertTokenizer
+        let text = "[CLS] 机器学习是未来。 [SEP]"
+        let expectedTokens = ["[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]"]
+        let tokens = tokenizer.tokenize(text: text)
+        
+        XCTAssertEqual(tokens, expectedTokens)
+    }
+    
     func testPerformanceExample() {
         let tokenizer = bertTokenizer
 
