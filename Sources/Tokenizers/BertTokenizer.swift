@@ -13,14 +13,18 @@ class BertTokenizer {
     private let basicTokenizer = BasicTokenizer()
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
+    private let tokenizeChineseChars: Bool
     
     private let vocab: [String: Int]
     private let ids_to_tokens: [Int: String]
     
-    init(vocab: [String: Int], merges: [String]?) {
+    init(vocab: [String: Int],
+         merges: [String]?,
+         tokenizeChineseChars: Bool = true) {
         self.vocab = vocab
         self.ids_to_tokens = Utils.invert(vocab)
         self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
+        self.tokenizeChineseChars = tokenizeChineseChars
     }
     
     required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
@@ -28,11 +32,13 @@ class BertTokenizer {
             throw TokenizerError.missingVocab
         }
         let merges = tokenizerData.model?.merges?.value as? [String]
-        self.init(vocab: vocab, merges: merges)
+        let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
+        self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars)
     }
     
     
     func tokenize(text: String) -> [String] {
+        let text = tokenizeChineseCharsIfNeed(text)
         var tokens: [String] = []
         for token in basicTokenizer.tokenize(text: text) {
             for subToken in wordpieceTokenizer.tokenize(word: token) {
@@ -89,6 +95,18 @@ class BertTokenizer {
         tokenList.append(individualToken)
         
         return tokenList.joined(separator: " ")
+    }
+    
+    private func tokenizeChineseCharsIfNeed(_ text: String) -> String {
+        guard tokenizeChineseChars else { return text }
+        
+        return text.map { c in
+            if let scalar = c.unicodeScalars.first, Utils.isChineseChar(scalar) {
+                " \(c) "
+            } else {
+                "\(c)"
+            }
+        }.joined()
     }
 }
 
