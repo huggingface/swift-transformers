@@ -34,7 +34,11 @@ class Downloader: NSObject, ObservableObject {
         super.init()
         
         let config = URLSessionConfiguration.background(withIdentifier: url.path)
+#if targetEnvironment(simulator)
+        urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue())
+#else
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue())
+#endif
         downloadState.value = .downloading(0)
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
