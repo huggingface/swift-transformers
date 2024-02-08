@@ -117,6 +117,8 @@ class RobertaProcessing: PostProcessor {
         return outTokens
     }
 
+    /// Some tokens need one space around them
+    /// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/pre_tokenizers/byte_level.rs#L203-L235
     private func trimExtraSpaces(token: String) -> String {
         let prefixOffset = findPrefixIndex(text: token)
         let suffixOffset = findSuffixIndex(text: token)
