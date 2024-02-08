@@ -98,6 +98,7 @@ public struct Config {
         guard let list = value as? [Any] else { return nil }
         return list.map { Config($0 as! [String : Any]) }
     }
+    
     /// Tuple of token identifier and string value
     public var tokenValue: (UInt, String)? { value as? (UInt, String) }
 }

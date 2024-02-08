@@ -80,12 +80,14 @@ class ByteLevelPostProcessor: PostProcessor {
 class RobertaProcessing: PostProcessor {
     private let sep: (UInt, String)
     private let cls: (UInt, String)
+    /// Trim all remaining space, or leave one space character if `addPrefixSpace` is `true`.
     private let trimOffset: Bool
+    /// Keep one space character on each side. Depends on `trimOffsets` being `true`.
     private let addPrefixSpace: Bool
 
     required public init(config: Config) {
         guard let sep = config.sep?.tokenValue else { fatalError("Missing `sep` processor configuration") }
-        guard let cls = config.sep?.tokenValue else { fatalError("Missing `cls` processor configuration") }
+        guard let cls = config.cls?.tokenValue else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
         self.trimOffset = config.trimOffset?.boolValue ?? true
@@ -93,17 +95,20 @@ class RobertaProcessing: PostProcessor {
     }
     
     func postProcess(tokens: [String], tokensPair: [String]?) -> [String] {
-        var outTokens = [String]()
+        var outTokens = tokens
+        var tokensPair = tokensPair
         if trimOffset {
             if addPrefixSpace {
-                tokens.forEach({ outTokens.append(trimExtraSpaces(token: $0)) })
+                outTokens = outTokens.map({ trimExtraSpaces(token: $0) })
+                tokensPair = tokensPair?.map({ trimExtraSpaces(token: $0) })
            } else {
                 outTokens = outTokens.map({ $0.trimmingCharacters(in: .whitespaces) })
+                tokensPair = tokensPair?.map({ $0.trimmingCharacters(in: .whitespaces) })
             }
         }
 
-        outTokens = [self.cls.1] + tokens + [self.sep.1]
-        if let tokensPair = tokensPair {
+        outTokens = [self.cls.1] + outTokens + [self.sep.1]
+        if let tokensPair = tokensPair, !tokensPair.isEmpty {
             // Yes, it adds another `sep`.
             // https://github.com/facebookresearch/fairseq/blob/main/fairseq/models/roberta/hub_interface.py#L58-L65
             outTokens += [self.sep.1] + tokensPair + [self.sep.1]
