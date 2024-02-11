@@ -7,8 +7,7 @@ public struct TemperatureLogitsWarper: LogitsWarper {
         self.temperature = temperature
     }
 
-    public func warp(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
-        let logits = arr.map { $0 / temperature }
-        return (indexes: Array(logits.indices), logits: logits)
+    public func warp(indexes: [Int], logits: [Float]) -> (indexes: [Int], logits: [Float]) {
+        return (indexes: indexes, logits: logits.map { $0 / temperature })
     }
 }

@@ -10,15 +10,15 @@ public struct TopPLogitsWarper: LogitsWarper {
         self.p = p
     }
 
-    public func warp(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
-        guard !arr.isEmpty else {
+    public func warp(indexes: [Int], logits: [Float]) -> (indexes: [Int], logits: [Float]) {
+        guard !logits.isEmpty else {
             return (indexes: [], logits: [])
         }
 
-        let arrSoftmax = Math.softmax(arr)
+        let arrSoftmax = Math.softmax(logits)
         var indexLogitProb = [(index: Int, logit: Float, prob: Float)]()
-        indexLogitProb.reserveCapacity(arr.count)
-        for (index, data) in zip(arr, arrSoftmax).enumerated() {
+        indexLogitProb.reserveCapacity(logits.count)
+        for (index, data) in zip(logits, arrSoftmax).enumerated() {
             indexLogitProb.append((index: index, logit: data.0, prob: data.1))
         }
         indexLogitProb.sort { $0.prob > $1.prob }
@@ -30,8 +30,8 @@ public struct TopPLogitsWarper: LogitsWarper {
             break
         }
 
-        let indexes = indexLogitProb[0 ... sliceIndex].map(\.index)
-        let logits = indexLogitProb[0 ... sliceIndex].map(\.logit)
-        return (indexes: indexes, logits: logits)
+        let toppIndexes = indexLogitProb[0 ... sliceIndex].map { indexes[$0.index] }
+        let toppLogits = indexLogitProb[0 ... sliceIndex].map(\.logit)
+        return (indexes: toppIndexes, logits: toppLogits)
     }
 }
