@@ -59,6 +59,7 @@ struct TokenizerModel {
         "GPT2Tokenizer"   : GPT2Tokenizer.self,
         "FalconTokenizer" : FalconTokenizer.self,
         "LlamaTokenizer"  : LlamaTokenizer.self,
+        "CodeLlamaTokenizer": LlamaTokenizer.self,
         "CodeGenTokenizer": CodeGenTokenizer.self,
         "WhisperTokenizer": WhisperTokenizer.self,
         "T5Tokenizer"     : T5Tokenizer.self,
