@@ -46,7 +46,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
         for (i, item) in merges.enumerated() {
-            let tuple = item.split(separator: " ").map { String($0) }
+            let tuple = item.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) }
             let bp = BytePair(tuple: tuple)
             bpeRanks[bp] = i
         }
