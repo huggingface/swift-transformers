@@ -11,7 +11,7 @@ public struct LogitsProcessor {
         var indexes = Array(arr.indices)
         var logits = arr
         for warper in logitsWarpers {
-            (indexes, logits) = warper(logits)
+            (indexes, logits) = warper(indexes, logits)
         }
         return (indexes: indexes, logits: logits)
     }
