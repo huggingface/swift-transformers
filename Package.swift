@@ -30,6 +30,7 @@ let package = Package(
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils"]),
-        .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"])
+        .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
+        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"])
     ]
 )
