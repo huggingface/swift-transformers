@@ -130,6 +130,14 @@ public class LanguageModelConfigurationFromHub {
                 // Try to guess the class if it's not present and the modelType is
                 if let _ = hubConfig.tokenizerClass?.stringValue { return hubConfig }
                 guard let modelType = try await modelType else { return hubConfig }
+
+                // If the config exists but doesn't contain a tokenizerClass, use a fallback config if we have it
+                if let fallbackConfig = Self.fallbackTokenizerConfig(for: modelType) {
+                    let configuration = fallbackConfig.dictionary.merging(hubConfig.dictionary, uniquingKeysWith: { current, _ in current })
+                    return Config(configuration)
+                }
+
+                // Guess by capitalizing
                 var configuration = hubConfig.dictionary
                 configuration["tokenizer_class"] = "\(modelType.capitalized)Tokenizer"
                 return Config(configuration)
