@@ -55,16 +55,16 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 
 struct TokenizerModel {
     static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
-        "BertTokenizer"   : BertTokenizer.self,
-        "GPT2Tokenizer"   : GPT2Tokenizer.self,
-        "FalconTokenizer" : FalconTokenizer.self,
-        "LlamaTokenizer"  : LlamaTokenizer.self,
-        "CodeLlamaTokenizer": LlamaTokenizer.self,
-        "CodeGenTokenizer": CodeGenTokenizer.self,
-        "WhisperTokenizer": WhisperTokenizer.self,
-        "T5Tokenizer"     : T5Tokenizer.self,
+        "BertTokenizer"      : BertTokenizer.self,
+        "CodeGenTokenizer"   : CodeGenTokenizer.self,
+        "CodeLlamaTokenizer" : CodeLlamaTokenizer.self,
+        "FalconTokenizer"    : FalconTokenizer.self,
+        "GemmaTokenizer"     : GemmaTokenizer.self,
+        "GPT2Tokenizer"      : GPT2Tokenizer.self,
+        "LlamaTokenizer"     : LlamaTokenizer.self,
+        "T5Tokenizer"        : T5Tokenizer.self,
+        "WhisperTokenizer"   : WhisperTokenizer.self,
 
-        // Default
         "PreTrainedTokenizer": BPETokenizer.self
     ]
 
@@ -245,10 +245,12 @@ extension AutoTokenizer {
 
 // MARK: - Tokenizer model classes
 
-class GPT2Tokenizer    : BPETokenizer {}
-class FalconTokenizer  : BPETokenizer {}
-class LlamaTokenizer   : BPETokenizer {}
-class CodeGenTokenizer : BPETokenizer {}
-class WhisperTokenizer : BPETokenizer {}
+class GPT2Tokenizer     : BPETokenizer {}
+class FalconTokenizer   : BPETokenizer {}
+class LlamaTokenizer    : BPETokenizer {}
+class CodeGenTokenizer  : BPETokenizer {}
+class WhisperTokenizer  : BPETokenizer {}
+class GemmaTokenizer    : BPETokenizer {}
+class CodeLlamaTokenizer: BPETokenizer {}
 
-class T5Tokenizer      : UnigramTokenizer {}
+class T5Tokenizer       : UnigramTokenizer {}
