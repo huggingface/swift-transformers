@@ -7,12 +7,12 @@ public struct LogitsProcessor {
         self.logitsWarpers = logitsWarpers
     }
 
-    public func callAsFunction(_ arr: [Float]) -> (indexes: [Int], logits: [Float]) {
-        var indexes = Array(arr.indices)
+    public func callAsFunction(_ arr: [Float]) -> (indices: [Int], logits: [Float]) {
+        var indices = Array(arr.indices)
         var logits = arr
         for warper in logitsWarpers {
-            (indexes, logits) = warper(indexes, logits)
+            (indices, logits) = warper(indices, logits)
         }
-        return (indexes: indexes, logits: logits)
+        return (indices: indices, logits: logits)
     }
 }

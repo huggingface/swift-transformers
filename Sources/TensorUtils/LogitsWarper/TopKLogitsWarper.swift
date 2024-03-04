@@ -12,9 +12,9 @@ public struct TopKLogitsWarper: LogitsWarper {
         self.k = k
     }
 
-    public func warp(indexes: [Int], logits: [Float]) -> (indexes: [Int], logits: [Float]) {
+    public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
         guard !logits.isEmpty else {
-            return (indexes: [], logits: [])
+            return (indices: [], logits: [])
         }
         let k = min(k, logits.count)
         let arrDescriptor = BNNSNDArrayDescriptor.allocate(
@@ -50,9 +50,9 @@ public struct TopKLogitsWarper: LogitsWarper {
         let topkLogits = bestValues.data!.withMemoryRebound(to: Float.self, capacity: k) { ptr in
             Array(UnsafeBufferPointer(start: ptr, count: k))
         }
-        let topkIndexes = bestIndices.data!.withMemoryRebound(to: Int32.self, capacity: k) { ptr in
+        let topkIndices = bestIndices.data!.withMemoryRebound(to: Int32.self, capacity: k) { ptr in
             Array(UnsafeBufferPointer(start: ptr, count: k))
         }
-        return (indexes: topkIndexes.map { indexes[Int($0)] }, logits: topkLogits)
+        return (indices: topkIndices.map { indices[Int($0)] }, logits: topkLogits)
     }
 }

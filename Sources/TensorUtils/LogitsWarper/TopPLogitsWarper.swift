@@ -10,9 +10,9 @@ public struct TopPLogitsWarper: LogitsWarper {
         self.p = p
     }
 
-    public func warp(indexes: [Int], logits: [Float]) -> (indexes: [Int], logits: [Float]) {
+    public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
         guard !logits.isEmpty else {
-            return (indexes: [], logits: [])
+            return (indices: [], logits: [])
         }
 
         let arrSoftmax = Math.softmax(logits)
@@ -30,8 +30,8 @@ public struct TopPLogitsWarper: LogitsWarper {
             break
         }
 
-        let toppIndexes = indexLogitProb[0 ... sliceIndex].map { indexes[$0.index] }
+        let toppIndices = indexLogitProb[0 ... sliceIndex].map { indices[$0.index] }
         let toppLogits = indexLogitProb[0 ... sliceIndex].map(\.logit)
-        return (indexes: toppIndexes, logits: toppLogits)
+        return (indices: toppIndices, logits: toppLogits)
     }
 }
