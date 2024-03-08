@@ -8,14 +8,14 @@
 import Foundation
 
 public struct HubApi {
-    let endpoint = "https://huggingface.co/api"
     var downloadBase: URL
-    var hfToken: String? = nil
+    var hfToken: String?
+    var hfEndpoint: String
     
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
     
-    public init(downloadBase: URL? = nil, hfToken: String? = nil) {
+    public init(downloadBase: URL? = nil, hfToken: String? = nil, hfEndpoint: String = "https://huggingface.co") {
         if downloadBase == nil {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             self.downloadBase = documents.appending(component: "huggingface")
@@ -23,6 +23,7 @@ public struct HubApi {
             self.downloadBase = downloadBase!
         }
         self.hfToken = hfToken
+        self.hfEndpoint = hfEndpoint
     }
     
     static let shared = HubApi()
@@ -51,7 +52,7 @@ public extension HubApi {
         switch response.statusCode {
         case 200..<300: break
         case 400..<500: throw Hub.HubClientError.authorizationRequired
-        default       : throw Hub.HubClientError.httpStatusCode(response.statusCode)
+        default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
 
         return (data, response)
@@ -59,7 +60,7 @@ public extension HubApi {
     
     func getFilenames(from repo: Repo, matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
-        let url = URL(string: "\(endpoint)/\(repo.type)/\(repo.id)")!
+        let url = URL(string: "\(hfEndpoint)/api/\(repo.type)/\(repo.id)")!
         let (data, _) = try await httpGet(for: url)
         let response = try JSONDecoder().decode(SiblingsResponse.self, from: data)
         let filenames = response.siblings.map { $0.rfilename }
@@ -103,7 +104,7 @@ public extension HubApi {
     func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
         
-        let url = URL(string: "\(endpoint)/whoami-v2")!
+        let url = URL(string: "\(hfEndpoint)/api/whoami-v2")!
         let (data, _) = try await httpGet(for: url)
 
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
@@ -123,15 +124,16 @@ public extension HubApi {
         let repoDestination: URL
         let relativeFilename: String
         let hfToken: String?
+        let hfEndpoint:String?
         
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
-            var url = URL(string: "https://huggingface.co")!
+            var url = URL(string: hfEndpoint ?? "https://huggingface.co")!
             if repo.type != .models {
                 url = url.appending(component: repo.type.rawValue)
             }
             url = url.appending(path: repo.id)
-            url = url.appending(path: "resolve/main")  // TODO: revisions
+            url = url.appending(path: "resolve/main") // TODO: revisions
             url = url.appending(path: relativeFilename)
             return url
         }
@@ -177,7 +179,7 @@ public extension HubApi {
         let repoDestination = localRepoLocation(repo)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
-            let downloader = HubFileDownloader(repo: repo, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken)
+            let downloader = HubFileDownloader(repo: repo, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken, hfEndpoint: hfEndpoint)
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
@@ -243,9 +245,8 @@ public extension Hub {
     }
 }
 
-public extension Array<String> {
+public extension [String] {
     func matching(glob: String) -> [String] {
-        self.filter { fnmatch(glob, $0, 0) == 0 }
+        filter { fnmatch(glob, $0, 0) == 0 }
     }
 }
-

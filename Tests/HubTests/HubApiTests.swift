@@ -150,4 +150,30 @@ class SnapshotDownloadTests: XCTestCase {
             ])
         )
     }
+    
+    func testCustomEndpointDownload() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination,hfEndpoint: "https://hf-mirror.com")
+        var lastProgress: Progress? = nil
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+    }
+    
+    
 }
