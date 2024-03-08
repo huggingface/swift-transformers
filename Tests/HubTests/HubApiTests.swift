@@ -4,9 +4,8 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-import XCTest
 @testable import Hub
-
+import XCTest
 
 class HubApiTests: XCTestCase {
     override func setUp() {
@@ -18,7 +17,7 @@ class HubApiTests: XCTestCase {
     }
 
     // MARK: use a specific revision for these tests
-    
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
@@ -27,7 +26,7 @@ class HubApiTests: XCTestCase {
             XCTFail("\(error)")
         }
     }
-    
+
     func testFilenameRetrievalWithGlob() async {
         do {
             try await {
@@ -75,7 +74,7 @@ class HubApiTests: XCTestCase {
             XCTFail("\(error)")
         }
     }
-    
+
     func testFilenameRetrievalWithMultiplePatterns() async {
         do {
             let patterns = ["config.json", "tokenizer.json", "tokenizer_*.json"]
@@ -96,9 +95,8 @@ class SnapshotDownloadTests: XCTestCase {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return base.appending(component: "huggingface-tests")
     }()
-    
-    override func setUp() {
-    }
+
+    override func setUp() {}
 
     override func tearDown() {
         do {
@@ -126,7 +124,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
         return filenames
     }
-    
+
     func testDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -138,7 +136,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
         XCTAssertEqual(lastProgress?.completedUnitCount, 6)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
-        
+
         let downloadedFilenames = getRelativeFiles(url: downloadDestination)
         XCTAssertEqual(
             Set(downloadedFilenames),
@@ -150,9 +148,9 @@ class SnapshotDownloadTests: XCTestCase {
             ])
         )
     }
-    
+
     func testCustomEndpointDownload() async throws {
-        let hubApi = HubApi(downloadBase: downloadDestination,hfEndpoint: "https://hf-mirror.com")
+        let hubApi = HubApi(downloadBase: downloadDestination, hfEndpoint: "")
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
@@ -162,7 +160,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
         XCTAssertEqual(lastProgress?.completedUnitCount, 6)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
-        
+
         let downloadedFilenames = getRelativeFiles(url: downloadDestination)
         XCTAssertEqual(
             Set(downloadedFilenames),
@@ -174,6 +172,4 @@ class SnapshotDownloadTests: XCTestCase {
             ])
         )
     }
-    
-    
 }

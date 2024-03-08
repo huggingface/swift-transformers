@@ -124,7 +124,7 @@ public extension HubApi {
         let repoDestination: URL
         let relativeFilename: String
         let hfToken: String?
-        let hfEndpoint:String?
+        let hfEndpoint: String?
         
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
