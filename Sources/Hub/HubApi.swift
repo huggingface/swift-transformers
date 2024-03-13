@@ -157,7 +157,7 @@ public extension HubApi {
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
             guard !downloaded else { return destination }
-            
+
             try prepareDestination()
             let downloader = Downloader(from: source, to: destination, using: hfToken)
             let downloadSubscriber = downloader.downloadState.sink { state in
@@ -165,13 +165,13 @@ public extension HubApi {
                     progressHandler(progress)
                 }
             }
-            // We need to assign the cancellable to a var so we keep receiving events, so we suppress the "unused var" warning here
-            let _ = downloadSubscriber
-            try downloader.waitUntilDone()
+            _ = try withExtendedLifetime(downloadSubscriber) {
+                try downloader.waitUntilDone()
+            }
             return destination
         }
     }
-    
+
     @discardableResult
     func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         let filenames = try await getFilenames(from: repo, matching: globs)
