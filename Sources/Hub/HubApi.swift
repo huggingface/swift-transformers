@@ -17,18 +17,18 @@ public struct HubApi {
     public typealias Repo = Hub.Repo
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false) {
-        if downloadBase == nil {
+        self.hfToken = hfToken
+        if let downloadBase {
+            self.downloadBase = downloadBase
+        } else {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             self.downloadBase = documents.appending(component: "huggingface")
-        } else {
-            self.downloadBase = downloadBase!
         }
-        self.hfToken = hfToken
         self.endpoint = endpoint
         self.useBackgroundSession = useBackgroundSession
     }
     
-    static let shared = HubApi()
+    public static let shared = HubApi()
 }
 
 /// File retrieval
