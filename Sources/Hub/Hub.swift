@@ -112,9 +112,15 @@ public class LanguageModelConfigurationFromHub {
 
     private var configPromise: Task<Configurations, Error>? = nil
 
-    public init(modelName: String) {
+    public init(
+        modelName: String,
+        hubApi: HubApi = HubApi()
+    ) {
         self.configPromise = Task.init {
-            return try await self.loadConfig(modelName: modelName)
+            return try await self.loadConfig(
+                modelName: modelName,
+                hubApi: hubApi
+            )
         }
     }
 
@@ -161,8 +167,10 @@ public class LanguageModelConfigurationFromHub {
         }
     }
 
-    func loadConfig(modelName: String, hfToken: String? = nil) async throws -> Configurations {
-        let hubApi = HubApi(hfToken: hfToken)
+    func loadConfig(
+        modelName: String,
+        hubApi: HubApi = HubApi()
+    ) async throws -> Configurations {
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)
         try await hubApi.snapshot(from: repo, matching: filesToDownload)
@@ -172,7 +180,11 @@ public class LanguageModelConfigurationFromHub {
         let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: repo)
         let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: repo)
         
-        let configs = Configurations(modelConfig: modelConfig, tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerVocab)
+        let configs = Configurations(
+            modelConfig: modelConfig,
+            tokenizerConfig: tokenizerConfig,
+            tokenizerData: tokenizerVocab
+        )
         return configs
     }
 
