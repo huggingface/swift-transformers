@@ -11,34 +11,42 @@ import Combine
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
-    
+
     enum DownloadState {
         case notStarted
         case downloading(Double)
         case completed(URL)
         case failed(Error)
     }
-    
+
     enum DownloadError: Error {
         case invalidDownloadLocation
         case unexpectedError
     }
-    
+
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
-    
+
     private var urlSession: URLSession? = nil
-    
-    init(from url: URL, to destination: URL, using authToken: String? = nil) {
+
+    init(from url: URL, to destination: URL, using authToken: String? = nil, inBackground: Bool = false) {
         self.destination = destination
         super.init()
-        
-        let config = URLSessionConfiguration.background(withIdentifier: url.path)
-#if targetEnvironment(simulator)
-        urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue())
-#else
-        urlSession = URLSession(configuration: config, delegate: self, delegateQueue: OperationQueue())
-#endif
+        let sessionIdentifier = "swift-transformers.hub.downloader"
+
+        var config = URLSessionConfiguration.default
+        if inBackground {
+            config = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
+            config.isDiscretionary = false
+            config.sessionSendsLaunchEvents = true
+        }
+
+        self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        setupDownload(from: url, with: authToken)
+    }
+
+    private func setupDownload(from url: URL, with authToken: String?) {
         downloadState.value = .downloading(0)
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
@@ -70,7 +78,7 @@ class Downloader: NSObject, ObservableObject {
             self.urlSession?.downloadTask(with: request).resume()
         }
     }
-    
+
     @discardableResult
     func waitUntilDone() throws -> URL {
         // It's either this, or stream the bytes ourselves (add to a buffer, save to disk, etc; boring and finicky)
@@ -83,31 +91,28 @@ class Downloader: NSObject, ObservableObject {
             }
         }
         semaphore.wait()
-        
+
         switch downloadState.value {
         case .completed(let url): return url
         case .failed(let error):  throw error
         default:                  throw DownloadError.unexpectedError
         }
     }
-    
+
     func cancel() {
         urlSession?.invalidateAndCancel()
     }
 }
 
-extension Downloader: URLSessionDelegate, URLSessionDownloadDelegate {
+extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten _: Int64, totalBytesExpectedToWrite _: Int64) {
         downloadState.value = .downloading(downloadTask.progress.fractionCompleted)
     }
 
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard FileManager.default.fileExists(atPath: location.path) else {
-            downloadState.value = .failed(DownloadError.invalidDownloadLocation)
-            return
-        }
         do {
-            try FileManager.default.moveItem(at: location, to: destination)
+            // If the downloaded file already exists on the filesystem, overwrite it
+            try FileManager.default.moveDownloadedFile(from: location, to: self.destination)
             downloadState.value = .completed(destination)
         } catch {
             downloadState.value = .failed(error)
@@ -122,5 +127,14 @@ extension Downloader: URLSessionDelegate, URLSessionDownloadDelegate {
 //            let headers = response.allHeaderFields
 //            print("HTTP response headers: \(headers)")
         }
+    }
+}
+
+extension FileManager {
+    func moveDownloadedFile(from srcURL: URL, to dstURL: URL) throws {
+        if fileExists(atPath: dstURL.path) {
+            try removeItem(at: dstURL)
+        }
+        try moveItem(at: srcURL, to: dstURL)
     }
 }

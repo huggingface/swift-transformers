@@ -11,11 +11,12 @@ public struct HubApi {
     var downloadBase: URL
     var hfToken: String?
     var endpoint: String
-    
+    var useBackgroundSession: Bool
+
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
     
-    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co") {
+    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false) {
         if downloadBase == nil {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             self.downloadBase = documents.appending(component: "huggingface")
@@ -24,6 +25,7 @@ public struct HubApi {
         }
         self.hfToken = hfToken
         self.endpoint = endpoint
+        self.useBackgroundSession = useBackgroundSession
     }
     
     static let shared = HubApi()
@@ -125,7 +127,8 @@ public extension HubApi {
         let relativeFilename: String
         let hfToken: String?
         let endpoint: String?
-        
+        let backgroundSession: Bool
+
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
             var url = URL(string: endpoint ?? "https://huggingface.co")!
@@ -159,7 +162,7 @@ public extension HubApi {
             guard !downloaded else { return destination }
 
             try prepareDestination()
-            let downloader = Downloader(from: source, to: destination, using: hfToken)
+            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
@@ -179,7 +182,14 @@ public extension HubApi {
         let repoDestination = localRepoLocation(repo)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
-            let downloader = HubFileDownloader(repo: repo, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken, endpoint: endpoint)
+            let downloader = HubFileDownloader(
+                repo: repo,
+                repoDestination: repoDestination,
+                relativeFilename: filename,
+                hfToken: hfToken,
+                endpoint: endpoint,
+                backgroundSession: useBackgroundSession
+            )
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
