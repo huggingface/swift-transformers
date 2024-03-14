@@ -114,13 +114,10 @@ public class LanguageModelConfigurationFromHub {
 
     public init(
         modelName: String,
-        hubApi: HubApi = HubApi()
+        hubApi: HubApi = .shared
     ) {
         self.configPromise = Task.init {
-            return try await self.loadConfig(
-                modelName: modelName,
-                hubApi: hubApi
-            )
+            return try await self.loadConfig(modelName: modelName, hubApi: hubApi)
         }
     }
 
@@ -169,7 +166,7 @@ public class LanguageModelConfigurationFromHub {
 
     func loadConfig(
         modelName: String,
-        hubApi: HubApi = HubApi()
+        hubApi: HubApi = .shared
     ) async throws -> Configurations {
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)

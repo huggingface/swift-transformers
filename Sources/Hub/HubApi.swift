@@ -8,9 +8,9 @@
 import Foundation
 
 public struct HubApi {
-    public var downloadBase: URL
-    public var hfToken: String?
-    public var endpoint: String
+    public let downloadBase: URL
+    public let hfToken: String?
+    public let endpoint: String
     
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo

@@ -236,7 +236,7 @@ extension AutoTokenizer {
 
     public static func from(
         pretrained model: String,
-        hubApi: HubApi = HubApi()
+        hubApi: HubApi = .shared
     ) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelName: model, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
