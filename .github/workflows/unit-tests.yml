@@ -13,8 +13,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build
-      run: swift build
+      run: swift build --vv --build-tests
     - name: Run tests
-      run: 
-        set -o pipefail &&
-        swift test | xcpretty
+      run: swift test --vv --skip-build
