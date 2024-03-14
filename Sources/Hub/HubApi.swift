@@ -8,25 +8,29 @@
 import Foundation
 
 public struct HubApi {
-    var downloadBase: URL
-    var hfToken: String?
-    var endpoint: String
+    public let downloadBase: URL
+    public let hfToken: String?
+    public let endpoint: String
     
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
     
-    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co") {
-        if downloadBase == nil {
+    public init(
+        downloadBase: URL? = nil,
+        hfToken: String? = nil,
+        endpoint: String = "https://huggingface.co"
+    ) {
+        self.hfToken = hfToken
+        if let downloadBase {
+            self.downloadBase = downloadBase
+        } else {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             self.downloadBase = documents.appending(component: "huggingface")
-        } else {
-            self.downloadBase = downloadBase!
         }
-        self.hfToken = hfToken
         self.endpoint = endpoint
     }
     
-    static let shared = HubApi()
+    public static let shared = HubApi()
 }
 
 /// File retrieval
@@ -179,7 +183,13 @@ public extension HubApi {
         let repoDestination = localRepoLocation(repo)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
-            let downloader = HubFileDownloader(repo: repo, repoDestination: repoDestination, relativeFilename: filename, hfToken: hfToken, endpoint: endpoint)
+            let downloader = HubFileDownloader(
+                repo: repo,
+                repoDestination: repoDestination,
+                relativeFilename: filename,
+                hfToken: hfToken,
+                endpoint: endpoint
+            )
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
