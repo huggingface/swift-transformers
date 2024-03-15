@@ -172,34 +172,18 @@ public extension LanguageModel {
             try await textGenerationParameters?.doSample?.boolValue ?? true
         }
     }
-    
-    var architecture: Architecture? {
-        get async throws {
-            guard let modelType = try await modelType else { return nil }
-            return Architecture.from(modelType: modelType)
-        }
-    }
-    
-    var padTokenId: Int? {
-        get async throws {
-            guard let architecture = try await architecture else { return nil }
-            return architecture.padTokenId ?? architecture.eosTokenId
-        }
-    }
-    
+
     var bosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            if let bosTokenId = modelConfig.bosTokenId?.intValue { return bosTokenId }
-            return try await architecture?.bosTokenId
+            return modelConfig.bosTokenId?.intValue
         }
     }
     
     var eosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            if let eosTokenId = modelConfig.eosTokenId?.intValue { return eosTokenId }
-            return try await architecture?.eosTokenId
+            return modelConfig.eosTokenId?.intValue
         }
     }
     
