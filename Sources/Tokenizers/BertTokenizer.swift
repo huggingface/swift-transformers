@@ -114,11 +114,6 @@ class BertTokenizer {
 
 
 extension BertTokenizer: PreTrainedTokenizerModel {
-    // FIXME: remove
-    func callAsFunction(_ text: String) -> [Int] {
-        return []
-    }
-    
     var unknownToken: String? { wordpieceTokenizer.unkToken }
     var unknownTokenId: Int? { vocab[unknownToken!] }
     
