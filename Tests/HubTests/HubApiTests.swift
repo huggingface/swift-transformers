@@ -149,6 +149,29 @@ class SnapshotDownloadTests: XCTestCase {
         )
     }
 
+    /// Background sessions get rate limited by the OS, see discussion here: https://github.com/huggingface/swift-transformers/issues/61
+    /// Test only one file at a time
+    func testDownloadInBackground() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination, useBackgroundSession: true)
+        var lastProgress: Progress? = nil
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+    }
+
     func testCustomEndpointDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, endpoint: "https://hf-mirror.com")
         var lastProgress: Progress? = nil
