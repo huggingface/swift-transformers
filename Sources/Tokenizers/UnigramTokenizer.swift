@@ -24,7 +24,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     let minScore: Float
     let tokensToIds: [String: Int]
     
-    let bosToken = " "
+    let bosToken: String? = " "
     let bosTokenId: Int?
     let eosToken: String?
     let eosTokenId: Int?
@@ -51,7 +51,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         self.unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
         
         tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token }.enumerated().map { ($1, $0) })
-        bosTokenId = tokensToIds[bosToken]      // May be nil
+        bosTokenId = tokensToIds[bosToken!]      // May be nil
         
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]

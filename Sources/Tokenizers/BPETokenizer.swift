@@ -36,9 +36,13 @@ class BPETokenizer: PreTrainedTokenizerModel {
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]
     
+    public let bosToken: String?
+    public let bosTokenId: Int?
+    public let eosToken: String?
+    public let eosTokenId: Int?
     public let unknownToken: String?
     public let unknownTokenId: Int?
-    
+
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
         guard let merges = tokenizerData.model?.merges?.value as? [String] else { fatalError("BPETokenizer requires merges") }
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
@@ -55,7 +59,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
         self.tokensToIds = vocab.merging(addedTokens) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
         
-        // Populate unknown token
+        // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
             self.unknownTokenId = self.tokensToIds[unknownToken]
@@ -63,6 +67,12 @@ class BPETokenizer: PreTrainedTokenizerModel {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
+
+        eosToken = tokenizerConfig.eosToken?.stringValue
+        eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]
+
+        bosToken = tokenizerConfig.bosToken?.stringValue
+        bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken!]
     }
 
     func convertTokenToId(_ token: String) -> Int? {

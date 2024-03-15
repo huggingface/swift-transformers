@@ -30,6 +30,10 @@ public protocol TokenizingModel {
     func convertIdToToken(_ id: Int) -> String?
     func convertIdsToTokens(_ ids: [Int]) -> [String?]
 
+    var bosToken: String? { get }
+    var bosTokenId: Int? { get }
+    var eosToken: String? { get }
+    var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
 }
@@ -103,6 +107,10 @@ public protocol Tokenizer {
     func convertIdToToken(_ id: Int) -> String?
     func convertIdsToTokens(_ ids: [Int]) -> [String?]
 
+    var bosToken: String? { get }
+    var bosTokenId: Int? { get }
+    var eosToken: String? { get }
+    var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
 }
@@ -124,6 +132,10 @@ public extension Tokenizer {
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
 
+    public var bosToken: String? { model.bosToken }
+    public var bosTokenId: Int? { model.bosTokenId }
+    public var eosToken: String? { model.eosToken }
+    public var eosTokenId: Int? { model.eosTokenId }
     public var unknownToken: String? { model.unknownToken }
     public var unknownTokenId: Int? { model.unknownTokenId }
 
