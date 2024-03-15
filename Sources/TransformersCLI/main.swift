@@ -53,13 +53,17 @@ struct TransformersCLI: ParsableCommand {
         }
         semaphore.wait()
     }
-    
+
     func compile(at url: URL) throws -> URL {
+        #if os(watchOS)
+        fatalError("Model compilation is not supported on watchOS")
+        #else
         if url.pathExtension == "mlmodelc" { return url }
         print("Compiling model \(url)")
         return try MLModel.compileModel(at: url)
+        #endif
     }
-    
+
     func run() throws {
         let url = URL(filePath: modelPath)
         let compiledURL = try compile(at: url)
