@@ -51,6 +51,27 @@ Encoder-decoder models such as T5 and Flan are currently _not supported_. They a
 - [`exporters`](https://github.com/huggingface/exporters), a Core ML conversion package for transformers models, based on Apple's [`coremltools`](https://github.com/apple/coremltools).
 - [`transformers-to-coreml`](https://huggingface.co/spaces/coreml-projects/transformers-to-coreml), a no-code Core ML conversion tool built on `exporters`.
 
+## SwiftPM
+
+To use `swift-transformers` with SwiftPM, you can add this to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.5")
+]
+```
+And then, add the Transformers library as a dependency to your target:
+```
+targets: [
+    .target(
+        name: "YourTargetName",
+        dependencies: [
+            .product(name: "Transformers", package: "swift-transformers")
+        ]
+    )
+]
+```
+
 ## <a name="roadmap"></a> Roadmap / To Do
 
 - [ ] Tokenizers: download from the Hub, port from [`tokenizers`](https://github.com/huggingface/tokenizers)
