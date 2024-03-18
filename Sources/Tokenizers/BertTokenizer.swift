@@ -9,7 +9,7 @@
 import Foundation
 import Hub
 
-class BertTokenizer {
+public class BertTokenizer {
     private let basicTokenizer = BasicTokenizer()
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
@@ -18,12 +18,12 @@ class BertTokenizer {
     private let vocab: [String: Int]
     private let ids_to_tokens: [Int: String]
 
-    var bosToken: String?
-    var bosTokenId: Int?
-    var eosToken: String?
-    var eosTokenId: Int?
+    public var bosToken: String?
+    public var bosTokenId: Int?
+    public var eosToken: String?
+    public var eosTokenId: Int?
 
-    init(vocab: [String: Int],
+    public init(vocab: [String: Int],
          merges: [String]?,
          tokenizeChineseChars: Bool = true,
          bosToken: String? = nil,
@@ -39,7 +39,7 @@ class BertTokenizer {
         self.eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
     }
     
-    required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
+    public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
         }
@@ -51,7 +51,7 @@ class BertTokenizer {
     }
     
     
-    func tokenize(text: String) -> [String] {
+    public func tokenize(text: String) -> [String] {
         let text = tokenizeChineseCharsIfNeed(text)
         var tokens: [String] = []
         for token in basicTokenizer.tokenize(text: text) {
@@ -128,9 +128,9 @@ class BertTokenizer {
 
 
 extension BertTokenizer: PreTrainedTokenizerModel {
-    var unknownToken: String? { wordpieceTokenizer.unkToken }
-    var unknownTokenId: Int? { vocab[unknownToken!] }
-    
+    public var unknownToken: String? { wordpieceTokenizer.unkToken }
+    public var unknownTokenId: Int? { vocab[unknownToken!] }
+
     func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
     
     func decode(tokens: [Int]) -> String {
@@ -138,11 +138,11 @@ extension BertTokenizer: PreTrainedTokenizerModel {
         return convertWordpieceToBasicTokenList(tokens)
     }
     
-    func convertTokenToId(_ token: String) -> Int? {
+    public func convertTokenToId(_ token: String) -> Int? {
         return vocab[token] ?? unknownTokenId
     }
     
-    func convertIdToToken(_ id: Int) -> String? {
+    public func convertIdToToken(_ id: Int) -> String? {
         return ids_to_tokens[id]
     }
 }
