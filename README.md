@@ -60,7 +60,9 @@ dependencies: [
     .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.5")
 ]
 ```
+
 And then, add the Transformers library as a dependency to your target:
+
 ```
 targets: [
     .target(
