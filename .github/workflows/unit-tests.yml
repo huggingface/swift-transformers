@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-13
+    runs-on: [ self-hosted, macOS ]
     steps:
     - uses: actions/checkout@v4
     - name: Build

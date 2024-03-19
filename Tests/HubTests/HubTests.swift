@@ -9,17 +9,26 @@ import XCTest
 
 
 class HubTests: XCTestCase {
-    override func setUp() {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-    }
+    let downloadDestination: URL = {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return base.appending(component: "huggingface-tests")
+    }()
+
+    override func setUp() {}
 
     override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        do {
+            try FileManager.default.removeItem(at: downloadDestination)
+        } catch {
+            print("Can't remove test download destination \(downloadDestination), error: \(error)")
+        }
     }
+
+    var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 
     func testConfigDownload() async {
         do {
-            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base")
+            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
             let config = try await configLoader.modelConfig
             
             // Test leaf value (Int)
@@ -62,7 +71,7 @@ class HubTests: XCTestCase {
     
     func testConfigCamelCase() async {
         do {
-            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base")
+            let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
             let config = try await configLoader.modelConfig
 
             // Test leaf value (Int)

@@ -83,8 +83,8 @@ class TokenizerTester {
     private var edgeCases: [EdgeCase]? = nil
     private var _tokenizer: Tokenizer? = nil
     
-    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?) {
-        configuration = LanguageModelConfigurationFromHub(modelName: hubModelName)
+    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi) {
+        configuration = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
         self.encodedSamplesFilename = encodedSamplesFilename
         self.unknownTokenId = unknownTokenId
         
@@ -198,17 +198,33 @@ class TokenizerTests: XCTestCase {
     
     // Known id retrieved from Python, to verify it was parsed correctly
     class var unknownTokenId: Int? { nil }
-    
+
+    static var downloadDestination: URL = {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return base.appending(component: "huggingface-tests")
+    }()
+
+    class var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
+
     override class func setUp() {
         if let hubModelName = hubModelName, let encodedSamplesFilename = encodedSamplesFilename {
             _tester = TokenizerTester(
                 hubModelName: hubModelName,
                 encodedSamplesFilename: encodedSamplesFilename,
-                unknownTokenId: unknownTokenId
+                unknownTokenId: unknownTokenId,
+                hubApi: hubApi
             )
         }
     }
-        
+
+    override class func tearDown() {
+        do {
+            try FileManager.default.removeItem(at: downloadDestination)
+        } catch {
+            print("Can't remove test download destination \(downloadDestination), error: \(error)")
+        }
+    }
+
     func testTokenize() async {
         if let tester = Self._tester {
             await tester.testTokenize()
