@@ -120,6 +120,15 @@ public class LanguageModelConfigurationFromHub {
             return try await self.loadConfig(modelName: modelName, hubApi: hubApi)
         }
     }
+    
+    public init(
+        modelFolder: URL,
+        hubApi: HubApi = .shared
+    ) {
+        self.configPromise = Task {
+            return try await self.loadConfig(modelFolder: modelFolder, hubApi: hubApi)
+        }
+    }
 
     public var modelConfig: Config {
         get async throws {
@@ -176,6 +185,23 @@ public class LanguageModelConfigurationFromHub {
         let modelConfig = try hubApi.configuration(from: "config.json", in: repo)
         let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: repo)
         let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: repo)
+        
+        let configs = Configurations(
+            modelConfig: modelConfig,
+            tokenizerConfig: tokenizerConfig,
+            tokenizerData: tokenizerVocab
+        )
+        return configs
+    }
+    
+    func loadConfig(
+        modelFolder: URL,
+        hubApi: HubApi = .shared
+    ) async throws -> Configurations {
+        // Note tokenizerConfig may be nil (does not exist in all models)
+        let modelConfig = try hubApi.configuration(url: modelFolder.appending(path: "config.json"))
+        let tokenizerConfig = try? hubApi.configuration(url: modelFolder.appending(path: "tokenizer_config.json"))
+        let tokenizerVocab = try hubApi.configuration(url: modelFolder.appending(path: "tokenizer.json"))
         
         let configs = Configurations(
             modelConfig: modelConfig,

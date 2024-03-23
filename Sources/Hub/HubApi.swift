@@ -94,6 +94,12 @@ public extension HubApi {
     /// `filename` is relative to the download base.
     func configuration(from filename: String, in repo: Repo) throws -> Config {
         let url = localRepoLocation(repo).appending(path: filename)
+        return try configuration(url: url)
+    }
+    
+    /// Assumes the file has already present at local url.
+    /// `url` is complete local file path for given model
+    func configuration(url: URL) throws -> Config {
         let data = try Data(contentsOf: url)
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
         guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
