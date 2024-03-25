@@ -179,19 +179,9 @@ public class LanguageModelConfigurationFromHub {
     ) async throws -> Configurations {
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)
-        try await hubApi.snapshot(from: repo, matching: filesToDownload)
+        let downloadedModelFolder = try await hubApi.snapshot(from: repo, matching: filesToDownload)
 
-        // Note tokenizerConfig may be nil (does not exist in all models)
-        let modelConfig = try hubApi.configuration(from: "config.json", in: repo)
-        let tokenizerConfig = try? hubApi.configuration(from: "tokenizer_config.json", in: repo)
-        let tokenizerVocab = try hubApi.configuration(from: "tokenizer.json", in: repo)
-        
-        let configs = Configurations(
-            modelConfig: modelConfig,
-            tokenizerConfig: tokenizerConfig,
-            tokenizerData: tokenizerVocab
-        )
-        return configs
+        return try await loadConfig(modelFolder: downloadedModelFolder, hubApi: hubApi)
     }
     
     func loadConfig(
@@ -199,9 +189,9 @@ public class LanguageModelConfigurationFromHub {
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
         // Note tokenizerConfig may be nil (does not exist in all models)
-        let modelConfig = try hubApi.configuration(url: modelFolder.appending(path: "config.json"))
-        let tokenizerConfig = try? hubApi.configuration(url: modelFolder.appending(path: "tokenizer_config.json"))
-        let tokenizerVocab = try hubApi.configuration(url: modelFolder.appending(path: "tokenizer.json"))
+        let modelConfig = try hubApi.configuration(fileURL: modelFolder.appending(path: "config.json"))
+        let tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
+        let tokenizerVocab = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
         
         let configs = Configurations(
             modelConfig: modelConfig,
