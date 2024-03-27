@@ -9,10 +9,4 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-13
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build --vv --build-tests
-    - name: Run tests
-      run: swift test --vv --skip-build
+    uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main

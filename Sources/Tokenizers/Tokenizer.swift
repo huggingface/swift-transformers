@@ -71,7 +71,7 @@ struct TokenizerModel {
         "LlamaTokenizer"     : LlamaTokenizer.self,
         "T5Tokenizer"        : T5Tokenizer.self,
         "WhisperTokenizer"   : WhisperTokenizer.self,
-
+        "CohereTokenizer"    : CohereTokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self
     ]
 
@@ -333,6 +333,17 @@ extension AutoTokenizer {
 
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
+    
+    public static func from(
+        modelFolder: URL,
+        hubApi: HubApi = .shared
+    ) async throws -> Tokenizer {
+        let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
+        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
+        let tokenizerData = try await config.tokenizerData
+        
+        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+    }
 }
 
 // MARK: - Tokenizer model classes
@@ -344,5 +355,6 @@ class CodeGenTokenizer  : BPETokenizer {}
 class WhisperTokenizer  : BPETokenizer {}
 class GemmaTokenizer    : BPETokenizer {}
 class CodeLlamaTokenizer: BPETokenizer {}
+class CohereTokenizer   : BPETokenizer {}
 
 class T5Tokenizer       : UnigramTokenizer {}
