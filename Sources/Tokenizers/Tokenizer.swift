@@ -7,6 +7,7 @@
 
 import Hub
 import Foundation
+import Jinja
 
 enum TokenizerError : Error {
     case missingConfig
@@ -32,6 +33,8 @@ public protocol TokenizingModel {
 
     var bosToken: String? { get }
     var bosTokenId: Int? { get }
+    var padToken: String? { get }
+    var padTokenId: Int? { get }
     var eosToken: String? { get }
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
@@ -113,6 +116,17 @@ public protocol Tokenizer {
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
+    
+    func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
+    
+    func applyChatTemplate(
+        messages: [[String: String]],
+        chatTemplate: String?,
+        addGenerationPrompt: Bool,
+        padding: Bool,
+        truncation: Bool,
+        maxLength: Int?
+    ) throws -> [Int]
 }
 
 public extension Tokenizer {
@@ -128,6 +142,17 @@ public extension Tokenizer {
         return ids.map { convertIdToToken($0) }
     }
 }
+
+let specialTokenAttributes: [String] = [
+    "bos_token",
+    "eos_token",
+    "unk_token",
+    "sep_token",
+    "pad_token",
+    "cls_token",
+    "mask_token",
+    "additional_special_tokens"
+]
 
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
@@ -146,8 +171,11 @@ public class PreTrainedTokenizer: Tokenizer {
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
+    private let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
+    
+    private let defaultChatTemplate: String = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
     required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
         var addedTokens: [String : Int] = [:]
@@ -170,7 +198,8 @@ public class PreTrainedTokenizer: Tokenizer {
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
-
+        self.tokenizerConfig = tokenizerConfig
+        
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 
@@ -234,6 +263,54 @@ public class PreTrainedTokenizer: Tokenizer {
 
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
+    }
+    
+    public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: nil, addGenerationPrompt: true, maxLength: nil)
+    }
+    
+    public func applyChatTemplate(
+        messages: [[String: String]],
+        chatTemplate: String?,
+        addGenerationPrompt: Bool = false,
+        padding: Bool = false,
+        truncation: Bool = false,
+        maxLength: Int?
+    ) throws -> [Int] {
+        let template = try Template(chatTemplate ?? tokenizerConfig.chatTemplate?.stringValue ?? defaultChatTemplate)
+        var context: [String: Any] = [
+            "messages": messages,
+            "add_generation_prompt": addGenerationPrompt
+        ]
+
+        for (key, value) in tokenizerConfig.dictionary {
+            if specialTokenAttributes.contains(key), value != nil, !(value is NSNull) {
+                context[key] = value
+            }
+        }
+
+        let rendered = try template.render(context)
+
+        var encodedTokens = encode(text: rendered)
+
+        var maxLength = maxLength ?? encodedTokens.count
+
+        maxLength = min(maxLength, tokenizerConfig.modelMaxLength?.intValue ?? maxLength)
+
+        if encodedTokens.count > maxLength {
+            if truncation {
+                encodedTokens = Array(encodedTokens.prefix(maxLength))
+            }
+        } else {
+            if padding {
+                encodedTokens = encodedTokens + Array(
+                    repeating: model.padTokenId ?? model.eosTokenId ?? 0,
+                    count: encodedTokens.count - maxLength
+                )
+            }
+        }
+
+        return encodedTokens
     }
 }
 

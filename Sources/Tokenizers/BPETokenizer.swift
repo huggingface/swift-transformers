@@ -38,6 +38,8 @@ class BPETokenizer: PreTrainedTokenizerModel {
     
     public let bosToken: String?
     public let bosTokenId: Int?
+    public let padToken: String?
+    public let padTokenId: Int?
     public let eosToken: String?
     public let eosTokenId: Int?
     public let unknownToken: String?
@@ -67,6 +69,9 @@ class BPETokenizer: PreTrainedTokenizerModel {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
+        
+        padToken = tokenizerConfig.padToken?.stringValue
+        padTokenId = padToken == nil ? nil : tokensToIds[padToken!]
 
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]

@@ -26,6 +26,8 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     
     let bosToken: String? = " "
     let bosTokenId: Int?
+    let padToken: String?
+    let padTokenId: Int?
     let eosToken: String?
     let eosTokenId: Int?
     
@@ -55,6 +57,9 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]
+        
+        padToken = tokenizerConfig.padToken?.stringValue
+        padTokenId = padToken == nil ? nil : tokensToIds[padToken!]
         
         trie = Trie()
         trie.append(contentsOf: vocab.map { $0.token })
