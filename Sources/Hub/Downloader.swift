@@ -105,8 +105,8 @@ class Downloader: NSObject, ObservableObject {
 }
 
 extension Downloader: URLSessionDownloadDelegate {
-    func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten _: Int64, totalBytesExpectedToWrite _: Int64) {
-        downloadState.value = .downloading(downloadTask.progress.fractionCompleted)
+    func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        downloadState.value = .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
     }
 
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
