@@ -101,6 +101,9 @@ public extension Generation {
         if config.topP < 1.0 {
             logitsWarpers.append(TopPLogitsWarper(p: Float(config.topP)))
         }
+        if config.repetitionPenalty != 1.0 {
+            logitsWarpers.append(RepetitionPenaltyWarper(penalty: config.repetitionPenalty))
+        }
         return logitsWarpers
     }
 }

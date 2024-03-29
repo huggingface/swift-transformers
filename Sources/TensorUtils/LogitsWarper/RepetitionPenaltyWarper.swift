@@ -6,8 +6,8 @@ import Foundation
 public struct RepetitionPenaltyWarper: LogitsWarper {
     public var penalty: Float
 
-    public init(penalty: Float) {
-        self.penalty = penalty
+    public init(penalty: Double) {
+        self.penalty = Float(penalty)
     }
 
     public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
