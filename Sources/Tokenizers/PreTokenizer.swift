@@ -49,7 +49,11 @@ enum PreTokenizerType: String {
 struct PreTokenizerFactory {
     static func fromConfig(config: Config?) -> PreTokenizer? {
         guard let config = config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard var typeName = config.type?.stringValue else { return nil }
+        if typeName.hasSuffix("PreTokenizer") {
+            typeName = String(typeName.dropLast("PreTokenizer".count))
+        }
+
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
         case .Sequence : return PreTokenizerSequence(config: config)
