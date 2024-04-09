@@ -36,6 +36,7 @@ enum PreTokenizerType: String {
     case Sequence
     case ByteLevel
     case Punctuation
+    case Bert
     case Digits
     case Split
     case Whitespace
@@ -54,6 +55,7 @@ struct PreTokenizerFactory {
         case .Sequence : return PreTokenizerSequence(config: config)
         case .ByteLevel: return ByteLevelPreTokenizer(config: config)
         case .Punctuation: return PunctuationPreTokenizer(config: config)
+        case .Bert: return BertPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
         case .Split: return SplitPreTokenizer(config: config)
         case .Whitespace, .WhitespaceSplit: return WhitespacePreTokenizer(config: config)
@@ -188,6 +190,20 @@ class PunctuationPreTokenizer: PreTokenizer {
 
     func preTokenize(text: String) -> [String] {
         // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
+        return text.ranges(of: re).map { String(text[$0]) }
+    }
+}
+
+class BertPreTokenizer: PreTokenizer {
+    // Identical to PunctuationPreTokenizer, but with a different regex
+    let PUNCTUATION_REGEX = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
+    let re: String
+
+    required init(config: Config) {
+        re = "[^\\s\(PUNCTUATION_REGEX)]+|[\(PUNCTUATION_REGEX)]"
+    }
+
+    func preTokenize(text: String) -> [String] {
         return text.ranges(of: re).map { String(text[$0]) }
     }
 }
