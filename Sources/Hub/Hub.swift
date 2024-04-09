@@ -101,11 +101,16 @@ public struct Config {
     
     /// Tuple of token identifier and string value
     public var tokenValue: (UInt, String)? {
-        if let tuple = value as? (UInt, String) {
-            return tuple
-        } else if let reversedTuple = value as? (String, UInt) {
-            return (reversedTuple.1, reversedTuple.0)
+        guard let array = value as? [Any], array.count == 2 else {
+            return nil
         }
+
+        if let first = array[0] as? String, let second = array[1] as? Int64 {
+            return (UInt(second), first)
+        } else if let first = array[0] as? Int64, let second = array[1] as? String {
+            return (UInt(first), second)
+        }
+
         return nil
     }
 }
