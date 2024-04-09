@@ -100,7 +100,14 @@ public struct Config {
     }
     
     /// Tuple of token identifier and string value
-    public var tokenValue: (UInt, String)? { value as? (UInt, String) }
+    public var tokenValue: (UInt, String)? {
+        if let tuple = value as? (UInt, String) {
+            return tuple
+        } else if let reversedTuple = value as? (String, UInt) {
+            return (reversedTuple.1, reversedTuple.0)
+        }
+        return nil
+    }
 }
 
 public class LanguageModelConfigurationFromHub {
