@@ -23,7 +23,7 @@ extension Decoder {
 
 enum DecoderType: String {
     case Sequence
-//    case WordPiece
+    case WordPiece
     case ByteLevel
     case Replace
     case ByteFallback
@@ -37,7 +37,11 @@ struct DecoderFactory {
     static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
         // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
         guard let config = config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard var typeName = config.type?.stringValue else { return nil }
+        if typeName.hasSuffix("Decoder") {
+            typeName = String(typeName.dropLast("Decoder".count))
+        }
+
         let type = DecoderType(rawValue: typeName)
         switch type {
         case .Sequence    : return DecoderSequence(config: config)
@@ -47,6 +51,7 @@ struct DecoderFactory {
         case .Fuse        : return FuseDecoder(config: config)
         case .Strip       : return StripDecoder(config: config)
         case .Metaspace   : return MetaspaceDecoder(config: config)
+        case .WordPiece   : return WordPieceDecoder(config: config)
         default           : fatalError("Unsupported Decoder type: \(typeName)")
         }
     }
@@ -128,7 +133,7 @@ class ByteFallbackDecoder: Decoder {
     func decode(tokens: [String]) -> [String] {
         var newTokens: [String] = []
         var byteTokens: [Int] = []
-
+        
         func parseByte(_ token: String) -> Int? {
             guard token.count == 6 && token.hasPrefix("<0x") && token.hasSuffix(">") else {
                 return nil
@@ -192,7 +197,7 @@ class MetaspaceDecoder: Decoder {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         replacement = config.replacement?.stringValue ?? "_"
     }
-
+    
     func decode(tokens: [String]) -> [String] {
         var replaced = tokens.map { token in
             token.replacingOccurrences(of: replacement, with: " ")
@@ -201,6 +206,38 @@ class MetaspaceDecoder: Decoder {
             replaced[0].removeFirst()
         }
         return replaced
+    }
+}
+
+class WordPieceDecoder: Decoder {
+    let prefix: String
+    let cleanup: Bool
+
+    required public init(config: Config) {
+        guard let prefix = config.prefix?.stringValue else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
+        self.prefix = prefix
+        self.cleanup = config.cleanup?.boolValue ?? false
+    }
+
+    func decode(tokens: [String]) -> [String] {
+        return tokens.enumerated().map { index, token in
+            var decodedToken = token
+            if index != 0 {
+                if decodedToken.hasPrefix(self.prefix) {
+                    decodedToken = String(decodedToken.dropFirst(self.prefix.count))
+                } else {
+                    decodedToken = " " + decodedToken
+                }
+            }
+            if self.cleanup {
+                decodedToken = cleanUpTokenization(decodedToken)
+            }
+            return decodedToken
+        }
+    }
+    
+    private func cleanUpTokenization(_ token: String) -> String {
+        return token.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -215,7 +252,7 @@ public extension String {
         }
         return result
     }
-
+    
     func trimmingFromEnd(character: Character = " ", upto: Int) -> String {
         var result = self
         var trimmed = 0
