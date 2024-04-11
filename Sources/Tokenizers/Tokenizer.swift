@@ -86,11 +86,20 @@ struct TokenizerModel {
         if tokenizerName.hasSuffix("Tokenizer") {
             tokenizerName = String(tokenizerName.dropLast("Tokenizer".count))
         }
-        guard let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] else {
-            throw TokenizerError.unsupportedTokenizer(tokenizerName)
+
+        // Try to perform a direct case-sensitive lookup first
+        if let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] {
+            return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        } else {
+            // If the direct lookup fails, perform a case-insensitive scan over the keys
+            if let key = TokenizerModel.knownTokenizers.keys.first(where: { $0.lowercased() == tokenizerName.lowercased() }) {
+                if let tokenizerClass = TokenizerModel.knownTokenizers[key] {
+                    return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+                }
+            }
         }
         
-        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        throw TokenizerError.unsupportedTokenizer(tokenizerName)
     }
 }
 
