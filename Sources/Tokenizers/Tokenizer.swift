@@ -5,10 +5,10 @@
 //  Created by Pedro Cuenca on 6/5/23.
 //
 
-import Hub
 import Foundation
+import Hub
 
-enum TokenizerError : Error {
+enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
@@ -38,45 +38,47 @@ public protocol TokenizingModel {
     var unknownTokenId: Int? { get }
 }
 
-public extension TokenizingModel {
-    func callAsFunction(_ text: String) -> [String] {
+extension TokenizingModel {
+    public func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
     }
 
-    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         return tokens.map { convertTokenToId($0) }
     }
 
-    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         return ids.map { convertIdToToken($0) }
     }
 }
 
 /// A tokenizer model that is set up with Hub configuration data
 public protocol PreTrainedTokenizerModel: TokenizingModel {
-    init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws
+    init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws
 }
 
 struct TokenizerModel {
-    static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
-        "BertTokenizer"      : BertTokenizer.self,
-        "CodeGenTokenizer"   : CodeGenTokenizer.self,
-        "CodeLlamaTokenizer" : CodeLlamaTokenizer.self,
-        "FalconTokenizer"    : FalconTokenizer.self,
-        "GemmaTokenizer"     : GemmaTokenizer.self,
-        "GPT2Tokenizer"      : GPT2Tokenizer.self,
-        "LlamaTokenizer"     : LlamaTokenizer.self,
-        "T5Tokenizer"        : T5Tokenizer.self,
-        "WhisperTokenizer"   : WhisperTokenizer.self,
-        "CohereTokenizer"    : CohereTokenizer.self,
-        "PreTrainedTokenizer": BPETokenizer.self
+    static let knownTokenizers: [String: PreTrainedTokenizerModel.Type] = [
+        "BertTokenizer": BertTokenizer.self,
+        "CodeGenTokenizer": CodeGenTokenizer.self,
+        "CodeLlamaTokenizer": CodeLlamaTokenizer.self,
+        "FalconTokenizer": FalconTokenizer.self,
+        "GemmaTokenizer": GemmaTokenizer.self,
+        "GPT2Tokenizer": GPT2Tokenizer.self,
+        "LlamaTokenizer": LlamaTokenizer.self,
+        "T5Tokenizer": T5Tokenizer.self,
+        "WhisperTokenizer": WhisperTokenizer.self,
+        "CohereTokenizer": CohereTokenizer.self,
+        "PreTrainedTokenizer": BPETokenizer.self,
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {
         return tokenizerConfig.unkToken?.content?.stringValue ?? tokenizerConfig.unkToken?.stringValue
     }
 
-    public static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws -> TokenizingModel {
+    public static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws
+        -> TokenizingModel
+    {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
@@ -87,7 +89,11 @@ struct TokenizerModel {
             throw TokenizerError.unsupportedTokenizer(tokenizerName)
         }
 
-        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        return try tokenizerClass.init(
+            tokenizerConfig: tokenizerConfig,
+            tokenizerData: tokenizerData,
+            addedTokens: addedTokens
+        )
     }
 }
 
@@ -115,16 +121,16 @@ public protocol Tokenizer {
     var unknownTokenId: Int? { get }
 }
 
-public extension Tokenizer {
-    func callAsFunction(_ text: String) -> [Int] {
+extension Tokenizer {
+    public func callAsFunction(_ text: String) -> [Int] {
         encode(text: text)
     }
 
-    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         return tokens.map { convertTokenToId($0) }
     }
 
-    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         return ids.map { convertIdToToken($0) }
     }
 }
@@ -150,11 +156,13 @@ public class PreTrainedTokenizer: Tokenizer {
     private let cleanUpTokenizationSpaces: Bool
 
     required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
-        var addedTokens: [String : Int] = [:]
-        var specialTokens: [String : Int] = [:]
+        var addedTokens: [String: Int] = [:]
+        var specialTokens: [String: Int] = [:]
         for addedToken in tokenizerData.addedTokens?.arrayValue ?? [] {
             guard let id = addedToken.id?.intValue else { continue /* malformed: token with no id */ }
-            guard let content = addedToken.content?.stringValue else { continue /* malformed: token with no content */ }
+            guard let content = addedToken.content?.stringValue else {
+                continue /* malformed: token with no content */
+            }
             addedTokens[content] = id
 
             if addedToken.special?.boolValue ?? false {
@@ -171,7 +179,11 @@ public class PreTrainedTokenizer: Tokenizer {
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
 
-        model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        model = try TokenizerModel.from(
+            tokenizerConfig: tokenizerConfig,
+            tokenizerData: tokenizerData,
+            addedTokens: addedTokens
+        )
     }
 
     func preTokenize(_ text: String) -> [String] {
@@ -256,7 +268,7 @@ extension AutoTokenizer {
 
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
-    
+
     public static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared
@@ -264,20 +276,20 @@ extension AutoTokenizer {
         let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
-        
+
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }
 
 // MARK: - Tokenizer model classes
 
-class GPT2Tokenizer     : BPETokenizer {}
-class FalconTokenizer   : BPETokenizer {}
-class LlamaTokenizer    : BPETokenizer {}
-class CodeGenTokenizer  : BPETokenizer {}
-class WhisperTokenizer  : BPETokenizer {}
-class GemmaTokenizer    : BPETokenizer {}
+class GPT2Tokenizer: BPETokenizer {}
+class FalconTokenizer: BPETokenizer {}
+class LlamaTokenizer: BPETokenizer {}
+class CodeGenTokenizer: BPETokenizer {}
+class WhisperTokenizer: BPETokenizer {}
+class GemmaTokenizer: BPETokenizer {}
 class CodeLlamaTokenizer: BPETokenizer {}
-class CohereTokenizer   : BPETokenizer {}
+class CohereTokenizer: BPETokenizer {}
 
-class T5Tokenizer       : UnigramTokenizer {}
+class T5Tokenizer: UnigramTokenizer {}

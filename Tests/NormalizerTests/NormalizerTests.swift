@@ -1,6 +1,7 @@
 import XCTest
-@testable import Tokenizers
+
 @testable import Hub
+@testable import Tokenizers
 
 class NormalizerTests: XCTestCase {
 
@@ -22,7 +23,7 @@ class NormalizerTests: XCTestCase {
             let normalizer = LowercaseNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
-        
+
         let config = Config(["type": NormalizerType.Lowercase.rawValue])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? LowercaseNormalizer)
     }
@@ -68,11 +69,11 @@ class NormalizerTests: XCTestCase {
             let normalizer = NFCNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
-        
+
         let config = Config(["type": NormalizerType.NFC.rawValue])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFCNormalizer)
     }
-    
+
     func testNFKDNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "cafe\u{301}"),
@@ -118,7 +119,7 @@ class NormalizerTests: XCTestCase {
         let config = Config(["type": NormalizerType.NFKC.rawValue])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKCNormalizer)
     }
-    
+
     func testBertNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),

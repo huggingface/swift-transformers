@@ -20,7 +20,7 @@ struct BytePair: Hashable {
         self.a = tuple[0]
         self.b = tuple[1]
     }
-    
+
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
         return lhs.a == rhs.a && lhs.b == rhs.b
     }
@@ -30,12 +30,11 @@ struct BytePair: Hashable {
     }
 }
 
-
 class BPETokenizer: PreTrainedTokenizerModel {
-    let bpeRanks: Dictionary<BytePair, Int>
+    let bpeRanks: [BytePair: Int]
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]
-    
+
     public let bosToken: String?
     public let bosTokenId: Int?
     public let eosToken: String?
@@ -43,27 +42,30 @@ class BPETokenizer: PreTrainedTokenizerModel {
     public let unknownToken: String?
     public let unknownTokenId: Int?
 
-    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
-        guard let merges = tokenizerData.model?.merges?.value as? [String] else { fatalError("BPETokenizer requires merges") }
+    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
+        guard let merges = tokenizerData.model?.merges?.value as? [String] else {
+            fatalError("BPETokenizer requires merges")
+        }
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
             throw TokenizerError.missingVocab
         }
-        var bpeRanks: Dictionary<BytePair, Int> = [:]
+        var bpeRanks: [BytePair: Int] = [:]
         for (i, item) in merges.enumerated() {
             let tuple = item.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) }
             let bp = BytePair(tuple: tuple)
             bpeRanks[bp] = i
         }
         self.bpeRanks = bpeRanks
-        
+
         self.tokensToIds = vocab.merging(addedTokens) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
-        
+
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
             self.unknownTokenId = self.tokensToIds[unknownToken]
-        } else {
+        }
+        else {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
@@ -78,7 +80,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
     func convertTokenToId(_ token: String) -> Int? {
         return tokensToIds[token] ?? self.unknownTokenId
     }
-    
+
     func convertIdToToken(_ id: Int) -> String? {
         return idsToTokens[id]
     }
@@ -90,7 +92,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).map { byteEncoder[$0]! }.joined()
         }
     }
-    
+
     func hexaEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
@@ -98,27 +100,27 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).map { String(format: "<0x%02X>", $0) }
         }
     }
-    
+
     private func getPairs(word: [String]) -> Set<BytePair> {
         var s = Set<BytePair>()
-        for i in 0..<word.count-1 {
+        for i in 0 ..< word.count - 1 {
             let bp = BytePair(
                 word[i],
-                word[i+1]
+                word[i + 1]
             )
             s.insert(bp)
         }
         return s
     }
-    
+
     func bpe(token: String) -> String {
         if token.count <= 1 {
             return token
         }
-        
+
         var word = Array(token).map { String($0) }
         var pairs = Array(getPairs(word: word))
-        
+
         while true {
             let bigrams = pairs.filter { (bp) -> Bool in bpeRanks[bp] != nil }
             if bigrams.count == 0 {
@@ -132,18 +134,20 @@ class BPETokenizer: PreTrainedTokenizerModel {
             var newWord: [String] = []
             var i = 0
             while i < word.count {
-                if let j = word[i..<word.count].firstIndex(of: first) {
-                    newWord.append(contentsOf: word[i..<j])
+                if let j = word[i ..< word.count].firstIndex(of: first) {
+                    newWord.append(contentsOf: word[i ..< j])
                     i = j
-                } else {
-                    newWord.append(contentsOf: word[i..<word.count])
+                }
+                else {
+                    newWord.append(contentsOf: word[i ..< word.count])
                     break
                 }
-                
-                if word[i] == first && i < word.count - 1 && word[i+1] == second {
-                    newWord.append(first+second)
+
+                if word[i] == first && i < word.count - 1 && word[i + 1] == second {
+                    newWord.append(first + second)
                     i += 2
-                } else {
+                }
+                else {
                     newWord.append(word[i])
                     i += 1
                 }
@@ -151,7 +155,8 @@ class BPETokenizer: PreTrainedTokenizerModel {
             word = newWord
             if word.count == 1 {
                 break
-            } else {
+            }
+            else {
                 pairs = Array(getPairs(word: word))
             }
         }
@@ -164,7 +169,8 @@ class BPETokenizer: PreTrainedTokenizerModel {
         for token in bpeTokens {
             if let _ = tokensToIds[token] {
                 tokens.append(token)
-            } else {
+            }
+            else {
                 // TODO: if config.byte_fallback is False, append the unknown token instead
                 tokens.append(contentsOf: self.hexaEncode(text: token))
             }

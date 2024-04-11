@@ -4,8 +4,9 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-@testable import Hub
 import XCTest
+
+@testable import Hub
 
 class HubApiTests: XCTestCase {
     override func setUp() {
@@ -22,7 +23,8 @@ class HubApiTests: XCTestCase {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
             XCTAssertEqual(filenames.count, 13)
-        } catch {
+        }
+        catch {
             XCTFail("\(error)")
         }
     }
@@ -30,7 +32,10 @@ class HubApiTests: XCTestCase {
     func testFilenameRetrievalWithGlob() async {
         do {
             try await {
-                let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.json")
+                let filenames = try await Hub.getFilenames(
+                    from: "coreml-projects/Llama-2-7b-chat-coreml",
+                    matching: "*.json"
+                )
                 XCTAssertEqual(
                     Set(filenames),
                     Set([
@@ -44,13 +49,17 @@ class HubApiTests: XCTestCase {
 
             // Glob patterns are case sensitive
             try await {
-                let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.JSON")
+                let filenames = try await Hub.getFilenames(
+                    from: "coreml-projects/Llama-2-7b-chat-coreml",
+                    matching: "*.JSON"
+                )
                 XCTAssertEqual(
                     filenames,
                     []
                 )
             }()
-        } catch {
+        }
+        catch {
             XCTFail("\(error)")
         }
     }
@@ -58,7 +67,10 @@ class HubApiTests: XCTestCase {
     func testFilenameRetrievalFromDirectories() async {
         do {
             // Contents of all directories matching a pattern
-            let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.mlpackage/*")
+            let filenames = try await Hub.getFilenames(
+                from: "coreml-projects/Llama-2-7b-chat-coreml",
+                matching: "*.mlpackage/*"
+            )
             XCTAssertEqual(
                 Set(filenames),
                 Set([
@@ -70,7 +82,8 @@ class HubApiTests: XCTestCase {
 
                 ])
             )
-        } catch {
+        }
+        catch {
             XCTFail("\(error)")
         }
     }
@@ -78,12 +91,16 @@ class HubApiTests: XCTestCase {
     func testFilenameRetrievalWithMultiplePatterns() async {
         do {
             let patterns = ["config.json", "tokenizer.json", "tokenizer_*.json"]
-            let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: patterns)
+            let filenames = try await Hub.getFilenames(
+                from: "coreml-projects/Llama-2-7b-chat-coreml",
+                matching: patterns
+            )
             XCTAssertEqual(
                 Set(filenames),
                 Set(["config.json", "tokenizer.json", "tokenizer_config.json"])
             )
-        } catch {
+        }
+        catch {
             XCTFail("\(error)")
         }
     }
@@ -101,7 +118,8 @@ class SnapshotDownloadTests: XCTestCase {
     override func tearDown() {
         do {
             try FileManager.default.removeItem(at: downloadDestination)
-        } catch {
+        }
+        catch {
             print("Can't remove test download destination \(downloadDestination), error: \(error)")
         }
     }
@@ -110,14 +128,20 @@ class SnapshotDownloadTests: XCTestCase {
         var filenames: [String] = []
         let prefix = downloadDestination.appending(path: "models/\(repo)").path.appending("/")
 
-        if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles], errorHandler: nil) {
+        if let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) {
             for case let fileURL as URL in enumerator {
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
                     if resourceValues.isRegularFile == true {
                         filenames.append(String(fileURL.path.suffix(from: prefix.endIndex)))
                     }
-                } catch {
+                }
+                catch {
                     print("Error reading file resources: \(error)")
                 }
             }
@@ -154,7 +178,10 @@ class SnapshotDownloadTests: XCTestCase {
     func testDownloadInBackground() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useBackgroundSession: true)
         var lastProgress: Progress? = nil
-        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json") { progress in
+        let downloadedTo = try await hubApi.snapshot(
+            from: repo,
+            matching: "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json"
+        ) { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -167,7 +194,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedFilenames),
             Set([
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json"
             ])
         )
     }

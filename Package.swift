@@ -19,18 +19,27 @@ let package = Package(
             name: "TransformersCLI",
             dependencies: [
                 "Models", "Generation", "Tokenizers",
-                .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
+        .executableTarget(
+            name: "HubCLI",
+            dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]
+        ),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
         .target(name: "Tokenizers", dependencies: ["Hub"]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(
+            name: "TokenizersTests",
+            dependencies: ["Tokenizers", "Models", "Hub"],
+            resources: [.process("Resources"), .process("Vocabs")]
+        ),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils"]),
         .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"])
+        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
     ]
 )
