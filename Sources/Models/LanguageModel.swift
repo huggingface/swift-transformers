@@ -233,21 +233,21 @@ struct ModelWeights {
     subscript(key: String) -> MLMultiArray { dictionary[key]! }
 
     static func from(fileURL: URL) throws -> ModelWeights {
-        // TODO: Either this or switch or both
-        guard fileURL.pathExtension == "safetensors" else { throw ModelWeightsError.notSupported(message: "\(fileURL.pathExtension)") }
-        /*
-        switch data.subdata(in: 0..<8).withUnsafeBytes({ $0.load(as: [Int8].self) }) {
-        case [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59]: fatalError("mlx is not supported")
-        case [0x47, 0x47, 0x55, 0x46]: fatalError("gguf is not supported")
-        default: throw ModelWeightsError.notSupported(message: "found \(data)")
-        }
-         */
+        guard ["safetensors", "gguf", "mlx"].contains(fileURL.pathExtension)
+        else { throw ModelWeightsError.notSupported(message: "\(fileURL.pathExtension)") }
+
         let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
-        
-        // Safetensors part
+        switch [UInt8](data.subdata(in: 0..<4)) {
+        case [0x47, 0x47, 0x55, 0x46]: throw ModelWeightsError.notSupported(message: ("gguf"))
+        case [0x93, 0x4e, 0x55, 0x4d]: throw ModelWeightsError.notSupported(message: "mlx") // Actually [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59]
+        default: return try fromSafetensor(data: data)
+        }
+    }
+
+    static private func fromSafetensor(data: Data) throws -> ModelWeights {
         let headerSize: UInt64 = data.subdata(in: 0..<8).withUnsafeBytes({ $0.load(as: UInt64.self) })
         let header = try SafetensorHeader.from(data: data, offset: 8, size: headerSize)
-        
+
         var dict = [String: MLMultiArray]()
         for (key, point) in header {
             guard let offsets = point?.dataOffsets, offsets.count >= 2,
@@ -262,7 +262,7 @@ struct ModelWeights {
             let tensorData = data.subdata(in: start..<end) as NSData
             let ptr = UnsafeMutableRawPointer(mutating: tensorData.bytes)
             dict[key] = try MLMultiArray(dataPointer: ptr, shape: shape, dataType: point!.dataType, strides: strides)
-       }
+        }
 
         return ModelWeights(dict)
     }
@@ -270,22 +270,22 @@ struct ModelWeights {
     struct SafetensorHeader {
         struct Offset: Decodable {
             let dataOffsets: [Int]?
-            let dtype: String? // Otherwise enum
+            let dtype: String?
             let shape: [Int]?
 
             var dataType: MLMultiArrayDataType {
                 switch dtype {
                 case "I8", "U8", "I16", "U16", "I32", "U32": .int32
-                case "F16", "BF16": .float16 // Perhaps error for bf16
+                case "F16", "BF16": .float16 // Perhaps error for unsupported bf16
                 case "F32": .float32
                 case "F64", "U64": .float64
                 default: .float
                 }
             }
         }
-        
+
         static func from(data: Data, offset: Int, size: UInt64) throws -> [String: Offset?] {
-            assert(size < data.count)
+            guard size < data.count else { throw ModelWeightsError.invalidFile }
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode([String: Offset?].self, from: data.subdata(in: offset..<(offset + Int(size))))
