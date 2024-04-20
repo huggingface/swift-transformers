@@ -21,6 +21,7 @@ public class LanguageModel {
     
     struct Configurations {
         var modelConfig: Config
+        var modelWeights: ModelWeights
         var tokenizerConfig: Config?
         var tokenizerData: Config
     }
@@ -213,3 +214,81 @@ extension LanguageModel: TextGenerationModel {
 }
 
 extension String: Error {}
+
+//  MARK: - Model weights
+
+struct ModelWeights {
+
+    enum ModelWeightsError: Error {
+        case notSupported(message: String)
+        case invalidFile
+    }
+
+    private let dictionary: [String: MLMultiArray]
+
+    init(_ dictionary: [String: MLMultiArray]) {
+        self.dictionary = dictionary
+    }
+
+    subscript(key: String) -> MLMultiArray { dictionary[key]! }
+
+    static func from(fileURL: URL) throws -> ModelWeights {
+        // TODO: Either this or switch or both
+        guard fileURL.pathExtension == "safetensors" else { throw ModelWeightsError.notSupported(message: "\(fileURL.pathExtension)") }
+        /*
+        switch data.subdata(in: 0..<8).withUnsafeBytes({ $0.load(as: [Int8].self) }) {
+        case [0x93, 0x4e, 0x55, 0x4d, 0x50, 0x59]: fatalError("mlx is not supported")
+        case [0x47, 0x47, 0x55, 0x46]: fatalError("gguf is not supported")
+        default: throw ModelWeightsError.notSupported(message: "found \(data)")
+        }
+         */
+        let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+        
+        // Safetensors part
+        let headerSize: UInt64 = data.subdata(in: 0..<8).withUnsafeBytes({ $0.load(as: UInt64.self) })
+        let header = try SafetensorHeader.from(data: data, offset: 8, size: headerSize)
+        
+        var dict = [String: MLMultiArray]()
+        for (key, point) in header {
+            guard let offsets = point?.dataOffsets, offsets.count >= 2,
+                  let shape = point?.shape as? [NSNumber]
+            else { continue }
+
+            let strides = shape.dropFirst().reversed().reduce(into: [1]) { acc, a in
+                acc.insert(acc[0].intValue * a.intValue as NSNumber, at: 0)
+            }
+            let start = Data.Index(UInt64(8 + offsets[0]) + headerSize)
+            let end = Data.Index(UInt64(8 + offsets[1]) + headerSize)
+            let tensorData = data.subdata(in: start..<end) as NSData
+            let ptr = UnsafeMutableRawPointer(mutating: tensorData.bytes)
+            dict[key] = try MLMultiArray(dataPointer: ptr, shape: shape, dataType: point!.dataType, strides: strides)
+       }
+
+        return ModelWeights(dict)
+    }
+
+    struct SafetensorHeader {
+        struct Offset: Decodable {
+            let dataOffsets: [Int]?
+            let dtype: String? // Otherwise enum
+            let shape: [Int]?
+
+            var dataType: MLMultiArrayDataType {
+                switch dtype {
+                case "I8", "U8", "I16", "U16", "I32", "U32": .int32
+                case "F16", "BF16": .float16 // Perhaps error for bf16
+                case "F32": .float32
+                case "F64", "U64": .float64
+                default: .float
+                }
+            }
+        }
+        
+        static func from(data: Data, offset: Int, size: UInt64) throws -> [String: Offset?] {
+            assert(size < data.count)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode([String: Offset?].self, from: data.subdata(in: offset..<(offset + Int(size))))
+        }
+    }
+}
