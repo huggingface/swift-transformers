@@ -66,6 +66,7 @@ struct TokenizerModel {
         "Gemma"     : GemmaTokenizer.self,
         "GPT2"      : GPT2Tokenizer.self,
         "Llama"     : LlamaTokenizer.self,
+        "Unigram"   : UnigramTokenizer.self,
         "T5"        : T5Tokenizer.self,
         "Whisper"   : WhisperTokenizer.self,
         "Cohere"    : CohereTokenizer.self,
