@@ -248,7 +248,7 @@ extension StringSplitPattern {
     }
 }
 
-extension String {
+public extension String {
     func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
         var result: [Range<Index>] = []
         var start = startIndex
@@ -277,6 +277,42 @@ extension String {
         return result
     }
 
+    /// This version supports capture groups, wheres the one above doesn't
+    func split(by captureRegex: NSRegularExpression) -> [String] {
+        // Find the matching capture groups
+        let selfRange = NSRange(startIndex..<endIndex, in: self)
+        let matches = captureRegex.matches(in: self, options: [], range: selfRange)
+
+        if matches.first == nil { return [self] }
+
+        var result: [String] = []
+        var start = startIndex
+        for match in matches {
+            // Append prefix before matched separator
+            let prefixEnd = index(startIndex, offsetBy: match.range.lowerBound)
+            if start < prefixEnd {
+                result.append(String(self[start..<prefixEnd]))
+            }
+            start = index(startIndex, offsetBy: match.range.upperBound)
+
+            // Append separator, supporting capture groups
+            for r in (0..<match.numberOfRanges).reversed() {
+                let matchRange = match.range(at: r)
+                if let sepRange = Range(matchRange, in:self) {
+                    result.append(String(self[sepRange]))
+                    break
+                }
+            }
+        }
+
+        // Append remaining suffix
+        let beginningOfEnd = index(startIndex, offsetBy: matches.last!.range.upperBound)
+        if beginningOfEnd < endIndex {
+            result.append(String(self[beginningOfEnd...]))
+        }
+
+        return result
+    }
 }
 
 public enum SplitDelimiterBehavior {
