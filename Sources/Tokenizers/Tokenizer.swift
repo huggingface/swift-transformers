@@ -185,9 +185,9 @@ public class PreTrainedTokenizer: Tokenizer {
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 
-    func preTokenize(_ text: String) -> [String] {
+    func preTokenize(_ text: String, firstSection: Bool) -> [String] {
         guard let preTokenizer = preTokenizer else { return [text] }
-        return preTokenizer(text: text)
+        return preTokenizer(text: text, firstSection: firstSection)
     }
 
     func normalize(_ text: String) -> String {
@@ -229,9 +229,9 @@ public class PreTrainedTokenizer: Tokenizer {
         } else {
             sections = [text]
         }
-        return sections.map { x in
+        return sections.enumerated().map { section, x in
             if addedTokens.contains(x) { return [x] }
-            return preTokenize(normalize(x)).flatMap { model($0) }
+            return preTokenize(normalize(x), firstSection: section == 0).flatMap { model($0) }
         }.flatMap { $0 }
     }
 
