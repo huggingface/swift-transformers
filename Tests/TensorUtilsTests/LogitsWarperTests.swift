@@ -87,6 +87,36 @@ final class LogitsWarperTests: XCTestCase {
         XCTAssertEqual(result5.logits, [2, 1, 0], accuracy: accuracy)
     }
 
+    func testRepetitionPenaltyWarper() {
+        let indices = Array(0..<10)
+        let logits = indices.map({ Float($0) })
+
+        let result1 = RepetitionPenaltyWarper(penalty: 1.0)(indices, logits)
+        XCTAssertEqual(result1.indices, indices)
+        XCTAssertEqual(result1.logits, logits, accuracy: accuracy)
+
+        let result2 = RepetitionPenaltyWarper(penalty: 3.75)(indices, logits)
+        XCTAssertEqual(result2.indices, indices)
+        let logits2 = indices.map({ Float($0) / 3.75 })
+        XCTAssertEqual(result2.logits, logits2, accuracy: accuracy)
+        
+        let result3 = RepetitionPenaltyWarper(penalty: 0.75)([0, 1, 2], [0.8108, 0.9954, 0.0119])
+        XCTAssertEqual(result3.indices, [0, 1, 2])
+        XCTAssertEqual(result3.logits, [1.0811, 1.3272, 0.0158], accuracy: 1e-4)
+        
+        let result4 = RepetitionPenaltyWarper(penalty: 1.11)([2, 3, 4], [0.5029, 0.8694, 0.4765, 0.9967, 0.4190, 0.9158])
+        XCTAssertEqual(result4.indices, [2, 3, 4])
+        XCTAssertEqual(result4.logits, [0.5029, 0.8694, 0.4293, 0.8980, 0.3775, 0.9158], accuracy: 1e-4)
+
+        let result5 = RepetitionPenaltyWarper(penalty: 0.9)([0, 1, 2], [-0.7433, -0.4738, -0.2966])
+        XCTAssertEqual(result5.indices, [0, 1, 2])
+        XCTAssertEqual(result5.logits, [-0.6690, -0.4264, -0.2669], accuracy: 1e-4)
+        
+        let result6 = RepetitionPenaltyWarper(penalty: 1.125)([3, 1, 2], [0.1674, 0.6431, 0.6780, 0.2755])
+        XCTAssertEqual(result6.indices, [3, 1, 2])
+        XCTAssertEqual(result6.logits, [0.1674, 0.5716, 0.6026, 0.2449], accuracy: 1e-4)
+    }
+
     func testLogitsProcessor() {
         let processor1 = LogitsProcessor(logitsWarpers: [])
         let result1 = processor1([])
