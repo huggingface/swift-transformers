@@ -100,7 +100,19 @@ public struct Config {
     }
     
     /// Tuple of token identifier and string value
-    public var tokenValue: (UInt, String)? { value as? (UInt, String) }
+    public var tokenValue: (UInt, String)? {
+        guard let array = value as? [Any], array.count == 2 else {
+            return nil
+        }
+
+        if let first = array[0] as? String, let second = array[1] as? Int64 {
+            return (UInt(second), first)
+        } else if let first = array[0] as? Int64, let second = array[1] as? String {
+            return (UInt(first), second)
+        }
+
+        return nil
+    }
 }
 
 public class LanguageModelConfigurationFromHub {

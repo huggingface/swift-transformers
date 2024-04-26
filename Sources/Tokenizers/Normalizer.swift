@@ -39,7 +39,11 @@ enum NormalizerType: String {
 struct NormalizerFactory {
     static func fromConfig(config: Config?) -> Normalizer? {
         guard let config = config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard var typeName = config.type?.stringValue else { return nil }
+        if typeName.hasSuffix("Normalizer") {
+            typeName = String(typeName.dropLast("Normalizer".count))
+        }
+        
         let type = NormalizerType(rawValue: typeName)
         switch type {
         case .Sequence: return NormalizerSequence(config: config)

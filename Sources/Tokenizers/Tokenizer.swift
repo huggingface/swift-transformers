@@ -59,35 +59,48 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 
 struct TokenizerModel {
     static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
-        "BertTokenizer"      : BertTokenizer.self,
-        "CodeGenTokenizer"   : CodeGenTokenizer.self,
-        "CodeLlamaTokenizer" : CodeLlamaTokenizer.self,
-        "FalconTokenizer"    : FalconTokenizer.self,
-        "GemmaTokenizer"     : GemmaTokenizer.self,
-        "GPT2Tokenizer"      : GPT2Tokenizer.self,
-        "LlamaTokenizer"     : LlamaTokenizer.self,
-        "T5Tokenizer"        : T5Tokenizer.self,
-        "WhisperTokenizer"   : WhisperTokenizer.self,
-        "CohereTokenizer"    : CohereTokenizer.self,
-        "PreTrainedTokenizer": BPETokenizer.self
+        "Bert"      : BertTokenizer.self,
+        "CodeGen"   : CodeGenTokenizer.self,
+        "CodeLlama" : CodeLlamaTokenizer.self,
+        "Falcon"    : FalconTokenizer.self,
+        "Gemma"     : GemmaTokenizer.self,
+        "GPT2"      : GPT2Tokenizer.self,
+        "Llama"     : LlamaTokenizer.self,
+        "Unigram"   : UnigramTokenizer.self,
+        "T5"        : T5Tokenizer.self,
+        "Whisper"   : WhisperTokenizer.self,
+        "Cohere"    : CohereTokenizer.self,
+        "PreTrained": BPETokenizer.self
     ]
-
+    
     static func unknownToken(from tokenizerConfig: Config) -> String? {
         return tokenizerConfig.unkToken?.content?.stringValue ?? tokenizerConfig.unkToken?.stringValue
     }
-
+    
     public static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws -> TokenizingModel {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
-
+        
         // Some tokenizer_class entries use a Fast suffix
-        let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
-        guard let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] else {
-            throw TokenizerError.unsupportedTokenizer(tokenizerName)
+        var tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
+        if tokenizerName.hasSuffix("Tokenizer") {
+            tokenizerName = String(tokenizerName.dropLast("Tokenizer".count))
         }
 
-        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        // Try to perform a direct case-sensitive lookup first
+        if let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] {
+            return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        } else {
+            // If the direct lookup fails, perform a case-insensitive scan over the keys
+            if let key = TokenizerModel.knownTokenizers.keys.first(where: { $0.lowercased() == tokenizerName.lowercased() }) {
+                if let tokenizerClass = TokenizerModel.knownTokenizers[key] {
+                    return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+                }
+            }
+        }
+        
+        throw TokenizerError.unsupportedTokenizer(tokenizerName)
     }
 }
 
