@@ -141,6 +141,7 @@ public class PreTrainedTokenizer: Tokenizer {
 
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
+    private let addedTokensRegex: NSRegularExpression?
 
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
@@ -161,6 +162,16 @@ public class PreTrainedTokenizer: Tokenizer {
                 specialTokens[content] = id
             }
         }
+
+        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
+               guard let content = addedToken.content?.stringValue else { return nil }
+               let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
+               let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
+               let token = NSRegularExpression.escapedPattern(for: content)
+               return "\(prefix)(\(token))\(suffix)"
+        }.joined(separator: "|")
+        addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
+
         // TODO: specialTokens are stored but never used
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
@@ -211,7 +222,17 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     public func tokenize(text: String) -> [String] {
-        preTokenize(normalize(text)).flatMap { model($0) }
+        // Take care of special tokens first
+        let sections: [String]
+        if let regex = self.addedTokensRegex {
+            sections = text.split(by: regex)
+        } else {
+            sections = [text]
+        }
+        return sections.map { x in
+            if addedTokens.contains(x) { return [x] }
+            return preTokenize(normalize(x)).flatMap { model($0) }
+        }.flatMap { $0 }
     }
 
     /// Main entry point
