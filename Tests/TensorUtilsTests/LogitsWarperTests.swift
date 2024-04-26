@@ -4,8 +4,9 @@
 //  Created by Jan Krukowski on 09/12/2023.
 //
 
-import XCTest
 import CoreML
+import XCTest
+
 @testable import TensorUtils
 
 final class LogitsWarperTests: XCTestCase {

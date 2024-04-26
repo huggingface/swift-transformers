@@ -6,8 +6,8 @@
 //  See LICENSE at https://github.com/huggingface/swift-coreml-diffusers/LICENSE
 //
 
-import Foundation
 import Combine
+import Foundation
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
@@ -86,16 +86,16 @@ class Downloader: NSObject, ObservableObject {
         stateSubscriber = downloadState.sink { state in
             switch state {
             case .completed: semaphore.signal()
-            case .failed:    semaphore.signal()
-            default:         break
+            case .failed: semaphore.signal()
+            default: break
             }
         }
         semaphore.wait()
 
         switch downloadState.value {
         case .completed(let url): return url
-        case .failed(let error):  throw error
-        default:                  throw DownloadError.unexpectedError
+        case .failed(let error): throw error
+        default: throw DownloadError.unexpectedError
         }
     }
 
@@ -105,7 +105,13 @@ class Downloader: NSObject, ObservableObject {
 }
 
 extension Downloader: URLSessionDownloadDelegate {
-    func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    func urlSession(
+        _: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData _: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
         downloadState.value = .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
     }
 
@@ -114,7 +120,8 @@ extension Downloader: URLSessionDownloadDelegate {
             // If the downloaded file already exists on the filesystem, overwrite it
             try FileManager.default.moveDownloadedFile(from: location, to: self.destination)
             downloadState.value = .completed(destination)
-        } catch {
+        }
+        catch {
             downloadState.value = .failed(error)
         }
     }
@@ -122,10 +129,10 @@ extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
             downloadState.value = .failed(error)
-//        } else if let response = task.response as? HTTPURLResponse {
-//            print("HTTP response status code: \(response.statusCode)")
-//            let headers = response.allHeaderFields
-//            print("HTTP response headers: \(headers)")
+            //        } else if let response = task.response as? HTTPURLResponse {
+            //            print("HTTP response status code: \(response.statusCode)")
+            //            let headers = response.allHeaderFields
+            //            print("HTTP response headers: \(headers)")
         }
     }
 }

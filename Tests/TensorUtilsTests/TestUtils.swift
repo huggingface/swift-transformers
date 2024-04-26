@@ -16,7 +16,8 @@ func XCTAssertEqual<T: FloatingPoint>(
         for (lhs, rhs) in zip(lhsEvaluated, rhsEvaluated) {
             XCTAssertEqual(lhs, rhs, accuracy: accuracy, file: file, line: line)
         }
-    } catch {
+    }
+    catch {
         XCTFail("Unexpected error: \(error)", file: file, line: line)
     }
 }

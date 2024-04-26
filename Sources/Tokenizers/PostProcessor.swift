@@ -1,6 +1,6 @@
 //
 //  PostProcessor.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 17/7/23.
 //
@@ -11,7 +11,7 @@ import Hub
 public protocol PostProcessor {
     func postProcess(tokens: [String], tokensPair: [String]?) -> [String]
     func callAsFunction(tokens: [String], tokensPair: [String]?) -> [String]
-    
+
     init(config: Config)
 }
 
@@ -34,9 +34,9 @@ struct PostProcessorFactory {
         let type = PostProcessorType(rawValue: typeName)
         switch type {
         case .TemplateProcessing: return TemplateProcessing(config: config)
-        case .ByteLevel         : return ByteLevelPostProcessor(config: config)
-        case .RobertaProcessing : return RobertaProcessing(config: config)
-        default                 : fatalError("Unsupported PostProcessor type: \(typeName)")
+        case .ByteLevel: return ByteLevelPostProcessor(config: config)
+        case .RobertaProcessing: return RobertaProcessing(config: config)
+        default: fatalError("Unsupported PostProcessor type: \(typeName)")
         }
     }
 }
@@ -44,26 +44,28 @@ struct PostProcessorFactory {
 class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
-    
+
     required public init(config: Config) {
         guard let single = config.single?.arrayValue else { fatalError("Missing `single` processor configuration") }
         guard let pair = config.pair?.arrayValue else { fatalError("Missing `pair` processor configuration") }
-        
+
         self.single = single
         self.pair = pair
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]? = nil) -> [String] {
         let config = tokensPair == nil ? single : pair
-                
+
         var toReturn: [String] = []
         for item in config {
             if let specialToken = item.SpecialToken {
                 toReturn.append(specialToken.id!.stringValue!)
-            } else if let sequence = item.Sequence {
+            }
+            else if let sequence = item.Sequence {
                 if sequence.id?.stringValue == "A" {
                     toReturn += tokens
-                } else if sequence.id?.stringValue == "B" {
+                }
+                else if sequence.id?.stringValue == "B" {
                     toReturn += tokensPair!
                 }
             }
@@ -93,7 +95,7 @@ class RobertaProcessing: PostProcessor {
         self.trimOffset = config.trimOffset?.boolValue ?? true
         self.addPrefixSpace = config.addPrefixSpace?.boolValue ?? true
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]?) -> [String] {
         var outTokens = tokens
         var tokensPair = tokensPair
@@ -101,7 +103,8 @@ class RobertaProcessing: PostProcessor {
             if addPrefixSpace {
                 outTokens = outTokens.map({ trimExtraSpaces(token: $0) })
                 tokensPair = tokensPair?.map({ trimExtraSpaces(token: $0) })
-           } else {
+            }
+            else {
                 outTokens = outTokens.map({ $0.trimmingCharacters(in: .whitespaces) })
                 tokensPair = tokensPair?.map({ $0.trimmingCharacters(in: .whitespaces) })
             }
@@ -124,7 +127,7 @@ class RobertaProcessing: PostProcessor {
         let suffixOffset = findSuffixIndex(text: token)
         let prefixIndex = token.index(token.startIndex, offsetBy: prefixOffset)
         let suffixIndex = token.index(token.startIndex, offsetBy: token.count - suffixOffset)
-        return String(token[prefixIndex..<suffixIndex])
+        return String(token[prefixIndex ..< suffixIndex])
     }
 
     private func findPrefixIndex(text: String) -> Int {

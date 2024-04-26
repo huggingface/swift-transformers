@@ -1,6 +1,6 @@
 //
 //  PreTokenizer.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 18/7/23.
 //
@@ -25,11 +25,11 @@ extension PreTokenizer {
     func callAsFunction(texts: [String]) -> [String] {
         return preTokenize(texts: texts)
     }
-    
+
     func callAsFunction(text: String) -> [String] {
         return preTokenize(text: text)
     }
-    
+
 }
 
 enum PreTokenizerType: String {
@@ -51,7 +51,7 @@ struct PreTokenizerFactory {
         guard let typeName = config.type?.stringValue else { return nil }
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
-        case .Sequence : return PreTokenizerSequence(config: config)
+        case .Sequence: return PreTokenizerSequence(config: config)
         case .ByteLevel: return ByteLevelPreTokenizer(config: config)
         case .Punctuation: return PunctuationPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
@@ -65,12 +65,12 @@ struct PreTokenizerFactory {
 
 class PreTokenizerSequence: PreTokenizer {
     let preTokenizers: [PreTokenizer]
-    
+
     required init(config: Config) {
         guard let configs = config.pretokenizers?.arrayValue else { fatalError("No pretokenizers in Sequence") }
         preTokenizers = configs.compactMap { PreTokenizerFactory.fromConfig(config: $0) }
     }
-    
+
     func preTokenize(text: String) -> [String] {
         preTokenizers.reduce([text]) { current, preTokenizer in
             preTokenizer(texts: current)
@@ -94,40 +94,40 @@ class WhitespacePreTokenizer: PreTokenizer {
 class MetaspacePreTokenizer: PreTokenizer {
     /// Whether to add a prefix space to the first token
     let addPrefixSpace: Bool
-    
+
     /// Replacement character
     let replacement: String
-    
+
     /// Optional string representation of the replacement character.
     let stringReplacement: String
-    
+
     enum PrependScheme: String {
         case first
         case never
         case always
-        
+
         static var defaultScheme: PrependScheme { .always }
         static func from(rawValue value: String?) -> PrependScheme {
             guard let value = value else { return defaultScheme }
             return PrependScheme(rawValue: value) ?? defaultScheme
         }
     }
-    
+
     /// The metaspace prepend scheme, see https://github.com/huggingface/tokenizers/pull/1357
     let prependScheme: PrependScheme
-    
+
     required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         replacement = config.replacement?.stringValue ?? " "
         stringReplacement = config.strRep?.stringValue ?? replacement
         prependScheme = PrependScheme.from(rawValue: config.prependScheme?.stringValue)
     }
-    
+
     // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
     // https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
     func preTokenize(text: String) -> [String] {
         let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
-        
+
         // We add a prefix space if:
         //  (1) The addPrefixSpace option is enabled and the normalized
         //      token does not already start with the replacement character.
@@ -145,7 +145,7 @@ class MetaspacePreTokenizer: PreTokenizer {
                 prepend = stringReplacement
             }
         }
-        
+
         // Split in `MergedWithNext` mode, although usually the input to this function is already pre-tokenized
         // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L127
         return (prepend + normalized).split(by: replacement, behavior: .mergedWithNext)
@@ -157,13 +157,13 @@ class ByteLevelPreTokenizer: PreTokenizer {
     let trimOffsets: Bool
     let useRegex: Bool
     let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
-    
+
     required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         trimOffsets = config.trimOffsets?.boolValue ?? true
         useRegex = config.useRegex?.boolValue ?? true
     }
-    
+
     func preTokenize(text: String) -> [String] {
         // Split on whitespace and punctuation
         let tokens = useRegex ? text.ranges(of: RE).map({ String(text[$0]) }) : [text]
@@ -252,27 +252,34 @@ extension String {
     func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
         var result: [Range<Index>] = []
         var start = startIndex
-        while let range = range(of: string, options: options, range: start..<endIndex) {
+        while let range = range(of: string, options: options, range: start ..< endIndex) {
             result.append(range)
-            start = range.lowerBound < range.upperBound ? range.upperBound : index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
+            start =
+                range.lowerBound < range.upperBound
+                ? range.upperBound : index(range.lowerBound, offsetBy: 1, limitedBy: endIndex) ?? endIndex
         }
         return result
     }
-        
-    func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true) -> [String] {
+
+    func split(
+        by string: String,
+        options: CompareOptions = .regularExpression,
+        includeSeparators: Bool = false,
+        omittingEmptySubsequences: Bool = true
+    ) -> [String] {
         var result: [String] = []
         var start = startIndex
-        while let range = range(of: string, options: options, range: start..<endIndex) {
+        while let range = range(of: string, options: options, range: start ..< endIndex) {
             // Prevent empty strings
             if omittingEmptySubsequences && start < range.lowerBound {
-                result.append(String(self[start..<range.lowerBound]))
+                result.append(String(self[start ..< range.lowerBound]))
             }
             if includeSeparators {
                 result.append(String(self[range]))
             }
             start = range.upperBound
         }
-        
+
         result.append(String(self[start...]))
         return result
     }
@@ -286,33 +293,35 @@ public enum SplitDelimiterBehavior {
     case mergedWithNext
 }
 
-public extension String {
-    func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
+extension String {
+    public func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior)
+        -> [String]
+    {
         func mergedWithNext(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
             var merged: [Range<String.Index>] = []
             var currentStart = startIndex
             for range in ranges {
                 if range.lowerBound == startIndex { continue }
-                let mergedRange = currentStart..<range.lowerBound
+                let mergedRange = currentStart ..< range.lowerBound
                 currentStart = range.lowerBound
                 merged.append(mergedRange)
             }
             if currentStart < endIndex {
-                merged.append(currentStart..<endIndex)
+                merged.append(currentStart ..< endIndex)
             }
             return merged
         }
-        
+
         func mergedWithPrevious(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
             var merged: [Range<String.Index>] = []
             var currentStart = startIndex
             for range in ranges {
-                let mergedRange = currentStart..<range.upperBound
+                let mergedRange = currentStart ..< range.upperBound
                 currentStart = range.upperBound
                 merged.append(mergedRange)
             }
             if currentStart < endIndex {
-                merged.append(currentStart..<endIndex)
+                merged.append(currentStart ..< endIndex)
             }
             return merged
         }
