@@ -10,7 +10,7 @@ import Tokenizers
 import Hub
 
 class AddedTokensTests: XCTestCase {
-    func testPhiAddedEnd() async throws {
+    func testPhiAddedTokens() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-128k-instruct-4bit")
         let inputIds = tokenizer("This is the <|end|>. My only friend, the <|end|>")
         XCTAssertEqual(inputIds, [1, 910, 338, 278, 29871, 32007, 29889, 1619, 871, 5121, 29892, 278, 29871, 32007])
