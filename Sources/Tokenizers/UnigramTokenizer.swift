@@ -6,6 +6,7 @@
 //  Copyright © 2024 Hugging Face. All rights reserved.
 //
 
+import Foundation
 import Hub
 
 class UnigramTokenizer: PreTrainedTokenizerModel {
@@ -37,8 +38,20 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         }
         
         vocab = try configVocab.map { piece in
-            guard let token = piece.first as? String else { throw TokenizerError.malformedVocab }
-            guard let score = piece.last as? Float else { throw TokenizerError.malformedVocab }
+            guard let token = piece.first as? String,
+                  let scoreValue = piece.last else {
+                throw TokenizerError.malformedVocab
+            }
+
+            let score: Float
+            if let floatScore = scoreValue as? Float {
+                score = floatScore
+            } else if let numberScore = scoreValue as? NSNumber {
+                score = numberScore.floatValue
+            } else {
+                throw TokenizerError.malformedVocab
+            }
+            
             return SentencePieceToken(token: token, score: score)
         }
         
