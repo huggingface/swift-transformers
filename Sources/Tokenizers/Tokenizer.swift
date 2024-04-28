@@ -141,6 +141,7 @@ public class PreTrainedTokenizer: Tokenizer {
 
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
+    private let addedTokensRegex: NSRegularExpression?
 
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
@@ -161,6 +162,16 @@ public class PreTrainedTokenizer: Tokenizer {
                 specialTokens[content] = id
             }
         }
+
+        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
+               guard let content = addedToken.content?.stringValue else { return nil }
+               let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
+               let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
+               let token = NSRegularExpression.escapedPattern(for: content)
+               return "\(prefix)(\(token))\(suffix)"
+        }.joined(separator: "|")
+        addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
+
         // TODO: specialTokens are stored but never used
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
@@ -174,9 +185,9 @@ public class PreTrainedTokenizer: Tokenizer {
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 
-    func preTokenize(_ text: String) -> [String] {
+    func preTokenize(_ text: String, options: PreTokenizerOptions) -> [String] {
         guard let preTokenizer = preTokenizer else { return [text] }
-        return preTokenizer(text: text)
+        return preTokenizer(text: text, options: options)
     }
 
     func normalize(_ text: String) -> String {
@@ -211,7 +222,17 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     public func tokenize(text: String) -> [String] {
-        preTokenize(normalize(text)).flatMap { model($0) }
+        // Take care of special tokens first
+        let sections: [String]
+        if let regex = self.addedTokensRegex {
+            sections = text.split(by: regex)
+        } else {
+            sections = [text]
+        }
+        return sections.enumerated().map { section, x in
+            if addedTokens.contains(x) { return [x] }
+            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
+        }.flatMap { $0 }
     }
 
     /// Main entry point
@@ -241,9 +262,32 @@ public class PreTrainedTokenizer: Tokenizer {
 
 public struct AutoTokenizer {}
 
+struct PreTrainedTokenizerClasses {
+    /// Class overrides for custom behaviour
+    /// Not to be confused with the TokenizerModel classes defined in TokenizerModel
+    static let tokenizerClasses: [String : PreTrainedTokenizer.Type] = [
+        "LlamaTokenizer": LlamaPreTrainedTokenizer.self
+    ]
+}
+
 extension AutoTokenizer {
+    static func tokenizerClass(for tokenizerConfig: Config) -> PreTrainedTokenizer.Type {
+        guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
+            return PreTrainedTokenizer.self
+        }
+
+        // Some tokenizer_class entries use a Fast suffix
+        let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
+        if let tokenizerClass = PreTrainedTokenizerClasses.tokenizerClasses[tokenizerName] {
+            return tokenizerClass
+        }
+
+        return PreTrainedTokenizer.self
+    }
+
     public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
-        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        let tokenizerClass = tokenizerClass(for: tokenizerConfig)
+        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 
     public static func from(
@@ -254,7 +298,7 @@ extension AutoTokenizer {
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
 
-        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
     
     public static func from(
@@ -281,3 +325,25 @@ class CodeLlamaTokenizer: BPETokenizer {}
 class CohereTokenizer   : BPETokenizer {}
 
 class T5Tokenizer       : UnigramTokenizer {}
+
+
+// MARK: - PreTrainedTokenizer classes
+
+let sentencePieceUnderline = "▁"
+
+// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
+class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
+    let isLegacy: Bool
+
+    required init(tokenizerConfig: Config, tokenizerData: Config) throws {
+        isLegacy = tokenizerConfig.legacy?.boolValue ?? true
+        var configDictionary = tokenizerData.dictionary
+        if !isLegacy {
+            configDictionary.removeValue(forKey: "normalizer")
+            configDictionary["pre_tokenizer"] = ["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"]
+        }
+        let updatedData = Config(configDictionary)
+
+        try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
+    }
+}
