@@ -18,7 +18,7 @@ enum TokenizerError : Error {
     case tooLong(String)
 }
 
-public protocol TokenizingModel {
+public protocol TokenizingModel: Sendable {
     func tokenize(text: String) -> [String]
 
     // Alias for `tokenize`
@@ -91,7 +91,7 @@ struct TokenizerModel {
     }
 }
 
-public protocol Tokenizer {
+public protocol Tokenizer: Sendable {
     func tokenize(text: String) -> [String]
 
     /// Main entry point
@@ -129,7 +129,7 @@ public extension Tokenizer {
     }
 }
 
-public class PreTrainedTokenizer: Tokenizer {
+public final class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct HubApi {
+public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
     var endpoint: String

@@ -8,7 +8,7 @@
 import Foundation
 import Hub
 
-public protocol PostProcessor {
+public protocol PostProcessor: Sendable {
     func postProcess(tokens: [String], tokensPair: [String]?) -> [String]
     func callAsFunction(tokens: [String], tokensPair: [String]?) -> [String]
     
@@ -41,7 +41,7 @@ struct PostProcessorFactory {
     }
 }
 
-class TemplateProcessing: PostProcessor {
+final class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
     
@@ -72,12 +72,12 @@ class TemplateProcessing: PostProcessor {
     }
 }
 
-class ByteLevelPostProcessor: PostProcessor {
+final class ByteLevelPostProcessor: PostProcessor {
     required public init(config: Config) {}
     func postProcess(tokens: [String], tokensPair: [String]? = nil) -> [String] { tokens }
 }
 
-class RobertaProcessing: PostProcessor {
+final class RobertaProcessing: PostProcessor {
     private let sep: (UInt, String)
     private let cls: (UInt, String)
     /// Trim all remaining space, or leave one space character if `addPrefixSpace` is `true`.

@@ -9,7 +9,7 @@
 import Foundation
 import Hub
 
-public class BertTokenizer {
+public final class BertTokenizer {
     private let basicTokenizer = BasicTokenizer()
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
@@ -148,7 +148,7 @@ extension BertTokenizer: PreTrainedTokenizerModel {
 }
 
 
-class BasicTokenizer {
+final class BasicTokenizer: Sendable {
     let neverSplit = [
         "[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"
     ]
@@ -183,7 +183,7 @@ class BasicTokenizer {
 }
 
 
-class WordpieceTokenizer {
+final class WordpieceTokenizer: Sendable {
     let unkToken = "[UNK]"
     private let maxInputCharsPerWord = 100
     private let vocab: [String: Int]

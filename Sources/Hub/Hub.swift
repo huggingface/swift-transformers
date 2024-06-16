@@ -37,7 +37,7 @@ public extension Hub {
 // MARK: - Configuration files with dynamic lookup
 
 @dynamicMemberLookup
-public struct Config {
+public struct Config: Sendable {
     public private(set) var dictionary: [String: Any]
 
     public init(_ dictionary: [String: Any]) {
