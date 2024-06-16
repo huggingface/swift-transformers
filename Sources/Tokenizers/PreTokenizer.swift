@@ -14,7 +14,7 @@ public enum PreTokenizerOption: String {
 
 public typealias PreTokenizerOptions = Set<PreTokenizerOption>
 
-public protocol PreTokenizer {
+public protocol PreTokenizer: Sendable {
     func preTokenize(text: String, options: PreTokenizerOptions) -> [String]
     func preTokenize(texts: [String], options: PreTokenizerOptions) -> [String]
     func callAsFunction(texts: [String], options: PreTokenizerOptions) -> [String]
@@ -68,7 +68,7 @@ struct PreTokenizerFactory {
     }
 }
 
-class PreTokenizerSequence: PreTokenizer {
+final class PreTokenizerSequence: PreTokenizer {
     let preTokenizers: [PreTokenizer]
     
     required init(config: Config) {
@@ -83,7 +83,7 @@ class PreTokenizerSequence: PreTokenizer {
     }
 }
 
-class WhitespacePreTokenizer: PreTokenizer {
+final class WhitespacePreTokenizer: PreTokenizer {
     let re: String
 
     required init(config: Config) {
@@ -96,7 +96,7 @@ class WhitespacePreTokenizer: PreTokenizer {
 }
 
 /// PreTokenizer that replaces spaces with the given replacement character, adds a prefix space if requested,
-class MetaspacePreTokenizer: PreTokenizer {
+final class MetaspacePreTokenizer: PreTokenizer {
     /// Whether to add a prefix space to the first token
     let addPrefixSpace: Bool
     
@@ -157,7 +157,7 @@ class MetaspacePreTokenizer: PreTokenizer {
     }
 }
 
-class ByteLevelPreTokenizer: PreTokenizer {
+final class ByteLevelPreTokenizer: PreTokenizer {
     let addPrefixSpace: Bool
     let trimOffsets: Bool
     let useRegex: Bool
@@ -183,7 +183,7 @@ class ByteLevelPreTokenizer: PreTokenizer {
     }
 }
 
-class PunctuationPreTokenizer: PreTokenizer {
+final class PunctuationPreTokenizer: PreTokenizer {
     let PUNCTUATION_REGEX = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
     let re: String
 
@@ -197,7 +197,7 @@ class PunctuationPreTokenizer: PreTokenizer {
     }
 }
 
-class DigitsPreTokenizer: PreTokenizer {
+final class DigitsPreTokenizer: PreTokenizer {
     let re: String
 
     required init(config: Config) {
@@ -210,7 +210,7 @@ class DigitsPreTokenizer: PreTokenizer {
     }
 }
 
-class SplitPreTokenizer: PreTokenizer {
+final class SplitPreTokenizer: PreTokenizer {
     let pattern: StringSplitPattern?
     let invert: Bool
 

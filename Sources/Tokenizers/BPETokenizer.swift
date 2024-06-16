@@ -31,7 +31,7 @@ struct BytePair: Hashable {
 }
 
 
-class BPETokenizer: PreTrainedTokenizerModel {
+final class BPETokenizer: PreTrainedTokenizerModel {
     let bpeRanks: Dictionary<BytePair, Int>
     private let tokensToIds: [String: Int]
     private let idsToTokens: [Int: String]

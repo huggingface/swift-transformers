@@ -9,7 +9,7 @@
 import Foundation
 import Combine
 
-class Downloader: NSObject, ObservableObject {
+final class Downloader: NSObject, ObservableObject, Sendable {
     private(set) var destination: URL
 
     enum DownloadState {

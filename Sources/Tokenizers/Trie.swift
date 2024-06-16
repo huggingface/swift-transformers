@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Trie<T: Hashable> {
+public struct Trie<T: Hashable>: Sendable {
     public typealias Node = TrieNode<T>
     
     var root: Node
@@ -74,7 +74,7 @@ public extension Trie {
 }
 
 // TODO: maybe store the scores here if it's helpful?
-public class TrieNode<T: Hashable> {
+public final class TrieNode<T: Hashable>: Sendable {
     var isLeaf: Bool = false
     var children: [T: TrieNode] = [:]
 }

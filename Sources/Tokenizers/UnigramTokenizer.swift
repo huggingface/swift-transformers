@@ -9,7 +9,7 @@
 import Foundation
 import Hub
 
-class UnigramTokenizer: PreTrainedTokenizerModel {
+final class UnigramTokenizer: PreTrainedTokenizerModel {
     struct SentencePieceToken {
         var token: String
         var score: Float
