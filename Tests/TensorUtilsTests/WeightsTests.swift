@@ -1,6 +1,4 @@
-import Models
-
-@testable import Models
+@testable import TensorUtils
 @testable import Hub
 import XCTest
 
