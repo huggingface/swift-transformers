@@ -198,3 +198,15 @@ extension MLMultiArray {
         return s + "]"
     }
 }
+
+extension MLMultiArray {
+    func toArray<T: Numeric>() -> Array<T> {
+        let stride = MemoryLayout<T>.stride
+        let allocated = UnsafeMutableRawBufferPointer.allocate(byteCount: self.count * stride, alignment: MemoryLayout<T>.alignment)
+        return self.withUnsafeBytes { ptr in
+            memcpy(allocated.baseAddress!, ptr.baseAddress!, self.count * stride)
+            let start = allocated.bindMemory(to: T.self).baseAddress!
+            return Array<T>(UnsafeBufferPointer(start: start, count: self.count))
+        }
+    }
+}
