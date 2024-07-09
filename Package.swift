@@ -33,6 +33,6 @@ let package = Package(
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils"]),
         .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "EmbeddingTests", dependencies: ["Embedding", "Tokenizers", "Hub"])
+        .testTarget(name: "EmbeddingTests", dependencies: ["Embedding", "Tokenizers", "Hub"], resources: [.process("Resources"), .process("Vocabs")])
     ]
 )

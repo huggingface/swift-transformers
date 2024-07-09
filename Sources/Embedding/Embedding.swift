@@ -4,139 +4,151 @@ import CoreML
 import Accelerate
 
 
-public protocol Embedding {}
+class BERTEmbedding {
 
-public struct AutoEmbedding {} // Otherwise AutoModel
-
-extension AutoEmbedding {
-    public static func from(pretrained model: String, hubApi: HubApi = .shared) async throws -> Embedding {
-        return try await BGEM3Model(repoName: model, hubApi: hubApi)
-    }
-}
-
-class BERTEmbedding: Embedding { // Otherwise BERTModel
-    private let wordEmbedding: BNNS.EmbeddingLayer
-    private let positionEmbedding: BNNS.EmbeddingLayer
-    private let tokenTypeEmbedding: BNNS.EmbeddingLayer
-    private let normalization: BNNS.NormalizationLayer
-    private let dropout: BNNS.DropoutLayer
-
-    private let positionEmbeddingType = "absolute"
-
-    init(repoName: String) { fatalError() }
-
-    public func callAsFunction(inputIds: MLMultiArray? = nil,
-                               tokenTypeIDs: MLMultiArray? = nil,
-                               positionIDs: MLMultiArray? = nil,
-                               inputEmbeds: MLMultiArray? = nil,
-                               pastKeyValuesLength: Int = 0) -> MLMultiArray {
-        fatalError()
-    }
-}
-
-class BGEM3Model: Embedding {
-
-    struct Output {
-        let lastHidddenState: MLMultiArray // batchSize, sequenceLength, hiddenSize
-        let hiddenStates: MLMultiArray?
-        let attentions: MLMultiArray?
-        
-        let loss: MLMultiArray?
-        let scores: MLMultiArray?
-        let pReps: MLMultiArray?
-        let qReps: MLMultiArray?
-    }
-
-    let withSparse      = false
-    let withDense       = true
-    let withColbert     = false
-
-    let shouldNormalize = false
-//    let poolingMethod               = "cls"
-//    let negativesCrossDevice        = false
-//    let temperature                 = 1.0
-//    let enableSubBatch              = true
-//    let unifiedFinetuning           = true
-//    let useSelfDistill              = false
-//    let colbertDim: Int?            = nil
-//    let selfDistillStartStep: Int?  = nil
-
-    private let tokenizer: Tokenizer
-    private let denseLayer: BNNS.FullyConnectedLayer
-    private let sparseLayer: BNNS.FullyConnectedLayer
-    private let colbertLayer: BNNS.FullyConnectedLayer
-
-    init(repoName: String, hubApi: HubApi) async throws {
-        let config = LanguageModelConfigurationFromHub(modelName: repoName)
-        self.tokenizer = try await AutoTokenizer.from(pretrained: repoName, hubApi: hubApi)
-
-        let hiddenSize = try await config.modelConfig.hiddenSize?.intValue ?? 384
-        let colbertDim: Int? = nil
-        let denseInput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        let denseOutput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(colbertDim ?? hiddenSize, stride: 2))
-        let denseWeights = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        self.denseLayer = BNNS.FullyConnectedLayer(input: denseInput, output: denseOutput, weights: denseWeights, bias: nil, activation: .identity)!
-        
-        let sparseInput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        let sparseOutput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(1, stride: 2))
-        let sparseWeights = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        self.sparseLayer = BNNS.FullyConnectedLayer(input: sparseInput, output: sparseOutput, weights: sparseWeights, bias: nil, activation: .identity)!
-        
-        let colbertInput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        let colbertOutput = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(1, stride: 2))
-        let colbertWeights = BNNSNDArrayDescriptor(dataType: .float16, shape: .vector(hiddenSize, stride: 2))
-        self.colbertLayer = BNNS.FullyConnectedLayer(input: colbertInput, output: colbertOutput, weights: colbertWeights, bias: nil, activation: .identity)!
-    }
-
-    public func callAsFunction(_ textInput: (indices: MLMultiArray, attentionMask: MLMultiArray)) -> Output {
-        fatalError()
-    }
-
-    private func forward(textInput: (indices: MLMultiArray, attentionMask: MLMultiArray)) -> [String: MLMultiArray] {
-        let lastHiddenState = self(textInput).lastHidddenState
-
-        var output = [String: MLMultiArray]()
-        if withDense {
-            output["dense"] = self.dense(hiddenState: lastHiddenState, mask: textInput.attentionMask)
-        }
-        if withSparse {
-            output["sparse"] = self.sparse(hiddenState: lastHiddenState, mask: textInput.attentionMask)
-        }
-        if withColbert {
-            output["colbert"] = self.colbert(hiddenState: lastHiddenState, mask: textInput.attentionMask)
-        }
-
-        if shouldNormalize {
-            if withDense {
-                // TODO: Normalize output["dense"] =
-                fatalError()
-            }
-            if withColbert {
-                // TODO: Normalize output["colbert"] =
-                fatalError()
-            }
-        }
-
-        return output
-    }
+    typealias Weights = [String: MLMultiArray]
     
-    private func dense(hiddenState: MLMultiArray, mask: MLMultiArray) -> MLMultiArray {
-        assert(hiddenState.shape.count == 2)
-        var data = [Float]()
-        data.reserveCapacity(hiddenState.count)
+    var shape: [NSNumber] {[
+        NSNumber(value: maxPositionEmbeddings),
+        NSNumber(value: hiddenSize),
+    ]}
 
-        for index in 0..<hiddenState.count {
-            data.append(hiddenState[index].floatValue)
-        }
+    private let weights: Weights
+
+    private let positionEmbeddingType: String
+    private let hiddenSize: Int
+    private let vocabSize: Int
+    private let maxPositionEmbeddings: Int
+    private let typeVocabSize: Int
+    private let padTokenID: Int
+    private let normalizationEpsilon: Float
+    private let dropoutRate: Float = 1e-1
+    private let hiddenActivation: BNNS.ActivationFunction = .geluApproximation2(alpha: 1e-1, beta: 1e-1)
+
+    private var allocations: [BNNSNDArrayDescriptor] = []
+
+    private lazy var wordEmbedding: BNNS.EmbeddingLayer = {
+        let input = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Int64.self, shape: .vector(maxPositionEmbeddings))
+        allocations.append(input)
+        let dictData: [Float32] = weights["bert.embeddings.word_embeddings.weight"]!.toArray()
+        let dict = BNNSNDArrayDescriptor.allocate(initializingFrom: dictData, shape: .matrixColumnMajor(hiddenSize, vocabSize))
+        allocations.append(dict)
+        let output = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(output)
         
-        return try! MLMultiArray(data)
-    }
+        return BNNS.EmbeddingLayer(input: input, output: output, dictionary: dict, paddingIndex: 0, maximumNorm: 0, normType: .l2, scalesGradientByFrequency: false)!
+    }()
     
-    private func sparse(hiddenState: MLMultiArray, mask: MLMultiArray) -> MLMultiArray { 
-        fatalError()
+    private lazy var positionEmbedding: BNNS.EmbeddingLayer = {
+        let input = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Int64.self, shape: .vector(maxPositionEmbeddings))
+        allocations.append(input)
+        let dictData: [Float32] = weights["bert.embeddings.position_embeddings.weight"]!.toArray()
+        let dict = BNNSNDArrayDescriptor.allocate(initializingFrom: dictData, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(dict)
+        let output = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(output)
+
+        return BNNS.EmbeddingLayer(input: input, output: output, dictionary: dict, paddingIndex: -1, maximumNorm: 0, normType: .l2, scalesGradientByFrequency: true)!
+    }()
+    
+    private lazy var tokenTypeEmbedding: BNNS.EmbeddingLayer = {
+        let input = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Int64.self, shape: .vector(maxPositionEmbeddings))
+        allocations.append(input)
+        let dictData: [Float32] = weights["bert.embeddings.token_type_embeddings.weight"]!.toArray()
+        let dict = BNNSNDArrayDescriptor.allocate(initializingFrom: dictData, shape: .matrixColumnMajor(hiddenSize, typeVocabSize))
+        allocations.append(dict)
+        let output = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(output)
+        
+        return BNNS.EmbeddingLayer(input: input, output: output, dictionary: dict, paddingIndex: -1, maximumNorm: 0, normType: .l2, scalesGradientByFrequency: true)!
+    }()
+    
+    private lazy var normalization: BNNS.NormalizationLayer = {
+        let input = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixRowMajor(maxPositionEmbeddings, hiddenSize))
+        allocations.append(input)
+        let output = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixRowMajor(maxPositionEmbeddings, hiddenSize))
+        allocations.append(output)
+
+        let betaWA: MLMultiArray! = weights["bert.embeddings.LayerNorm.beta"] ?? weights["bert.embeddings.LayerNorm.bias"]
+        let beta = BNNSNDArrayDescriptor.allocate(initializingFrom: betaWA.toArray() as [Float32], shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(beta)
+
+        let gammaWA: MLMultiArray! = weights["bert.embeddings.LayerNorm.gamma"] ?? weights["bert.embeddings.LayerNorm.weight"]
+        let gamma = BNNSNDArrayDescriptor.allocate(initializingFrom: gammaWA.toArray() as [Float32], shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(gamma)
+
+        return BNNS.NormalizationLayer(type: .batch(movingMean: nil, movingVariance: nil), input: input, output: output, beta: beta, gamma: gamma, epsilon: normalizationEpsilon, activation: hiddenActivation)!
+    }()
+
+    private lazy var dropout: BNNS.DropoutLayer = {
+        let input = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(input)
+        let output = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        allocations.append(output)
+
+        return BNNS.DropoutLayer(input: input, output: output, rate: dropoutRate, seed: 0, control: 0)!
+    }()
+
+    deinit {
+        allocations.forEach({ $0.deallocate() })
     }
 
-    private func colbert(hiddenState: MLMultiArray, mask: MLMultiArray) -> MLMultiArray { 
-        fatalError()
+    init(config: Config, weights: Weights = [:]) {
+        assert(config.model_type!.stringValue == "bert")
+        for key in [
+            "bert.embeddings.word_embeddings.weight",
+            "bert.embeddings.position_embeddings.weight",
+            "bert.embeddings.token_type_embeddings.weight",
+        ] { assert(weights.keys.contains(where: { $0 == key })) }
+        assert(weights.keys.contains(where: { $0 == "bert.embeddings.LayerNorm.beta" || $0 == "bert.embeddings.LayerNorm.bias" }))
+        assert(weights.keys.contains(where: { $0 == "bert.embeddings.LayerNorm.gamma" || $0 == "bert.embeddings.LayerNorm.weight" }))
+        assert(config.hidden_act!.stringValue == "gelu")
+        assert("absolute" == config.position_embedding_type!.stringValue!)
+        self.positionEmbeddingType = config.position_embedding_type!.stringValue!
+        self.hiddenSize = config.hidden_size!.intValue!
+        self.vocabSize = config.vocab_size!.intValue!
+        self.maxPositionEmbeddings = config.max_position_embeddings!.intValue!
+        self.typeVocabSize = config.type_vocab_size!.intValue!
+        self.padTokenID = config.pad_token_id!.intValue!
+        self.normalizationEpsilon = Float(config.layer_norm_eps!.doubleValue!)
+        self.weights = weights
+   }
+
+    public func callAsFunction(inputIDs: [Int64],
+                               tokenTypeIDs: [Int64]? = nil,
+                               positionIDs: [Int64]? = nil) -> MLMultiArray {
+        let inputLength = inputIDs.count
+        let inputIDs: [Int64] = inputIDs.padded(length: maxPositionEmbeddings)
+        let wordInput = BNNSNDArrayDescriptor.allocate(initializingFrom: inputIDs, shape: .vector(inputIDs.count))
+        let wordOutput = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, inputIDs.count))
+        defer {
+            wordInput.deallocate()
+            wordOutput.deallocate()
+        }
+        try! wordEmbedding.apply(batchSize: 1, input: wordInput, output: wordOutput)
+
+        let positionIDs = positionIDs ?? Array<Int64>(stride(from: 0, through: Int64(inputLength - 1), by: 1))
+        let positionInput = BNNSNDArrayDescriptor.allocate(initializingFrom: positionIDs.padded(length: maxPositionEmbeddings), shape: .vector(maxPositionEmbeddings))
+        let positionOutput = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        defer {
+            positionInput.deallocate()
+            positionOutput.deallocate()
+        }
+        try! self.positionEmbedding.apply(batchSize: 1, input: positionInput, output: positionOutput)
+
+        let tokenTypeIDs: [Int64] = tokenTypeIDs ?? Array(repeating: 0, count: maxPositionEmbeddings)
+        let typeInput = BNNSNDArrayDescriptor.allocate(initializingFrom: tokenTypeIDs, shape: .vector(maxPositionEmbeddings))
+        let typeOutput = BNNSNDArrayDescriptor.allocateUninitialized(scalarType: Float32.self, shape: .matrixColumnMajor(hiddenSize, maxPositionEmbeddings))
+        defer {
+            typeInput.deallocate()
+            typeOutput.deallocate()
+        }
+        try! self.tokenTypeEmbedding.apply(batchSize: 1, input: typeInput, output: typeOutput)
+
+        let multiWord = try! wordOutput.makeMultiArray(of: Float32.self, shape: shape)
+        let multiPosition = try! positionOutput.makeMultiArray(of: Float32.self, shape: shape)
+        let multiType = try! typeOutput.makeMultiArray(of: Float32.self, shape: shape)
+
+        return multiWord + multiPosition + multiType
     }
 }
