@@ -9,15 +9,15 @@ import Foundation
 import Hub
 
 public protocol PostProcessor {
-    func postProcess(tokens: [String], tokensPair: [String]?) -> [String]
-    func callAsFunction(tokens: [String], tokensPair: [String]?) -> [String]
-    
+    func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool) -> [String]
+    func callAsFunction(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool) -> [String]
+
     init(config: Config)
 }
 
 extension PostProcessor {
-    func callAsFunction(tokens: [String], tokensPair: [String]? = nil) -> [String] {
-        return postProcess(tokens: tokens, tokensPair: tokensPair)
+    func callAsFunction(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
+        return postProcess(tokens: tokens, tokensPair: tokensPair, addSpecialTokens: addSpecialTokens)
     }
 }
 
@@ -53,13 +53,15 @@ class TemplateProcessing: PostProcessor {
         self.pair = pair
     }
     
-    func postProcess(tokens: [String], tokensPair: [String]? = nil) -> [String] {
+    func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
         let config = tokensPair == nil ? single : pair
-                
+
         var toReturn: [String] = []
         for item in config {
             if let specialToken = item.SpecialToken {
-                toReturn.append(specialToken.id!.stringValue!)
+                if addSpecialTokens {
+                    toReturn.append(specialToken.id!.stringValue!)
+                }
             } else if let sequence = item.Sequence {
                 if sequence.id?.stringValue == "A" {
                     toReturn += tokens
@@ -74,7 +76,7 @@ class TemplateProcessing: PostProcessor {
 
 class ByteLevelPostProcessor: PostProcessor {
     required public init(config: Config) {}
-    func postProcess(tokens: [String], tokensPair: [String]? = nil) -> [String] { tokens }
+    func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] { tokens }
 }
 
 class RobertaProcessing: PostProcessor {
@@ -94,7 +96,7 @@ class RobertaProcessing: PostProcessor {
         self.addPrefixSpace = config.addPrefixSpace?.boolValue ?? true
     }
     
-    func postProcess(tokens: [String], tokensPair: [String]?) -> [String] {
+    func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
         var outTokens = tokens
         var tokensPair = tokensPair
         if trimOffset {
