@@ -90,6 +90,7 @@ public struct Config {
     }
     
     public var intValue: Int? { value as? Int }
+    public var doubleValue: Double? { value as? Double }
     public var boolValue: Bool? { value as? Bool }
     public var stringValue: String? { value as? String }
     
