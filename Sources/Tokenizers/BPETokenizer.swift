@@ -93,7 +93,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
         return tokens.map { (token) -> String in
-            return Array(token.utf8).map { byteEncoder[$0]! }.joined()
+            return Array(token.utf8).compactMap { byteEncoder[$0] }.joined()
         }
     }
     
