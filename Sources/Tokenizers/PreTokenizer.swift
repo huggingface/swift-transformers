@@ -288,22 +288,25 @@ public extension String {
         let selfRange = NSRange(startIndex..<endIndex, in: self)
         let matches = captureRegex.matches(in: self, options: [], range: selfRange)
 
-        if matches.first == nil { return [self] }
+        if matches.isEmpty { return [self] }
 
         var result: [String] = []
         var start = startIndex
         for match in matches {
-            // Append prefix before matched separator
-            let prefixEnd = index(startIndex, offsetBy: match.range.lowerBound)
-            if start < prefixEnd {
-                result.append(String(self[start..<prefixEnd]))
+            // Safely move the prefix end to the start of the current match
+            let safePrefixEnd = index(startIndex, offsetBy: match.range.lowerBound, limitedBy: endIndex) ?? endIndex
+            if start < safePrefixEnd {
+                result.append(String(self[start..<safePrefixEnd]))
             }
-            start = index(startIndex, offsetBy: match.range.upperBound)
+
+            // Safely move the start index to the end of the current match
+            let matchEndIndex = index(startIndex, offsetBy: match.range.upperBound, limitedBy: endIndex) ?? endIndex
+            start = matchEndIndex
 
             // Append separator, supporting capture groups
             for r in (0..<match.numberOfRanges).reversed() {
                 let matchRange = match.range(at: r)
-                if let sepRange = Range(matchRange, in:self) {
+                if let sepRange = Range(matchRange, in: self) {
                     result.append(String(self[sepRange]))
                     break
                 }
@@ -311,9 +314,8 @@ public extension String {
         }
 
         // Append remaining suffix
-        let beginningOfEnd = index(startIndex, offsetBy: matches.last!.range.upperBound)
-        if beginningOfEnd < endIndex {
-            result.append(String(self[beginningOfEnd...]))
+        if start < endIndex {
+            result.append(String(self[start...]))
         }
 
         return result
