@@ -17,7 +17,7 @@ public struct HubApi {
     public typealias Repo = Hub.Repo
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false) {
-        self.hfToken = hfToken
+        self.hfToken = hfToken ?? ProcessInfo.processInfo.environment["HUGGING_FACE_HUB_TOKEN"]
         if let downloadBase {
             self.downloadBase = downloadBase
         } else {
