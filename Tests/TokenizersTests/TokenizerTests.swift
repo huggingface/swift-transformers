@@ -28,6 +28,13 @@ class LlamaTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "coreml-projects/Llama-2-7b-chat-coreml" }
     override class var encodedSamplesFilename: String? { "llama_encoded" }
     override class var unknownTokenId: Int? { 0 }
+
+    func testHexaEncode() async {
+        if let tester = Self._tester {
+            let tokenized = await tester.tokenizer?.tokenize(text: "\n")
+            XCTAssertEqual(tokenized, ["▁", "<0x0A>"])
+        }
+    }
 }
 
 class WhisperLargeTokenizerTests: TokenizerTests {
@@ -46,6 +53,46 @@ class T5TokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "t5-base" }
     override class var encodedSamplesFilename: String? { "t5_base_encoded" }
     override class var unknownTokenId: Int? { 2 }
+}
+
+class GemmaTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "google/gemma-2-2b-it" }
+    override class var encodedSamplesFilename: String? { "gemma_encoded" }
+    override class var unknownTokenId: Int? { 3 }
+
+    func testUnicodeEdgeCase() async {
+        guard let tester = Self._tester else {
+            XCTFail()
+            return
+        }
+
+        // These are two different characters
+        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
+        let expected = [217138, 1305]
+
+//        for x in cases.map { $0.unicodeScalars.map { String(format:"0x%lX", $0.value) } } {
+//            print(x)
+//        }
+
+        // These are different characters
+        for (s, expected) in zip(cases, expected) {
+            let encoded = await tester.tokenizer?.encode(text: " " + s)
+            XCTAssertEqual(encoded, [2, expected])
+        }
+    }
+}
+
+class GemmaUnicodeTests: XCTestCase {
+    func testGemmaVocab() async throws {
+        // This requires a token
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google/gemma-2b-it") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        // This should be 256_000, I believe
+        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.tokensToIds.count, 255994)
+    }
 }
 
 
@@ -156,7 +203,10 @@ class TokenizerTester {
     
     /// Test encode and decode for a few edge cases
     func testEdgeCases() async {
-        guard let edgeCases = edgeCases else { return }
+        guard let edgeCases = edgeCases else {
+            print("Edge cases test ignored")
+            return
+        }
         guard let tokenizer = await tokenizer else { return }
         for edgeCase in edgeCases {
             print("Testing \(edgeCase.input)")
