@@ -19,6 +19,16 @@ class AddedTokensTests: XCTestCase {
         XCTAssertEqual(decoded, "<s> This is the <|end|>. My only friend, the <|end|>")
     }
 
+    func testGemmaAddedTokens() async throws {
+        // This requires a token
+        let tokenizer = try await AutoTokenizer.from(pretrained: "google/gemma-2b-it")
+        let inputIds = tokenizer("This\n\nis\na\ntest.")
+        XCTAssertEqual(inputIds, [2, 1596, 109, 502, 108, 235250, 108, 2195, 235265])
+
+        let decoded = tokenizer.decode(tokens: inputIds)
+        XCTAssertEqual(decoded, "<bos>This\n\nis\na\ntest.")
+    }
+
     func testSplitWithCaptureGroups() {
         let addedTokensRegexp = #"(<\|end\|>)\s*|(<\|raw\|>)\s*"#
         let captureRegex = try! NSRegularExpression(pattern: addedTokensRegexp, options: [])

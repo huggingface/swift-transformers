@@ -163,14 +163,34 @@ public class PreTrainedTokenizer: Tokenizer {
             }
         }
 
-        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
-               guard let content = addedToken.content?.stringValue else { return nil }
-               let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
-               let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
-               let token = NSRegularExpression.escapedPattern(for: content)
-               return "\(prefix)(\(token))\(suffix)"
+        // Convert to tuples for easier access, then sort by length (descending) to avoid early partial matches
+        // (https://github.com/xenova/transformers.js/commit/c305c3824f628f1f02806a6310bd3b18b0f7f8f5)
+        let unwrappedAddedTokens : [(content: String, prefix: Bool, suffix: Bool)] = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
+            guard let content = addedToken.content?.stringValue else { return nil }
+            let prefix = addedToken.lstrip?.boolValue ?? false
+            let suffix = addedToken.rstrip?.boolValue ?? false
+            return (content: content, prefix: prefix, suffix: suffix)
+        }.sorted {
+            $0.content.count > $1.content.count
+        }
+
+        // then concatenate into regular expression
+        let addedTokensRegexString = unwrappedAddedTokens.map {
+            let token = NSRegularExpression.escapedPattern(for: $0.content)
+            let prefix = $0.prefix ? #"\s*"# : ""
+            let suffix = $0.suffix ? #"\s*"# : ""
+            return "\(prefix)(\(token))\(suffix)"
         }.joined(separator: "|")
         addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
+
+//        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
+//            guard let content = addedToken.content?.stringValue else { return nil }
+//            let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
+//            let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
+//            let token = NSRegularExpression.escapedPattern(for: content)
+//            return "\(prefix)(\(token))\(suffix)"
+//        }.joined(separator: "|")
+//        addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
 
         // TODO: specialTokens are stored but never used
         self.specialTokens = specialTokens
