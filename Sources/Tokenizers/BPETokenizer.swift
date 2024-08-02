@@ -33,8 +33,10 @@ struct BytePair: Hashable {
 
 class BPETokenizer: PreTrainedTokenizerModel {
     let bpeRanks: Dictionary<BytePair, Int>
-    let tokensToIds: [NSString: Int]
-    let idsToTokens: [Int: NSString]
+    private let tokensToIds: [NSString: Int]
+    private let idsToTokens: [Int: NSString]
+
+    var vocabCount: Int { tokensToIds.count }
 
     public let bosToken: String?
     public let bosTokenId: Int?

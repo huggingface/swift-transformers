@@ -87,7 +87,7 @@ class GemmaUnicodeTests: XCTestCase {
         }
 
         // This should be 256_000, I believe
-        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.tokensToIds.count, 255994)
+        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.vocabCount, 255994)
     }
 }
 
