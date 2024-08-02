@@ -38,9 +38,9 @@ public extension Hub {
 
 @dynamicMemberLookup
 public struct Config {
-    public private(set) var dictionary: [String: Any]
+    public private(set) var dictionary: [NSString: Any]
 
-    public init(_ dictionary: [String: Any]) {
+    public init(_ dictionary: [NSString: Any]) {
         self.dictionary = dictionary
     }
 
@@ -76,8 +76,8 @@ public struct Config {
 
 
     public subscript(dynamicMember member: String) -> Config? {
-        let key = dictionary[member] != nil ? member : uncamelCase(member)
-        if let value = dictionary[key] as? [String: Any] {
+        let key = (dictionary[member as NSString] != nil ? member : uncamelCase(member)) as NSString
+        if let value = dictionary[key] as? [NSString: Any] {
             return Config(value)
         } else if let value = dictionary[key] {
             return Config(["value": value])
@@ -96,7 +96,7 @@ public struct Config {
     // Instead of doing this we could provide custom classes and decode to them
     public var arrayValue: [Config]? {
         guard let list = value as? [Any] else { return nil }
-        return list.map { Config($0 as! [String : Any]) }
+        return list.map { Config($0 as! [NSString : Any]) }
     }
     
     /// Tuple of token identifier and string value
@@ -206,7 +206,7 @@ public class LanguageModelConfigurationFromHub {
         do {
             let data = try Data(contentsOf: url)
             let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-            guard let dictionary = parsed as? [String: Any] else { return nil }
+            guard let dictionary = parsed as? [NSString: Any] else { return nil }
             return Config(dictionary)
         } catch {
             return nil
