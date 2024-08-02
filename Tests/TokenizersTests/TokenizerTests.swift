@@ -56,7 +56,7 @@ class T5TokenizerTests: TokenizerTests {
 }
 
 class GemmaTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "google/gemma-2-2b-it" }
+    override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
     override class var encodedSamplesFilename: String? { "gemma_encoded" }
     override class var unknownTokenId: Int? { 3 }
 
@@ -80,13 +80,12 @@ class GemmaTokenizerTests: TokenizerTests {
 
 class GemmaUnicodeTests: XCTestCase {
     func testGemmaVocab() async throws {
-        // This requires a token
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google/gemma-2b-it") as? PreTrainedTokenizer else {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer else {
             XCTFail()
             return
         }
 
-        // This should be 256_000, I believe
+        // FIXME: This should be 256_000, I believe
         XCTAssertEqual((tokenizer.model as? BPETokenizer)?.vocabCount, 255994)
     }
 }

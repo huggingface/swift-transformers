@@ -20,8 +20,7 @@ class AddedTokensTests: XCTestCase {
     }
 
     func testGemmaAddedTokens() async throws {
-        // This requires a token
-        let tokenizer = try await AutoTokenizer.from(pretrained: "google/gemma-2b-it")
+        let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer")
         let inputIds = tokenizer("This\n\nis\na\ntest.")
         XCTAssertEqual(inputIds, [2, 1596, 109, 502, 108, 235250, 108, 2195, 235265])
 
