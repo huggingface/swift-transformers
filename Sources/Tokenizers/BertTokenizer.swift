@@ -72,7 +72,7 @@ public class BertTokenizer {
                 """
             )
         }
-        return tokens.map { vocab[$0]! }
+        return tokens.compactMap { vocab[$0] }
     }
     
     /// Main entry point
@@ -86,7 +86,7 @@ public class BertTokenizer {
     
     /// Un-tokenization: get tokens from tokenIds
     func unTokenize(tokens: [Int]) -> [String] {
-        return tokens.map { ids_to_tokens[$0]! }
+        return tokens.compactMap { ids_to_tokens[$0] }
     }
     
     /// Un-tokenization:

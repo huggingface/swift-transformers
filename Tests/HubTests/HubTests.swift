@@ -97,4 +97,25 @@ class HubTests: XCTestCase {
             XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
+
+    func testConfigUnicode() {
+        // These are two different characters
+        let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
+        let data = json.data(using: .utf8)
+        let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
+        let config = Config(dict)
+
+        let vocab_nsdict = config.dictionary["vocab"] as! NSDictionary
+        let vocab_nsstring = config.dictionary["vocab"] as! [NSString: Int]
+        let vocab = config.vocab!.dictionary
+
+        XCTAssertEqual(vocab_nsdict.count, 2)
+        XCTAssertEqual(vocab_nsstring.count, 2)
+        XCTAssertEqual(vocab.count, 2)
+
+        // This is expected because, unlike with NSString, String comparison uses the canonical Unicode representation
+        // https://developer.apple.com/documentation/swift/string#Modifying-and-Comparing-Strings
+        let vocab_dict = config.dictionary["vocab"] as! [String: Int]
+        XCTAssertNotEqual(vocab_dict.count, 2)
+    }
 }
