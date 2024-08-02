@@ -183,15 +183,6 @@ public class PreTrainedTokenizer: Tokenizer {
         }.joined(separator: "|")
         addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
 
-//        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
-//            guard let content = addedToken.content?.stringValue else { return nil }
-//            let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
-//            let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
-//            let token = NSRegularExpression.escapedPattern(for: content)
-//            return "\(prefix)(\(token))\(suffix)"
-//        }.joined(separator: "|")
-//        addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
-
         // TODO: specialTokens are stored but never used
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)

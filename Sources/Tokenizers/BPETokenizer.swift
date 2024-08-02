@@ -163,7 +163,6 @@ class BPETokenizer: PreTrainedTokenizerModel {
         let bpeTokens = self.bpe(token: text).split(separator: " ").map { String($0) }
         for token in bpeTokens {
             if convertTokenToId(token) != unknownTokenId {
-//            if let _ = tokensToIds[token as NSString] {
                 tokens.append(token)
             } else {
                 // TODO: if config.byte_fallback is False, append the unknown token instead

@@ -70,10 +70,6 @@ class GemmaTokenizerTests: TokenizerTests {
         let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
         let expected = [217138, 1305]
 
-//        for x in cases.map { $0.unicodeScalars.map { String(format:"0x%lX", $0.value) } } {
-//            print(x)
-//        }
-
         // These are different characters
         for (s, expected) in zip(cases, expected) {
             let encoded = await tester.tokenizer?.encode(text: " " + s)
