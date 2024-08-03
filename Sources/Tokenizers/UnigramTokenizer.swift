@@ -29,7 +29,10 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     let bosTokenId: Int?
     let eosToken: String?
     let eosTokenId: Int?
-    
+
+    // Hardcoded in Unigram tokenizers
+    let fuseUnknownTokens: Bool = true
+
     private let trie: Trie<Character>
         
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
@@ -71,10 +74,8 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
 
         trie = Trie()
         trie.append(contentsOf: vocab.map { $0.token })
-                
-        // TODO: set fuse_unk to true
     }
-    
+
     func convertTokenToId(_ token: String) -> Int? {
         return tokensToIds[token as NSString] ?? self.unknownTokenId
     }
