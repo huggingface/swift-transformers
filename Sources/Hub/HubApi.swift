@@ -106,9 +106,14 @@ public extension HubApi {
     /// `fileURL` is a complete local file path for the given model
     func configuration(fileURL: URL) throws -> Config {
         let data = try Data(contentsOf: fileURL)
-        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-        guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
-        return Config(dictionary)
+
+        do {
+            let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+            guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
+            return Config(dictionary)
+        } catch {
+            throw Hub.HubClientError.jsonSerialization(fileURL: fileURL, message: "JSON Serialization failed for \(fileURL). Please verify that you have set the HUGGING_FACE_HUB_TOKEN environment variable.")
+        }
     }
 }
 
