@@ -10,13 +10,28 @@ import Foundation
 public struct Hub {}
 
 public extension Hub {
-    enum HubClientError: Error {
+    enum HubClientError: LocalizedError {
         case parse
+        case jsonSerialization(fileURL: URL, message: String)
         case authorizationRequired
         case unexpectedError
         case httpStatusCode(Int)
+        
+        public var errorDescription: String? {
+            switch self {
+            case .parse:
+                return NSLocalizedString("Failed to parse the configuration.", comment: "Parse Error")
+            case .jsonSerialization(_, let message):
+                return message
+            case .authorizationRequired:
+                return NSLocalizedString("Authorization is required.", comment: "Authorization Error")
+            case .unexpectedError:
+                return NSLocalizedString("An unexpected error occurred.", comment: "Unexpected Error")
+            case .httpStatusCode(let statusCode):
+                return String(format: NSLocalizedString("HTTP error with status code: %d", comment: "HTTP Status Code Error"), statusCode)
+            }
+        }
     }
-    
     enum RepoType: String {
         case models
         case datasets
