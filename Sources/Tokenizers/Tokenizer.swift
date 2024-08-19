@@ -272,7 +272,7 @@ public class PreTrainedTokenizer: Tokenizer {
     /// Decode
     public func decode(tokens: [Int]) -> String {
         // IDs to tokens
-        let tokenStrings = tokens.map { model.convertIdToToken($0)! }
+        let tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
         let decoded = decodeTokens(tokenStrings)
         // At this point we should have a single String
         return cleanUp(text: decoded.joined(separator: ""))
