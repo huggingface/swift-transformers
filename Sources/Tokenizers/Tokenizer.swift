@@ -36,6 +36,8 @@ public protocol TokenizingModel {
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
+
+    var fuseUnknownTokens: Bool { get }
 }
 
 public extension TokenizingModel {
@@ -138,6 +140,7 @@ public class PreTrainedTokenizer: Tokenizer {
     public var eosTokenId: Int? { model.eosTokenId }
     public var unknownToken: String? { model.unknownToken }
     public var unknownTokenId: Int? { model.unknownTokenId }
+    public var fuseUnknownTokens: Bool { model.fuseUnknownTokens }
 
     private let addedTokens: Set<String>
     private let specialTokens: [String: Int]
@@ -163,12 +166,23 @@ public class PreTrainedTokenizer: Tokenizer {
             }
         }
 
-        let addedTokensRegexString = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
-               guard let content = addedToken.content?.stringValue else { return nil }
-               let prefix = (addedToken.lstrip?.boolValue ?? false ? #"\s*"# : "")
-               let suffix = (addedToken.rstrip?.boolValue ?? false ? #"\s*"# : "")
-               let token = NSRegularExpression.escapedPattern(for: content)
-               return "\(prefix)(\(token))\(suffix)"
+        // Convert to tuples for easier access, then sort by length (descending) to avoid early partial matches
+        // (https://github.com/xenova/transformers.js/commit/c305c3824f628f1f02806a6310bd3b18b0f7f8f5)
+        let unwrappedAddedTokens : [(content: String, prefix: Bool, suffix: Bool)] = (tokenizerData.addedTokens?.arrayValue ?? []).compactMap { addedToken in
+            guard let content = addedToken.content?.stringValue else { return nil }
+            let prefix = addedToken.lstrip?.boolValue ?? false
+            let suffix = addedToken.rstrip?.boolValue ?? false
+            return (content: content, prefix: prefix, suffix: suffix)
+        }.sorted {
+            $0.content.count > $1.content.count
+        }
+
+        // then concatenate into regular expression
+        let addedTokensRegexString = unwrappedAddedTokens.map {
+            let token = NSRegularExpression.escapedPattern(for: $0.content)
+            let prefix = $0.prefix ? #"\s*"# : ""
+            let suffix = $0.suffix ? #"\s*"# : ""
+            return "\(prefix)(\(token))\(suffix)"
         }.joined(separator: "|")
         addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
 
@@ -221,6 +235,21 @@ public class PreTrainedTokenizer: Tokenizer {
             .replacingOccurrences(of: " 're", with: "'re")
     }
 
+    func fuseUnknown(_ tokens: [String]) -> [String] {
+        guard fuseUnknownTokens else { return tokens }
+        let (fused, _) = tokens.reduce((fused: [String](), previousIsUnknown: false)) { result, token in
+            var (fused, previousIsUnknown) = result
+            let isUnknown = model.convertTokenToId(token) == model.unknownTokenId
+            if isUnknown {
+                if !previousIsUnknown { fused.append(token) }
+            } else {
+                fused.append(token)
+            }
+            return (fused, isUnknown)
+        }
+        return fused
+    }
+
     public func tokenize(text: String) -> [String] {
         // Take care of special tokens first
         let sections: [String]
@@ -232,7 +261,7 @@ public class PreTrainedTokenizer: Tokenizer {
         return sections.enumerated().map { section, x in
             if addedTokens.contains(x) { return [x] }
             return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
-        }.flatMap { $0 }
+        }.flatMap { fuseUnknown($0) }
     }
 
     /// Main entry point

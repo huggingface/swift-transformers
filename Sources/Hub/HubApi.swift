@@ -107,7 +107,7 @@ public extension HubApi {
     func configuration(fileURL: URL) throws -> Config {
         let data = try Data(contentsOf: fileURL)
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-        guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
         return Config(dictionary)
     }
 }
@@ -121,7 +121,7 @@ public extension HubApi {
         let (data, _) = try await httpGet(for: url)
 
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
-        guard let dictionary = parsed as? [String: Any] else { throw Hub.HubClientError.parse }
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
         return Config(dictionary)
     }
 }

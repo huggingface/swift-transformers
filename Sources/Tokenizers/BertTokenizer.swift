@@ -23,11 +23,14 @@ public class BertTokenizer {
     public var eosToken: String?
     public var eosTokenId: Int?
 
+    public let fuseUnknownTokens: Bool
+
     public init(vocab: [String: Int],
-         merges: [String]?,
-         tokenizeChineseChars: Bool = true,
-         bosToken: String? = nil,
-         eosToken: String? = nil
+                merges: [String]?,
+                tokenizeChineseChars: Bool = true,
+                bosToken: String? = nil,
+                eosToken: String? = nil,
+                fuseUnknownTokens: Bool = false
     ) {
         self.vocab = vocab
         self.ids_to_tokens = Utils.invert(vocab)
@@ -37,6 +40,7 @@ public class BertTokenizer {
         self.bosTokenId = bosToken == nil ? nil : vocab[bosToken!]
         self.eosToken = eosToken
         self.eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
+        self.fuseUnknownTokens = fuseUnknownTokens
     }
     
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
@@ -47,7 +51,8 @@ public class BertTokenizer {
         let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
         let eosToken = tokenizerConfig.eosToken?.stringValue
         let bosToken = tokenizerConfig.bosToken?.stringValue
-        self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken)
+        let fuseUnknown = tokenizerConfig.fuseUnk?.boolValue ?? false
+        self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken, fuseUnknownTokens: fuseUnknown)
     }
     
     
