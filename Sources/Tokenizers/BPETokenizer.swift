@@ -33,9 +33,11 @@ struct BytePair: Hashable {
 
 class BPETokenizer: PreTrainedTokenizerModel {
     let bpeRanks: Dictionary<BytePair, Int>
-    private let tokensToIds: [String: Int]
-    private let idsToTokens: [Int: String]
-    
+    private let tokensToIds: [NSString: Int]
+    private let idsToTokens: [Int: NSString]
+
+    var vocabCount: Int { tokensToIds.count }
+
     public let bosToken: String?
     public let bosTokenId: Int?
     public let eosToken: String?
@@ -43,9 +45,11 @@ class BPETokenizer: PreTrainedTokenizerModel {
     public let unknownToken: String?
     public let unknownTokenId: Int?
 
+    public let fuseUnknownTokens: Bool
+
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
         guard let merges = tokenizerData.model?.merges?.value as? [String] else { fatalError("BPETokenizer requires merges") }
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
+        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [NSString: Int] else {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
@@ -56,31 +60,33 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
         self.bpeRanks = bpeRanks
         
-        self.tokensToIds = vocab.merging(addedTokens) { $1 }
+        self.tokensToIds = vocab.merging(addedTokens as [NSString : Int]) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
         
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
-            self.unknownTokenId = self.tokensToIds[unknownToken]
+            self.unknownTokenId = self.tokensToIds[unknownToken as NSString]
         } else {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
 
         eosToken = tokenizerConfig.eosToken?.stringValue
-        eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken!]
+        eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
         bosToken = tokenizerConfig.bosToken?.stringValue
-        bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken!]
+        bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
+
+        fuseUnknownTokens = tokenizerConfig.fuseUnk?.boolValue ?? false
     }
 
     func convertTokenToId(_ token: String) -> Int? {
-        return tokensToIds[token] ?? self.unknownTokenId
+        return tokensToIds[token as NSString] ?? self.unknownTokenId
     }
     
     func convertIdToToken(_ id: Int) -> String? {
-        return idsToTokens[id]
+        return idsToTokens[id] as String?
     }
 
     func byteEncode(text: String) -> [String] {
@@ -162,7 +168,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
         var tokens: [String] = []
         let bpeTokens = self.bpe(token: text).split(separator: " ").map { String($0) }
         for token in bpeTokens {
-            if let _ = tokensToIds[token] {
+            if convertTokenToId(token) != unknownTokenId {
                 tokens.append(token)
             } else {
                 // TODO: if config.byte_fallback is False, append the unknown token instead
