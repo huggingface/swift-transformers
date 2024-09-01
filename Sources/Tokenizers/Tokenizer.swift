@@ -7,6 +7,7 @@
 
 import Hub
 import Foundation
+import Jinja
 
 enum TokenizerError : Error {
     case missingConfig
@@ -98,7 +99,8 @@ public protocol Tokenizer {
 
     /// Main entry point
     func encode(text: String) -> [Int]
-    func callAsFunction(_ text: String) -> [Int]
+    func encode(text: String, addSpecialTokens: Bool) -> [Int]
+    func callAsFunction(_ text: String, addSpecialTokens: Bool) -> [Int]
 
     /// Decode
     func decode(tokens: [Int]) -> String
@@ -115,11 +117,21 @@ public protocol Tokenizer {
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
+    
+    func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
+    
+    func applyChatTemplate(
+        messages: [[String: String]],
+        chatTemplate: String?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?
+    ) throws -> [Int]
 }
 
 public extension Tokenizer {
-    func callAsFunction(_ text: String) -> [Int] {
-        encode(text: text)
+    func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
+        encode(text: text, addSpecialTokens: addSpecialTokens)
     }
 
     func convertTokensToIds(_ tokens: [String]) -> [Int?] {
@@ -130,6 +142,17 @@ public extension Tokenizer {
         return ids.map { convertIdToToken($0) }
     }
 }
+
+let specialTokenAttributes: [String] = [
+    "bos_token",
+    "eos_token",
+    "unk_token",
+    "sep_token",
+    "pad_token",
+    "cls_token",
+    "mask_token",
+    "additional_special_tokens"
+]
 
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
@@ -150,8 +173,11 @@ public class PreTrainedTokenizer: Tokenizer {
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
+    private let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
+    
+    private let defaultChatTemplate: String = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
     required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
         var addedTokens: [String : Int] = [:]
@@ -195,7 +221,8 @@ public class PreTrainedTokenizer: Tokenizer {
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
-
+        self.tokenizerConfig = tokenizerConfig
+        
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 
@@ -209,9 +236,9 @@ public class PreTrainedTokenizer: Tokenizer {
         return normalizer(text: text)
     }
 
-    func postProcess(_ tokens: [String]) -> [String] {
+    func postProcess(_ tokens: [String], addSpecialTokens: Bool = true) -> [String] {
         guard let postProcessor = postProcessor else { return tokens }
-        return postProcessor(tokens: tokens)
+        return postProcessor(tokens: tokens, addSpecialTokens: addSpecialTokens)
     }
 
     func decodeTokens(_ tokens: [String]) -> [String] {
@@ -265,8 +292,12 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     /// Main entry point
+    public func encode(text: String, addSpecialTokens: Bool = true) -> [Int] {
+        return postProcess(tokenize(text: text), addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
+    }
+
     public func encode(text: String) -> [Int] {
-        return postProcess(tokenize(text: text)).map { model.convertTokenToId($0)! }
+        return encode(text: text, addSpecialTokens: true)
     }
 
     /// Decode
@@ -284,6 +315,43 @@ public class PreTrainedTokenizer: Tokenizer {
 
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
+    }
+    
+    public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: nil, addGenerationPrompt: true, maxLength: nil)
+    }
+    
+    public func applyChatTemplate(
+        messages: [[String: String]],
+        chatTemplate: String?,
+        addGenerationPrompt: Bool = false,
+        truncation: Bool = false,
+        maxLength: Int?
+    ) throws -> [Int] {
+        let template = try Template(chatTemplate ?? tokenizerConfig.chatTemplate?.stringValue ?? defaultChatTemplate)
+        var context: [String: Any] = [
+            "messages": messages,
+            "add_generation_prompt": addGenerationPrompt
+        ]
+
+        // TODO: maybe keep NSString here
+        for (key, value) in tokenizerConfig.dictionary as [String : Any] {
+            if specialTokenAttributes.contains(key), !(value is NSNull) {
+                context[key] = value
+            }
+        }
+
+        let rendered = try template.render(context)
+        var encodedTokens = encode(text: rendered, addSpecialTokens: false)
+        var maxLength = maxLength ?? encodedTokens.count
+        maxLength = min(maxLength, tokenizerConfig.modelMaxLength?.intValue ?? maxLength)
+        if encodedTokens.count > maxLength {
+            if truncation {
+                encodedTokens = Array(encodedTokens.prefix(maxLength))
+            }
+        }
+
+        return encodedTokens
     }
 }
 

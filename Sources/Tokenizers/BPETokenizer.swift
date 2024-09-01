@@ -71,7 +71,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
-
+        
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
