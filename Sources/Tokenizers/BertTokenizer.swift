@@ -22,8 +22,6 @@ public class BertTokenizer {
     public var bosTokenId: Int?
     public var eosToken: String?
     public var eosTokenId: Int?
-    public var padToken: String?
-    public var padTokenId: Int?
 
     public init(vocab: [String: Int],
          merges: [String]?,
@@ -40,8 +38,6 @@ public class BertTokenizer {
         self.bosTokenId = bosToken == nil ? nil : vocab[bosToken!]
         self.eosToken = eosToken
         self.eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
-        self.padToken = padToken
-        self.padTokenId = padToken == nil ? nil : vocab[padToken!]
     }
     
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {

@@ -33,8 +33,6 @@ public protocol TokenizingModel {
 
     var bosToken: String? { get }
     var bosTokenId: Int? { get }
-    var padToken: String? { get }
-    var padTokenId: Int? { get }
     var eosToken: String? { get }
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
@@ -124,7 +122,6 @@ public protocol Tokenizer {
         messages: [[String: String]],
         chatTemplate: String?,
         addGenerationPrompt: Bool,
-        padding: Bool,
         truncation: Bool,
         maxLength: Int?
     ) throws -> [Int]
@@ -299,7 +296,6 @@ public class PreTrainedTokenizer: Tokenizer {
         messages: [[String: String]],
         chatTemplate: String?,
         addGenerationPrompt: Bool = false,
-        padding: Bool = false,
         truncation: Bool = false,
         maxLength: Int?
     ) throws -> [Int] {
@@ -322,13 +318,6 @@ public class PreTrainedTokenizer: Tokenizer {
         if encodedTokens.count > maxLength {
             if truncation {
                 encodedTokens = Array(encodedTokens.prefix(maxLength))
-            }
-        } else {
-            if padding {
-                encodedTokens = encodedTokens + Array(
-                    repeating: model.padTokenId ?? model.eosTokenId ?? 0,
-                    count: encodedTokens.count - maxLength
-                )
             }
         }
 
