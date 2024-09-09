@@ -385,14 +385,22 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
             Keys.inputIds: inputIds,
         ]
         if isRequiringAttentionMask {
+            #if !((os(macOS) || (macCatalyst)) && arch(x86_64))
             // TODO: Infer scalar type from cache or model I/O descriptors
             let attentionMask = MLTensor(zeros: [1, 1, 1, tokenCount + 1], scalarType: Float16.self)
             inputDictionary[Keys.attentionMask] = attentionMask
+            #else
+            fatalError()
+            #endif
         }
         if isRequiringCausalMask {
+            #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
             // TODO: Infer scalar type from cache or model I/O descriptors
             let causalMask = MLTensor(zeros: [1, 1, 1, tokenCount + 1], scalarType: Float16.self)
             inputDictionary[Keys.causalMask] = causalMask
+            #else
+            fatalError()
+            #endif
         }
         let outputs = try! await model.prediction(from: inputDictionary, using: state)
 
