@@ -202,7 +202,8 @@ public class LanguageModelConfigurationFromHub {
     }
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
-        guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
+        let bundle = Bundle(for: self)
+        guard let url = bundle.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
         do {
             let data = try Data(contentsOf: url)
             let parsed = try JSONSerialization.jsonObject(with: data, options: [])
