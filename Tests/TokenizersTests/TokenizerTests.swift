@@ -37,6 +37,11 @@ class LlamaTokenizerTests: TokenizerTests {
     }
 }
 
+class Llama32TokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "mlx-community/Llama-3.2-3B-Instruct-4bit" }
+    override class var encodedSamplesFilename: String? { "llama_3.2_encoded" }
+}
+
 class WhisperLargeTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "openai/whisper-large-v2" }
     override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }
