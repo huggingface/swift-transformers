@@ -47,15 +47,26 @@ class BPETokenizer: PreTrainedTokenizerModel {
 
     public let fuseUnknownTokens: Bool
 
+    static func mergesFromConfig(_ config: Config?) -> [[String]]? {
+        guard let config = config else { return nil }
+
+        // New format (pushed with tokenizers >= 0.20): each merge is a list of 2 items
+        if let merges = config.value as? [[String]] { return merges }
+        // Legacy: each merge is a string
+        guard let merges = config.value as? [String] else { return nil }
+        return merges.map { mergeString in
+            mergeString.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) }
+        }
+    }
+
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
-        guard let merges = tokenizerData.model?.merges?.value as? [String] else { fatalError("BPETokenizer requires merges") }
+        guard let merges = Self.mergesFromConfig(tokenizerData.model?.merges) else { fatalError("BPETokenizer requires merges") }
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [NSString: Int] else {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: Dictionary<BytePair, Int> = [:]
-        for (i, item) in merges.enumerated() {
-            let tuple = item.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) }
-            let bp = BytePair(tuple: tuple)
+        for (i, merge) in merges.enumerated() {
+            let bp = BytePair(tuple: merge)
             bpeRanks[bp] = i
         }
         self.bpeRanks = bpeRanks
