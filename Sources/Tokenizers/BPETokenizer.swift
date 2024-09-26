@@ -50,8 +50,9 @@ class BPETokenizer: PreTrainedTokenizerModel {
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config = config else { return nil }
 
-        // New format (pushed with tokenizers >= 0.20): each merge is a list of 2 items
+        // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
         if let merges = config.value as? [[String]] { return merges }
+
         // Legacy: each merge is a string
         guard let merges = config.value as? [String] else { return nil }
         return merges.map { mergeString in
