@@ -38,7 +38,7 @@ class LlamaTokenizerTests: TokenizerTests {
 }
 
 class Llama32TokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "mlx-community/Llama-3.2-3B-Instruct-4bit" }
+    override class var hubModelName: String? { "pcuenq/Llama-3.2-1B-Instruct-tokenizer" }
     override class var encodedSamplesFilename: String? { "llama_3.2_encoded" }
 }
 
