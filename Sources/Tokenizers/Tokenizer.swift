@@ -9,12 +9,13 @@ import Hub
 import Foundation
 import Jinja
 
-enum TokenizerError : Error {
+enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
     case missingVocab
     case malformedVocab
+    case noChatTemplateSpecified
 
     case tooLong(String)
 }
@@ -177,8 +178,6 @@ public class PreTrainedTokenizer: Tokenizer {
     private let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
-    
-    private let defaultChatTemplate: String = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
     required public init(tokenizerConfig: Config, tokenizerData: Config) throws {
         var addedTokens: [String : Int] = [:]
@@ -324,35 +323,54 @@ public class PreTrainedTokenizer: Tokenizer {
     
     public func applyChatTemplate(
         messages: [[String: String]],
+        /// A Jinja template or the name of a template to use for this conversion.
+        /// It is usually not necessary to pass anything to this argument,
+        /// as the model's template will be used by default.
         chatTemplate: String? = nil,
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
         maxLength: Int? = nil,
+        /// A list of tools (callable functions) that will be accessible to the model. If the template does not
+        /// support function calling, this argument will have no effect. Each tool should be passed as a JSON Schema,
+        /// giving the name, description and argument types for the tool. See the
+        /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
+        /// for more information.
         tools: [[String: Any]]? = nil
     ) throws -> [Int] {
-        var chatTemplateFromConfig: String?
-        if let chatTemplateValue = tokenizerConfig.chatTemplate {
-            if let chatTemplateStringValue = chatTemplateValue.stringValue {
-                chatTemplateFromConfig = chatTemplateStringValue
-            } else if let chatTemplateArrayValue = chatTemplateValue.arrayValue {
-                // If a list of chat templates is specified, convert them to a dict
-                let templateDict = Dictionary<String, String>(uniqueKeysWithValues: chatTemplateArrayValue.compactMap { template in
-                    guard let name = template.name?.stringValue,
-                          let templateString = template.template?.stringValue else {
+        var selectedChatTemplate: String?
+        if let valueFromConfig = tokenizerConfig.chatTemplate {
+            if let arrayValue = valueFromConfig.arrayValue {
+                // If the config specifies a list of chat templates, convert them to a dictionary
+                let templateDict = Dictionary<String, String>(uniqueKeysWithValues: arrayValue.compactMap { item in
+                    guard let name = item.name?.stringValue, let template = item.template?.stringValue else {
                         return nil
                     }
-                    return (name, templateString)
+                    return (name, template)
                 })
-                // Choose the appropriate template
-                if let tools = tools, !tools.isEmpty, let toolUseTemplate = templateDict["tool_use"] {
-                    chatTemplateFromConfig = toolUseTemplate
-                } else {
-                    chatTemplateFromConfig = templateDict["default"]
+                if let chatTemplateArgument = chatTemplate, let matchingDictEntry = templateDict[chatTemplateArgument] {
+                    // Use chat template from config that matches the name specified in the `chatTemplate` argument
+                    selectedChatTemplate = matchingDictEntry
+                } else if let tools, !tools.isEmpty, let toolUseTemplate = templateDict["tool_use"] {
+                    // Use tool use chat template from config
+                    selectedChatTemplate = toolUseTemplate
+                } else if let defaultChatTemplate = templateDict["default"] {
+                    // Use default chat template from config
+                    selectedChatTemplate = defaultChatTemplate
                 }
+            } else if let chatTemplateArgument = chatTemplate {
+                // Use chat template from argument
+                selectedChatTemplate = chatTemplateArgument
+            } else if let stringValue = valueFromConfig.stringValue {
+                // Use chat template from config
+                selectedChatTemplate = stringValue
             }
         }
 
-        let template = try Template(chatTemplate ?? chatTemplateFromConfig ?? defaultChatTemplate)
+        guard let selectedChatTemplate else {
+            throw TokenizerError.noChatTemplateSpecified
+        }
+
+        let template = try Template(selectedChatTemplate)
         var context: [String: Any] = [
             "messages": messages,
             "add_generation_prompt": addGenerationPrompt
