@@ -335,6 +335,7 @@ public class PreTrainedTokenizer: Tokenizer {
         /// giving the name, description and argument types for the tool. See the
         /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
         /// for more information.
+        /// Note: tool calling is not supported yet, it will be available in a future update.
         tools: [[String: Any]]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
