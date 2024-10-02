@@ -337,8 +337,8 @@ public class PreTrainedTokenizer: Tokenizer {
             } else if let chatTemplateArrayValue = chatTemplateValue.arrayValue {
                 // If a list of chat templates is specified, convert them to a dict
                 let templateDict = Dictionary<String, String>(uniqueKeysWithValues: chatTemplateArrayValue.compactMap { template in
-                    guard let name = template[dynamicMember: "name"]?.stringValue,
-                          let templateString = template[dynamicMember: "template"]?.stringValue else {
+                    guard let name = template.name?.stringValue,
+                          let templateString = template.template?.stringValue else {
                         return nil
                     }
                     return (name, templateString)
