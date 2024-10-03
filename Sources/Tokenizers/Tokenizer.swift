@@ -95,9 +95,9 @@ struct TokenizerModel {
 }
 
 public enum ChatTemplateArgument {
-    /// A Jinja template to use for the conversation. Normally it is not necessary to provide a template, since it will be read from the tokenizer config file.
+    /// A Jinja template to use for the conversation. Normally it is not necessary to provide a template, since it will be read from the tokenizer config.
     case literal(String)
-    /// For models whose tokenizer config file includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
+    /// For models whose tokenizer config includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
     case name(String)
 }
 
@@ -125,13 +125,18 @@ public protocol Tokenizer {
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
 
+    /// The appropriate chat template is selected from the tokenizer config
     func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
 
+    /// The chat template is provided as a string literal or specified by name
     func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int]
+
+    /// The chat template is provided as a string literal
+    func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int]
 
     func applyChatTemplate(
         messages: [[String: String]],
-        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config file. Normally this is not necessary.
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
         chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
@@ -334,6 +339,10 @@ public class PreTrainedTokenizer: Tokenizer {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
     }
 
+    public func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
+    }
+
     public func applyChatTemplate(
         messages: [[String: String]],
         chatTemplate: ChatTemplateArgument? = nil,
@@ -366,7 +375,7 @@ public class PreTrainedTokenizer: Tokenizer {
                     if let matchingDictEntry = templateDict[name] {
                         selectedChatTemplate = matchingDictEntry
                     } else {
-                        throw TokenizerError.chatTemplate("No chat template named \"\(name)\" was found in the tokenizer config file")
+                        throw TokenizerError.chatTemplate("No chat template named \"\(name)\" was found in the tokenizer config")
                     }
                 } else if let tools, !tools.isEmpty, let toolUseTemplate = templateDict["tool_use"] {
                     // Use tool use chat template from config
