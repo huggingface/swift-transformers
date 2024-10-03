@@ -95,7 +95,7 @@ struct TokenizerModel {
 }
 
 public enum ChatTemplateArgument {
-    /// A Jinja template to use for the conversion. Normally it is not necessary to provide a template, since it will be read from the tokenizer config file.
+    /// A Jinja template to use for the conversation. Normally it is not necessary to provide a template, since it will be read from the tokenizer config file.
     case literal(String)
     /// For models whose tokenizer config file includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
     case name(String)
