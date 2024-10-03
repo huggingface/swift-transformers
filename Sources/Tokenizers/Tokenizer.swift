@@ -94,6 +94,13 @@ struct TokenizerModel {
     }
 }
 
+public enum ChatTemplateArgument {
+    /// A Jinja template to use for the conversion. Normally it is not necessary to provide a template, since it will be read from the tokenizer config file.
+    case literal(String)
+    /// For models whose tokenizer config file includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
+    case name(String)
+}
+
 public protocol Tokenizer {
     func tokenize(text: String) -> [String]
 
@@ -117,17 +124,15 @@ public protocol Tokenizer {
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
-    
+
     func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
 
-    func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int]
-
-    func applyChatTemplate(messages: [[String: String]], chatTemplateName: String) throws -> [Int]
+    func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int]
 
     func applyChatTemplate(
         messages: [[String: String]],
-        chatTemplate: String?,
-        chatTemplateName: String?,
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config file. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
         maxLength: Int?,
@@ -226,7 +231,7 @@ public class PreTrainedTokenizer: Tokenizer {
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
         self.tokenizerConfig = tokenizerConfig
-        
+
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 
@@ -320,25 +325,18 @@ public class PreTrainedTokenizer: Tokenizer {
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
     }
-    
+
     public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int] {
+    public func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
-    }
-
-    public func applyChatTemplate(messages: [[String: String]], chatTemplateName: String) throws -> [Int] {
-        try applyChatTemplate(messages: messages, chatTemplateName: chatTemplateName, addGenerationPrompt: true)
     }
 
     public func applyChatTemplate(
         messages: [[String: String]],
-        /// A Jinja template to use for this conversion. Normally it is not necessary to provide a template, since it will be read from the tokenizer config file.
-        chatTemplate: String? = nil,
-        /// For models whose tokenizer config file includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
-        chatTemplateName: String? = nil,
+        chatTemplate: ChatTemplateArgument? = nil,
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
         maxLength: Int? = nil,
@@ -351,9 +349,9 @@ public class PreTrainedTokenizer: Tokenizer {
         tools: [[String: Any]]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
-        if let chatTemplate {
+        if let chatTemplate, case .literal(let template) = chatTemplate {
             // Use chat template from argument
-            selectedChatTemplate = chatTemplate
+            selectedChatTemplate = template
         } else if let valueFromConfig = tokenizerConfig.chatTemplate {
             if let arrayValue = valueFromConfig.arrayValue {
                 // If the config specifies a list of chat templates, convert them to a dictionary
@@ -363,12 +361,12 @@ public class PreTrainedTokenizer: Tokenizer {
                     }
                     return (name, template)
                 })
-                if let chatTemplateName {
+                if let chatTemplate, case .name(let name) = chatTemplate {
                     // Select chat template from config by name
-                    if let matchingDictEntry = templateDict[chatTemplateName] {
+                    if let matchingDictEntry = templateDict[name] {
                         selectedChatTemplate = matchingDictEntry
                     } else {
-                        throw TokenizerError.chatTemplate("No chat template named \"\(chatTemplateName)\" was found in the tokenizer config file")
+                        throw TokenizerError.chatTemplate("No chat template named \"\(name)\" was found in the tokenizer config file")
                     }
                 } else if let tools, !tools.isEmpty, let toolUseTemplate = templateDict["tool_use"] {
                     // Use tool use chat template from config
@@ -458,7 +456,7 @@ extension AutoTokenizer {
 
         return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
-    
+
     public static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared
@@ -466,7 +464,7 @@ extension AutoTokenizer {
         let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
-        
+
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }
