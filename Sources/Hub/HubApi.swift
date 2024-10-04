@@ -164,7 +164,7 @@ public extension HubApi {
         // We'll probably need to support Combine as well to play well with Swift UI
         // (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
-        func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
+        func download(progressHandler: @escaping @Sendable (Double) -> Void) async throws -> URL {
             guard !downloaded else { return destination }
 
             try prepareDestination()
@@ -182,7 +182,7 @@ public extension HubApi {
     }
 
     @discardableResult
-    func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         let filenames = try await getFilenames(from: repo, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         let repoDestination = localRepoLocation(repo)
@@ -207,17 +207,17 @@ public extension HubApi {
     }
     
     @discardableResult
-    func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
     }
     
     @discardableResult
-    func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await snapshot(from: repo, matching: [glob], progressHandler: progressHandler)
     }
     
     @discardableResult
-    func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await snapshot(from: Repo(id: repoId), matching: [glob], progressHandler: progressHandler)
     }
 }
@@ -240,19 +240,19 @@ public extension Hub {
         return try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: glob)
     }
     
-    static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
     }
     
-    static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
     }
     
-    static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: repo, matching: glob, progressHandler: progressHandler)
     }
     
-    static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping @Sendable (Progress) -> Void = { _ in }) async throws -> URL {
         return try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
     
