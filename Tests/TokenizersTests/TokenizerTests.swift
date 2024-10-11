@@ -37,6 +37,11 @@ class LlamaTokenizerTests: TokenizerTests {
     }
 }
 
+class Llama32TokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "pcuenq/Llama-3.2-1B-Instruct-tokenizer" }
+    override class var encodedSamplesFilename: String? { "llama_3.2_encoded" }
+}
+
 class WhisperLargeTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "openai/whisper-large-v2" }
     override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }

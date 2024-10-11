@@ -12,7 +12,8 @@ let package = Package(
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0")
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0"),
+        .package(url: "https://github.com/maiqingqiang/Jinja", from: "1.0.0")
     ],
     targets: [
         .executableTarget(
@@ -22,7 +23,7 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
-        .target(name: "Tokenizers", dependencies: ["Hub"]),
+        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
         .target(name: "Generation", dependencies: ["Tokenizers"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),

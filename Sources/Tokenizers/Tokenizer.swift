@@ -7,14 +7,15 @@
 
 import Hub
 import Foundation
+import Jinja
 
-enum TokenizerError : Error {
+enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
     case missingVocab
     case malformedVocab
-
+    case chatTemplate(String)
     case tooLong(String)
 }
 
@@ -93,12 +94,20 @@ struct TokenizerModel {
     }
 }
 
+public enum ChatTemplateArgument {
+    /// A Jinja template to use for the conversation. Normally it is not necessary to provide a template, since it will be read from the tokenizer config.
+    case literal(String)
+    /// For models whose tokenizer config includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
+    case name(String)
+}
+
 public protocol Tokenizer {
     func tokenize(text: String) -> [String]
 
     /// Main entry point
     func encode(text: String) -> [Int]
-    func callAsFunction(_ text: String) -> [Int]
+    func encode(text: String, addSpecialTokens: Bool) -> [Int]
+    func callAsFunction(_ text: String, addSpecialTokens: Bool) -> [Int]
 
     /// Decode
     func decode(tokens: [Int]) -> String
@@ -115,11 +124,30 @@ public protocol Tokenizer {
     var eosTokenId: Int? { get }
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
+
+    /// The appropriate chat template is selected from the tokenizer config
+    func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
+
+    /// The chat template is provided as a string literal or specified by name
+    func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int]
+
+    /// The chat template is provided as a string literal
+    func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int]
+
+    func applyChatTemplate(
+        messages: [[String: String]],
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?,
+        tools: [[String: Any]]?
+    ) throws -> [Int]
 }
 
 public extension Tokenizer {
-    func callAsFunction(_ text: String) -> [Int] {
-        encode(text: text)
+    func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
+        encode(text: text, addSpecialTokens: addSpecialTokens)
     }
 
     func convertTokensToIds(_ tokens: [String]) -> [Int?] {
@@ -130,6 +158,17 @@ public extension Tokenizer {
         return ids.map { convertIdToToken($0) }
     }
 }
+
+let specialTokenAttributes: [String] = [
+    "bos_token",
+    "eos_token",
+    "unk_token",
+    "sep_token",
+    "pad_token",
+    "cls_token",
+    "mask_token",
+    "additional_special_tokens"
+]
 
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
@@ -150,6 +189,7 @@ public class PreTrainedTokenizer: Tokenizer {
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
+    private let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
 
@@ -195,6 +235,7 @@ public class PreTrainedTokenizer: Tokenizer {
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
         self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
+        self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
@@ -209,9 +250,9 @@ public class PreTrainedTokenizer: Tokenizer {
         return normalizer(text: text)
     }
 
-    func postProcess(_ tokens: [String]) -> [String] {
+    func postProcess(_ tokens: [String], addSpecialTokens: Bool = true) -> [String] {
         guard let postProcessor = postProcessor else { return tokens }
-        return postProcessor(tokens: tokens)
+        return postProcessor(tokens: tokens, addSpecialTokens: addSpecialTokens)
     }
 
     func decodeTokens(_ tokens: [String]) -> [String] {
@@ -265,14 +306,18 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     /// Main entry point
+    public func encode(text: String, addSpecialTokens: Bool = true) -> [Int] {
+        return postProcess(tokenize(text: text), addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
+    }
+
     public func encode(text: String) -> [Int] {
-        return postProcess(tokenize(text: text)).map { model.convertTokenToId($0)! }
+        return encode(text: text, addSpecialTokens: true)
     }
 
     /// Decode
     public func decode(tokens: [Int]) -> String {
         // IDs to tokens
-        let tokenStrings = tokens.map { model.convertIdToToken($0)! }
+        let tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
         let decoded = decodeTokens(tokenStrings)
         // At this point we should have a single String
         return cleanUp(text: decoded.joined(separator: ""))
@@ -284,6 +329,97 @@ public class PreTrainedTokenizer: Tokenizer {
 
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
+    }
+
+    public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
+        try applyChatTemplate(messages: messages, addGenerationPrompt: true)
+    }
+
+    public func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
+    }
+
+    public func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
+    }
+
+    public func applyChatTemplate(
+        messages: [[String: String]],
+        chatTemplate: ChatTemplateArgument? = nil,
+        addGenerationPrompt: Bool = false,
+        truncation: Bool = false,
+        maxLength: Int? = nil,
+        /// A list of tools (callable functions) that will be accessible to the model. If the template does not
+        /// support function calling, this argument will have no effect. Each tool should be passed as a JSON Schema,
+        /// giving the name, description and argument types for the tool. See the
+        /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
+        /// for more information.
+        /// Note: tool calling is not supported yet, it will be available in a future update.
+        tools: [[String: Any]]? = nil
+    ) throws -> [Int] {
+        var selectedChatTemplate: String?
+        if let chatTemplate, case .literal(let template) = chatTemplate {
+            // Use chat template from argument
+            selectedChatTemplate = template
+        } else if let valueFromConfig = tokenizerConfig.chatTemplate {
+            if let arrayValue = valueFromConfig.arrayValue {
+                // If the config specifies a list of chat templates, convert them to a dictionary
+                let templateDict = Dictionary<String, String>(uniqueKeysWithValues: arrayValue.compactMap { item in
+                    guard let name = item.name?.stringValue, let template = item.template?.stringValue else {
+                        return nil
+                    }
+                    return (name, template)
+                })
+                if let chatTemplate, case .name(let name) = chatTemplate {
+                    // Select chat template from config by name
+                    if let matchingDictEntry = templateDict[name] {
+                        selectedChatTemplate = matchingDictEntry
+                    } else {
+                        throw TokenizerError.chatTemplate("No chat template named \"\(name)\" was found in the tokenizer config")
+                    }
+                } else if let tools, !tools.isEmpty, let toolUseTemplate = templateDict["tool_use"] {
+                    // Use tool use chat template from config
+                    selectedChatTemplate = toolUseTemplate
+                } else if let defaultChatTemplate = templateDict["default"] {
+                    // Use default chat template from config
+                    selectedChatTemplate = defaultChatTemplate
+                }
+            } else if let stringValue = valueFromConfig.stringValue {
+                // Use chat template from config
+                selectedChatTemplate = stringValue
+            }
+        }
+
+        guard let selectedChatTemplate else {
+            throw TokenizerError.chatTemplate("No chat template was specified")
+        }
+
+        let template = try Template(selectedChatTemplate)
+        var context: [String: Any] = [
+            "messages": messages,
+            "add_generation_prompt": addGenerationPrompt
+            // TODO: Add `tools` entry when support is added in Jinja
+            // "tools": tools
+        ]
+
+        // TODO: maybe keep NSString here
+        for (key, value) in tokenizerConfig.dictionary as [String : Any] {
+            if specialTokenAttributes.contains(key), !(value is NSNull) {
+                context[key] = value
+            }
+        }
+
+        let rendered = try template.render(context)
+        var encodedTokens = encode(text: rendered, addSpecialTokens: false)
+        var maxLength = maxLength ?? encodedTokens.count
+        maxLength = min(maxLength, tokenizerConfig.modelMaxLength?.intValue ?? maxLength)
+        if encodedTokens.count > maxLength {
+            if truncation {
+                encodedTokens = Array(encodedTokens.prefix(maxLength))
+            }
+        }
+
+        return encodedTokens
     }
 }
 
@@ -329,7 +465,7 @@ extension AutoTokenizer {
 
         return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
-    
+
     public static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared
@@ -337,7 +473,7 @@ extension AutoTokenizer {
         let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
-        
+
         return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }
