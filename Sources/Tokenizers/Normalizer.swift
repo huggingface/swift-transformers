@@ -31,6 +31,7 @@ enum NormalizerType: String {
     case NFKD
     case NFKC
     case Bert
+    case BertNormalizer
     case Precompiled
     case StripAccents
     case Strip
@@ -51,7 +52,7 @@ struct NormalizerFactory {
         case .NFC: return NFCNormalizer(config: config)
         case .NFKD: return NFKDNormalizer(config: config)
         case .NFKC: return NFKCNormalizer(config: config)
-        case .Bert: return BertNormalizer(config: config)
+        case .Bert, .BertNormalizer: return BertNormalizer(config: config)
         case .Precompiled: return PrecompiledNormalizer(config: config)
         case .StripAccents: return StripAccentsNormalizer(config: config)
         case .Strip: return StripNormalizer(config: config)
