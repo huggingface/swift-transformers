@@ -171,4 +171,24 @@ class PreTokenizerTests: XCTestCase {
             ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         )
     }
+
+    func testBertPreTokenizer() {
+        let preTokenizer1 = BertPreTokenizer(config: Config([:]))
+        XCTAssertEqual(
+            preTokenizer1.preTokenize(text: "Hey friend!"),
+            ["Hey", "friend", "!"]
+        )
+        XCTAssertEqual(
+            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?"),
+            ["Hey", "friend", "!", "How", "are", "you", "?", "!", "?"]
+        )
+        XCTAssertEqual(
+            preTokenizer1.preTokenize(text: "   Hey,    friend ,    what's up?  "),
+            ["Hey", ",", "friend", ",", "what", "\'", "s", "up", "?"]
+        )
+        XCTAssertEqual(
+            preTokenizer1.preTokenize(text: "   Hey,    friend ,  0 99  what's up?  "),
+            ["Hey", ",", "friend", ",", "0", "99", "what", "\'", "s", "up", "?"]
+        )
+    }
 }

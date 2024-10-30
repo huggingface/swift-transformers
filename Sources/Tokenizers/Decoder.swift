@@ -23,7 +23,7 @@ extension Decoder {
 
 enum DecoderType: String {
     case Sequence
-//    case WordPiece
+    case WordPiece
     case ByteLevel
     case Replace
     case ByteFallback
@@ -47,8 +47,44 @@ struct DecoderFactory {
         case .Fuse        : return FuseDecoder(config: config)
         case .Strip       : return StripDecoder(config: config)
         case .Metaspace   : return MetaspaceDecoder(config: config)
+        case .WordPiece   : return WordPieceDecoder(config: config)
         default           : fatalError("Unsupported Decoder type: \(typeName)")
         }
+    }
+}
+
+class WordPieceDecoder: Decoder {
+    let prefix: String
+    let cleanup: Bool
+
+    required public init(config: Config) {
+        guard let prefix = config.prefix?.stringValue else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
+        self.prefix = prefix
+        self.cleanup = config.cleanup?.boolValue ?? false
+    }
+
+    func decode(tokens: [String]) -> [String] {
+        var newTokens = [String]()
+        newTokens.reserveCapacity(tokens.count)
+        for (index, token) in tokens.enumerated() {
+            var decodedToken = token
+            if index != 0 {
+                if decodedToken.hasPrefix(prefix) {
+                    decodedToken = String(decodedToken.dropFirst(prefix.count))
+                } else {
+                    decodedToken = " \(decodedToken)"
+                }
+            }
+            if cleanup {
+                decodedToken = cleanUpTokenization(decodedToken)
+            }
+            newTokens.append(decodedToken)
+        }
+        return newTokens
+    }
+
+    private func cleanUpTokenization(_ token: String) -> String {
+        return token.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

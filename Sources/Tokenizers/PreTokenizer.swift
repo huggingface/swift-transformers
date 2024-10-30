@@ -46,6 +46,7 @@ enum PreTokenizerType: String {
     case Whitespace
     case WhitespaceSplit
     case Metaspace
+    case BertPreTokenizer
     // Several more to be supported
     case Unknown = ""
 }
@@ -63,8 +64,22 @@ struct PreTokenizerFactory {
         case .Split: return SplitPreTokenizer(config: config)
         case .Whitespace, .WhitespaceSplit: return WhitespacePreTokenizer(config: config)
         case .Metaspace: return MetaspacePreTokenizer(config: config)
+        case .BertPreTokenizer: return BertPreTokenizer(config: config)
         default: fatalError("Unsupported PreTokenizer type: \(typeName)")
         }
+    }
+}
+
+class BertPreTokenizer: PreTokenizer {
+    let re: String
+
+    required init(config: Config) {
+        // Ref: https://github.com/huggingface/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1002
+        re = "[^\\s\(Constants.PUNCTUATION_REGEX)]+|[\(Constants.PUNCTUATION_REGEX)]"
+    }
+
+    func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
+        return text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -184,11 +199,10 @@ class ByteLevelPreTokenizer: PreTokenizer {
 }
 
 class PunctuationPreTokenizer: PreTokenizer {
-    let PUNCTUATION_REGEX = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
     let re: String
 
     required init(config: Config) {
-        re = "[^\(PUNCTUATION_REGEX)]+|[\(PUNCTUATION_REGEX)]+"
+        re = "[^\(Constants.PUNCTUATION_REGEX)]+|[\(Constants.PUNCTUATION_REGEX)]+"
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
