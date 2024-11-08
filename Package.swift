@@ -30,8 +30,8 @@ let package = Package(
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils"]),
+        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
         .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"])
+        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
     ]
 )
