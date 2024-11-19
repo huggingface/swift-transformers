@@ -222,6 +222,59 @@ public extension HubApi {
     }
 }
 
+/// Metadata
+public extension HubApi {
+    struct HfFileMetadata {
+        public let commitHash: String?
+        public let etag: String?
+        public let location: String
+        public let size: Int?
+    }
+
+    private func normalizeEtag(_ etag: String?) -> String? {
+        guard let etag = etag else { return nil }
+        return etag.trimmingPrefix("W/").trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    }
+    
+    func getHfFileMetadata(
+        url: URL,
+        timeout: TimeInterval? = 10
+    ) async throws -> HfFileMetadata {
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        
+        if let timeout = timeout {
+            request.timeoutInterval = timeout
+        }
+        
+        if let hfToken = hfToken {
+            request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw Hub.HubClientError.unexpectedError
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw Hub.HubClientError.httpStatusCode(httpResponse.statusCode)
+        }
+        
+        let headers = httpResponse.allHeaderFields
+        
+        return HfFileMetadata(
+            commitHash: headers["x-repo-commit"] as? String,
+            etag: normalizeEtag(
+                (headers["x-linked-etag"] as? String) ?? (headers["Etag"] as? String)
+            ),
+            location: (headers["Location"] as? String) ?? url.absoluteString,
+            size: Int(headers["x-linked-size"] as? String ?? headers["Content-Length"] as? String ?? "")
+        )
+    }
+}
+
 /// Stateless wrappers that use `HubApi` instances
 public extension Hub {
     static func getFilenames(from repo: Hub.Repo, matching globs: [String] = []) async throws -> [String] {
@@ -258,6 +311,10 @@ public extension Hub {
     
     static func whoami(token: String) async throws -> Config {
         return try await HubApi(hfToken: token).whoami()
+    }
+    
+    static func getHfFileMetadata(url: URL, timeout: TimeInterval?) async throws -> HubApi.HfFileMetadata {
+        return try await HubApi.shared.getHfFileMetadata(url: url, timeout: timeout)
     }
 }
 
