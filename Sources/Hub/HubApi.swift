@@ -237,9 +237,13 @@ public extension HubApi {
     }
     
     func getHfFileMetadata(
-        url: URL,
+        fileURL: URL,
         timeout: TimeInterval? = 10
     ) async throws -> HfFileMetadata {
+        guard let url = URL(string: self.endpoint.appending(fileURL.path)) else {
+            throw Hub.HubClientError.unexpectedError
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         
@@ -313,8 +317,8 @@ public extension Hub {
         return try await HubApi(hfToken: token).whoami()
     }
     
-    static func getHfFileMetadata(url: URL, timeout: TimeInterval?) async throws -> HubApi.HfFileMetadata {
-        return try await HubApi.shared.getHfFileMetadata(url: url, timeout: timeout)
+    static func getHfFileMetadata(fileURL: URL, timeout: TimeInterval?) async throws -> HubApi.HfFileMetadata {
+        return try await HubApi.shared.getHfFileMetadata(fileURL: fileURL, timeout: timeout)
     }
 }
 
