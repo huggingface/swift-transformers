@@ -87,6 +87,20 @@ class HubApiTests: XCTestCase {
             XCTFail("\(error)")
         }
     }
+    
+    func testGetHfFileMetadata() async throws {
+        do {
+            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/blob/main/config.json")
+            let metadata = try await Hub.getHfFileMetadata(fileURL: url!)
+            
+            XCTAssertEqual(metadata.commitHash, nil)
+            XCTAssertEqual(metadata.etag, "1081d-mpal1Yulao9aaX7RagptBneDspU")
+            XCTAssertEqual(metadata.location, "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/blob/main/config.json")
+            XCTAssertEqual(metadata.size, 67613)
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
 }
 
 class SnapshotDownloadTests: XCTestCase {

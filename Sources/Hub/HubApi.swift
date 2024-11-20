@@ -237,13 +237,9 @@ public extension HubApi {
     }
     
     func getHfFileMetadata(
-        fileURL: URL,
+        url: URL,
         timeout: TimeInterval? = 10
     ) async throws -> HfFileMetadata {
-        guard let url = URL(string: self.endpoint.appending(fileURL.path)) else {
-            throw Hub.HubClientError.unexpectedError
-        }
-        
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         
@@ -269,12 +265,12 @@ public extension HubApi {
         let headers = httpResponse.allHeaderFields
         
         return HfFileMetadata(
-            commitHash: headers["x-repo-commit"] as? String,
+            commitHash: headers["X-Repo-Commit"] as? String,
             etag: normalizeEtag(
-                (headers["x-linked-etag"] as? String) ?? (headers["Etag"] as? String)
+                (headers["X-Linked-Etag"] as? String) ?? (headers["Etag"] as? String)
             ),
             location: (headers["Location"] as? String) ?? url.absoluteString,
-            size: Int(headers["x-linked-size"] as? String ?? headers["Content-Length"] as? String ?? "")
+            size: Int(headers["X-Linked-Size"] as? String ?? headers["Content-Length"] as? String ?? "")
         )
     }
 }
@@ -317,8 +313,8 @@ public extension Hub {
         return try await HubApi(hfToken: token).whoami()
     }
     
-    static func getHfFileMetadata(fileURL: URL, timeout: TimeInterval?) async throws -> HubApi.HfFileMetadata {
-        return try await HubApi.shared.getHfFileMetadata(fileURL: fileURL, timeout: timeout)
+    static func getHfFileMetadata(fileURL: URL, timeout: TimeInterval? = 10) async throws -> HubApi.HfFileMetadata {
+        return try await HubApi.shared.getHfFileMetadata(url: fileURL, timeout: timeout)
     }
 }
 
