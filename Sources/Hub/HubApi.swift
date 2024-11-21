@@ -265,16 +265,38 @@ public extension HubApi {
     
     func getFileMetadata(url: URL) async throws -> FileMetadata {
         let (_, response) = try await httpHead(for: url)
-        let headers = response.allHeaderFields
         
         return FileMetadata(
-            commitHash: headers["X-Repo-Commit"] as? String,
+            commitHash: response.value(forHTTPHeaderField: "X-Repo-Commit"),
             etag: normalizeEtag(
-                (headers["X-Linked-Etag"] as? String) ?? (headers["Etag"] as? String)
+                (response.value(forHTTPHeaderField: "X-Linked-Etag")) ?? (response.value(forHTTPHeaderField: "Etag"))
             ),
-            location: (headers["Location"] as? String) ?? url.absoluteString,
-            size: Int(headers["X-Linked-Size"] as? String ?? headers["Content-Length"] as? String ?? "")
+            location: (response.value(forHTTPHeaderField: "Location")) ?? url.absoluteString,
+            size: Int(response.value(forHTTPHeaderField: "X-Linked-Size") ?? response.value(forHTTPHeaderField: "Content-Length") ?? "")
         )
+    }
+    
+    func getFileMetadata(from repo: Repo, matching globs: [String] = []) async throws -> [FileMetadata] {
+        let files = try await getFilenames(from: repo, matching: globs)
+        let url = URL(string: "\(endpoint)/\(repo.id)/resolve/main")! // TODO: revisions
+        var selectedMetadata: Array<FileMetadata> = []
+        for file in files {
+            let fileURL = url.appending(path: file)
+            selectedMetadata.append(try await getFileMetadata(url: fileURL))
+        }
+        return selectedMetadata
+    }
+    
+    func getFileMetadata(from repoId: String, matching globs: [String] = []) async throws -> [FileMetadata] {
+        return try await getFileMetadata(from: Repo(id: repoId), matching: globs)
+    }
+    
+    func getFileMetadata(from repo: Repo, matching glob: String) async throws -> [FileMetadata] {
+        return try await getFileMetadata(from: repo, matching: [glob])
+    }
+    
+    func getFileMetadata(from repoId: String, matching glob: String) async throws -> [FileMetadata] {
+        return try await getFileMetadata(from: Repo(id: repoId), matching: [glob])
     }
 }
 
@@ -318,6 +340,22 @@ public extension Hub {
     
     static func getFileMetadata(fileURL: URL) async throws -> HubApi.FileMetadata {
         return try await HubApi.shared.getFileMetadata(url: fileURL)
+    }
+    
+    static func getFileMetadata(from repo: Repo, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: repo, matching: globs)
+    }
+    
+    static func getFileMetadata(from repoId: String, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: globs)
+    }
+    
+    static func getFileMetadata(from repo: Repo, matching glob: String) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: repo, matching: [glob])
+    }
+    
+    static func getFileMetadata(from repoId: String, matching glob: String) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: [glob])
     }
 }
 
