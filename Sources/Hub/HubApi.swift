@@ -60,6 +60,25 @@ public extension HubApi {
         return (data, response)
     }
     
+    func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        if let hfToken = hfToken {
+            request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
+
+        switch response.statusCode {
+        case 200..<300: break
+        case 400..<500: throw Hub.HubClientError.authorizationRequired
+        default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
+        }
+                
+        return (data, response)
+    }
+    
     func getFilenames(from repo: Repo, matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
         let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)")!
@@ -224,10 +243,18 @@ public extension HubApi {
 
 /// Metadata
 public extension HubApi {
-    struct HfFileMetadata {
+    /// A structure representing metadata for a remote file
+    struct FileMetadata {
+        /// The file's Git commit hash
         public let commitHash: String?
+        
+        /// Server-provided ETag for caching
         public let etag: String?
+        
+        /// Stringified URL location of the file
         public let location: String
+        
+        /// The file's size in bytes
         public let size: Int?
     }
 
@@ -236,35 +263,11 @@ public extension HubApi {
         return etag.trimmingPrefix("W/").trimmingCharacters(in: CharacterSet(charactersIn: "\""))
     }
     
-    func getHfFileMetadata(
-        url: URL,
-        timeout: TimeInterval? = 10
-    ) async throws -> HfFileMetadata {
-        var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
+    func getFileMetadata(url: URL) async throws -> FileMetadata {
+        let (_, response) = try await httpHead(for: url)
+        let headers = response.allHeaderFields
         
-        if let timeout = timeout {
-            request.timeoutInterval = timeout
-        }
-        
-        if let hfToken = hfToken {
-            request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
-        }
-        
-        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw Hub.HubClientError.unexpectedError
-        }
-        
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw Hub.HubClientError.httpStatusCode(httpResponse.statusCode)
-        }
-        
-        let headers = httpResponse.allHeaderFields
-        
-        return HfFileMetadata(
+        return FileMetadata(
             commitHash: headers["X-Repo-Commit"] as? String,
             etag: normalizeEtag(
                 (headers["X-Linked-Etag"] as? String) ?? (headers["Etag"] as? String)
@@ -313,8 +316,8 @@ public extension Hub {
         return try await HubApi(hfToken: token).whoami()
     }
     
-    static func getHfFileMetadata(fileURL: URL, timeout: TimeInterval? = 10) async throws -> HubApi.HfFileMetadata {
-        return try await HubApi.shared.getHfFileMetadata(url: fileURL, timeout: timeout)
+    static func getFileMetadata(fileURL: URL) async throws -> HubApi.FileMetadata {
+        return try await HubApi.shared.getFileMetadata(url: fileURL)
     }
 }
 
