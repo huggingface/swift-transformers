@@ -87,6 +87,63 @@ class HubApiTests: XCTestCase {
             XCTFail("\(error)")
         }
     }
+    
+    func testGetFileMetadata() async throws {
+        do {
+            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")
+            let metadata = try await Hub.getFileMetadata(fileURL: url!)
+            
+            XCTAssertNotNil(metadata.commitHash)
+            XCTAssertNotNil(metadata.etag)
+            XCTAssertEqual(metadata.location, url?.absoluteString)
+            XCTAssertEqual(metadata.size, 163)
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+    
+    func testGetFileMetadataBlobPath() async throws {
+        do {
+            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/blob/main/config.json")
+            let metadata = try await Hub.getFileMetadata(fileURL: url!)
+            
+            XCTAssertEqual(metadata.commitHash, nil)
+            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("1081d-"))
+            XCTAssertEqual(metadata.location, url?.absoluteString)
+            XCTAssertEqual(metadata.size, 67613)
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+    
+    func testGetFileMetadataWithRevision() async throws {
+        do {
+            let revision = "f2c752cfc5c0ab6f4bdec59acea69eefbee381c2"
+            let url = URL(string: "https://huggingface.co/julien-c/dummy-unknown/resolve/\(revision)/config.json")
+            let metadata = try await Hub.getFileMetadata(fileURL: url!)
+            
+            XCTAssertEqual(metadata.commitHash, revision)
+            XCTAssertNotNil(metadata.etag)
+            XCTAssertGreaterThan(metadata.etag!.count, 0)
+            XCTAssertEqual(metadata.location, url?.absoluteString)
+            XCTAssertEqual(metadata.size, 851)
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+
+    func testGetFileMetadataWithBlobSearch() async throws {
+        let repo = "coreml-projects/Llama-2-7b-chat-coreml"
+        let metadataFromBlob = try await Hub.getFileMetadata(from: repo, matching: "*.json").sorted { $0.location < $1.location }
+        let files = try await Hub.getFilenames(from: repo, matching: "*.json").sorted()
+        for (metadata, file) in zip(metadataFromBlob, files) {
+            XCTAssertNotNil(metadata.commitHash)
+            XCTAssertNotNil(metadata.etag)
+            XCTAssertGreaterThan(metadata.etag!.count, 0)
+            XCTAssertTrue(metadata.location.contains(file))
+            XCTAssertGreaterThan(metadata.size!, 0)
+        }
+    }
 }
 
 class SnapshotDownloadTests: XCTestCase {
