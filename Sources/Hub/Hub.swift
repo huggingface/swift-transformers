@@ -24,8 +24,8 @@ public extension Hub {
     }
     
     struct Repo {
-        let id: String
-        let type: RepoType
+        public let id: String
+        public let type: RepoType
         
         public init(id: String, type: RepoType = .models) {
             self.id = id
