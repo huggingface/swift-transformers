@@ -57,6 +57,9 @@ class WordPieceDecoder: Decoder {
     let prefix: String
     let cleanup: Bool
 
+    // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L31
+    private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'|n't|'m|'s|'ve|'re)", options: [])
+
     required public init(config: Config) {
         guard let prefix = config.prefix?.stringValue else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
         self.prefix = prefix
@@ -64,27 +67,18 @@ class WordPieceDecoder: Decoder {
     }
 
     func decode(tokens: [String]) -> [String] {
-        var newTokens = [String]()
-        newTokens.reserveCapacity(tokens.count)
-        for (index, token) in tokens.enumerated() {
-            var decodedToken = token
-            if index != 0 {
-                if decodedToken.hasPrefix(prefix) {
-                    decodedToken = String(decodedToken.dropFirst(prefix.count))
-                } else {
-                    decodedToken = " \(decodedToken)"
-                }
-            }
-            if cleanup {
-                decodedToken = cleanUpTokenization(decodedToken)
-            }
-            newTokens.append(decodedToken)
+        let firstToken = cleanup ? cleanUpTokenization(tokens.first!) : tokens.first!
+        return [firstToken] + tokens.dropFirst().map { token in
+            let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
+            return cleanup ? cleanUpTokenization(token) : token
         }
-        return newTokens
     }
 
+    // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L40
     private func cleanUpTokenization(_ token: String) -> String {
-        return token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let range = NSRange(location: 0, length: token.utf16.count)
+        return re.stringByReplacingMatches(in: token, options: [], range: range, withTemplate: "$1")
+            .replacingOccurrences(of: " do not", with: " don't")
     }
 }
 
