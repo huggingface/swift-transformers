@@ -108,9 +108,9 @@ class HubApiTests: XCTestCase {
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
             
             XCTAssertEqual(metadata.commitHash, nil)
-            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("1081d-"))
+            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("10841-"))
             XCTAssertEqual(metadata.location, url?.absoluteString)
-            XCTAssertEqual(metadata.size, 67613)
+            XCTAssertEqual(metadata.size, 67649)
         } catch {
             XCTFail("\(error)")
         }
