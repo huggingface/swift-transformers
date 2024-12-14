@@ -1,7 +1,7 @@
 import CoreML
 
 
-struct Weights {
+public struct Weights {
 
     enum WeightsError: Error {
         case notSupported(message: String)
@@ -14,9 +14,9 @@ struct Weights {
         self.dictionary = dictionary
     }
 
-    subscript(key: String) -> MLMultiArray { dictionary[key]! }
+    subscript(key: String) -> MLMultiArray? { dictionary[key] }
 
-    static func from(fileURL: URL) throws -> Weights {
+    public static func from(fileURL: URL) throws -> Weights {
         guard ["safetensors", "gguf", "mlx"].contains(fileURL.pathExtension)
         else { throw WeightsError.notSupported(message: "\(fileURL.pathExtension)") }
 

@@ -20,25 +20,25 @@ class WeightsTests: XCTestCase {
 
         let modelFile = modelDir.appending(path: "/model.safetensors")
         let weights = try Weights.from(fileURL: modelFile)
-        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"].dataType, .float32)
-        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"].count, 128)
-        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"].shape.count, 1)
+        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"]!.dataType, .float32)
+        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"]!.count, 128)
+        XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"]!.shape.count, 1)
 
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"].dataType, .float32)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"].count, 3906816)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"].shape.count, 2)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.dataType, .float32)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.count, 3906816)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.shape.count, 2)
 
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"][[0, 0]].floatValue, -0.0041, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"][[3, 4]].floatValue, 0.0037, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"][[5, 3]].floatValue, -0.5371, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"][[7, 8]].floatValue, 0.0460, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"][[11, 7]].floatValue, -0.0058, accuracy: 1e-3)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[0, 0]].floatValue, -0.0041, accuracy: 1e-3)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[3, 4]].floatValue, 0.0037, accuracy: 1e-3)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[5, 3]].floatValue, -0.5371, accuracy: 1e-3)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[7, 8]].floatValue, 0.0460, accuracy: 1e-3)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[11, 7]].floatValue, -0.0058, accuracy: 1e-3)
     }
 
     func testSafetensorReadTensor1D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-1d-int32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
-        let tensor = weights["embedding"]
+        let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .int32)
         XCTAssertEqual(tensor[[0]], 1)
         XCTAssertEqual(tensor[[1]], 2)
@@ -48,7 +48,7 @@ class WeightsTests: XCTestCase {
     func testSafetensorReadTensor2D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-2d-float64", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
-        let tensor = weights["embedding"]
+        let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float64)
         XCTAssertEqual(tensor[[0, 0]], 1)
         XCTAssertEqual(tensor[[0, 1]], 2)
@@ -61,7 +61,7 @@ class WeightsTests: XCTestCase {
     func testSafetensorReadTensor3D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-3d-float32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
-        let tensor = weights["embedding"]
+        let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float32)
         XCTAssertEqual(tensor[[0, 0, 0]], 22)
         XCTAssertEqual(tensor[[0, 0, 1]], 23)
@@ -80,7 +80,7 @@ class WeightsTests: XCTestCase {
     func testSafetensorReadTensor4D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-4d-float32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
-        let tensor = weights["embedding"]
+        let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float32)
         XCTAssertEqual(tensor[[0, 0, 0, 0]], 11)
         XCTAssertEqual(tensor[[0, 0, 0, 1]], 12)
