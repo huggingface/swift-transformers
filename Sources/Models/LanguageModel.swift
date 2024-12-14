@@ -24,7 +24,7 @@ public class LanguageModel {
         var tokenizerConfig: Config?
         var tokenizerData: Config
     }
-    
+
     private var configuration: LanguageModelConfigurationFromHub? = nil
     private var _tokenizer: Tokenizer? = nil
 
