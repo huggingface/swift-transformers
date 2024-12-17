@@ -164,6 +164,8 @@ def export() -> None:
     input_ids: torch.Tensor = torch.zeros((1, 2), dtype=torch.int32)
     causal_mask: torch.Tensor = torch.zeros((1, 1, 2, 5), dtype=torch.float32)
     traced_model = torch.jit.trace(torch_model, [input_ids, causal_mask])
+    kv_cache_shape = torch_model.kv_cache_shape
+    del torch_model
 
     # Convert traced TorchScript to Core ML format
     query_length = ct.RangeDim(lower_bound=1, upper_bound=max_context_size, default=1)
@@ -179,11 +181,11 @@ def export() -> None:
     outputs: List[ct.TensorType] = [ct.TensorType(dtype=np.float16, name="logits")]
     states: List[ct.StateType] = [
         ct.StateType(
-            wrapped_type=ct.TensorType(shape=torch_model.kv_cache_shape, dtype=np.float16),
+            wrapped_type=ct.TensorType(shape=kv_cache_shape, dtype=np.float16),
             name="keyCache",
         ),
         ct.StateType(
-            wrapped_type=ct.TensorType(shape=torch_model.kv_cache_shape, dtype=np.float16),
+            wrapped_type=ct.TensorType(shape=kv_cache_shape, dtype=np.float16),
             name="valueCache",
         ),
     ]
@@ -197,6 +199,7 @@ def export() -> None:
         minimum_deployment_target=ct.target.iOS18,
         skip_model_load=True,
     )
+    del traced_model
 
     # Block-wise quantize model weights to int4
     op_config = ct.optimize.coreml.OpLinearQuantizerConfig(
@@ -208,6 +211,7 @@ def export() -> None:
     config = ct.optimize.coreml.OptimizationConfig(global_config=op_config)
     mlmodel_int4 = ct.optimize.coreml.linear_quantize_weights(mlmodel_fp16, config=config)
     mlmodel_int4._spec.description.metadata.userDefined.update({METADATA_TOKENIZER: MODEL_ID})
+    del mlmodel_fp16
     mlmodel_int4.save("StatefulMistral7BInstructInt4.mlpackage")
 
 
