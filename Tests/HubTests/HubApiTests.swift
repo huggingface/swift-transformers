@@ -104,13 +104,13 @@ class HubApiTests: XCTestCase {
     
     func testGetFileMetadataBlobPath() async throws {
         do {
-            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/blob/main/config.json")
+            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
             
-            XCTAssertEqual(metadata.commitHash, nil)
-            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("10841-"))
+            XCTAssertNotNil(metadata.commitHash)
+            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("d6ceb9"))
             XCTAssertEqual(metadata.location, url?.absoluteString)
-            XCTAssertEqual(metadata.size, 67649)
+            XCTAssertEqual(metadata.size, 163)
         } catch {
             XCTFail("\(error)")
         }
