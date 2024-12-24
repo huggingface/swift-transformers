@@ -72,6 +72,7 @@ struct TokenizerModel {
         "T5Tokenizer"        : T5Tokenizer.self,
         "WhisperTokenizer"   : WhisperTokenizer.self,
         "CohereTokenizer"    : CohereTokenizer.self,
+        "Qwen2Tokenizer"     : Qwen2Tokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self
     ]
 
@@ -488,6 +489,7 @@ class WhisperTokenizer  : BPETokenizer {}
 class GemmaTokenizer    : BPETokenizer {}
 class CodeLlamaTokenizer: BPETokenizer {}
 class CohereTokenizer   : BPETokenizer {}
+class Qwen2Tokenizer    : BPETokenizer {}
 
 class T5Tokenizer       : UnigramTokenizer {}
 
