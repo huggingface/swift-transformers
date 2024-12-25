@@ -218,6 +218,10 @@ class TokenizerTester {
                 tokenizer.decode(tokens: edgeCase.encoded.input_ids),
                 edgeCase.decoded_with_special
             )
+            XCTAssertEqual(
+                tokenizer.decode(tokens: edgeCase.encoded.input_ids, skipSpecialTokens: true),
+                edgeCase.decoded_without_special
+            )
         }
     }
     
