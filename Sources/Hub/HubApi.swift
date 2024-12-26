@@ -17,7 +17,7 @@ public struct HubApi {
     public typealias Repo = Hub.Repo
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false) {
-        self.hfToken = hfToken ?? ProcessInfo.processInfo.environment["HUGGING_FACE_HUB_TOKEN"]
+        self.hfToken = hfToken ?? Self.hfTokenFromEnv()
         if let downloadBase {
             self.downloadBase = downloadBase
         } else {
@@ -29,6 +29,37 @@ public struct HubApi {
     }
     
     public static let shared = HubApi()
+}
+
+private extension HubApi {
+    static func hfTokenFromEnv() -> String? {
+        let possibleTokens = [
+            { ProcessInfo.processInfo.environment["HF_TOKEN"] },
+            { ProcessInfo.processInfo.environment["HUGGING_FACE_HUB_TOKEN"] },
+            {
+                ProcessInfo.processInfo.environment["HF_TOKEN_PATH"].flatMap {
+                    try? String(
+                        contentsOf: URL(filePath: NSString(string: $0).expandingTildeInPath),
+                        encoding: .utf8
+                    )
+                }
+            },
+            {
+                ProcessInfo.processInfo.environment["HF_HOME"].flatMap {
+                    try? String(
+                        contentsOf: URL(filePath: NSString(string: $0).expandingTildeInPath).appending(path: "token"),
+                        encoding: .utf8
+                    )
+                }
+            },
+            { try? String(contentsOf: .homeDirectory.appendingPathComponent(".huggingface/token"), encoding: .utf8) }
+        ]
+        return possibleTokens
+            .lazy
+            .compactMap({ $0() })
+            .filter({ !$0.isEmpty })
+            .first
+    }
 }
 
 /// File retrieval
