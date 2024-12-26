@@ -112,6 +112,7 @@ public protocol Tokenizer {
 
     /// Decode
     func decode(tokens: [Int]) -> String
+    func decode(tokens: [Int], skipSpecialTokens: Bool) -> String
 
     func convertTokenToId(_ token: String) -> Int?
     func convertTokensToIds(_ tokens: [String]) -> [Int?]
@@ -149,6 +150,10 @@ public protocol Tokenizer {
 public extension Tokenizer {
     func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
+    }
+    
+    func decode(tokens: [Int]) -> String {
+        decode(tokens: tokens, skipSpecialTokens: false)
     }
 
     func convertTokensToIds(_ tokens: [String]) -> [Int?] {
@@ -315,10 +320,17 @@ public class PreTrainedTokenizer: Tokenizer {
         return encode(text: text, addSpecialTokens: true)
     }
 
-    /// Decode
-    public func decode(tokens: [Int]) -> String {
+    public func decode(tokens: [Int], skipSpecialTokens: Bool = false) -> String {
         // IDs to tokens
-        let tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
+        let tokenStrings: [String]
+        if skipSpecialTokens {
+            let specialTokenIDs = Set(specialTokens.values)
+            tokenStrings = tokens
+                .filter { !specialTokenIDs.contains($0) }
+                .compactMap { model.convertIdToToken($0) }
+        } else {
+            tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
+        }
         let decoded = decodeTokens(tokenStrings)
         // At this point we should have a single String
         return cleanUp(text: decoded.joined(separator: ""))
