@@ -252,4 +252,159 @@ class SnapshotDownloadTests: XCTestCase {
             ])
         )
     }
+    
+    func testDownloadFileMetadata() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface")
+        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination)
+        XCTAssertEqual(
+            Set(downloadedMetadataFilenames),
+            Set([
+                ".cache/huggingface/config.metadata",
+                ".cache/huggingface/tokenizer.metadata",
+                ".cache/huggingface/tokenizer_config.metadata",
+                ".cache/huggingface/Manifest.metadata",
+                ".cache/huggingface/FeatureDescriptions.metadata",
+                ".cache/huggingface/Metadata.metadata",
+            ])
+        )
+    }
+    
+    func testDownloadFileMetadataExists() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface")
+        
+        let configPath = downloadedTo.appending(path: "config.json")
+        var attributes = try FileManager.default.attributesOfItem(atPath: configPath.path)
+        let originalTimestamp = attributes[.modificationDate] as! Date
+        
+        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination)
+        XCTAssertEqual(
+            Set(downloadedMetadataFilenames),
+            Set([
+                ".cache/huggingface/config.metadata",
+                ".cache/huggingface/tokenizer.metadata",
+                ".cache/huggingface/tokenizer_config.metadata",
+                ".cache/huggingface/Manifest.metadata",
+                ".cache/huggingface/FeatureDescriptions.metadata",
+                ".cache/huggingface/Metadata.metadata",
+            ])
+        )
+        
+        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        attributes = try FileManager.default.attributesOfItem(atPath: configPath.path)
+        let secondDownloadTimestamp = attributes[.modificationDate] as! Date
+
+        // File will not be downloaded again thus last modified date will remain unchanged
+        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
+    }
+    
+    func testDownloadFileMetadataCorrupted() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface")
+        
+        let configPath = downloadedTo.appending(path: "config.json")
+        var attributes = try FileManager.default.attributesOfItem(atPath: configPath.path)
+        let originalTimestamp = attributes[.modificationDate] as! Date
+        
+        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination)
+        XCTAssertEqual(
+            Set(downloadedMetadataFilenames),
+            Set([
+                ".cache/huggingface/config.metadata",
+                ".cache/huggingface/tokenizer.metadata",
+                ".cache/huggingface/tokenizer_config.metadata",
+                ".cache/huggingface/Manifest.metadata",
+                ".cache/huggingface/FeatureDescriptions.metadata",
+                ".cache/huggingface/Metadata.metadata",
+            ])
+        )
+        
+        // Corrupt config.metadata
+        try "a".write(to: metadataDestination.appendingPathComponent("config.metadata"), atomically: true, encoding: .utf8)
+        
+        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        attributes = try FileManager.default.attributesOfItem(atPath: configPath.path)
+        let secondDownloadTimestamp = attributes[.modificationDate] as! Date
+
+        // File will be downloaded again thus last modified date will change
+        XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
+    }
 }
