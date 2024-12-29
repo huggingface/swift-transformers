@@ -139,7 +139,6 @@ class Downloader: NSObject, ObservableObject {
             throw DownloadError.unexpectedError
         }
         
-        let totalSize = Int(response.value(forHTTPHeaderField: "Content-Length") ?? "0") ?? 0
         var downloadedSize = resumeSize
         
         var buffer = Data(capacity: chunkSize)
@@ -153,9 +152,7 @@ class Downloader: NSObject, ObservableObject {
                         try tempFile.write(contentsOf: buffer)
                         buffer.removeAll(keepingCapacity: true)
                         downloadedSize += chunkSize
-                        let progress = Double(downloadedSize) / Double(totalSize + resumeSize)
                         newNumRetries = 5
-                        downloadState.value = .downloading(progress)
                     }
                 }
             }
@@ -164,9 +161,7 @@ class Downloader: NSObject, ObservableObject {
                 try tempFile.write(contentsOf: buffer)
                 downloadedSize += buffer.count
                 buffer.removeAll(keepingCapacity: true)
-                let progress = Double(downloadedSize) / Double(totalSize + resumeSize)
                 newNumRetries = 5
-                downloadState.value = .downloading(progress)
             }
         } catch let error as URLError {
             if newNumRetries <= 0 {
