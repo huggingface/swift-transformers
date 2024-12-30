@@ -458,13 +458,14 @@ public extension HubApi {
     
     func getFileMetadata(url: URL) async throws -> FileMetadata {
         let (_, response) = try await httpHead(for: url)
+        let location = response.statusCode == 302 ? response.value(forHTTPHeaderField: "Location") : response.url?.absoluteString
         
         return FileMetadata(
             commitHash: response.value(forHTTPHeaderField: "X-Repo-Commit"),
             etag: normalizeEtag(
                 (response.value(forHTTPHeaderField: "X-Linked-Etag")) ?? (response.value(forHTTPHeaderField: "Etag"))
             ),
-            location: (response.value(forHTTPHeaderField: "Location")) ?? url.absoluteString,
+            location: location ?? url.absoluteString,
             size: Int(response.value(forHTTPHeaderField: "X-Linked-Size") ?? response.value(forHTTPHeaderField: "Content-Length") ?? "")
         )
     }
@@ -583,6 +584,7 @@ private class RedirectDelegate: NSObject, URLSessionTaskDelegate {
                             task.originalRequest?.allHTTPHeaderFields?.forEach { key, value in
                                 newRequest.setValue(value, forHTTPHeaderField: key)
                             }
+                            newRequest.setValue(resolvedUrl.absoluteString, forHTTPHeaderField: "Location")
                             completionHandler(newRequest)
                             return
                         }
