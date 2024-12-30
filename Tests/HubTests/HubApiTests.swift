@@ -88,15 +88,6 @@ class HubApiTests: XCTestCase {
         }
     }
     
-    func testHttpHead() async throws {
-        do {
-            let url = URL(string: "https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/distil-whisper_distil-large-v3/MelSpectrogram.mlmodelc/coremldata.bin")
-            let metadata = try await Hub.getFileMetadata(fileURL: url!)
-            
-            print(metadata)
-        }
-    }
-    
     func testGetFileMetadata() async throws {
         do {
             let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")
