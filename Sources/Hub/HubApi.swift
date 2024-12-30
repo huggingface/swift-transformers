@@ -102,11 +102,15 @@ public extension HubApi {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        let redirectDelegate = RedirectDelegate()
+        let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
+        
+        let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
-        case 200..<300: break
+        case 200..<400: break
         case 400..<500: throw Hub.HubClientError.authorizationRequired
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
@@ -551,5 +555,43 @@ public extension Hub {
 public extension [String] {
     func matching(glob: String) -> [String] {
         filter { fnmatch(glob, $0, 0) == 0 }
+    }
+}
+
+// Only allow relative redirects and reject others
+private class RedirectDelegate: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        // Check if it's a redirect status code (300-399)
+        if (300...399).contains(response.statusCode) {
+            // Get the Location header
+            if let locationString = response.value(forHTTPHeaderField: "Location"),
+               let locationUrl = URL(string: locationString) {
+                
+                // Check if it's a relative redirect (no host component)
+                if locationUrl.host == nil {
+                    // For relative redirects, construct the new URL using the original request's base
+                    if let originalUrl = task.originalRequest?.url,
+                       var components = URLComponents(url: originalUrl, resolvingAgainstBaseURL: true) {
+                        // Update the path component with the relative path
+                        components.path = locationUrl.path
+                        components.query = locationUrl.query
+                        
+                        // Create new request with the resolved URL
+                        if let resolvedUrl = components.url {
+                            var newRequest = URLRequest(url: resolvedUrl)
+                            // Copy headers from original request
+                            task.originalRequest?.allHTTPHeaderFields?.forEach { key, value in
+                                newRequest.setValue(value, forHTTPHeaderField: key)
+                            }
+                            completionHandler(newRequest)
+                            return
+                        }
+                    }
+                }
+            }
+        }
+        
+        // For all other cases (non-redirects or absolute redirects), prevent redirect
+        completionHandler(nil)
     }
 }
