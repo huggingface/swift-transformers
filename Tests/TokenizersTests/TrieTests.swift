@@ -16,23 +16,23 @@ class TrieTests: XCTestCase {
         trie.insert("carp")
         trie.insert("car")
         XCTAssertEqual(trie.root.children.count, 1)
-        
+
         let c = trie.get("c")
         XCTAssertNotNil(c)
-        XCTAssertEqual(c!.children.count, 1)     // "a"
-        
+        XCTAssertEqual(c!.children.count, 1)  // "a"
+
         let ca = trie.get("ca")
         XCTAssertNotNil(ca)
-        XCTAssertEqual(ca!.children.count, 2)    // "r", "t"
-        
+        XCTAssertEqual(ca!.children.count, 2)  // "r", "t"
+
         let car = trie.get("car")
         XCTAssertNotNil(car)
         XCTAssertTrue(car!.isLeaf)
         XCTAssertFalse(ca!.isLeaf)
-        
+
         XCTAssertNil(trie.get("card"))
     }
-    
+
     func testTrieCommonPrefixSearch() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
@@ -44,7 +44,7 @@ class TrieTests: XCTestCase {
         let leaves = trie.commonPrefixSearch("carpooling").map { String($0) }
         XCTAssertEqual(leaves, ["car", "carp"])
     }
-    
+
     func testTrieCommonPrefixSearchIterator() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()

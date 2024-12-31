@@ -1,6 +1,6 @@
 //
 //  MLShapedArray+Utils.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 13/5/23.
 //
@@ -14,7 +14,7 @@ public extension MLShapedArray<Float> {
             // If strides is not 1, we can write a Metal kernel to copy the values properly.
             return self.scalars
         }
-        
+
         // Fast path: memcpy
         let mlArray = MLMultiArray(self)
         return mlArray.floats ?? self.scalars
@@ -38,7 +38,7 @@ public extension MLShapedArraySlice<Float> {
 public extension MLMultiArray {
     var floats: [Float]? {
         guard self.dataType == .float32 else { return nil }
-        
+
         var result: [Float] = Array(repeating: 0, count: self.count)
         return self.withUnsafeBytes { ptr in
             guard let source = ptr.baseAddress else { return nil }

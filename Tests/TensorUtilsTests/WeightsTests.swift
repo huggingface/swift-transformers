@@ -5,7 +5,9 @@ import XCTest
 class WeightsTests: XCTestCase {
 
     let downloadDestination: URL = {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(
+            component: "huggingface-tests"
+        )
     }()
 
     var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
@@ -14,7 +16,10 @@ class WeightsTests: XCTestCase {
         let repo = "google/bert_uncased_L-2_H-128_A-2"
         let modelDir = try await hubApi.snapshot(from: repo, matching: ["config.json", "model.safetensors"])
 
-        let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: [.isReadableKey])
+        let files = try FileManager.default.contentsOfDirectory(
+            at: modelDir,
+            includingPropertiesForKeys: [.isReadableKey]
+        )
         XCTAssertTrue(files.contains(where: { $0.lastPathComponent == "config.json" }))
         XCTAssertTrue(files.contains(where: { $0.lastPathComponent == "model.safetensors" }))
 

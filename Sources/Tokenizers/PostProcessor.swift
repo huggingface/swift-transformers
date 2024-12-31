@@ -1,6 +1,6 @@
 //
 //  PostProcessor.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 17/7/23.
 //
@@ -35,12 +35,12 @@ struct PostProcessorFactory {
         guard let typeName = config.type?.stringValue else { return nil }
         let type = PostProcessorType(rawValue: typeName)
         switch type {
-            case .TemplateProcessing : return TemplateProcessing(config: config)
-            case .ByteLevel          : return ByteLevelPostProcessor(config: config)
-            case .RobertaProcessing  : return RobertaProcessing(config: config)
-            case .BertProcessing     : return BertProcessing(config: config)
-            case .Sequence           : return SequenceProcessing(config: config)
-            default                  : fatalError("Unsupported PostProcessor type: \(typeName)")
+        case .TemplateProcessing: return TemplateProcessing(config: config)
+        case .ByteLevel: return ByteLevelPostProcessor(config: config)
+        case .RobertaProcessing: return RobertaProcessing(config: config)
+        case .BertProcessing: return BertProcessing(config: config)
+        case .Sequence: return SequenceProcessing(config: config)
+        default: fatalError("Unsupported PostProcessor type: \(typeName)")
         }
     }
 }
@@ -48,15 +48,15 @@ struct PostProcessorFactory {
 class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
-    
+
     required public init(config: Config) {
         guard let single = config.single?.arrayValue else { fatalError("Missing `single` processor configuration") }
         guard let pair = config.pair?.arrayValue else { fatalError("Missing `pair` processor configuration") }
-        
+
         self.single = single
         self.pair = pair
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
         let config = tokensPair == nil ? single : pair
 
@@ -80,7 +80,9 @@ class TemplateProcessing: PostProcessor {
 
 class ByteLevelPostProcessor: PostProcessor {
     required public init(config: Config) {}
-    func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] { tokens }
+    func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
+        tokens
+    }
 }
 
 class RobertaProcessing: PostProcessor {
@@ -99,7 +101,7 @@ class RobertaProcessing: PostProcessor {
         self.trimOffset = config.trimOffset?.boolValue ?? true
         self.addPrefixSpace = config.addPrefixSpace?.boolValue ?? true
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
         var outTokens = tokens
         var tokensPair = tokensPair
@@ -107,7 +109,7 @@ class RobertaProcessing: PostProcessor {
             if addPrefixSpace {
                 outTokens = outTokens.map({ trimExtraSpaces(token: $0) })
                 tokensPair = tokensPair?.map({ trimExtraSpaces(token: $0) })
-           } else {
+            } else {
                 outTokens = outTokens.map({ $0.trimmingCharacters(in: .whitespaces) })
                 tokensPair = tokensPair?.map({ $0.trimmingCharacters(in: .whitespaces) })
             }
@@ -130,7 +132,7 @@ class RobertaProcessing: PostProcessor {
         let suffixOffset = findSuffixIndex(text: token)
         let prefixIndex = token.index(token.startIndex, offsetBy: prefixOffset)
         let suffixIndex = token.index(token.startIndex, offsetBy: token.count - suffixOffset)
-        return String(token[prefixIndex..<suffixIndex])
+        return String(token[prefixIndex ..< suffixIndex])
     }
 
     private func findPrefixIndex(text: String) -> Int {
@@ -183,7 +185,11 @@ class SequenceProcessing: PostProcessor {
         var currentTokensPair = tokensPair
 
         for processor in processors {
-            let processed = processor.postProcess(tokens: currentTokens, tokensPair: currentTokensPair, addSpecialTokens: addSpecialTokens)
+            let processed = processor.postProcess(
+                tokens: currentTokens,
+                tokensPair: currentTokensPair,
+                addSpecialTokens: addSpecialTokens
+            )
             currentTokens = processed
             currentTokensPair = nil  // After the first processor, we no longer have a separate pair
         }

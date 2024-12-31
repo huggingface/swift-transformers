@@ -20,7 +20,7 @@ struct BytePair: Hashable {
         self.a = tuple[0]
         self.b = tuple[1]
     }
-    
+
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
         return lhs.a == rhs.a && lhs.b == rhs.b
     }
@@ -29,7 +29,6 @@ struct BytePair: Hashable {
         hasher.combine(b)
     }
 }
-
 
 class BPETokenizer: PreTrainedTokenizerModel {
     let bpeRanks: Dictionary<BytePair, Int>
@@ -60,8 +59,10 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
     }
 
-    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
-        guard let merges = Self.mergesFromConfig(tokenizerData.model?.merges) else { fatalError("BPETokenizer requires merges") }
+    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
+        guard let merges = Self.mergesFromConfig(tokenizerData.model?.merges) else {
+            fatalError("BPETokenizer requires merges")
+        }
         guard let vocab = tokenizerData.model?.vocab?.dictionary as? [NSString: Int] else {
             throw TokenizerError.missingVocab
         }
@@ -71,10 +72,10 @@ class BPETokenizer: PreTrainedTokenizerModel {
             bpeRanks[bp] = i
         }
         self.bpeRanks = bpeRanks
-        
-        self.tokensToIds = vocab.merging(addedTokens as [NSString : Int]) { $1 }
+
+        self.tokensToIds = vocab.merging(addedTokens as [NSString: Int]) { $1 }
         self.idsToTokens = Utils.invert(self.tokensToIds)
-        
+
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
@@ -83,7 +84,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
-        
+
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
@@ -96,7 +97,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
     func convertTokenToId(_ token: String) -> Int? {
         return tokensToIds[token as NSString] ?? self.unknownTokenId
     }
-    
+
     func convertIdToToken(_ id: Int) -> String? {
         return idsToTokens[id] as String?
     }
@@ -108,7 +109,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).compactMap { byteEncoder[$0] }.joined()
         }
     }
-    
+
     func hexaEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
@@ -116,27 +117,27 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).map { String(format: "<0x%02X>", $0) }
         }
     }
-    
+
     private func getPairs(word: [String]) -> Set<BytePair> {
         var s = Set<BytePair>()
-        for i in 0..<word.count-1 {
+        for i in 0 ..< word.count - 1 {
             let bp = BytePair(
                 word[i],
-                word[i+1]
+                word[i + 1]
             )
             s.insert(bp)
         }
         return s
     }
-    
+
     func bpe(token: String) -> String {
         if token.count <= 1 {
             return token
         }
-        
+
         var word = Array(token).map { String($0) }
         var pairs = Array(getPairs(word: word))
-        
+
         while true {
             let bigrams = pairs.filter { (bp) -> Bool in bpeRanks[bp] != nil }
             if bigrams.count == 0 {
@@ -150,16 +151,16 @@ class BPETokenizer: PreTrainedTokenizerModel {
             var newWord: [String] = []
             var i = 0
             while i < word.count {
-                if let j = word[i..<word.count].firstIndex(of: first) {
-                    newWord.append(contentsOf: word[i..<j])
+                if let j = word[i ..< word.count].firstIndex(of: first) {
+                    newWord.append(contentsOf: word[i ..< j])
                     i = j
                 } else {
-                    newWord.append(contentsOf: word[i..<word.count])
+                    newWord.append(contentsOf: word[i ..< word.count])
                     break
                 }
-                
-                if word[i] == first && i < word.count - 1 && word[i+1] == second {
-                    newWord.append(first+second)
+
+                if word[i] == first && i < word.count - 1 && word[i + 1] == second {
+                    newWord.append(first + second)
                     i += 2
                 } else {
                     newWord.append(word[i])
