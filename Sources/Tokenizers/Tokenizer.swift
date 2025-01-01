@@ -9,6 +9,9 @@ import Hub
 import Foundation
 import Jinja
 
+public typealias Message = [String: Any]
+public typealias ToolSpec = [String: Any]
+
 enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
@@ -134,22 +137,25 @@ public protocol Tokenizer {
     var unknownTokenId: Int? { get }
 
     /// The appropriate chat template is selected from the tokenizer config
-    func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
+    func applyChatTemplate(messages: [Message]) throws -> [Int]
+
+    /// The appropriate chat template is selected from the tokenizer config
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int]
 
     /// The chat template is provided as a string literal or specified by name
-    func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int]
+    func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int]
 
     /// The chat template is provided as a string literal
-    func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int]
+    func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int]
 
     func applyChatTemplate(
-        messages: [[String: String]],
+        messages: [Message],
         /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
         chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
         maxLength: Int?,
-        tools: [[String: Any]]?
+        tools: [ToolSpec]?
     ) throws -> [Int]
 }
 
@@ -358,20 +364,24 @@ public class PreTrainedTokenizer: Tokenizer {
         model.convertIdToToken(id)
     }
 
-    public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message]) throws -> [Int] {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int] {
+        try applyChatTemplate(messages: messages, addGenerationPrompt: true, tools: tools)
+    }
+
+    public func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
     }
 
     public func applyChatTemplate(
-        messages: [[String: String]],
+        messages: [Message],
         chatTemplate: ChatTemplateArgument? = nil,
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
@@ -381,8 +391,7 @@ public class PreTrainedTokenizer: Tokenizer {
         /// giving the name, description and argument types for the tool. See the
         /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
         /// for more information.
-        /// Note: tool calling is not supported yet, it will be available in a future update.
-        tools: [[String: Any]]? = nil
+        tools: [ToolSpec]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
         if let chatTemplate, case .literal(let template) = chatTemplate {
@@ -429,9 +438,12 @@ public class PreTrainedTokenizer: Tokenizer {
         var context: [String: Any] = [
             "messages": messages,
             "add_generation_prompt": addGenerationPrompt,
-                // TODO: Add `tools` entry when support is added in Jinja
-                // "tools": tools
         ]
+        if let tools {
+            context["tools"] = tools
+            // Performance might be better if the tools prompt is included in a system message rather than a user message, but then the system message must be present.
+            context["tools_in_user_message"] = false  // Default is true in Llama 3.1 and 3.2 template. The model will perform better if the tools are included in a system message.
+        }
 
         // TODO: maybe keep NSString here
         for (key, value) in tokenizerConfig.dictionary as [String: Any] {
