@@ -248,8 +248,8 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: metadataDestination, withIntermediateDirectories: true, attributes: nil)
         }
         
-        func readDownloadMetadata(localDir: URL, filename: String) throws -> FileMetadata? {
-            let metadataPath = localDir.appending(path: filename)
+        func readDownloadMetadata(localDir: URL, filePath: String) throws -> FileMetadata? {
+            let metadataPath = localDir.appending(path: filePath)
             if FileManager.default.fileExists(atPath: metadataPath.path) {
                 let contents = try String(contentsOf: metadataPath, encoding: .utf8)
                 let lines = contents.components(separatedBy: .newlines)
@@ -281,11 +281,12 @@ public extension HubApi {
             return regex?.firstMatch(in: hash, options: [], range: range) != nil
         }
         
-        func writeDownloadMetadata(commitHash: String, etag: String, metadataFileName: String) throws {
+        func writeDownloadMetadata(commitHash: String, etag: String, metadataRelativePath: String) throws {
             let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
-            let metadataPath = metadataDestination.appending(component: metadataFileName)
+            let metadataPath = metadataDestination.appending(component: metadataRelativePath)
             
             do {
+                try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
             } catch {
                 throw EnvironmentError.invalidMetadataError("Failed to write metadata file \(metadataPath)")
@@ -330,10 +331,10 @@ public extension HubApi {
         // (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
-            var metadataFileName = (source.lastPathComponent as NSString).deletingPathExtension
-            metadataFileName += ".metadata"
-            
-            let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filename: metadataFileName)
+            var metadataRelativePath = (relativeFilename as NSString).deletingPathExtension
+            metadataRelativePath += ".metadata"
+                        
+            let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filePath: metadataRelativePath)
             let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
             
             let localCommitHash = localMetadata?.commitHash ?? ""
@@ -356,7 +357,7 @@ public extension HubApi {
             if downloaded {
                 // etag matches => update metadata and return file
                 if localMetadata?.etag == remoteEtag {
-                    try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataFileName: metadataFileName)
+                    try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
                     return destination
                 }
                 
@@ -367,7 +368,7 @@ public extension HubApi {
                 if localMetadata != nil && isValidSHA256(remoteEtag) {
                     let fileHash = try computeFileHash(file: destination)
                     if fileHash == remoteEtag {
-                        try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataFileName: metadataFileName)
+                        try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
                         return destination
                     }
                 }
@@ -387,7 +388,7 @@ public extension HubApi {
                 try downloader.waitUntilDone()
             }
             
-            try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataFileName: metadataFileName)
+            try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
             
             return destination
         }

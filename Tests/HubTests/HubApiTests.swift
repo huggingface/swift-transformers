@@ -303,9 +303,9 @@ class SnapshotDownloadTests: XCTestCase {
                 ".cache/huggingface/config.metadata",
                 ".cache/huggingface/tokenizer.metadata",
                 ".cache/huggingface/tokenizer_config.metadata",
-                ".cache/huggingface/Manifest.metadata",
-                ".cache/huggingface/FeatureDescriptions.metadata",
-                ".cache/huggingface/Metadata.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Manifest.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.metadata",
             ])
         )
     }
@@ -348,9 +348,9 @@ class SnapshotDownloadTests: XCTestCase {
                 ".cache/huggingface/config.metadata",
                 ".cache/huggingface/tokenizer.metadata",
                 ".cache/huggingface/tokenizer_config.metadata",
-                ".cache/huggingface/Manifest.metadata",
-                ".cache/huggingface/FeatureDescriptions.metadata",
-                ".cache/huggingface/Metadata.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Manifest.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.metadata",
             ])
         )
         
@@ -405,9 +405,9 @@ class SnapshotDownloadTests: XCTestCase {
                 ".cache/huggingface/config.metadata",
                 ".cache/huggingface/tokenizer.metadata",
                 ".cache/huggingface/tokenizer_config.metadata",
-                ".cache/huggingface/Manifest.metadata",
-                ".cache/huggingface/FeatureDescriptions.metadata",
-                ".cache/huggingface/Metadata.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Manifest.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.metadata",
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.metadata",
             ])
         )
         
