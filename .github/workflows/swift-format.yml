@@ -1,0 +1,32 @@
+# This workflow will build a Swift project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
+
+name: swift-format
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint:
+    name: Lint with Swift ${{ matrix.swift }}
+    runs-on: macos-14
+    strategy:
+      matrix:
+        swift: ["5.10"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: ${{ matrix.swift }}
+
+    - name: Install swift-format
+      run: brew install swift-format
+
+    - name: Run swift-format
+      run: swift-format lint --recursive . --strict
