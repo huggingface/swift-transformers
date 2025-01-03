@@ -1,6 +1,6 @@
 //
 //  Decoder.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 17/7/23.
 //
@@ -11,7 +11,7 @@ import Hub
 public protocol Decoder {
     func decode(tokens: [String]) -> [String]
     func callAsFunction(tokens: [String]) -> [String]
-    
+
     init(config: Config)
 }
 
@@ -40,15 +40,15 @@ struct DecoderFactory {
         guard let typeName = config.type?.stringValue else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
-        case .Sequence    : return DecoderSequence(config: config)
-        case .ByteLevel   : return ByteLevelDecoder(config: config, addedTokens: addedTokens)
-        case .Replace     : return ReplaceDecoder(config: config)
+        case .Sequence: return DecoderSequence(config: config)
+        case .ByteLevel: return ByteLevelDecoder(config: config, addedTokens: addedTokens)
+        case .Replace: return ReplaceDecoder(config: config)
         case .ByteFallback: return ByteFallbackDecoder(config: config)
-        case .Fuse        : return FuseDecoder(config: config)
-        case .Strip       : return StripDecoder(config: config)
-        case .Metaspace   : return MetaspaceDecoder(config: config)
-        case .WordPiece   : return WordPieceDecoder(config: config)
-        default           : fatalError("Unsupported Decoder type: \(typeName)")
+        case .Fuse: return FuseDecoder(config: config)
+        case .Strip: return StripDecoder(config: config)
+        case .Metaspace: return MetaspaceDecoder(config: config)
+        case .WordPiece: return WordPieceDecoder(config: config)
+        default: fatalError("Unsupported Decoder type: \(typeName)")
         }
     }
 }
@@ -58,20 +58,29 @@ class WordPieceDecoder: Decoder {
     let cleanup: Bool
 
     // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L31
-    private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'|n't|'m|'s|'ve|'re)", options: [])
+    private let re = try! NSRegularExpression(
+        pattern: "\\s(\\.|\\?|\\!|\\,|'|n't|'m|'s|'ve|'re)",
+        options: []
+    )
 
     required public init(config: Config) {
-        guard let prefix = config.prefix?.stringValue else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
+        guard let prefix = config.prefix?.stringValue else {
+            fatalError("Missing `prefix` configuration for WordPieceDecoder.")
+        }
         self.prefix = prefix
         self.cleanup = config.cleanup?.boolValue ?? false
     }
 
     func decode(tokens: [String]) -> [String] {
         let firstToken = cleanup ? cleanUpTokenization(tokens.first!) : tokens.first!
-        return [firstToken] + tokens.dropFirst().map { token in
-            let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
-            return cleanup ? cleanUpTokenization(token) : token
-        }
+        return [firstToken]
+            + tokens.dropFirst().map { token in
+                let token =
+                    token.hasPrefix(prefix)
+                    ? token.replacingCharacters(in: token.range(of: prefix)!, with: "")
+                    : " \(token)"
+                return cleanup ? cleanUpTokenization(token) : token
+            }
     }
 
     // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L40
@@ -84,12 +93,14 @@ class WordPieceDecoder: Decoder {
 
 class DecoderSequence: Decoder {
     let decoders: [Decoder]
-    
+
     required public init(config: Config) {
-        guard let configs = config.decoders?.arrayValue else { fatalError("No decoders in Sequence") }
+        guard let configs = config.decoders?.arrayValue else {
+            fatalError("No decoders in Sequence")
+        }
         decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         decoders.reduce(tokens) { current, decoder in
             decoder(tokens: current)
@@ -99,26 +110,26 @@ class DecoderSequence: Decoder {
 
 class ByteLevelDecoder: Decoder {
     let addedTokens: Set<String>
-    
+
     required public init(config: Config) {
         self.addedTokens = []
     }
-    
+
     init(config: Config, addedTokens: Set<String>?) {
         self.addedTokens = addedTokens ?? []
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         var subTexts: [String] = []
         var currentSubText: [String] = []
-        
+
         func convertTokensToString(_ tokens: [String]) -> String {
             let text = tokens.joined(separator: "")
-            
+
             let utfCodepoints = text.map { byteDecoder[String($0)]! }
             return String(decoding: utfCodepoints, as: UTF8.self)
         }
-        
+
         for token in tokens {
             if addedTokens.contains(token) {
                 if !currentSubText.isEmpty {
@@ -130,22 +141,22 @@ class ByteLevelDecoder: Decoder {
                 currentSubText.append(token)
             }
         }
-        
+
         if !currentSubText.isEmpty {
             subTexts.append(convertTokensToString(currentSubText))
         }
-        
+
         return subTexts
     }
 }
 
 class ReplaceDecoder: Decoder {
     let pattern: StringReplacePattern?
-    
+
     required public init(config: Config) {
         self.pattern = StringReplacePattern.from(config: config)
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         guard let pattern = pattern else { return tokens }
         return tokens.map { pattern.replace($0) }
@@ -154,7 +165,7 @@ class ReplaceDecoder: Decoder {
 
 class ByteFallbackDecoder: Decoder {
     required public init(config: Config) {}
-    
+
     func decode(tokens: [String]) -> [String] {
         var newTokens: [String] = []
         var byteTokens: [Int] = []
@@ -165,9 +176,9 @@ class ByteFallbackDecoder: Decoder {
             }
             let startIndex = token.index(token.startIndex, offsetBy: 3)
             let endIndex = token.index(token.startIndex, offsetBy: 5)
-            return Int(token[startIndex..<endIndex], radix: 16)
+            return Int(token[startIndex ..< endIndex], radix: 16)
         }
-        
+
         for token in tokens {
             if let byte = parseByte(token) {
                 byteTokens.append(byte)
@@ -187,7 +198,7 @@ class ByteFallbackDecoder: Decoder {
 
 class FuseDecoder: Decoder {
     required public init(config: Config) {}
-    
+
     func decode(tokens: [String]) -> [String] {
         [tokens.joined(separator: "")]
     }
@@ -197,16 +208,22 @@ class StripDecoder: Decoder {
     let content: String
     let start: Int
     let stop: Int
-    
+
     required public init(config: Config) {
-        guard let content = config.content?.stringValue else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
-        guard let start = config.start?.intValue else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }
-        guard let stop = config.stop?.intValue else { fatalError("Incorrect StripDecoder configuration: can't parse `stop`.") }
+        guard let content = config.content?.stringValue else {
+            fatalError("Incorrect StripDecoder configuration: can't parse `content`.")
+        }
+        guard let start = config.start?.intValue else {
+            fatalError("Incorrect StripDecoder configuration: can't parse `start`.")
+        }
+        guard let stop = config.stop?.intValue else {
+            fatalError("Incorrect StripDecoder configuration: can't parse `stop`.")
+        }
         self.content = content
         self.start = start
         self.stop = stop
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         tokens.map { token in
             token.trimmingFromStart(upto: start).trimmingFromEnd(upto: stop)
@@ -217,7 +234,7 @@ class StripDecoder: Decoder {
 class MetaspaceDecoder: Decoder {
     let addPrefixSpace: Bool
     let replacement: String
-    
+
     required public init(config: Config) {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         replacement = config.replacement?.stringValue ?? "_"
@@ -235,8 +252,8 @@ class MetaspaceDecoder: Decoder {
 }
 
 // We could use firstIndex(where:), lastIndex(where:) for possibly better efficiency (and do both ends at once)
-public extension String {
-    func trimmingFromStart(character: Character = " ", upto: Int) -> String {
+extension String {
+    public func trimmingFromStart(character: Character = " ", upto: Int) -> String {
         var result = self
         var trimmed = 0
         while trimmed < upto && result.first == character {
@@ -246,7 +263,7 @@ public extension String {
         return result
     }
 
-    func trimmingFromEnd(character: Character = " ", upto: Int) -> String {
+    public func trimmingFromEnd(character: Character = " ", upto: Int) -> String {
         var result = self
         var trimmed = 0
         while trimmed < upto && result.last == character {

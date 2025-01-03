@@ -210,8 +210,10 @@ class NormalizerTests: XCTestCase {
             ])
             let normalizer = StripNormalizer(config: config)
             XCTAssertEqual(
-                normalizer.normalize(text: input), expected,
-                "Failed for input: '\(input)', leftStrip: \(leftStrip), rightStrip: \(rightStrip)")
+                normalizer.normalize(text: input),
+                expected,
+                "Failed for input: '\(input)', leftStrip: \(leftStrip), rightStrip: \(rightStrip)"
+            )
         }
 
         let config = Config(["type": NormalizerType.Strip.rawValue])

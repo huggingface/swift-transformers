@@ -4,8 +4,9 @@
 //  Created by Jan Krukowski on 23/11/2023.
 //
 
-import XCTest
 import Hub
+import XCTest
+
 @testable import Tokenizers
 
 class PreTokenizerTests: XCTestCase {
@@ -119,7 +120,11 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [
+                " ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's",
+                " ", "up?", " ",
+                " ", "",
+            ]
         )
 
         let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
@@ -133,10 +138,16 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [
+                " ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's",
+                " ", "up?", " ",
+                " ", "",
+            ]
         )
 
-        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"], "invert": true]))
+        let preTokenizer3 = SplitPreTokenizer(
+            config: Config(["pattern": ["Regex": "\\s"], "invert": true])
+        )
         XCTAssertEqual(
             preTokenizer3.preTokenize(text: "Hey friend!"),
             ["Hey", "friend!"]
@@ -150,19 +161,22 @@ class PreTokenizerTests: XCTestCase {
             ["Hey,", "friend,", "what's", "up?", ""]
         )
     }
-    
+
     // https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspacePreTokenizer() {
         // Prepend "always"
-        let preTokenizer = MetaspacePreTokenizer(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
-            "prepend_scheme": "always"
-        ]))
-        
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "add_prefix_space": true,
+                "replacement": "▁",
+                "prepend_scheme": "always",
+            ])
+        )
+
         // TODO: different sections on <s>
         let text = "Hey my friend <s>how▁are you"
-        let tokens = text
+        let tokens =
+            text
             .split(by: "<s>", includeSeparators: true)
             .flatMap { preTokenizer.preTokenize(text: $0) }
 

@@ -5,15 +5,20 @@
 //  Created by Pedro Cuenca on 20240426.
 //
 
-import XCTest
-import Tokenizers
 import Hub
+import Tokenizers
+import XCTest
 
 class AddedTokensTests: XCTestCase {
     func testPhiAddedTokens() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
+        let tokenizer = try await AutoTokenizer.from(
+            pretrained: "microsoft/Phi-3-mini-128k-instruct"
+        )
         let inputIds = tokenizer("This is the <|end|>. My only friend, the <|end|>")
-        XCTAssertEqual(inputIds, [910, 338, 278, 29871, 32007, 29889, 1619, 871, 5121, 29892, 278, 29871, 32007])
+        XCTAssertEqual(
+            inputIds,
+            [910, 338, 278, 29871, 32007, 29889, 1619, 871, 5121, 29892, 278, 29871, 32007]
+        )
 
         let decoded = tokenizer.decode(tokens: inputIds)
         XCTAssertEqual(decoded, "This is the <|end|>. My only friend, the <|end|>")

@@ -1,6 +1,6 @@
 //
 //  Hub.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 18/5/23.
 //
@@ -9,24 +9,24 @@ import Foundation
 
 public struct Hub {}
 
-public extension Hub {
-    enum HubClientError: Error {
+extension Hub {
+    public enum HubClientError: Error {
         case parse
         case authorizationRequired
         case unexpectedError
         case httpStatusCode(Int)
     }
-    
-    enum RepoType: String {
+
+    public enum RepoType: String {
         case models
         case datasets
         case spaces
     }
-    
-    struct Repo {
+
+    public struct Repo {
         public let id: String
         public let type: RepoType
-        
+
         public init(id: String, type: RepoType = .models) {
             self.id = id
             self.type = type
@@ -45,17 +45,18 @@ public struct Config {
     }
 
     func camelCase(_ string: String) -> String {
-        return string
+        return
+            string
             .split(separator: "_")
             .enumerated()
             .map { $0.offset == 0 ? $0.element.lowercased() : $0.element.capitalized }
             .joined()
     }
-    
+
     func uncamelCase(_ string: String) -> String {
         let scalars = string.unicodeScalars
         var result = ""
-        
+
         var previousCharacterIsLowercase = false
         for scalar in scalars {
             if CharacterSet.uppercaseLetters.contains(scalar) {
@@ -70,10 +71,9 @@ public struct Config {
                 previousCharacterIsLowercase = true
             }
         }
-        
+
         return result
     }
-
 
     public subscript(dynamicMember member: String) -> Config? {
         let key = (dictionary[member as NSString] != nil ? member : uncamelCase(member)) as NSString
@@ -88,17 +88,17 @@ public struct Config {
     public var value: Any? {
         return dictionary["value"]
     }
-    
+
     public var intValue: Int? { value as? Int }
     public var boolValue: Bool? { value as? Bool }
     public var stringValue: String? { value as? String }
-    
+
     // Instead of doing this we could provide custom classes and decode to them
     public var arrayValue: [Config]? {
         guard let list = value as? [Any] else { return nil }
-        return list.map { Config($0 as! [NSString : Any]) }
+        return list.map { Config($0 as! [NSString: Any]) }
     }
-    
+
     /// Tuple of token identifier and string value
     public var tokenValue: (UInt, String)? { value as? (UInt, String) }
 }
@@ -120,7 +120,7 @@ public class LanguageModelConfigurationFromHub {
             return try await self.loadConfig(modelName: modelName, hubApi: hubApi)
         }
     }
-    
+
     public init(
         modelFolder: URL,
         hubApi: HubApi = .shared
@@ -140,12 +140,15 @@ public class LanguageModelConfigurationFromHub {
         get async throws {
             if let hubConfig = try await configPromise!.value.tokenizerConfig {
                 // Try to guess the class if it's not present and the modelType is
-                if let _ = hubConfig.tokenizerClass?.stringValue { return hubConfig }
+                if hubConfig.tokenizerClass?.stringValue != nil { return hubConfig }
                 guard let modelType = try await modelType else { return hubConfig }
 
                 // If the config exists but doesn't contain a tokenizerClass, use a fallback config if we have it
                 if let fallbackConfig = Self.fallbackTokenizerConfig(for: modelType) {
-                    let configuration = fallbackConfig.dictionary.merging(hubConfig.dictionary, uniquingKeysWith: { current, _ in current })
+                    let configuration = fallbackConfig.dictionary.merging(
+                        hubConfig.dictionary,
+                        uniquingKeysWith: { current, _ in current }
+                    )
                     return Config(configuration)
                 }
 
@@ -183,16 +186,22 @@ public class LanguageModelConfigurationFromHub {
 
         return try await loadConfig(modelFolder: downloadedModelFolder, hubApi: hubApi)
     }
-    
+
     func loadConfig(
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
         // Note tokenizerConfig may be nil (does not exist in all models)
-        let modelConfig = try hubApi.configuration(fileURL: modelFolder.appending(path: "config.json"))
-        let tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
-        let tokenizerVocab = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
-        
+        let modelConfig = try hubApi.configuration(
+            fileURL: modelFolder.appending(path: "config.json")
+        )
+        let tokenizerConfig = try? hubApi.configuration(
+            fileURL: modelFolder.appending(path: "tokenizer_config.json")
+        )
+        let tokenizerVocab = try hubApi.configuration(
+            fileURL: modelFolder.appending(path: "tokenizer.json")
+        )
+
         let configs = Configurations(
             modelConfig: modelConfig,
             tokenizerConfig: tokenizerConfig,
@@ -202,7 +211,14 @@ public class LanguageModelConfigurationFromHub {
     }
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
-        guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else { return nil }
+        guard
+            let url = Bundle.module.url(
+                forResource: "\(modelType)_tokenizer_config",
+                withExtension: "json"
+            )
+        else {
+            return nil
+        }
         do {
             let data = try Data(contentsOf: url)
             let parsed = try JSONSerialization.jsonObject(with: data, options: [])

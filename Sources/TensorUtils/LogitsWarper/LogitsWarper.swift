@@ -7,7 +7,9 @@ public protocol LogitsWarper {
 }
 
 extension LogitsWarper {
-    public func callAsFunction(_ indices: [Int], _ logits: [Float]) -> (indices: [Int], logits: [Float]) {
+    public func callAsFunction(_ indices: [Int], _ logits: [Float]) -> (
+        indices: [Int], logits: [Float]
+    ) {
         warp(indices: indices, logits: logits)
     }
 }
