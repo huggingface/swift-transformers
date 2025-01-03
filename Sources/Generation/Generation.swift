@@ -1,13 +1,13 @@
 //
 //  Generation.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 7/5/23.
 //
 
-import Tokenizers
 import CoreML
 import TensorUtils
+import Tokenizers
 
 public enum GenerationMode {
     case contrastiveSearch
@@ -29,13 +29,29 @@ public typealias PredictionStringCallback = (String) -> Void
 
 // TODO: callbacks (for streaming)
 public protocol Generation {
-    func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback?) async -> GenerationOutput
-    
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
+    func greedySearch(
+        config: GenerationConfig,
+        tokens: InputTokens,
+        model: NextTokenModel,
+        callback: PredictionTokensCallback?
+    ) async -> GenerationOutput
+
+    func generate(
+        config: GenerationConfig,
+        prompt: String,
+        model: NextTokenModel,
+        tokenizer: Tokenizer,
+        callback: PredictionStringCallback?
+    ) async -> String
 }
 
-public extension Generation {
-    func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback? = nil) async -> GenerationOutput {
+extension Generation {
+    public func greedySearch(
+        config: GenerationConfig,
+        tokens: InputTokens,
+        model: NextTokenModel,
+        callback: PredictionTokensCallback? = nil
+    ) async -> GenerationOutput {
         // Iterate until we find the eos token or reach the max length
         // TODO: additional stopping criteria
         var outputTokens = tokens
@@ -48,9 +64,14 @@ public extension Generation {
         }
         return outputTokens
     }
-    
+
     /// https://github.com/huggingface/transformers/blob/42017d82baa083da2bee3055fdac80c81ee97b8a/src/transformers/generation/utils.py#L1552
-    func sample(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback? = nil) async -> GenerationOutput {
+    public func sample(
+        config: GenerationConfig,
+        tokens: InputTokens,
+        model: NextTokenModel,
+        callback: PredictionTokensCallback? = nil
+    ) async -> GenerationOutput {
         // Iterate until we find the eos token or reach the max length
         // TODO: additional stopping criteria
         var outputTokens = tokens
@@ -58,7 +79,8 @@ public extension Generation {
         while outputTokens.count < config.maxLength {
             let outputs = model(outputTokens, config)
             /// `floats` can be much faster than `scalars` for a vector with stride 1, as it uses `memcpy` in that case
-            let logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
+            let logits =
+                (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
             let (indexes, processedLogits) = logitsProcessor(logits)
             let nextToken = Math.sample(indexes: indexes, probs: Math.softmax(processedLogits))
             if nextToken == config.eosTokenId { break }
@@ -68,7 +90,13 @@ public extension Generation {
         return outputTokens
     }
 
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback? = nil) async -> String {
+    public func generate(
+        config: GenerationConfig,
+        prompt: String,
+        model: NextTokenModel,
+        tokenizer: Tokenizer,
+        callback: PredictionStringCallback? = nil
+    ) async -> String {
         let tokens = tokenizer.encode(text: prompt)
         var generationConfig = config
         generationConfig.maxLength = config.maxNewTokens + tokens.count
@@ -76,17 +104,19 @@ public extension Generation {
         let output: GenerationOutput
         switch generationConfig.generationMode {
         case .greedy:
-            output = await greedySearch(config: generationConfig, tokens: tokens, model: model) { tokens in
+            output = await greedySearch(config: generationConfig, tokens: tokens, model: model) {
+                tokens in
                 callback?(tokenizer.decode(tokens: tokens))
             }
         case .sample:
-            output = await sample(config: generationConfig, tokens: tokens, model: model) { tokens in
+            output = await sample(config: generationConfig, tokens: tokens, model: model) {
+                tokens in
                 callback?(tokenizer.decode(tokens: tokens))
             }
         default:
             fatalError("Generation mode \(generationConfig.generationMode) not implemented yet")
         }
-        
+
         return tokenizer.decode(tokens: output)
     }
 

@@ -6,9 +6,9 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
-import Foundation
 import Accelerate
 import CoreML
+import Foundation
 
 ///
 /// From M.I. Hollemans
@@ -16,22 +16,24 @@ import CoreML
 /// https://github.com/hollance/CoreMLHelpers
 ///
 public struct Math {
-    
+
     /**
      Returns the index and value of the largest element in the array.
-     
+
      - Parameters:
      - ptr: Pointer to the first element in memory.
      - count: How many elements to look at.
      - stride: The distance between two elements in memory.
      */
-    public static func argmax(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
+    public static func argmax(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (
+        Int, Float
+    ) {
         var maxValue: Float = 0
         var maxIndex: vDSP_Length = 0
         vDSP_maxvi(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
         return (Int(maxIndex), maxValue)
     }
-    
+
     /**
      Returns the index and value of the largest element in the array.
      - Parameters:
@@ -39,20 +41,24 @@ public struct Math {
      - count: How many elements to look at.
      - stride: The distance between two elements in memory.
      */
-    public static func argmax(_ ptr: UnsafePointer<Double>, count: Int, stride: Int = 1) -> (Int, Double) {
+    public static func argmax(_ ptr: UnsafePointer<Double>, count: Int, stride: Int = 1) -> (
+        Int, Double
+    ) {
         var maxValue: Double = 0
         var maxIndex: vDSP_Length = 0
         vDSP_maxviD(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
         return (Int(maxIndex), maxValue)
     }
-    
-    public static func argmax32(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
+
+    public static func argmax32(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (
+        Int, Float
+    ) {
         var maxValue: Float = 0
         var maxIndex: vDSP_Length = 0
         vDSP_maxvi(ptr, vDSP_Stride(stride), &maxValue, &maxIndex, vDSP_Length(count))
         return (Int(maxIndex), maxValue)
     }
-    
+
     /// MLMultiArray helper.
     /// Works in our specific use case.
     public static func argmax(_ multiArray: MLMultiArray) -> (Int, Double) {
@@ -60,7 +66,7 @@ public struct Math {
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(multiArray.dataPointer))
         return Math.argmax(ptr, count: multiArray.count)
     }
-    
+
     /// MLMultiArray helper.
     /// Works in our specific use case.
     public static func argmax32(_ multiArray: MLMultiArray) -> (Int, Float) {
@@ -88,7 +94,7 @@ public struct Math {
         let i = randomNumber(probabilities: probs)
         return indexes[i]
     }
-    
+
     /**
      Computes the "softmax" function over an array.
      Based on code from https://github.com/nikolaypavlov/MLPNeuralNet/
@@ -103,31 +109,31 @@ public struct Math {
     public static func softmax(_ x: [Float]) -> [Float] {
         var x = x
         let len = vDSP_Length(x.count)
-        
+
         // Find the maximum value in the input array.
         var max: Float = 0
         vDSP_maxv(x, 1, &max, len)
-        
+
         // Subtract the maximum from all the elements in the array.
         // Now the highest value in the array is 0.
         max = -max
         vDSP_vsadd(x, 1, &max, &x, 1, len)
-        
+
         // Exponentiate all the elements in the array.
         var count = Int32(x.count)
         vvexpf(&x, x, &count)
-        
+
         // Compute the sum of all exponentiated values.
         var sum: Float = 0
         vDSP_sve(x, 1, &sum, len)
-        
+
         // Divide each element by the sum. This normalizes the array contents
         // so that they all add up to 1.
         vDSP_vsdiv(x, 1, &sum, &x, 1, len)
-        
+
         return x
     }
-    
+
     /// Multinomial sampling
     ///
     /// From https://stackoverflow.com/questions/30309556/generate-random-numbers-with-a-given-distribution
@@ -152,16 +158,16 @@ public struct Math {
 
 // MLShapedArray versions
 
-public extension Math {
-    static func argmax(_ shapedArray: MLShapedArray<Float>) -> (Int, Float) {
+extension Math {
+    public static func argmax(_ shapedArray: MLShapedArray<Float>) -> (Int, Float) {
         shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
             assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")
             return Math.argmax32(ptr.baseAddress!, count: shapedArray.count, stride: strides.first!)
         }
     }
-    
+
     // TODO: handle Double, etc.
-    static func argmax(_ shapedArray: some MLShapedArrayProtocol) -> (Int, Float) {
+    public static func argmax(_ shapedArray: some MLShapedArrayProtocol) -> (Int, Float) {
         shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
             assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")
             let floatsPtr = ptr.baseAddress as! UnsafePointer<Float>

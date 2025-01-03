@@ -4,8 +4,9 @@
 //  Created by Jan Krukowski on 25/11/2023.
 //
 
-import XCTest
 import CoreML
+import XCTest
+
 @testable import TensorUtils
 
 final class TensorUtilsTests: XCTestCase {
@@ -38,16 +39,22 @@ final class TensorUtilsTests: XCTestCase {
         XCTAssertEqual(result5.0, 1)
         XCTAssertEqual(result5.1, 4.0)
 
-        let result6 = Math.argmax(MLShapedArray(scalars: [3.0, 4.0, 1.0, 2.0] as [Float], shape: [4]))
+        let result6 = Math.argmax(
+            MLShapedArray(scalars: [3.0, 4.0, 1.0, 2.0] as [Float], shape: [4])
+        )
         XCTAssertEqual(result6.0, 1)
         XCTAssertEqual(result6.1, 4.0)
     }
 
     func testSoftmax() {
-        XCTAssertEqual(Math.softmax([]),  [])
-        
+        XCTAssertEqual(Math.softmax([]), [])
+
         let result1 = Math.softmax([3.0, 4.0, 1.0, 2.0])
-        XCTAssertEqual(result1, [0.23688284, 0.6439143, 0.032058604, 0.08714432], accuracy: accuracy)
+        XCTAssertEqual(
+            result1,
+            [0.23688284, 0.6439143, 0.032058604, 0.08714432],
+            accuracy: accuracy
+        )
         XCTAssertEqual(result1.reduce(0, +), 1.0, accuracy: accuracy)
     }
 }

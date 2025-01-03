@@ -1,20 +1,29 @@
-@testable import TensorUtils
-@testable import Hub
 import XCTest
+
+@testable import Hub
+@testable import TensorUtils
 
 class WeightsTests: XCTestCase {
 
     let downloadDestination: URL = {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(
+            component: "huggingface-tests"
+        )
     }()
 
     var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 
     func testLoadWeightsFromFileURL() async throws {
         let repo = "google/bert_uncased_L-2_H-128_A-2"
-        let modelDir = try await hubApi.snapshot(from: repo, matching: ["config.json", "model.safetensors"])
+        let modelDir = try await hubApi.snapshot(
+            from: repo,
+            matching: ["config.json", "model.safetensors"]
+        )
 
-        let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: [.isReadableKey])
+        let files = try FileManager.default.contentsOfDirectory(
+            at: modelDir,
+            includingPropertiesForKeys: [.isReadableKey]
+        )
         XCTAssertTrue(files.contains(where: { $0.lastPathComponent == "config.json" }))
         XCTAssertTrue(files.contains(where: { $0.lastPathComponent == "model.safetensors" }))
 
@@ -25,18 +34,41 @@ class WeightsTests: XCTestCase {
         XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"]!.shape.count, 1)
 
         XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.dataType, .float32)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.count, 3906816)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.count, 3_906_816)
         XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.shape.count, 2)
 
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[0, 0]].floatValue, -0.0041, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[3, 4]].floatValue, 0.0037, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[5, 3]].floatValue, -0.5371, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[7, 8]].floatValue, 0.0460, accuracy: 1e-3)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[11, 7]].floatValue, -0.0058, accuracy: 1e-3)
+        XCTAssertEqual(
+            weights["bert.embeddings.word_embeddings.weight"]![[0, 0]].floatValue,
+            -0.0041,
+            accuracy: 1e-3
+        )
+        XCTAssertEqual(
+            weights["bert.embeddings.word_embeddings.weight"]![[3, 4]].floatValue,
+            0.0037,
+            accuracy: 1e-3
+        )
+        XCTAssertEqual(
+            weights["bert.embeddings.word_embeddings.weight"]![[5, 3]].floatValue,
+            -0.5371,
+            accuracy: 1e-3
+        )
+        XCTAssertEqual(
+            weights["bert.embeddings.word_embeddings.weight"]![[7, 8]].floatValue,
+            0.0460,
+            accuracy: 1e-3
+        )
+        XCTAssertEqual(
+            weights["bert.embeddings.word_embeddings.weight"]![[11, 7]].floatValue,
+            -0.0058,
+            accuracy: 1e-3
+        )
     }
 
     func testSafetensorReadTensor1D() throws {
-        let modelFile = Bundle.module.url(forResource: "tensor-1d-int32", withExtension: "safetensors")!
+        let modelFile = Bundle.module.url(
+            forResource: "tensor-1d-int32",
+            withExtension: "safetensors"
+        )!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .int32)
@@ -46,7 +78,10 @@ class WeightsTests: XCTestCase {
     }
 
     func testSafetensorReadTensor2D() throws {
-        let modelFile = Bundle.module.url(forResource: "tensor-2d-float64", withExtension: "safetensors")!
+        let modelFile = Bundle.module.url(
+            forResource: "tensor-2d-float64",
+            withExtension: "safetensors"
+        )!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float64)
@@ -59,7 +94,10 @@ class WeightsTests: XCTestCase {
     }
 
     func testSafetensorReadTensor3D() throws {
-        let modelFile = Bundle.module.url(forResource: "tensor-3d-float32", withExtension: "safetensors")!
+        let modelFile = Bundle.module.url(
+            forResource: "tensor-3d-float32",
+            withExtension: "safetensors"
+        )!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float32)
@@ -78,7 +116,10 @@ class WeightsTests: XCTestCase {
     }
 
     func testSafetensorReadTensor4D() throws {
-        let modelFile = Bundle.module.url(forResource: "tensor-4d-float32", withExtension: "safetensors")!
+        let modelFile = Bundle.module.url(
+            forResource: "tensor-4d-float32",
+            withExtension: "safetensors"
+        )!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
         XCTAssertEqual(tensor.dataType, .float32)
