@@ -313,7 +313,9 @@ public class PreTrainedTokenizer: Tokenizer {
 
     /// Main entry point
     public func encode(text: String, addSpecialTokens: Bool = true) -> [Int] {
-        return postProcess(tokenize(text: text), addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
+      let tokenizedText = tokenize(text: text)
+      print("::: Tokenized text: \(tokenizedText)")
+        return postProcess(tokenizedText, addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
     }
 
     public func encode(text: String) -> [Int] {
@@ -345,7 +347,7 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
-        try applyChatTemplate(messages: messages, addGenerationPrompt: true)
+        return try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
     public func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int] {
@@ -407,6 +409,9 @@ public class PreTrainedTokenizer: Tokenizer {
             throw TokenizerError.chatTemplate("No chat template was specified")
         }
 
+      print("::: Chat template:")
+      print(selectedChatTemplate)
+
         let template = try Template(selectedChatTemplate)
         var context: [String: Any] = [
             "messages": messages,
@@ -423,6 +428,10 @@ public class PreTrainedTokenizer: Tokenizer {
         }
 
         let rendered = try template.render(context)
+
+      print("::: Prompt rendered with template:")
+      print(rendered)
+
         var encodedTokens = encode(text: rendered, addSpecialTokens: false)
         var maxLength = maxLength ?? encodedTokens.count
         maxLength = min(maxLength, tokenizerConfig.modelMaxLength?.intValue ?? maxLength)
