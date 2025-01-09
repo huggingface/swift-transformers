@@ -248,7 +248,7 @@ extension StringSplitPattern {
     func split(_ text: String, invert: Bool = true) -> [String] {
         switch self {
         case .regexp(let regexp):
-            return text.split(by: regexp, includeSeparators: !invert)
+            return text.split(by: regexp, includeSeparators: true)
         case .string(let substring):
             return text.split(by: substring, options: [], includeSeparators: !invert)
         }
