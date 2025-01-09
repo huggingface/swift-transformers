@@ -102,6 +102,8 @@ class PhiSimpleTests: XCTestCase {
             return
         }
 
+        XCTAssertEqual(tokenizer.encode(text: "hello"), [15339])
+        XCTAssertEqual(tokenizer.encode(text: "hello world"), [15339, 1917])
         XCTAssertEqual(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
     }
 }
