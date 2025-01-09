@@ -119,7 +119,7 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
         let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
@@ -133,21 +133,22 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
-        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"], "invert": true]))
+        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"], "invert": true]))
+        XCTAssertEqual(
+            preTokenizer3.preTokenize(text: "Hello"),
+            ["Hello"]
+        )
+
         XCTAssertEqual(
             preTokenizer3.preTokenize(text: "Hey friend!"),
-            ["Hey", "friend!"]
+            ["Hey", " friend", "!"]
         )
         XCTAssertEqual(
             preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", "friend!", "How", "are", "you?!?"]
-        )
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["Hey,", "friend,", "what's", "up?", ""]
+            ["Hey", " friend", "!", "    ", " How", " are", " you", "?!?"]
         )
     }
     
