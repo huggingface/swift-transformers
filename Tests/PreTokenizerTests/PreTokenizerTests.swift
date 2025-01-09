@@ -119,7 +119,7 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
         let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
@@ -133,7 +133,7 @@ class PreTokenizerTests: XCTestCase {
         )
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " ", ""]
+            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
         let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"], "invert": true]))

@@ -292,7 +292,9 @@ public extension String {
             start = range.upperBound
         }
         
-        result.append(String(self[start...]))
+        if omittingEmptySubsequences && start < endIndex {
+            result.append(String(self[start...]))
+        }
         return result
     }
 
