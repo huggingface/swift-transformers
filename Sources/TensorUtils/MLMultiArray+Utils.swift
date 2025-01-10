@@ -25,7 +25,7 @@ public extension MLMultiArray {
         }
         return o
     }
-    
+
     /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
     static func from(_ arr: [Double], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
@@ -41,31 +41,31 @@ public extension MLMultiArray {
         }
         return o
     }
-    
+
     /// This will concatenate all dimensions into one one-dim array.
     static func toIntArray(_ o: MLMultiArray) -> [Int] {
         var arr = Array(repeating: 0, count: o.count)
         let ptr = UnsafeMutablePointer<Int32>(OpaquePointer(o.dataPointer))
-        for i in 0..<o.count {
+        for i in 0 ..< o.count {
             arr[i] = Int(ptr[i])
         }
         return arr
     }
-    
+
     func toIntArray() -> [Int] { Self.toIntArray(self) }
-    
+
     /// This will concatenate all dimensions into one one-dim array.
     static func toDoubleArray(_ o: MLMultiArray) -> [Double] {
         var arr: [Double] = Array(repeating: 0, count: o.count)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(o.dataPointer))
-        for i in 0..<o.count {
+        for i in 0 ..< o.count {
             arr[i] = Double(ptr[i])
         }
         return arr
     }
-    
+
     func toDoubleArray() -> [Double] { Self.toDoubleArray(self) }
-    
+
     /// Helper to construct a sequentially-indexed multi array,
     /// useful for debugging and unit tests
     /// Example in 3 dimensions:
@@ -80,13 +80,12 @@ public extension MLMultiArray {
     static func testTensor(shape: [Int]) -> MLMultiArray {
         let arr = try! MLMultiArray(shape: shape as [NSNumber], dataType: .double)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(arr.dataPointer))
-        for i in 0..<arr.count {
+        for i in 0 ..< arr.count {
             ptr.advanced(by: i).pointee = Double(i)
         }
         return arr
     }
 }
-
 
 public extension MLMultiArray {
     /// Provides a way to index n-dimensionals arrays a la numpy.
@@ -94,7 +93,7 @@ public extension MLMultiArray {
         case select(Int)
         case slice
     }
-    
+
     /// Slice an array according to a list of `Indexing` enums.
     ///
     /// You must specify all dimensions.
@@ -118,7 +117,7 @@ public extension MLMultiArray {
             selectDims: selectDims
         )
     }
-    
+
     /// Slice an array according to a list, according to `sliceDim` (which dimension to slice on)
     /// and a dictionary of `dim` to `index`.
     ///
@@ -131,13 +130,13 @@ public extension MLMultiArray {
         shape[sliceDim] = o.shape[sliceDim]
         /// print("About to slice ndarray of shape \(o.shape) into ndarray of shape \(shape)")
         let arr = try! MLMultiArray(shape: shape, dataType: .double)
-        
+
         /// let srcPtr = UnsafeMutablePointer<Double>(OpaquePointer(o.dataPointer))
         /// TODO: use srcPtr instead of array subscripting.
         let dstPtr = UnsafeMutablePointer<Double>(OpaquePointer(arr.dataPointer))
-        for i in 0..<arr.count {
+        for i in 0 ..< arr.count {
             var index: [Int] = []
-            for j in 0..<shape.count {
+            for j in 0 ..< shape.count {
                 if j == sliceDim {
                     index.append(i)
                 } else {
@@ -151,12 +150,11 @@ public extension MLMultiArray {
     }
 }
 
-
 extension MLMultiArray {
     var debug: String {
         return debug([])
     }
-    
+
     /// From https://twitter.com/mhollemans
     ///
     /// Slightly tweaked
@@ -165,30 +163,30 @@ extension MLMultiArray {
         func indent(_ x: Int) -> String {
             return String(repeating: " ", count: x)
         }
-        
+
         // This function is called recursively for every dimension.
         // Add an entry for this dimension to the end of the array.
         var indices = indices + [0]
-        
-        let d = indices.count - 1          // the current dimension
-        let N = shape[d].intValue          // how many elements in this dimension
+
+        let d = indices.count - 1  // the current dimension
+        let N = shape[d].intValue  // how many elements in this dimension
         var s = "["
-        if indices.count < shape.count {   // not last dimension yet?
-            for i in 0..<N {
+        if indices.count < shape.count {  // not last dimension yet?
+            for i in 0 ..< N {
                 indices[d] = i
-                s += debug(indices)        // then call recursively again
+                s += debug(indices)  // then call recursively again
                 if i != N - 1 {
                     s += ",\n" + indent(d + 1)
                 }
             }
-        } else {                           // the last dimension has actual data
+        } else {  // the last dimension has actual data
             s += " "
-            for i in 0..<N {
+            for i in 0 ..< N {
                 indices[d] = i
                 s += "\(self[indices as [NSNumber]])"
-                if i != N - 1 {                // not last element?
+                if i != N - 1 {  // not last element?
                     s += ", "
-                    if i % 11 == 10 {            // wrap long lines
+                    if i % 11 == 10 {  // wrap long lines
                         s += "\n " + indent(d + 1)
                     }
                 }

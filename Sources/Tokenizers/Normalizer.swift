@@ -243,10 +243,10 @@ class PrecompiledNormalizer: Normalizer {
 
         for scalar in text.unicodeScalars {
             switch scalar.value {
-            case 0x0001...0x0008, 0x000B, 0x000E...0x001F, 0x007F, 0x008F, 0x009F:
+            case 0x0001 ... 0x0008, 0x000B, 0x000E ... 0x001F, 0x007F, 0x008F, 0x009F:
                 // Non-printing control characters
                 output.append("")
-            case 0x0009, 0x000A, 0x000C, 0x000D, 0x1680, 0x200B...0x200F, 0x2028, 0x2029, 0x2581,
+            case 0x0009, 0x000A, 0x000C, 0x000D, 0x1680, 0x200B ... 0x200F, 0x2028, 0x2029, 0x2581,
                 0xFEFF, 0xFFFD:
                 // Separators
                 output.append(" ")
@@ -313,7 +313,11 @@ extension StringReplacePattern {
         case .regexp(let regexp, let replacement):
             let range = NSRange(text.startIndex..., in: text)
             let replaced = regexp.stringByReplacingMatches(
-                in: text, options: [], range: range, withTemplate: replacement)
+                in: text,
+                options: [],
+                range: range,
+                withTemplate: replacement
+            )
             return replaced
         case .string(let toReplace, let replacement):
             return text.replacingOccurrences(of: toReplace, with: replacement)
