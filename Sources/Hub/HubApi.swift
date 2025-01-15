@@ -489,7 +489,6 @@ public extension HubApi {
         public let timestamp: Date
     }
 
-
     private func normalizeEtag(_ etag: String?) -> String? {
         guard let etag = etag else { return nil }
         return etag.trimmingPrefix("W/").trimmingCharacters(in: CharacterSet(charactersIn: "\""))

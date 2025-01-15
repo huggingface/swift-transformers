@@ -145,6 +145,7 @@ class HubApiTests: XCTestCase {
         }
     }
     
+    /// Verify with `curl -I https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel`
     func testGetLargeFileMetadata() async throws {
         do {
             let revision = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
