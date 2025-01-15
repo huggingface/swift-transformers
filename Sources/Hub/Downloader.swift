@@ -37,12 +37,7 @@ class Downloader: NSObject, ObservableObject {
         to destination: URL,
         metadataDirURL: URL,
         using authToken: String? = nil,
-        inBackground: Bool = false,
-        resumeSize: Int = 0,
-        headers: [String: String]? = nil,
-        expectedSize: Int? = nil,
-        timeout: TimeInterval = 10,
-        numRetries: Int = 5
+        inBackground: Bool = false
     ) {
         self.destination = destination
         let filename = (destination.lastPathComponent as NSString).deletingPathExtension
@@ -59,18 +54,10 @@ class Downloader: NSObject, ObservableObject {
 
         self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+        setupDownload(from: url, with: authToken)
     }
 
-    private func setupDownload(
-        from url: URL,
-        with authToken: String?,
-        resumeSize: Int,
-        headers: [String: String]?,
-        expectedSize: Int?,
-        timeout: TimeInterval,
-        numRetries: Int
-    ) {
+    private func setupDownload(from url: URL, with authToken: String?) {
         downloadState.value = .downloading(0)
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
@@ -95,99 +82,14 @@ class Downloader: NSObject, ObservableObject {
                 }
             }
             var request = URLRequest(url: url)
-            var requestHeaders = headers ?? [:]
             if let authToken = authToken {
-                requestHeaders["Authorization"] = "Bearer \(authToken)"
+                request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
             }
-            if resumeSize > 0 {
-                requestHeaders["Range"] = "bytes=\(resumeSize)-"
-            }
-            request.timeoutInterval = timeout
-            request.allHTTPHeaderFields = requestHeaders
 
-            Task {
-                do {
-                    try await self.downloadWithStreaming(request: request, resumeSize: resumeSize, numRetries: numRetries, expectedSize: expectedSize)
-                } catch {
-                    self.downloadState.value = .failed(error)
-                }
-            }
+            self.urlSession?.downloadTask(with: request).resume()
         }
     }
 
-    private func downloadWithStreaming(
-        request: URLRequest,
-        resumeSize: Int,
-        numRetries: Int,
-        expectedSize: Int?
-    ) async throws {
-        guard let session = self.urlSession else {
-            throw DownloadError.unexpectedError
-        }
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
-        let tempFile = try FileHandle(forWritingTo: tempURL)
-        
-        defer { tempFile.closeFile() }
-        
-        let (asyncBytes, response) = try await session.bytes(for: request)
-        guard let response = response as? HTTPURLResponse else {
-            throw DownloadError.unexpectedError
-        }
-        
-        guard (200..<300).contains(response.statusCode) else {
-            throw DownloadError.unexpectedError
-        }
-        
-        var downloadedSize = resumeSize
-        
-        var buffer = Data(capacity: chunkSize)
-        var newNumRetries = numRetries
-        
-        do {
-            for try await byte in asyncBytes {
-                buffer.append(byte)
-                if buffer.count == chunkSize {
-                    if !buffer.isEmpty { // Filter out keep-alive chunks
-                        try tempFile.write(contentsOf: buffer)
-                        buffer.removeAll(keepingCapacity: true)
-                        downloadedSize += chunkSize
-                        newNumRetries = 5
-                    }
-                }
-            }
-            
-            if !buffer.isEmpty {
-                try tempFile.write(contentsOf: buffer)
-                downloadedSize += buffer.count
-                buffer.removeAll(keepingCapacity: true)
-                newNumRetries = 5
-            }
-        } catch let error as URLError {
-            if newNumRetries <= 0 {
-                throw error
-            }
-            try await Task.sleep(nanoseconds: 1_000_000_000)
-            
-            try await downloadWithStreaming(
-                request: request,
-                resumeSize: downloadedSize,
-                numRetries: newNumRetries - 1,
-                expectedSize: expectedSize
-            )
-        }
-        
-        let actualSize = try tempFile.seekToEnd()
-        if let expectedSize = expectedSize, expectedSize != actualSize {
-            throw DownloadError.unexpectedError
-        }
-        
-        tempFile.closeFile()
-        try FileManager.default.moveDownloadedFile(from: tempURL, to: destination)
-        
-        downloadState.value = .completed(destination)
-    }
-    
     @discardableResult
     func waitUntilDone() throws -> URL {
         // It's either this, or stream the bytes ourselves (add to a buffer, save to disk, etc; boring and finicky)
