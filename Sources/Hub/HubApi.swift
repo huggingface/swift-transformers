@@ -95,6 +95,8 @@ public extension HubApi {
         return (data, response)
     }
     
+    /// Throws error if page does not exist or is not accessible.
+    /// Allows relative redirects but ignores absolute ones for LFS files.
     func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
@@ -110,7 +112,7 @@ public extension HubApi {
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
-        case 200..<400: break
+        case 200..<400: break // Allow redirects to pass through to the redirect delegate
         case 400..<500: throw Hub.HubClientError.authorizationRequired
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
@@ -248,29 +250,48 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: metadataDestination, withIntermediateDirectories: true, attributes: nil)
         }
         
-        func readDownloadMetadata(localDir: URL, filePath: String) throws -> FileMetadata? {
+        /// Reads metadata about a file in the local directory related to a download process.
+        ///
+        /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
+        ///
+        /// - Parameters:
+        ///   - localDir: The local directory where files are downloaded.
+        ///   - filePath: The path of the file for which metadata is being read.
+        /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
+        /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
+        func readDownloadMetadata(localDir: URL, filePath: String) throws -> LocalDownloadFileMetadata? {
             let metadataPath = localDir.appending(path: filePath)
             if FileManager.default.fileExists(atPath: metadataPath.path) {
-                let contents = try String(contentsOf: metadataPath, encoding: .utf8)
-                let lines = contents.components(separatedBy: .newlines)
-                
-                guard lines.count == 4 else {
+                do {
+                    let contents = try String(contentsOf: metadataPath, encoding: .utf8)
+                    let lines = contents.components(separatedBy: .newlines)
+                    
+                    guard lines.count >= 3 else {
+                        throw EnvironmentError.invalidMetadataError("Metadata file is missing required fields.")
+                    }
+                    
+                    let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                        throw EnvironmentError.invalidMetadataError("Missing or invalid timestamp.")
+                    }
+                    let timestampDate = Date(timeIntervalSince1970: timestamp)
+                            
+                    // TODO: check if file hasn't been modified since the metadata was saved
+                    
+                    return LocalDownloadFileMetadata(commitHash: commitHash, etag: etag, filename: filePath, timestamp: timestampDate)
+                } catch {
                     do {
-                        logger.warning("Invalid metadata file \(metadataPath). Removing it from disk and continue.")
+                        logger.warning("Invalid metadata file \(metadataPath): \(error). Removing it from disk and continue.")
                         try FileManager.default.removeItem(at: metadataPath)
                     } catch {
                         throw EnvironmentError.invalidMetadataError("Could not remove corrupted metadata file \(metadataPath): \(error)")
                     }
                     return nil
                 }
-                
-                let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                return FileMetadata(commitHash: commitHash, etag: etag, location: "", size: nil)
             }
-            
-            logger.warning("Metadata file \(metadataPath) does not exist.")
+                
+            // metadata file does not exist
             return nil
         }
         
@@ -281,6 +302,7 @@ public extension HubApi {
             return regex?.firstMatch(in: hash, options: [], range: range) != nil
         }
         
+        /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L391
         func writeDownloadMetadata(commitHash: String, etag: String, metadataRelativePath: String) throws {
             let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
             let metadataPath = metadataDestination.appending(component: metadataRelativePath)
@@ -306,20 +328,19 @@ public extension HubApi {
             var hasher = SHA256()
             let chunkSize = 1024 * 1024 // 1MB chunks
             
-            while true {
-                let data: Data
-                if #available(macOS 10.15.4, iOS 13.4, *) {
-                    data = try fileHandle.read(upToCount: chunkSize) ?? Data()
-                } else {
-                    data = fileHandle.readData(ofLength: chunkSize)
+            while autoreleasepool(invoking: {
+                let nextChunk = try? fileHandle.read(upToCount: chunkSize)
+                
+                guard let nextChunk,
+                        !nextChunk.isEmpty
+                else {
+                    return false
                 }
                 
-                if data.isEmpty {
-                    break
-                }
+                hasher.update(data: nextChunk)
                 
-                hasher.update(data: data)
-            }
+                return true
+            }) { }
             
             let digest = hasher.finalize()
             return digest.map { String(format: "%02x", $0) }.joined()
@@ -437,20 +458,37 @@ public extension HubApi {
 
 /// Metadata
 public extension HubApi {
-    /// A structure representing metadata for a remote file
+    /// Data structure containing information about a file versioned on the Hub
     struct FileMetadata {
-        /// The file's Git commit hash
+        /// The commit hash related to the file
         public let commitHash: String?
         
-        /// Server-provided ETag for caching
+        /// Etag of the file on the server
         public let etag: String?
         
-        /// Stringified URL location of the file
+        /// Location where to download the file. Can be a Hub url or not (CDN).
         public let location: String
         
-        /// The file's size in bytes
+        /// Size of the file. In case of an LFS file, contains the size of the actual LFS file, not the pointer.
         public let size: Int?
     }
+    
+    /// Metadata about a file in the local directory related to a download process
+    struct LocalDownloadFileMetadata {
+        /// Commit hash of the file in the repo
+        public let commitHash: String
+        
+        /// ETag of the file in the repo. Used to check if the file has changed.
+        /// For LFS files, this is the sha256 of the file. For regular files, it corresponds to the git hash.
+        public let etag: String
+        
+        /// Path of the file in the repo
+        public let filename: String
+        
+        /// The timestamp of when the metadata was saved i.e. when the metadata was accurate
+        public let timestamp: Date
+    }
+
 
     private func normalizeEtag(_ etag: String?) -> String? {
         guard let etag = etag else { return nil }
@@ -560,7 +598,8 @@ public extension [String] {
     }
 }
 
-// Only allow relative redirects and reject others
+/// Only allow relative redirects and reject others
+/// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/file_download.py#L258
 private class RedirectDelegate: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         // Check if it's a redirect status code (300-399)

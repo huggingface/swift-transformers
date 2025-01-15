@@ -13,7 +13,6 @@ class WeightsTests: XCTestCase {
     func testLoadWeightsFromFileURL() async throws {
         let repo = "google/bert_uncased_L-2_H-128_A-2"
         let modelDir = try await hubApi.snapshot(from: repo, matching: ["config.json", "model.safetensors"])
-        print(modelDir)
 
         let files = try FileManager.default.contentsOfDirectory(at: modelDir, includingPropertiesForKeys: [.isReadableKey])
         XCTAssertTrue(files.contains(where: { $0.lastPathComponent == "config.json" }))

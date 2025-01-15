@@ -412,6 +412,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
         
         // Corrupt config.metadata
+        print("Testing corrupted file.")
         try "a".write(to: metadataDestination.appendingPathComponent("config.metadata"), atomically: true, encoding: .utf8)
         
         let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
@@ -425,5 +426,84 @@ class SnapshotDownloadTests: XCTestCase {
 
         // File will be downloaded again thus last modified date will change
         XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
+        
+        // Corrupt config.metadata again
+        print("Testing corrupted timestamp.")
+        try "a\nb\nc\n".write(to: metadataDestination.appendingPathComponent("config.metadata"), atomically: true, encoding: .utf8)
+        
+        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        attributes = try FileManager.default.attributesOfItem(atPath: configPath.path)
+        let thirdDownloadTimestamp = attributes[.modificationDate] as! Date
+
+        // File will be downloaded again thus last modified date will change
+        XCTAssertTrue(originalTimestamp != thirdDownloadTimestamp)
+    }
+    
+    func testDownloadLargeFileMetadataCorrupted() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.mlmodel") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination)
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+"llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+            ])
+        )
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface")
+        
+        let modelPath = downloadedTo.appending(path: "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel")
+        var attributes = try FileManager.default.attributesOfItem(atPath: modelPath.path)
+        let originalTimestamp = attributes[.modificationDate] as! Date
+        
+        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination)
+        XCTAssertEqual(
+            Set(downloadedMetadataFilenames),
+            Set([
+                ".cache/huggingface/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.metadata",
+            ])
+        )
+        
+        // Corrupt model.metadata etag
+        print("Testing corrupted etag.")
+        let corruptedMetadataString = "a\nfc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020108\n0\n"
+        let metadataFile = metadataDestination.appendingPathComponent("llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.metadata")
+        try corruptedMetadataString.write(to: metadataFile, atomically: true, encoding: .utf8)
+        
+        let _ = try await hubApi.snapshot(from: repo, matching: "*.mlmodel") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        attributes = try FileManager.default.attributesOfItem(atPath: modelPath.path)
+        let thirdDownloadTimestamp = attributes[.modificationDate] as! Date
+
+        // File will not be downloaded again because this is an LFS file.
+        // While downloading LFS files, we first check if local file ETag is the same as remote ETag.
+        // If that's the case we just update the metadata and keep the local file.
+        XCTAssertEqual(originalTimestamp, thirdDownloadTimestamp)
+        
+        let metadataString = try String(contentsOfFile: metadataFile.path)
+        
+        // Updated metadata file needs to have the correct commit hash, etag and timestamp.
+        // This is being updated because the local etag (SHA256 checksum) matches the remote etag
+        XCTAssertNotEqual(metadataString, corruptedMetadataString)
     }
 }
