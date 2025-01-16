@@ -219,12 +219,10 @@ class BertNormalizer: Normalizer {
     }
 
     private func stripAccents(text: String) -> String {
-        text.decomposedStringWithCanonicalMapping
-            .filter {
-                $0.unicodeScalars.allSatisfy { scalar in
-                    !(0x0300 <= scalar.value && scalar.value <= 0x036F)
-                }
-            }
+        // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
+        String(text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
+            !(0x0300 <= scalar.value && scalar.value <= 0x036F)
+        })
     }
 }
 
