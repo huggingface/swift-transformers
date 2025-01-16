@@ -108,6 +108,38 @@ class PhiSimpleTests: XCTestCase {
     }
 }
 
+class BertDiacriticsTests: XCTestCase {
+    func testBertCased() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
+    }
+
+    func testBertCasedResaved() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
+    }
+
+    func testBertUncased() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["ma", "##ka"])
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 5003, 2912, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["depart", "##ement"])
+        XCTAssertEqual(tokenizer.encode(text: "département"), [101, 18280, 13665, 102])
+    }
+}
+
 
 struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String
