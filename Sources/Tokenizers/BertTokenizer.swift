@@ -159,8 +159,7 @@ class BasicTokenizer {
     ]
     
     func tokenize(text: String) -> [String] {
-        let splitTokens = text.folding(options: .diacriticInsensitive, locale: nil)
-            .components(separatedBy: NSCharacterSet.whitespaces)
+        let splitTokens = text.components(separatedBy: NSCharacterSet.whitespaces)
         let tokens = splitTokens.flatMap({ (token: String) -> [String] in
             if neverSplit.contains(token) {
                 return [token]
