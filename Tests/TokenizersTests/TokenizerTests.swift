@@ -60,6 +60,18 @@ class T5TokenizerTests: TokenizerTests {
     override class var unknownTokenId: Int? { 2 }
 }
 
+class BertCasedTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "distilbert/distilbert-base-multilingual-cased" }
+    override class var encodedSamplesFilename: String? { "distilbert_cased_encoded" }
+    override class var unknownTokenId: Int? { 100 }
+}
+
+class BertUncasedTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "google-bert/bert-base-uncased" }
+    override class var encodedSamplesFilename: String? { "bert_uncased_encoded" }
+    override class var unknownTokenId: Int? { 100 }
+}
+
 class GemmaTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
     override class var encodedSamplesFilename: String? { "gemma_encoded" }
