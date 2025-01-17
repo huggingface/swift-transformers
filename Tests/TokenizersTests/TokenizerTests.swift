@@ -140,6 +140,24 @@ class BertDiacriticsTests: XCTestCase {
     }
 }
 
+class BertSpacesTests: XCTestCase {
+    func testEncodeDecode() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        let text = "l'eure"
+        let tokenized = tokenizer.tokenize(text: text)
+        XCTAssertEqual(tokenized, ["l", "'", "eu", "##re"])
+        let encoded = tokenizer.encode(text: text)
+        XCTAssertEqual(encoded, [101, 1048, 1005, 7327, 2890, 102])
+        let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
+        // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
+        XCTAssertEqual(decoded, "l'eure")
+    }
+}
+
 
 struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String
