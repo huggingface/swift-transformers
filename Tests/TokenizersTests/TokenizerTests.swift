@@ -116,6 +116,7 @@ class BertDiacriticsTests: XCTestCase {
         }
 
         XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["Car"])
     }
 
     func testBertCasedResaved() async throws {
@@ -137,6 +138,7 @@ class BertDiacriticsTests: XCTestCase {
         XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 5003, 2912, 102])
         XCTAssertEqual(tokenizer.tokenize(text: "département"), ["depart", "##ement"])
         XCTAssertEqual(tokenizer.encode(text: "département"), [101, 18280, 13665, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["car"])
     }
 }
 
