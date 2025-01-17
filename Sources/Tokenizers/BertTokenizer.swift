@@ -186,7 +186,7 @@ class BasicTokenizer {
             var toks: [String] = []
             var currentTok = ""
             for c in maybeLowercase(token) {
-                if c.isLetter || c.isNumber || c == "°" {
+                if !c.isExtendedPunctuation {
                     currentTok += String(c)
                 } else if currentTok.count > 0 {
                     toks.append(currentTok)
@@ -205,6 +205,34 @@ class BasicTokenizer {
     }
 }
 
+extension Character {
+    /// https://github.com/huggingface/transformers/blob/8c1b5d37827a6691fef4b2d926f2d04fb6f5a9e3/src/transformers/tokenization_utils.py#L367
+    var isExtendedPunctuation: Bool {
+        if isPunctuation { return true }
+        if let value = unicodeScalars.first?.value {
+            switch value {
+                case 33...47: return true
+                case 58...64: return true
+                case 91...96: return true
+                case 123...126: return true
+                default: return false
+            }
+        }
+        return false
+    }
+
+    static func isChineseChar(_ c: UnicodeScalar) -> Bool {
+        (c.value >= 0x4E00 && c.value <= 0x9FFF) ||
+        (c.value >= 0x3400 && c.value <= 0x4DBF) ||
+        (c.value >= 0x20000 && c.value <= 0x2A6DF) ||
+        (c.value >= 0x2A700 && c.value <= 0x2B73F) ||
+        (c.value >= 0x2B740 && c.value <= 0x2B81F) ||
+        (c.value >= 0x2B820 && c.value <= 0x2CEAF) ||
+        (c.value >= 0xF900 && c.value <= 0xFAFF) ||
+        (c.value >= 0x2F800 && c.value <= 0x2FA1F)
+    }
+
+}
 
 class WordpieceTokenizer {
     let unkToken = "[UNK]"

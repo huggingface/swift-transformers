@@ -151,6 +151,9 @@ class BertDiacriticsTests: XCTestCase {
         XCTAssertEqual(tokenizer.tokenize(text: "département"), ["depart", "##ement"])
         XCTAssertEqual(tokenizer.encode(text: "département"), [101, 18280, 13665, 102])
         XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["car"])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "€4"), ["€", "##4"])
+        XCTAssertEqual(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test"), ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
     }
 }
 
