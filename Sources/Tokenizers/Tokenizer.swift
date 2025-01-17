@@ -63,6 +63,8 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 struct TokenizerModel {
     static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
         "BertTokenizer"      : BertTokenizer.self,
+        "DistilbertTokenizer": BertTokenizer.self,
+        "DistilBertTokenizer": BertTokenizer.self,
         "CodeGenTokenizer"   : CodeGenTokenizer.self,
         "CodeLlamaTokenizer" : CodeLlamaTokenizer.self,
         "FalconTokenizer"    : FalconTokenizer.self,
@@ -270,7 +272,8 @@ public class PreTrainedTokenizer: Tokenizer {
     func cleanUp(text: String) -> String {
         guard cleanUpTokenizationSpaces else { return text }
 
-        return text.replacingOccurrences(of: " .", with: ".")
+        return text
+            .replacingOccurrences(of: " .", with: ".")
             .replacingOccurrences(of: " ?", with: "?")
             .replacingOccurrences(of: " !", with: "!")
             .replacingOccurrences(of: " ,", with: ",")

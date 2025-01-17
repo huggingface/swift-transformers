@@ -120,6 +120,19 @@ class NormalizerTests: XCTestCase {
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKCNormalizer)
     }
 
+    func testStripAccents() {
+        let testCases: [(String, String)] = [
+            ("département", "departement"),
+        ]
+
+        //TODO: test combinations with/without lowercase
+        let config = Config(["stripAccents":true])
+        let normalizer = BertNormalizer(config: config)
+        for (arg, expect) in testCases {
+            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+        }
+    }
+
     func testBertNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),
@@ -131,6 +144,30 @@ class NormalizerTests: XCTestCase {
             ("你好!", " 你  好 !"),
             ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼"),
             ("\u{00C5}", "\u{00E5}"),
+        ]
+
+        for (arg, expect) in testCases {
+            let config = Config(["stripAccents":false])
+            let normalizer = BertNormalizer(config: config)
+            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+        }
+
+        let config = Config(["type": NormalizerType.Bert.rawValue])
+        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? BertNormalizer)
+    }
+
+    func testBertNormalizerDefaults() {
+        // Python verification: t._tokenizer.normalizer.normalize_str("Café")
+        let testCases: [(String, String)] = [
+            ("Café", "cafe"),
+            ("François", "francois"),
+            ("Ωmega", "ωmega"),
+            ("über", "uber"),
+            ("háček", "hacek"),
+            ("Häagen\tDazs", "haagen dazs"),
+            ("你好!", " 你  好 !"),
+            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼"),
+            ("Å", "a"),
         ]
 
         for (arg, expect) in testCases {

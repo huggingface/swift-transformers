@@ -60,6 +60,18 @@ class T5TokenizerTests: TokenizerTests {
     override class var unknownTokenId: Int? { 2 }
 }
 
+class BertCasedTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "distilbert/distilbert-base-multilingual-cased" }
+    override class var encodedSamplesFilename: String? { "distilbert_cased_encoded" }
+    override class var unknownTokenId: Int? { 100 }
+}
+
+class BertUncasedTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "google-bert/bert-base-uncased" }
+    override class var encodedSamplesFilename: String? { "bert_uncased_encoded" }
+    override class var unknownTokenId: Int? { 100 }
+}
+
 class GemmaTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
     override class var encodedSamplesFilename: String? { "gemma_encoded" }
@@ -105,6 +117,61 @@ class PhiSimpleTests: XCTestCase {
         XCTAssertEqual(tokenizer.encode(text: "hello"), [15339])
         XCTAssertEqual(tokenizer.encode(text: "hello world"), [15339, 1917])
         XCTAssertEqual(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
+    }
+}
+
+class BertDiacriticsTests: XCTestCase {
+    func testBertCased() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["Car"])
+    }
+
+    func testBertCasedResaved() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
+    }
+
+    func testBertUncased() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["ma", "##ka"])
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 5003, 2912, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["depart", "##ement"])
+        XCTAssertEqual(tokenizer.encode(text: "département"), [101, 18280, 13665, 102])
+        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["car"])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "€4"), ["€", "##4"])
+        XCTAssertEqual(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test"), ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
+    }
+}
+
+class BertSpacesTests: XCTestCase {
+    func testEncodeDecode() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        let text = "l'eure"
+        let tokenized = tokenizer.tokenize(text: text)
+        XCTAssertEqual(tokenized, ["l", "'", "eu", "##re"])
+        let encoded = tokenizer.encode(text: text)
+        XCTAssertEqual(encoded, [101, 1048, 1005, 7327, 2890, 102])
+        let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
+        // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
+        XCTAssertEqual(decoded, "l'eure")
     }
 }
 

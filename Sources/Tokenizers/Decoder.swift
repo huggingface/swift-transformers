@@ -58,7 +58,7 @@ class WordPieceDecoder: Decoder {
     let cleanup: Bool
 
     // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L31
-    private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'|n't|'m|'s|'ve|'re)", options: [])
+    private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'\\s|n't|'m|'s|'ve|'re)", options: [])
 
     required public init(config: Config) {
         guard let prefix = config.prefix?.stringValue else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
