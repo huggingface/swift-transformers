@@ -272,7 +272,8 @@ public class PreTrainedTokenizer: Tokenizer {
     func cleanUp(text: String) -> String {
         guard cleanUpTokenizationSpaces else { return text }
 
-        return text.replacingOccurrences(of: " .", with: ".")
+        return text
+            .replacingOccurrences(of: " .", with: ".")
             .replacingOccurrences(of: " ?", with: "?")
             .replacingOccurrences(of: " !", with: "!")
             .replacingOccurrences(of: " ,", with: ",")
