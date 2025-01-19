@@ -1,13 +1,13 @@
 //
 //  LanguageModelTypes.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 8/5/23.
 //
 
 import CoreML
-import Tokenizers
 import Generation
+import Tokenizers
 
 public protocol LanguageModelProtocol {
     /// `name_or_path` in the Python world
@@ -15,16 +15,16 @@ public protocol LanguageModelProtocol {
 
     var tokenizer: Tokenizer { get async throws }
     var model: MLModel { get }
-    
+
     init(model: MLModel)
-    
+
     /// Make prediction callable (this works like __call__ in Python)
     func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
     func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
 }
 
-public extension LanguageModelProtocol {
-    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
+extension LanguageModelProtocol {
+    public func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
         predictNextTokenScores(tokens, config: config)
     }
 }
@@ -34,9 +34,12 @@ public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async throws -> String
 }
 
-public extension TextGenerationModel {
+extension TextGenerationModel {
     @discardableResult
-    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async throws -> String {
-        try await self.generate(config: config, prompt: prompt, model: self.callAsFunction, tokenizer: self.tokenizer, callback: callback)
+    public func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil)
+        async throws -> String
+    {
+        try await self.generate(
+            config: config, prompt: prompt, model: self.callAsFunction, tokenizer: self.tokenizer, callback: callback)
     }
 }

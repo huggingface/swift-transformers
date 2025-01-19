@@ -1,5 +1,5 @@
-import Foundation
 import Accelerate
+import Foundation
 
 /// Top-K.
 /// Select the k most-probable element indices from `arr`
@@ -7,7 +7,7 @@ import Accelerate
 /// and their probabilities.
 public struct TopKLogitsWarper: LogitsWarper {
     public var k: Int
-    
+
     public init(k: Int) {
         self.k = k
     }

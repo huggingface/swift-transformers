@@ -5,14 +5,16 @@
 //  Created by Anthony DePasquale on 2/10/24.
 //
 
-import XCTest
 import Tokenizers
+import XCTest
 
 class ChatTemplateTests: XCTestCase {
-    let messages = [[
-        "role": "user",
-        "content": "Describe the Swift programming language.",
-    ]]
+    let messages = [
+        [
+            "role": "user",
+            "content": "Describe the Swift programming language.",
+        ]
+    ]
 
     func testTemplateFromConfig() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
@@ -37,8 +39,10 @@ class ChatTemplateTests: XCTestCase {
     func testTemplateFromArgumentWithEnum() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
-        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
-        let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: .literal(mistral7BDefaultTemplate))
+        let mistral7BDefaultTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: .literal(mistral7BDefaultTemplate))
         let encodedTarget = [1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580, 29962]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<s> [INST] Describe the Swift programming language. [/INST]"
@@ -49,7 +53,8 @@ class ChatTemplateTests: XCTestCase {
     func testTemplateFromArgumentWithString() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
-        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let mistral7BDefaultTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
         let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
         let encodedTarget = [1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580, 29962]
         let decoded = tokenizer.decode(tokens: encoded)

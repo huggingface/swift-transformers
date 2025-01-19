@@ -13,24 +13,30 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0"),
-        .package(url: "https://github.com/maiqingqiang/Jinja", from: "1.0.6")
+        .package(url: "https://github.com/maiqingqiang/Jinja", from: "1.0.6"),
     ],
     targets: [
         .executableTarget(
             name: "TransformersCLI",
             dependencies: [
                 "Models", "Generation", "Tokenizers",
-                .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]),
+        .executableTarget(
+            name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
         .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(
+            name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"],
+            resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub"]),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(
+            name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]
+        ),
         .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
     ]
