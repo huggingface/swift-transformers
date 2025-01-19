@@ -10,16 +10,16 @@ import Foundation
 
 public struct Trie<T: Hashable> {
     public typealias Node = TrieNode<T>
-    
+
     var root: Node
-    
+
     public init(root: Node? = nil) {
         self.root = root ?? Node()
     }
 }
 
-public extension Trie {
-    func insert(_ element: any Sequence<T>) {
+extension Trie {
+    public func insert(_ element: any Sequence<T>) {
         var node = root
         for item in element {
             if let child = node.children[item] {
@@ -32,14 +32,14 @@ public extension Trie {
         }
         node.isLeaf = true
     }
-    
-    func append(contentsOf container: any Sequence<any Sequence<T>>) {
+
+    public func append(contentsOf container: any Sequence<any Sequence<T>>) {
         for t in container { insert(t) }
     }
-        
+
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
     /// Returns an array
-    func commonPrefixSearch(_ text: any Sequence<T>) -> [[T]] {
+    public func commonPrefixSearch(_ text: any Sequence<T>) -> [[T]] {
         var node = root
         var seqs: [[T]] = []
         var seq: [T] = []
@@ -53,17 +53,17 @@ public extension Trie {
         }
         return seqs
     }
-    
+
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
     /// Returns an iterator
-    func commonPrefixSearchIterator(_ text: any Sequence<T>) -> LeavesWithCommonPrefixIterator<T> {
+    public func commonPrefixSearchIterator(_ text: any Sequence<T>) -> LeavesWithCommonPrefixIterator<T> {
         return LeavesWithCommonPrefixIterator(node: root, text: text)
     }
 }
 
-public extension Trie {
+extension Trie {
     // Only used for testing, could migrate to collection
-    func get(_ element: any Sequence<T>) -> Node? {
+    public func get(_ element: any Sequence<T>) -> Node? {
         var node = root
         for item in element {
             guard let child = node.children[item] else { return nil }
@@ -79,12 +79,12 @@ public class TrieNode<T: Hashable> {
     var children: [T: TrieNode] = [:]
 }
 
-public struct LeavesWithCommonPrefixIterator<T: Hashable> : Sequence, IteratorProtocol {
+public struct LeavesWithCommonPrefixIterator<T: Hashable>: Sequence, IteratorProtocol {
     var node: TrieNode<T>
     var text: any Sequence<T>
     var seq: [T] = []
     lazy var iterator = text.makeIterator() as any IteratorProtocol<T>
-    
+
     public mutating func next() -> [T]? {
         while true {
             guard let item = iterator.next() else { return nil }
