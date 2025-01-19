@@ -8,7 +8,6 @@
 
 import Foundation
 
-
 /// Our internal type, also used in unit tests
 struct SquadExample {
     let qaId: String
@@ -49,12 +48,14 @@ struct Squad {
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let squadDataset = try! decoder.decode(SquadDataset.self, from: json)
-        
+
         var examples: [SquadExample] = []
         for datum in squadDataset.data {
             for paragraph in datum.paragraphs {
                 for qa in paragraph.qas {
-                    let example = SquadExample(qaId: qa.id, context: paragraph.context, question: qa.question, answerText: qa.answers[0].text, startPos: qa.answers[0].answer_start, endPos: -1) // todo: remove -1
+                    let example = SquadExample(
+                        qaId: qa.id, context: paragraph.context, question: qa.question, answerText: qa.answers[0].text,
+                        startPos: qa.answers[0].answer_start, endPos: -1)  // todo: remove -1
                     examples.append(example)
                 }
             }

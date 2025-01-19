@@ -122,11 +122,11 @@ class NormalizerTests: XCTestCase {
 
     func testStripAccents() {
         let testCases: [(String, String)] = [
-            ("département", "departement"),
+            ("département", "departement")
         ]
 
         //TODO: test combinations with/without lowercase
-        let config = Config(["stripAccents":true])
+        let config = Config(["stripAccents": true])
         let normalizer = BertNormalizer(config: config)
         for (arg, expect) in testCases {
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
@@ -147,7 +147,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config(["stripAccents":false])
+            let config = Config(["stripAccents": false])
             let normalizer = BertNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }

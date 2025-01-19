@@ -8,7 +8,7 @@
 
 import Foundation
 
-let byteEncoder: Dictionary<UTF8.CodeUnit, String> = [
+let byteEncoder: [UTF8.CodeUnit: String] = [
     33: "!",
     34: "\"",
     35: "#",
