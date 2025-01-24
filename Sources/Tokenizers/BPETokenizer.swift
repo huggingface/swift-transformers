@@ -83,11 +83,11 @@ class BPETokenizer: PreTrainedTokenizerModel {
             self.unknownToken = nil
             self.unknownTokenId = nil
         }
-        
-        eosToken = tokenizerConfig.eosToken?.stringValue
+
+        eosToken = addedTokenAsString(tokenizerConfig.eosToken)
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
-        bosToken = tokenizerConfig.bosToken?.stringValue
+        bosToken = addedTokenAsString(tokenizerConfig.bosToken)
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
         fuseUnknownTokens = tokenizerConfig.fuseUnk?.boolValue ?? false

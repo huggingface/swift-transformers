@@ -41,6 +41,17 @@ public protocol TokenizingModel {
     var fuseUnknownTokens: Bool { get }
 }
 
+// Helper - possibly to be moved somewhere else
+func addedTokenAsString(_ addedToken: Config?) -> String? {
+    guard let addedToken = addedToken else { return nil }
+    if let stringValue = addedToken.stringValue {
+        return stringValue
+    }
+    // This is possibly a serialization of the AddedToken class
+    // TODO: support lstrip, rstrip, normalized, etc.
+    return addedToken.content?.stringValue
+}
+
 public extension TokenizingModel {
     func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
@@ -421,7 +432,13 @@ public class PreTrainedTokenizer: Tokenizer {
         // TODO: maybe keep NSString here
         for (key, value) in tokenizerConfig.dictionary as [String : Any] {
             if specialTokenAttributes.contains(key), !(value is NSNull) {
-                context[key] = value
+                if let stringValue = value as? String {
+                    context[key] = stringValue
+                } else if let dictionary = value as? [NSString:Any] {
+                    context[key] = addedTokenAsString(Config(dictionary))
+                } else {
+                    context[key] = value
+                }
             }
         }
 
