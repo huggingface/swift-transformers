@@ -24,6 +24,16 @@ class ChatTemplateTests: XCTestCase {
         XCTAssertEqual(decoded, decodedTarget)
     }
 
+    func testDeepSeekQwenChatTemplate() async throws {
+        let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+        let encoded = try tokenizer.applyChatTemplate(messages: messages)
+        let encodedTarget = [151646, 151644, 74785, 279, 23670, 15473, 4128, 13, 151645]
+        let decoded = tokenizer.decode(tokens: encoded)
+        let decodedTarget = "<｜begin▁of▁sentence｜><｜User｜>Describe the Swift programming language.<｜Assistant｜>"
+        XCTAssertEqual(encoded, encodedTarget)
+        XCTAssertEqual(decoded, decodedTarget)
+    }
+
     func testDefaultTemplateFromArrayInConfig() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Mistral-7B-Instruct-v0.3-4bit")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
