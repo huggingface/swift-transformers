@@ -252,7 +252,7 @@ public class PreTrainedTokenizer: Tokenizer {
         self.preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData.preTokenizer)
         self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData.normalizer)
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
-        self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
+        self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder, addedTokens: self.addedTokens)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
         self.tokenizerConfig = tokenizerConfig
 
