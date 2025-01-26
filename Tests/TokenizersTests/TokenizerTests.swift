@@ -120,6 +120,26 @@ class PhiSimpleTests: XCTestCase {
     }
 }
 
+class LlamaPostProcessorOverrideTests: XCTestCase {
+    /// Deepseek needs a post-processor override to add a bos token as in the reference implementation
+    func testDeepSeek() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [151646, 15191, 525, 498, 30])
+    }
+
+    /// Some Llama tokenizers already use a bos-prepending Template post-processor
+    func testLlama() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "coreml-projects/Llama-2-7b-chat-coreml") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [1, 11644, 526, 366, 29973])
+    }
+}
+
 class BertDiacriticsTests: XCTestCase {
     func testBertCased() async throws {
         guard let tokenizer = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer else {
