@@ -17,6 +17,7 @@ enum TokenizerError: Error {
     case malformedVocab
     case chatTemplate(String)
     case tooLong(String)
+    case mismatchedConfig(String)
 }
 
 public protocol TokenizingModel {
@@ -530,6 +531,49 @@ class T5Tokenizer       : UnigramTokenizer {}
 
 let sentencePieceUnderline = "▁"
 
+// Hack for Llama tokenizers, see https://github.com/huggingface/transformers/blob/bcb841f0073fcd7a4fb88ea8064313c17dcab04a/src/transformers/models/llama/tokenization_llama_fast.py#L181
+// Return updated config, or nil
+func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?) throws -> Config? {
+
+    // If it's already a Template processor (instead of a ByteLevel one), assume it's correct
+    let postProcessor = PostProcessorFactory.fromConfig(config: processorConfig)
+    guard !(postProcessor is TemplateProcessing) else { return nil }
+
+    let addBosToken = tokenizerConfig.addBosToken?.boolValue ?? false
+    let bosToken = addedTokenAsString(tokenizerConfig.bosToken)
+    if addBosToken && bosToken == nil {
+        throw TokenizerError.mismatchedConfig("add_bos_token is True but bos_token is nil")
+    }
+
+    let addEosToken = tokenizerConfig.addEosToken?.boolValue ?? false
+    let eosToken = addedTokenAsString(tokenizerConfig.eosToken)
+    if addEosToken && eosToken == nil {
+        throw TokenizerError.mismatchedConfig("add_eos_token is True but eos_token is nil")
+    }
+
+    // alt implementation
+    var single: [[String : Any]] = []
+    if addBosToken {
+        single = single + [["SpecialToken": ["id": bosToken!, "type_id": 0]]]
+    }
+    single = single + [["Sequence": ["id": "A", "type_id": 0]]]
+    if addEosToken {
+        single = single + [["SpecialToken": ["id": eosToken!, "type_id": 0]]]
+    }
+
+    var pair: [[String : Any]] = single
+    if addBosToken {
+        pair = pair + [["SpecialToken": ["id": bosToken!, "type_id": 1]]]
+    }
+    pair = pair + [["Sequence": ["id": "B", "type_id": 1]]]
+    if addEosToken {
+        pair = pair + [["SpecialToken": ["id": eosToken!, "type_id": 1]]]
+    }
+
+    let postProcessorConfig = Config(["type": PostProcessorType.TemplateProcessing.rawValue, "single": single, "pair": pair])
+    return postProcessorConfig
+}
+
 // See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
 class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
     let isLegacy: Bool
@@ -541,8 +585,13 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
             configDictionary.removeValue(forKey: "normalizer")
             configDictionary["pre_tokenizer"] = ["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"]
         }
-        let updatedData = Config(configDictionary)
 
+        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData.postProcessor) {
+            configDictionary["post_processor"] = postProcessorConfig.dictionary
+        }
+
+        let updatedData = Config(configDictionary)
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
     }
 }
+
