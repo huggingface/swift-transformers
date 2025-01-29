@@ -399,6 +399,17 @@ public class PreTrainedTokenizer: Tokenizer {
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
         maxLength: Int? = nil,
+        tools: [ToolSpec]? = nil
+    ) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength, tools: tools, additionalContext: nil)
+    }
+
+    public func applyChatTemplate(
+        messages: [Message],
+        chatTemplate: ChatTemplateArgument? = nil,
+        addGenerationPrompt: Bool = false,
+        truncation: Bool = false,
+        maxLength: Int? = nil,
         /// A list of tools (callable functions) that will be accessible to the model. If the template does not
         /// support function calling, this argument will have no effect. Each tool should be passed as a JSON Schema,
         /// giving the name, description and argument types for the tool. See the
