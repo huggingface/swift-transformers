@@ -163,9 +163,39 @@ public protocol Tokenizer {
         addGenerationPrompt: Bool,
         truncation: Bool,
         maxLength: Int?,
+        tools: [ToolSpec]?
+    ) throws -> [Int]
+
+    func applyChatTemplate(
+        messages: [Message],
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?,
         tools: [ToolSpec]?,
         additionalContext: [String: Any]?
     ) throws -> [Int]
+}
+
+extension Tokenizer {
+    /// Call previous signature for backwards compatibility
+    func applyChatTemplate(
+        messages: [Message],
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?,
+        tools: [ToolSpec]?,
+        additionalContext: [String: Any]?
+    ) throws -> [Int] {
+        if additionalContext == nil {
+            try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength, tools: tools)
+        } else {
+            throw TokenizerError.chatTemplate("Not implemented")
+        }
+    }
 }
 
 public extension Tokenizer {
