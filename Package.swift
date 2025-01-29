@@ -9,7 +9,7 @@ let package = Package(
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         .library(name: "Hub", targets: ["Hub"]),
-        .library(name: "Tokenizers", targets: ["Tokenizers", "Models"]),
+        .library(name: "Tokenizers", targets: ["Tokenizers"]),
         .executable(name: "transformers", targets: ["TransformersCLI"]),
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
