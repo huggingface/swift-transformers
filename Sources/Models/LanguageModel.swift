@@ -190,7 +190,9 @@ public extension LanguageModel {
     var tokenizer: Tokenizer {
         get async throws {
             guard _tokenizer == nil else { return _tokenizer! }
-            guard let tokenizerConfig = try await tokenizerConfig else { throw "Cannot retrieve Tokenizer configuration" }
+            guard let tokenizerConfig = try await tokenizerConfig else {
+                throw TokenizerError.tokenizerConfigNotFound
+            }
             let tokenizerData = try await tokenizerData
             _tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
             return _tokenizer!
@@ -212,4 +214,6 @@ extension LanguageModel: TextGenerationModel {
     }
 }
 
-extension String: Error {}
+public enum TokenizerError: Error {
+    case tokenizerConfigNotFound
+}
