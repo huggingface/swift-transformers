@@ -9,6 +9,9 @@ import Hub
 import Foundation
 import Jinja
 
+public typealias Message = [String: Any]
+public typealias ToolSpec = [String: Any]
+
 enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
@@ -17,6 +20,7 @@ enum TokenizerError: Error {
     case malformedVocab
     case chatTemplate(String)
     case tooLong(String)
+    case mismatchedConfig(String)
 }
 
 public protocol TokenizingModel {
@@ -41,6 +45,17 @@ public protocol TokenizingModel {
     var fuseUnknownTokens: Bool { get }
 }
 
+// Helper - possibly to be moved somewhere else
+func addedTokenAsString(_ addedToken: Config?) -> String? {
+    guard let addedToken = addedToken else { return nil }
+    if let stringValue = addedToken.stringValue {
+        return stringValue
+    }
+    // This is possibly a serialization of the AddedToken class
+    // TODO: support lstrip, rstrip, normalized, etc.
+    return addedToken.content?.stringValue
+}
+
 public extension TokenizingModel {
     func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
@@ -63,6 +78,8 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 struct TokenizerModel {
     static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
         "BertTokenizer"      : BertTokenizer.self,
+        "DistilbertTokenizer": BertTokenizer.self,
+        "DistilBertTokenizer": BertTokenizer.self,
         "CodeGenTokenizer"   : CodeGenTokenizer.self,
         "CodeLlamaTokenizer" : CodeLlamaTokenizer.self,
         "FalconTokenizer"    : FalconTokenizer.self,
@@ -128,23 +145,57 @@ public protocol Tokenizer {
     var unknownTokenId: Int? { get }
 
     /// The appropriate chat template is selected from the tokenizer config
-    func applyChatTemplate(messages: [[String: String]]) throws -> [Int]
+    func applyChatTemplate(messages: [Message]) throws -> [Int]
+
+    /// The appropriate chat template is selected from the tokenizer config
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int]
 
     /// The chat template is provided as a string literal or specified by name
-    func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int]
+    func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int]
 
     /// The chat template is provided as a string literal
-    func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int]
+    func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int]
 
     func applyChatTemplate(
-        messages: [[String: String]],
+        messages: [Message],
         /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
         chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
         maxLength: Int?,
-        tools: [[String: Any]]?
+        tools: [ToolSpec]?
     ) throws -> [Int]
+
+    func applyChatTemplate(
+        messages: [Message],
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?,
+        tools: [ToolSpec]?,
+        additionalContext: [String: Any]?
+    ) throws -> [Int]
+}
+
+extension Tokenizer {
+    /// Call previous signature for backwards compatibility
+    func applyChatTemplate(
+        messages: [Message],
+        /// A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
+        chatTemplate: ChatTemplateArgument?,
+        addGenerationPrompt: Bool,
+        truncation: Bool,
+        maxLength: Int?,
+        tools: [ToolSpec]?,
+        additionalContext: [String: Any]?
+    ) throws -> [Int] {
+        if additionalContext == nil {
+            try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength, tools: tools)
+        } else {
+            throw TokenizerError.chatTemplate("Not implemented")
+        }
+    }
 }
 
 public extension Tokenizer {
@@ -239,7 +290,7 @@ public class PreTrainedTokenizer: Tokenizer {
         self.preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData.preTokenizer)
         self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData.normalizer)
         self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData.postProcessor)
-        self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder)
+        self.decoder = DecoderFactory.fromConfig(config: tokenizerData.decoder, addedTokens: self.addedTokens)
         self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces?.boolValue ?? true
         self.tokenizerConfig = tokenizerConfig
 
@@ -270,7 +321,8 @@ public class PreTrainedTokenizer: Tokenizer {
     func cleanUp(text: String) -> String {
         guard cleanUpTokenizationSpaces else { return text }
 
-        return text.replacingOccurrences(of: " .", with: ".")
+        return text
+            .replacingOccurrences(of: " .", with: ".")
             .replacingOccurrences(of: " ?", with: "?")
             .replacingOccurrences(of: " !", with: "!")
             .replacingOccurrences(of: " ,", with: ",")
@@ -344,20 +396,46 @@ public class PreTrainedTokenizer: Tokenizer {
         model.convertIdToToken(id)
     }
 
-    public func applyChatTemplate(messages: [[String: String]]) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message]) throws -> [Int] {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [[String: String]], chatTemplate: ChatTemplateArgument) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int] {
+        try applyChatTemplate(messages: messages, addGenerationPrompt: true, tools: tools)
+    }
+
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec], additionalContext: [String: Any]) throws
+        -> [Int]
+    {
+        try applyChatTemplate(
+            messages: messages,
+            addGenerationPrompt: true,
+            tools: tools,
+            additionalContext: additionalContext
+        )
+    }
+
+    public func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [[String: String]], chatTemplate: String) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
     }
 
     public func applyChatTemplate(
-        messages: [[String: String]],
+        messages: [Message],
+        chatTemplate: ChatTemplateArgument? = nil,
+        addGenerationPrompt: Bool = false,
+        truncation: Bool = false,
+        maxLength: Int? = nil,
+        tools: [ToolSpec]? = nil
+    ) throws -> [Int] {
+        try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength, tools: tools, additionalContext: nil)
+    }
+
+    public func applyChatTemplate(
+        messages: [Message],
         chatTemplate: ChatTemplateArgument? = nil,
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
@@ -367,8 +445,8 @@ public class PreTrainedTokenizer: Tokenizer {
         /// giving the name, description and argument types for the tool. See the
         /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
         /// for more information.
-        /// Note: tool calling is not supported yet, it will be available in a future update.
-        tools: [[String: Any]]? = nil
+        tools: [ToolSpec]? = nil,
+        additionalContext: [String: Any]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
         if let chatTemplate, case .literal(let template) = chatTemplate {
@@ -410,15 +488,32 @@ public class PreTrainedTokenizer: Tokenizer {
         let template = try Template(selectedChatTemplate)
         var context: [String: Any] = [
             "messages": messages,
-            "add_generation_prompt": addGenerationPrompt
-            // TODO: Add `tools` entry when support is added in Jinja
-            // "tools": tools
+            "add_generation_prompt": addGenerationPrompt,
         ]
+        if let tools {
+            context["tools"] = tools
+        }
+        if let additionalContext {
+            /*
+             Additional keys and values to be added to the context provided to the prompt templating engine.
+             For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
+             The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
+             */
+            for (key, value) in additionalContext {
+                context[key] = value
+            }
+        }
 
         // TODO: maybe keep NSString here
         for (key, value) in tokenizerConfig.dictionary as [String : Any] {
             if specialTokenAttributes.contains(key), !(value is NSNull) {
-                context[key] = value
+                if let stringValue = value as? String {
+                    context[key] = stringValue
+                } else if let dictionary = value as? [NSString:Any] {
+                    context[key] = addedTokenAsString(Config(dictionary))
+                } else {
+                    context[key] = value
+                }
             }
         }
 
@@ -510,6 +605,49 @@ class T5Tokenizer       : UnigramTokenizer {}
 
 let sentencePieceUnderline = "▁"
 
+// Hack for Llama tokenizers, see https://github.com/huggingface/transformers/blob/bcb841f0073fcd7a4fb88ea8064313c17dcab04a/src/transformers/models/llama/tokenization_llama_fast.py#L181
+// Return updated config, or nil
+func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?) throws -> Config? {
+
+    // If it's already a Template processor (instead of a ByteLevel one), assume it's correct
+    let postProcessor = PostProcessorFactory.fromConfig(config: processorConfig)
+    guard !(postProcessor is TemplateProcessing) else { return nil }
+
+    let addBosToken = tokenizerConfig.addBosToken?.boolValue ?? false
+    let bosToken = addedTokenAsString(tokenizerConfig.bosToken)
+    if addBosToken && bosToken == nil {
+        throw TokenizerError.mismatchedConfig("add_bos_token is True but bos_token is nil")
+    }
+
+    let addEosToken = tokenizerConfig.addEosToken?.boolValue ?? false
+    let eosToken = addedTokenAsString(tokenizerConfig.eosToken)
+    if addEosToken && eosToken == nil {
+        throw TokenizerError.mismatchedConfig("add_eos_token is True but eos_token is nil")
+    }
+
+    // alt implementation
+    var single: [[String : Any]] = []
+    if addBosToken {
+        single = single + [["SpecialToken": ["id": bosToken!, "type_id": 0]]]
+    }
+    single = single + [["Sequence": ["id": "A", "type_id": 0]]]
+    if addEosToken {
+        single = single + [["SpecialToken": ["id": eosToken!, "type_id": 0]]]
+    }
+
+    var pair: [[String : Any]] = single
+    if addBosToken {
+        pair = pair + [["SpecialToken": ["id": bosToken!, "type_id": 1]]]
+    }
+    pair = pair + [["Sequence": ["id": "B", "type_id": 1]]]
+    if addEosToken {
+        pair = pair + [["SpecialToken": ["id": eosToken!, "type_id": 1]]]
+    }
+
+    let postProcessorConfig = Config(["type": PostProcessorType.TemplateProcessing.rawValue, "single": single, "pair": pair])
+    return postProcessorConfig
+}
+
 // See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
 class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
     let isLegacy: Bool
@@ -521,8 +659,13 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
             configDictionary.removeValue(forKey: "normalizer")
             configDictionary["pre_tokenizer"] = ["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"]
         }
-        let updatedData = Config(configDictionary)
 
+        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData.postProcessor) {
+            configDictionary["post_processor"] = postProcessorConfig.dictionary
+        }
+
+        let updatedData = Config(configDictionary)
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
     }
 }
+

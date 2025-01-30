@@ -146,14 +146,14 @@ class NFKCNormalizer: Normalizer {
 class BertNormalizer: Normalizer {
     let shouldCleanText: Bool
     let shouldHandleChineseChars: Bool
-    let shouldStripAccents: Bool?
+    let shouldStripAccents: Bool
     let shouldLowercase: Bool
 
     required init(config: Config) {
         self.shouldCleanText = config.cleanText?.boolValue ?? true
         self.shouldHandleChineseChars = config.handleChineseChars?.boolValue ?? true
-        self.shouldStripAccents = config.stripAccents?.boolValue
         self.shouldLowercase = config.lowercase?.boolValue ?? true
+        self.shouldStripAccents = config.stripAccents?.boolValue ?? shouldLowercase
     }
 
     func normalize(text: String) -> String {
@@ -164,7 +164,7 @@ class BertNormalizer: Normalizer {
         if shouldHandleChineseChars {
             output = handleChineseChars(text: output)
         }
-        if shouldStripAccents ?? false {
+        if shouldStripAccents {
             output = stripAccents(text: output)
         }
         if shouldLowercase {
@@ -219,12 +219,10 @@ class BertNormalizer: Normalizer {
     }
 
     private func stripAccents(text: String) -> String {
-        text.decomposedStringWithCanonicalMapping
-            .filter {
-                $0.unicodeScalars.allSatisfy { scalar in
-                    !(0x0300 <= scalar.value && scalar.value <= 0x036F)
-                }
-            }
+        // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
+        String(text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
+            !(0x0300 <= scalar.value && scalar.value <= 0x036F)
+        })
     }
 }
 
