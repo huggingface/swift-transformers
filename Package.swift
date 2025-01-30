@@ -25,9 +25,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "TransformersCLI",
-            dependencies: [
-                "Models", "Generation", "TokenizersTemplates",
-                .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+            dependencies: [ "Models", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
         .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
