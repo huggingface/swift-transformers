@@ -11,9 +11,6 @@ import Combine
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
-    private(set) var metadataDestination: URL
-
-    private let chunkSize = 10 * 1024 * 1024  // 10MB
 
     enum DownloadState {
         case notStarted
@@ -32,16 +29,8 @@ class Downloader: NSObject, ObservableObject {
 
     private var urlSession: URLSession? = nil
 
-    init(
-        from url: URL,
-        to destination: URL,
-        metadataDirURL: URL,
-        using authToken: String? = nil,
-        inBackground: Bool = false
-    ) {
+    init(from url: URL, to destination: URL, using authToken: String? = nil, inBackground: Bool = false) {
         self.destination = destination
-        let filename = (destination.lastPathComponent as NSString).deletingPathExtension
-        self.metadataDestination = metadataDirURL.appending(component: "\(filename).metadata")
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
 

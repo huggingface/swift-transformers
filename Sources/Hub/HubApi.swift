@@ -151,17 +151,11 @@ public extension HubApi {
 /// Additional Errors
 public extension HubApi {
     enum EnvironmentError: LocalizedError {
-        case consistencyError(String)
-        case diskSpaceError(String)
-        case permissionError(String)
         case invalidMetadataError(String)
         
         public var errorDescription: String? {
             switch self {
-            case .consistencyError(let message),
-                 .diskSpaceError(let message),
-                 .permissionError(let message),
-                 .invalidMetadataError(let message):
+            case .invalidMetadataError(let message):
                 return message
             }
         }
@@ -235,6 +229,7 @@ public extension HubApi {
             repoDestination
                 .appendingPathComponent(".cache")
                 .appendingPathComponent("huggingface")
+                .appendingPathComponent("download")
         }
         
         var downloaded: Bool {
@@ -255,7 +250,7 @@ public extension HubApi {
         /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
         ///
         /// - Parameters:
-        ///   - localDir: The local directory where files are downloaded.
+        ///   - localDir: The local directory where metadata files are downloaded.
         ///   - filePath: The path of the file for which metadata is being read.
         /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
         /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
@@ -352,8 +347,7 @@ public extension HubApi {
         // (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
-            var metadataRelativePath = (relativeFilename as NSString).deletingPathExtension
-            metadataRelativePath += ".metadata"
+            let metadataRelativePath = "\(relativeFilename).metadata"
                         
             let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filePath: metadataRelativePath)
             let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
@@ -398,7 +392,7 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, metadataDirURL: metadataDestination, using: hfToken, inBackground: backgroundSession)
+            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
