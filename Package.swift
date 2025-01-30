@@ -7,25 +7,33 @@ let package = Package(
     name: "swift-transformers",
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
-        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         .library(name: "Hub", targets: ["Hub"]),
-        .library(name: "Tokenizers", targets: ["Tokenizers", "Models"]),
+        // ^ Hub client library
+        .library(name: "Tokenizers", targets: ["Tokenizers"]),
+        // ^ Tokenizers. Includes `Hub` to download config files
+        .library(name: "TokenizersTemplates", targets: ["TokenizersTemplates"]),
+        // ^ Optionally depend on this to add chat template support to Tokenizers
+        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
+        // ^ Everything, including Core ML inference
         .executable(name: "transformers", targets: ["TransformersCLI"]),
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0"),
-        .package(url: "https://github.com/johnmai-dev/Jinja", from: "1.1.0")
+        .package(url: "https://github.com/johnmai-dev/Jinja", from: "1.1.0"),
     ],
     targets: [
         .executableTarget(
             name: "TransformersCLI",
             dependencies: [
-                "Models", "Generation", "Tokenizers",
+                "Models", "Generation", "TokenizersTemplates",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")]),
-        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
+        .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
+        .target(name: "TokenizersTemplates", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")]),
+        .target(name: "Tokenizers", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")], path: "Sources/TokenizersWrapper"),
+        // ^ This is just a wrapper or façade against TokenizersCore, but adds templates if available
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
