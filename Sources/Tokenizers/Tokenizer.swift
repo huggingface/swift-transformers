@@ -493,7 +493,7 @@ public class PreTrainedTokenizer: Tokenizer {
         }
 
         guard let selectedChatTemplate else {
-            throw TokenizerError.chatTemplate("No chat template was specified")
+            throw TokenizerError.chatTemplate("This tokenizer does not have a chat template, and no template was passed.")
         }
 
         let template = try Template(selectedChatTemplate)

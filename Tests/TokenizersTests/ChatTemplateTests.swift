@@ -169,4 +169,26 @@ What is the weather in Paris today?<|im_end|>
         XCTAssertTrue(decoded.hasPrefix(expectedPromptStart), "Prompt should start with expected system message")
         XCTAssertTrue(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
     }
+
+    func testHasChatTemplate() async throws {
+        var tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
+        XCTAssertFalse(tokenizer.hasChatTemplate)
+
+        tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+        XCTAssertTrue(tokenizer.hasChatTemplate)
+    }
+
+    func testApplyTemplateError() async throws {
+        let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
+        XCTAssertFalse(tokenizer.hasChatTemplate)
+        XCTAssertThrowsError(try tokenizer.applyChatTemplate(messages: []))
+        do {
+            _ = try tokenizer.applyChatTemplate(messages: [])
+            XCTFail()
+        } catch TokenizerError.chatTemplate(let message) {
+            XCTAssertEqual(message, "This tokenizer does not have a chat template, and no template was passed.")
+        } catch {
+            XCTFail()
+        }
+    }
 }
