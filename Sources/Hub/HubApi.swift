@@ -52,6 +52,7 @@ private extension HubApi {
                     )
                 }
             },
+            { try? String(contentsOf: .homeDirectory.appendingPathComponent(".cache/huggingface/token"), encoding: .utf8) },
             { try? String(contentsOf: .homeDirectory.appendingPathComponent(".huggingface/token"), encoding: .utf8) }
         ]
         return possibleTokens

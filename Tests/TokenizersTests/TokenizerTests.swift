@@ -140,6 +140,23 @@ class LlamaPostProcessorOverrideTests: XCTestCase {
     }
 }
 
+class LocalFromPretrainedTests: XCTestCase {
+    func testLocalTokenizerFromPretrained() async throws {
+        let downloadDestination: URL = {
+            let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            return base.appending(component: "hf-local-pretrained-tests-downloads")
+        }()
+
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        let downloadedTo = try await hubApi.snapshot(from: "pcuenq/gemma-tokenizer")
+
+        let tokenizer = try await AutoTokenizer.from(modelFolder: downloadedTo) as? PreTrainedTokenizer
+        XCTAssertNotNil(tokenizer)
+
+        try FileManager.default.removeItem(at: downloadDestination)
+    }
+}
+
 class BertDiacriticsTests: XCTestCase {
     func testBertCased() async throws {
         guard let tokenizer = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer else {
