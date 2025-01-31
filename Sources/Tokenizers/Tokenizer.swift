@@ -148,7 +148,10 @@ public protocol Tokenizer {
     func applyChatTemplate(messages: [Message]) throws -> [Int]
 
     /// The appropriate chat template is selected from the tokenizer config
-    func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int]
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?) throws -> [Int]
+
+    /// The appropriate chat template is selected from the tokenizer config
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: Any]?) throws -> [Int]
 
     /// The chat template is provided as a string literal or specified by name
     func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int]
@@ -400,11 +403,11 @@ public class PreTrainedTokenizer: Tokenizer {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
-    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]) throws -> [Int] {
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil) throws -> [Int] {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true, tools: tools)
     }
 
-    public func applyChatTemplate(messages: [Message], tools: [ToolSpec], additionalContext: [String: Any]) throws
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil, additionalContext: [String: Any]? = nil) throws
         -> [Int]
     {
         try applyChatTemplate(
