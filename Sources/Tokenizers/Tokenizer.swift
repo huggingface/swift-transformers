@@ -12,7 +12,7 @@ import Jinja
 public typealias Message = [String: Any]
 public typealias ToolSpec = [String: Any]
 
-enum TokenizerError: Error {
+public enum TokenizerError: Error {
     case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
@@ -144,6 +144,8 @@ public protocol Tokenizer {
     var unknownToken: String? { get }
     var unknownTokenId: Int? { get }
 
+    var hasChatTemplate: Bool { get }
+
     /// The appropriate chat template is selected from the tokenizer config
     func applyChatTemplate(messages: [Message]) throws -> [Int]
 
@@ -182,6 +184,8 @@ public protocol Tokenizer {
 }
 
 extension Tokenizer {
+    public var hasChatTemplate: Bool { false }
+
     /// Call previous signature for backwards compatibility
     func applyChatTemplate(
         messages: [Message],
@@ -397,6 +401,10 @@ public class PreTrainedTokenizer: Tokenizer {
 
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
+    }
+
+    public var hasChatTemplate: Bool {
+        return tokenizerConfig.chatTemplate != nil
     }
 
     public func applyChatTemplate(messages: [Message]) throws -> [Int] {
