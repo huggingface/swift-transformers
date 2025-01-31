@@ -662,7 +662,8 @@ class SnapshotDownloadTests: XCTestCase {
             relativeFilename: "x.bin",
             hfToken: nil,
             endpoint: nil,
-            backgroundSession: false
+            backgroundSession: false,
+            offlineMode: false
         )
         
         XCTAssertTrue(downloader.isValidHash(hash: commitHash, pattern: downloader.commitHashPattern))

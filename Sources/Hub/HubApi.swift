@@ -161,10 +161,12 @@ public extension HubApi {
 public extension HubApi {
     enum EnvironmentError: LocalizedError {
         case invalidMetadataError(String)
-        
+        case offlineModeError(String)
+                    
         public var errorDescription: String? {
             switch self {
-            case .invalidMetadataError(let message):
+            case .invalidMetadataError(let message),
+                 .offlineModeError(let message):
                 return message
             }
         }
@@ -217,6 +219,7 @@ public extension HubApi {
         let hfToken: String?
         let endpoint: String?
         let backgroundSession: Bool
+        let offlineMode: Bool?
         
         let sha256Pattern = "^[0-9a-f]{64}$"
         let commitHashPattern = "^[0-9a-f]{40}$"
@@ -360,8 +363,30 @@ public extension HubApi {
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
             let metadataRelativePath = "\(relativeFilename).metadata"
-                        
             let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filePath: metadataRelativePath)
+
+            if let offlineMode = offlineMode, offlineMode {
+                if !downloaded {
+                    throw EnvironmentError.offlineModeError("File not available locally in offline mode")
+                }
+                
+                guard let localMetadata = localMetadata else {
+                    throw EnvironmentError.offlineModeError("Metadata not available or invalid in offline mode")
+                }
+                
+                let localEtag = localMetadata.etag
+                
+                // LFS file so check file integrity
+                if self.isValidHash(hash: localEtag, pattern: self.sha256Pattern) {
+                    let fileHash = try computeFileHash(file: destination)
+                    if fileHash != localEtag {
+                        throw EnvironmentError.offlineModeError("File integrity check failed in offline mode")
+                    }
+                }
+                
+                return destination
+            }
+                        
             let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
             
             let localCommitHash = localMetadata?.commitHash ?? ""
@@ -433,7 +458,8 @@ public extension HubApi {
                 relativeFilename: filename,
                 hfToken: hfToken,
                 endpoint: endpoint,
-                backgroundSession: useBackgroundSession
+                backgroundSession: useBackgroundSession,
+                offlineMode: useOfflineMode
             )
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
