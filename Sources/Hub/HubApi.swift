@@ -208,6 +208,9 @@ public extension HubApi {
         let hfToken: String?
         let endpoint: String?
         let backgroundSession: Bool
+        
+        let sha256Pattern = "^[0-9a-f]{64}$"
+        let commitHashPattern = "^[0-9a-f]{40}$"
 
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
@@ -273,6 +276,7 @@ public extension HubApi {
                     let timestampDate = Date(timeIntervalSince1970: timestamp)
                             
                     // TODO: check if file hasn't been modified since the metadata was saved
+                    // Reference: https://github.com/huggingface/huggingface_hub/blob/2fdc6f48ef5e6b22ee9bcdc1945948ac070da675/src/huggingface_hub/_local_folder.py#L303
                     
                     return LocalDownloadFileMetadata(commitHash: commitHash, etag: etag, filename: filePath, timestamp: timestampDate)
                 } catch {
@@ -290,9 +294,8 @@ public extension HubApi {
             return nil
         }
         
-        func isValidSHA256(_ hash: String) -> Bool {
-            let sha256Pattern = "^[0-9a-f]{64}$"
-            let regex = try? NSRegularExpression(pattern: sha256Pattern)
+        func isValidHash(hash: String, pattern: String) -> Bool {
+            let regex = try? NSRegularExpression(pattern: pattern)
             let range = NSRange(location: 0, length: hash.utf16.count)
             return regex?.firstMatch(in: hash, options: [], range: range) != nil
         }
@@ -356,7 +359,7 @@ public extension HubApi {
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
             
             // Local file exists + metadata exists + commit_hash matches => return file
-            if isValidSHA256(remoteCommitHash) && downloaded && localMetadata != nil && localCommitHash == remoteCommitHash {
+            if isValidHash(hash: remoteCommitHash, pattern: commitHashPattern) && downloaded && localMetadata != nil && localCommitHash == remoteCommitHash {
                 return destination
             }
             
@@ -379,7 +382,7 @@ public extension HubApi {
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if localMetadata != nil && isValidSHA256(remoteEtag) {
+                if localMetadata != nil && isValidHash(hash: remoteEtag, pattern: sha256Pattern) {
                     let fileHash = try computeFileHash(file: destination)
                     if fileHash == remoteEtag {
                         try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
