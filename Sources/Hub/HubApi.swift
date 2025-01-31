@@ -7,6 +7,7 @@
 
 import Foundation
 import CryptoKit
+import Network
 import os
 
 public struct HubApi {
@@ -14,11 +15,12 @@ public struct HubApi {
     var hfToken: String?
     var endpoint: String
     var useBackgroundSession: Bool
+    var useOfflineMode: Bool? = nil
 
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
     
-    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false) {
+    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false, useOfflineMode: Bool? = nil) {
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
         if let downloadBase {
             self.downloadBase = downloadBase
@@ -28,6 +30,12 @@ public struct HubApi {
         }
         self.endpoint = endpoint
         self.useBackgroundSession = useBackgroundSession
+        
+        if let useOfflineMode {
+            self.useOfflineMode = useOfflineMode
+        } else {
+            self.useOfflineMode = NetworkMonitor.shared.shouldUseOfflineMode()
+        }
     }
     
     public static let shared = HubApi()
@@ -526,6 +534,42 @@ public extension HubApi {
     
     func getFileMetadata(from repoId: String, matching glob: String) async throws -> [FileMetadata] {
         return try await getFileMetadata(from: Repo(id: repoId), matching: [glob])
+    }
+}
+
+/// Network monitor helper class to help decide whether to use offline mode
+private extension HubApi {
+    private final class NetworkMonitor {
+        static let shared = NetworkMonitor()
+        private let monitor = NWPathMonitor()
+        private var currentPath: NWPath?
+        
+        private init() {
+            monitor.pathUpdateHandler = { [weak self] path in
+                self?.currentPath = path
+            }
+            monitor.start(queue: DispatchQueue.global(qos: .background))
+        }
+        
+        deinit {
+            monitor.cancel()
+        }
+        
+        var isConnected: Bool {
+            currentPath?.status == .satisfied
+        }
+        
+        var isExpensive: Bool {
+            currentPath?.isExpensive ?? false
+        }
+        
+        var isConstrained: Bool {
+            currentPath?.isConstrained ?? false
+        }
+        
+        func shouldUseOfflineMode() -> Bool {
+            return !self.isConnected || self.isExpensive || self.isConstrained
+        }
     }
 }
 
