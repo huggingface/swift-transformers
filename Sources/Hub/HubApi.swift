@@ -378,11 +378,11 @@ public extension HubApi {
                     return destination
                 }
                 
-                // metadata is outdated + etag is a sha256
+                // etag is a sha256
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if localMetadata != nil && isValidHash(hash: remoteEtag, pattern: sha256Pattern) {
+                if isValidHash(hash: remoteEtag, pattern: sha256Pattern) {
                     let fileHash = try computeFileHash(file: destination)
                     if fileHash == remoteEtag {
                         try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
