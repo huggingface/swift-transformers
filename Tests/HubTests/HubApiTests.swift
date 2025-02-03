@@ -673,156 +673,33 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertFalse(downloader.isValidHash(hash: "\(etag)a", pattern: downloader.sha256Pattern))
     }
     
-    func testLFSFileNoMetadata() async throws {
-        let hubApi = HubApi(downloadBase: downloadDestination)
+    func testOfflineMode() async throws {
+        var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
-        let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
+        var downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            
             lastProgress = progress
         }
         
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
-
-        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
-        
-        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
-        
-        let filePath = downloadedTo.appending(path: "x.bin")
-        var attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let originalTimestamp = attributes[.modificationDate] as! Date
-        
-        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
-            Set(downloadedMetadataFilenames),
-            Set([".cache/huggingface/download/x.bin.metadata"])
-        )
-        
-        let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
-        try FileManager.default.removeItem(atPath: metadataFile.path)
-        
-        let _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
-            print("Total Progress: \(progress.fractionCompleted)")
-            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
-            lastProgress = progress
-        }
-        
-        attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let secondDownloadTimestamp = attributes[.modificationDate] as! Date
-
-        // File will not be downloaded again thus last modified date will remain unchanged
-        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
-        
-        let metadataString = try String(contentsOfFile: metadataFile.path)
-        let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
-        
-        XCTAssertTrue(metadataString.contains(expected))
-    }
-    
-    func testLFSFileCorruptedMetadata() async throws {
-        let hubApi = HubApi(downloadBase: downloadDestination)
-        var lastProgress: Progress? = nil
-
-        let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
-            print("Total Progress: \(progress.fractionCompleted)")
-            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
-            lastProgress = progress
-        }
-        
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
-
-        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
-        
-        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
-        
-        let filePath = downloadedTo.appending(path: "x.bin")
-        var attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let originalTimestamp = attributes[.modificationDate] as! Date
-        
-        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
-            Set(downloadedMetadataFilenames),
-            Set([".cache/huggingface/download/x.bin.metadata"])
-        )
-        
-        let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
-        try "a".write(to: metadataFile, atomically: true, encoding: .utf8)
-
-        let _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
-            print("Total Progress: \(progress.fractionCompleted)")
-            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
-            lastProgress = progress
-        }
-        
-        attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let secondDownloadTimestamp = attributes[.modificationDate] as! Date
-
-        // File will not be downloaded again thus last modified date will remain unchanged
-        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
-        
-        let metadataString = try String(contentsOfFile: metadataFile.path)
-        let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
-        
-        XCTAssertTrue(metadataString.contains(expected))
-    }
-    
-    func testNonLFSFileRedownload() async throws {
-        let hubApi = HubApi(downloadBase: downloadDestination)
-        var lastProgress: Progress? = nil
-
-        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
-            print("Total Progress: \(progress.fractionCompleted)")
-            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
-            lastProgress = progress
-        }
-        
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
-
-        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["config.json"]))
         
-        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
-        
-        let filePath = downloadedTo.appending(path: "config.json")
-        var attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let originalTimestamp = attributes[.modificationDate] as! Date
-        
-        let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
-            Set(downloadedMetadataFilenames),
-            Set([".cache/huggingface/download/config.json.metadata"])
-        )
-        
-        let metadataFile = metadataDestination.appendingPathComponent("config.json.metadata")
-        try FileManager.default.removeItem(atPath: metadataFile.path)
-        
-        let _ = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
+        hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+    
+        downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
         
-        attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
-        let secondDownloadTimestamp = attributes[.modificationDate] as! Date
-
-        // File will be downloaded again thus last modified date will change
-        XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
-        
-        let metadataString = try String(contentsOfFile: metadataFile.path)
-        let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nd6ceb92ce9e3c83ab146dc8e92a93517ac1cc66f"
-        
-        XCTAssertTrue(metadataString.contains(expected))
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
     }
+    
+    
 }

@@ -21,6 +21,7 @@ public struct HubApi {
     public typealias Repo = Hub.Repo
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false, useOfflineMode: Bool? = nil) {
+        print("HubApi init useOfflineMode:", useOfflineMode as Any)  // Debug print
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
         if let downloadBase {
             self.downloadBase = downloadBase
@@ -362,10 +363,12 @@ public extension HubApi {
         // (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
+            print("Download method offlineMode:", offlineMode as Any)  // Debug print
             let metadataRelativePath = "\(relativeFilename).metadata"
             let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filePath: metadataRelativePath)
 
             if let offlineMode = offlineMode, offlineMode {
+                print("Entering offline mode block")  // Debug print
                 if !downloaded {
                     throw EnvironmentError.offlineModeError("File not available locally in offline mode")
                 }
@@ -461,6 +464,7 @@ public extension HubApi {
                 backgroundSession: useBackgroundSession,
                 offlineMode: useOfflineMode
             )
+            print("Creating downloader with offlineMode:", useOfflineMode as Any)  // Debug print
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
@@ -568,13 +572,26 @@ private extension HubApi {
     private final class NetworkMonitor {
         static let shared = NetworkMonitor()
         private let monitor = NWPathMonitor()
-        private var currentPath: NWPath?
+        private var currentPath: NWPath? {
+            didSet {
+                print("NetworkMonitor path updated:", currentPath?.status as Any)
+            }
+        }
         
         private init() {
+            // Start monitoring and wait for initial update
+            let group = DispatchGroup()
+            group.enter()
+            
             monitor.pathUpdateHandler = { [weak self] path in
                 self?.currentPath = path
+                group.leave()
             }
+            
             monitor.start(queue: DispatchQueue.global(qos: .background))
+            
+            // Wait for initial path update with shorter timeout
+            _ = group.wait(timeout: .now() + 0.1) // 100ms timeout
         }
         
         deinit {
@@ -582,19 +599,27 @@ private extension HubApi {
         }
         
         var isConnected: Bool {
-            currentPath?.status == .satisfied
+            let connected = currentPath?.status == .satisfied
+            print("NetworkMonitor isConnected:", connected)  // Debug print
+            return connected
         }
         
         var isExpensive: Bool {
-            currentPath?.isExpensive ?? false
+            let expensive = currentPath?.isExpensive ?? false
+            print("NetworkMonitor isExpensive:", expensive)  // Debug print
+            return expensive
         }
         
         var isConstrained: Bool {
-            currentPath?.isConstrained ?? false
+            let constrained = currentPath?.isConstrained ?? false
+            print("NetworkMonitor isConstrained:", constrained)  // Debug print
+            return constrained
         }
         
         func shouldUseOfflineMode() -> Bool {
-            return !self.isConnected || self.isExpensive || self.isConstrained
+            let offline = !self.isConnected || self.isExpensive || self.isConstrained
+            print("NetworkMonitor shouldUseOfflineMode:", offline)  // Debug print
+            return offline
         }
     }
 }
