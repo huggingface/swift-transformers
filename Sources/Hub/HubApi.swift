@@ -16,12 +16,12 @@ public struct HubApi {
     var endpoint: String
     var useBackgroundSession: Bool
     var useOfflineMode: Bool? = nil
-
+    
+    private let networkMonitor = NetworkMonitor()
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
     
     public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false, useOfflineMode: Bool? = nil) {
-        print("HubApi init useOfflineMode:", useOfflineMode as Any)  // Debug print
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
         if let downloadBase {
             self.downloadBase = downloadBase
@@ -31,13 +31,12 @@ public struct HubApi {
         }
         self.endpoint = endpoint
         self.useBackgroundSession = useBackgroundSession
-        
-        if let useOfflineMode {
-            self.useOfflineMode = useOfflineMode
-        } else {
-            self.useOfflineMode = NetworkMonitor.shared.shouldUseOfflineMode()
-        }
+        self.useOfflineMode = useOfflineMode
+        NetworkMonitor.shared.startMonitoring()
     }
+    
+    let sha256Pattern = "^[0-9a-f]{64}$"
+    let commitHashPattern = "^[0-9a-f]{40}$"
     
     public static let shared = HubApi()
     
@@ -213,18 +212,112 @@ public extension HubApi {
         downloadBase.appending(component: repo.type.rawValue).appending(component: repo.id)
     }
     
+    /// Reads metadata about a file in the local directory related to a download process.
+    ///
+    /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
+    ///
+    /// - Parameters:
+    ///   - localDir: The local directory where metadata files are downloaded.
+    ///   - filePath: The path of the file for which metadata is being read.
+    /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
+    /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
+    func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
+        if FileManager.default.fileExists(atPath: metadataPath.path) {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: metadataPath.path)
+                print("File attributes: \(attributes)")
+                let contents = try String(contentsOf: metadataPath, encoding: .utf8)
+                let lines = contents.components(separatedBy: .newlines)
+                
+                guard lines.count >= 3 else {
+                    throw EnvironmentError.invalidMetadataError("Metadata file is missing required fields.")
+                }
+                
+                let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                    throw EnvironmentError.invalidMetadataError("Missing or invalid timestamp.")
+                }
+                let timestampDate = Date(timeIntervalSince1970: timestamp)
+                        
+                // TODO: check if file hasn't been modified since the metadata was saved
+                // Reference: https://github.com/huggingface/huggingface_hub/blob/2fdc6f48ef5e6b22ee9bcdc1945948ac070da675/src/huggingface_hub/_local_folder.py#L303
+                
+                let filename = metadataPath.lastPathComponent.replacingOccurrences(of: ".metadata", with: "")
+                
+                return LocalDownloadFileMetadata(commitHash: commitHash, etag: etag, filename: filename, timestamp: timestampDate)
+            } catch {
+                do {
+                    HubApi.logger.warning("Invalid metadata file \(metadataPath): \(error). Removing it from disk and continue.")
+                    try FileManager.default.removeItem(at: metadataPath)
+                } catch {
+                    throw EnvironmentError.invalidMetadataError("Could not remove corrupted metadata file \(metadataPath): \(error)")
+                }
+                return nil
+            }
+        }
+            
+        // metadata file does not exist
+        return nil
+    }
+    
+    func isValidHash(hash: String, pattern: String) -> Bool {
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let range = NSRange(location: 0, length: hash.utf16.count)
+        return regex?.firstMatch(in: hash, options: [], range: range) != nil
+    }
+    
+    func computeFileHash(file url: URL) throws -> String {
+        // Open file for reading
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
+            throw Hub.HubClientError.unexpectedError
+        }
+        
+        defer {
+            try? fileHandle.close()
+        }
+        
+        var hasher = SHA256()
+        let chunkSize = 1024 * 1024 // 1MB chunks
+        
+        while autoreleasepool(invoking: {
+            let nextChunk = try? fileHandle.read(upToCount: chunkSize)
+            
+            guard let nextChunk,
+                    !nextChunk.isEmpty
+            else {
+                return false
+            }
+            
+            hasher.update(data: nextChunk)
+            
+            return true
+        }) { }
+        
+        let digest = hasher.finalize()
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L391
+    func writeDownloadMetadata(commitHash: String, etag: String, metadataPath: URL) throws {
+        let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
+        do {
+            try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
+        } catch {
+            throw EnvironmentError.invalidMetadataError("Failed to write metadata file \(metadataPath)")
+        }
+    }
+    
     struct HubFileDownloader {
         let repo: Repo
         let repoDestination: URL
+        let repoMetadataDestination: URL
         let relativeFilename: String
         let hfToken: String?
         let endpoint: String?
         let backgroundSession: Bool
-        let offlineMode: Bool?
         
-        let sha256Pattern = "^[0-9a-f]{64}$"
-        let commitHashPattern = "^[0-9a-f]{40}$"
-
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
             var url = URL(string: endpoint ?? "https://huggingface.co")!
@@ -242,10 +335,7 @@ public extension HubApi {
         }
         
         var metadataDestination: URL {
-            repoDestination
-                .appendingPathComponent(".cache")
-                .appendingPathComponent("huggingface")
-                .appendingPathComponent("download")
+            repoMetadataDestination.appending(path: relativeFilename + ".metadata")
         }
         
         var downloaded: Bool {
@@ -258,145 +348,23 @@ public extension HubApi {
         }
         
         func prepareMetadataDestination() throws {
-            try FileManager.default.createDirectory(at: metadataDestination, withIntermediateDirectories: true, attributes: nil)
+            let directoryURL = metadataDestination.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
         }
-        
-        /// Reads metadata about a file in the local directory related to a download process.
-        ///
-        /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
-        ///
-        /// - Parameters:
-        ///   - localDir: The local directory where metadata files are downloaded.
-        ///   - filePath: The path of the file for which metadata is being read.
-        /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
-        /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
-        func readDownloadMetadata(localDir: URL, filePath: String) throws -> LocalDownloadFileMetadata? {
-            let metadataPath = localDir.appending(path: filePath)
-            if FileManager.default.fileExists(atPath: metadataPath.path) {
-                do {
-                    let contents = try String(contentsOf: metadataPath, encoding: .utf8)
-                    let lines = contents.components(separatedBy: .newlines)
-                    
-                    guard lines.count >= 3 else {
-                        throw EnvironmentError.invalidMetadataError("Metadata file is missing required fields.")
-                    }
-                    
-                    let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                    let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                        throw EnvironmentError.invalidMetadataError("Missing or invalid timestamp.")
-                    }
-                    let timestampDate = Date(timeIntervalSince1970: timestamp)
-                            
-                    // TODO: check if file hasn't been modified since the metadata was saved
-                    // Reference: https://github.com/huggingface/huggingface_hub/blob/2fdc6f48ef5e6b22ee9bcdc1945948ac070da675/src/huggingface_hub/_local_folder.py#L303
-                    
-                    return LocalDownloadFileMetadata(commitHash: commitHash, etag: etag, filename: filePath, timestamp: timestampDate)
-                } catch {
-                    do {
-                        logger.warning("Invalid metadata file \(metadataPath): \(error). Removing it from disk and continue.")
-                        try FileManager.default.removeItem(at: metadataPath)
-                    } catch {
-                        throw EnvironmentError.invalidMetadataError("Could not remove corrupted metadata file \(metadataPath): \(error)")
-                    }
-                    return nil
-                }
-            }
-                
-            // metadata file does not exist
-            return nil
-        }
-        
-        func isValidHash(hash: String, pattern: String) -> Bool {
-            let regex = try? NSRegularExpression(pattern: pattern)
-            let range = NSRange(location: 0, length: hash.utf16.count)
-            return regex?.firstMatch(in: hash, options: [], range: range) != nil
-        }
-        
-        /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L391
-        func writeDownloadMetadata(commitHash: String, etag: String, metadataRelativePath: String) throws {
-            let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
-            let metadataPath = metadataDestination.appending(component: metadataRelativePath)
-            
-            do {
-                try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
-            } catch {
-                throw EnvironmentError.invalidMetadataError("Failed to write metadata file \(metadataPath)")
-            }
-        }
-        
-        func computeFileHash(file url: URL) throws -> String {
-            // Open file for reading
-            guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
-                throw Hub.HubClientError.unexpectedError
-            }
-            
-            defer {
-                try? fileHandle.close()
-            }
-            
-            var hasher = SHA256()
-            let chunkSize = 1024 * 1024 // 1MB chunks
-            
-            while autoreleasepool(invoking: {
-                let nextChunk = try? fileHandle.read(upToCount: chunkSize)
-                
-                guard let nextChunk,
-                        !nextChunk.isEmpty
-                else {
-                    return false
-                }
-                
-                hasher.update(data: nextChunk)
-                
-                return true
-            }) { }
-            
-            let digest = hasher.finalize()
-            return digest.map { String(format: "%02x", $0) }.joined()
-        }
-        
         
         // Note we go from Combine in Downloader to callback-based progress reporting
         // We'll probably need to support Combine as well to play well with Swift UI
         // (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
-            print("Download method offlineMode:", offlineMode as Any)  // Debug print
-            let metadataRelativePath = "\(relativeFilename).metadata"
-            let localMetadata = try readDownloadMetadata(localDir: metadataDestination, filePath: metadataRelativePath)
-
-            if let offlineMode = offlineMode, offlineMode {
-                print("Entering offline mode block")  // Debug print
-                if !downloaded {
-                    throw EnvironmentError.offlineModeError("File not available locally in offline mode")
-                }
-                
-                guard let localMetadata = localMetadata else {
-                    throw EnvironmentError.offlineModeError("Metadata not available or invalid in offline mode")
-                }
-                
-                let localEtag = localMetadata.etag
-                
-                // LFS file so check file integrity
-                if self.isValidHash(hash: localEtag, pattern: self.sha256Pattern) {
-                    let fileHash = try computeFileHash(file: destination)
-                    if fileHash != localEtag {
-                        throw EnvironmentError.offlineModeError("File integrity check failed in offline mode")
-                    }
-                }
-                
-                return destination
-            }
-                        
+            let localMetadata = try HubApi.shared.readDownloadMetadata(metadataPath: metadataDestination)
             let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
             
             let localCommitHash = localMetadata?.commitHash ?? ""
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
             
             // Local file exists + metadata exists + commit_hash matches => return file
-            if isValidHash(hash: remoteCommitHash, pattern: commitHashPattern) && downloaded && localMetadata != nil && localCommitHash == remoteCommitHash {
+            if HubApi.shared.isValidHash(hash: remoteCommitHash, pattern: HubApi.shared.commitHashPattern) && downloaded && localMetadata != nil && localCommitHash == remoteCommitHash {
                 return destination
             }
             
@@ -411,7 +379,7 @@ public extension HubApi {
             if downloaded {
                 // etag matches => update metadata and return file
                 if localMetadata?.etag == remoteEtag {
-                    try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
+                    try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                     return destination
                 }
                 
@@ -419,10 +387,10 @@ public extension HubApi {
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if isValidHash(hash: remoteEtag, pattern: sha256Pattern) {
-                    let fileHash = try computeFileHash(file: destination)
+                if HubApi.shared.isValidHash(hash: remoteEtag, pattern: HubApi.shared.sha256Pattern) {
+                    let fileHash = try HubApi.shared.computeFileHash(file: destination)
                     if fileHash == remoteEtag {
-                        try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
+                        try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                         return destination
                     }
                 }
@@ -431,7 +399,7 @@ public extension HubApi {
             // Otherwise, let's download the file!
             try prepareDestination()
             try prepareMetadataDestination()
-
+            
             let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
@@ -442,7 +410,7 @@ public extension HubApi {
                 try downloader.waitUntilDone()
             }
             
-            try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataRelativePath: metadataRelativePath)
+            try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
             
             return destination
         }
@@ -450,21 +418,60 @@ public extension HubApi {
 
     @discardableResult
     func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        let repoDestination = localRepoLocation(repo)
+        let repoMetadataDestination = repoDestination
+            .appendingPathComponent(".cache")
+            .appendingPathComponent("huggingface")
+            .appendingPathComponent("download")
+        
+        if useOfflineMode ?? NetworkMonitor.shared.shouldUseOfflineMode() {
+            if !FileManager.default.fileExists(atPath: repoDestination.path) {
+                throw EnvironmentError.offlineModeError("File not available locally in offline mode")
+            }
+            
+            let fileUrls = try FileManager.default.getFileUrls(at: repoDestination)
+            if fileUrls.isEmpty {
+                throw EnvironmentError.offlineModeError("File not available locally in offline mode")
+            }
+            
+            for fileUrl in fileUrls {
+                let metadataPath = URL(fileURLWithPath: fileUrl.path.replacingOccurrences(
+                    of: repoDestination.path, 
+                    with: repoMetadataDestination.path
+                ) + ".metadata")
+                
+                let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
+                
+                guard let localMetadata = localMetadata else {
+                    throw EnvironmentError.offlineModeError("Metadata not available or invalid in offline mode")
+                }
+                let localEtag = localMetadata.etag
+                
+                // LFS file so check file integrity
+                if self.isValidHash(hash: localEtag, pattern: self.sha256Pattern) {
+                    let fileHash = try computeFileHash(file: fileUrl)
+                    if fileHash != localEtag {
+                        throw EnvironmentError.offlineModeError("File integrity check failed in offline mode")
+                    }
+                }
+            }
+            
+            return repoDestination
+        }
+        
         let filenames = try await getFilenames(from: repo, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
-        let repoDestination = localRepoLocation(repo)
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
             let downloader = HubFileDownloader(
                 repo: repo,
                 repoDestination: repoDestination,
+                repoMetadataDestination: repoMetadataDestination,
                 relativeFilename: filename,
                 hfToken: hfToken,
                 endpoint: endpoint,
-                backgroundSession: useBackgroundSession,
-                offlineMode: useOfflineMode
+                backgroundSession: useBackgroundSession
             )
-            print("Creating downloader with offlineMode:", useOfflineMode as Any)  // Debug print
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
@@ -570,56 +577,43 @@ public extension HubApi {
 /// Network monitor helper class to help decide whether to use offline mode
 private extension HubApi {
     private final class NetworkMonitor {
+        private var monitor: NWPathMonitor
+        private var queue: DispatchQueue
+        
+        private(set) var isConnected: Bool = false
+        private(set) var isExpensive: Bool = false
+        private(set) var isConstrained: Bool = false
+        
         static let shared = NetworkMonitor()
-        private let monitor = NWPathMonitor()
-        private var currentPath: NWPath? {
-            didSet {
-                print("NetworkMonitor path updated:", currentPath?.status as Any)
-            }
+        
+        init() {
+            monitor = NWPathMonitor()
+            queue = DispatchQueue(label: "HubApi.NetworkMonitor")
+            startMonitoring()
         }
         
-        private init() {
-            // Start monitoring and wait for initial update
-            let group = DispatchGroup()
-            group.enter()
-            
+        func startMonitoring() {
             monitor.pathUpdateHandler = { [weak self] path in
-                self?.currentPath = path
-                group.leave()
+                guard let self = self else { return }
+                
+                self.isConnected = path.status == .satisfied
+                self.isExpensive = path.isExpensive
+                self.isConstrained = path.isConstrained
             }
             
-            monitor.start(queue: DispatchQueue.global(qos: .background))
-            
-            // Wait for initial path update with shorter timeout
-            _ = group.wait(timeout: .now() + 0.1) // 100ms timeout
+            monitor.start(queue: queue)
         }
         
-        deinit {
+        func stopMonitoring() {
             monitor.cancel()
         }
         
-        var isConnected: Bool {
-            let connected = currentPath?.status == .satisfied
-            print("NetworkMonitor isConnected:", connected)  // Debug print
-            return connected
-        }
-        
-        var isExpensive: Bool {
-            let expensive = currentPath?.isExpensive ?? false
-            print("NetworkMonitor isExpensive:", expensive)  // Debug print
-            return expensive
-        }
-        
-        var isConstrained: Bool {
-            let constrained = currentPath?.isConstrained ?? false
-            print("NetworkMonitor isConstrained:", constrained)  // Debug print
-            return constrained
-        }
-        
         func shouldUseOfflineMode() -> Bool {
-            let offline = !self.isConnected || self.isExpensive || self.isConstrained
-            print("NetworkMonitor shouldUseOfflineMode:", offline)  // Debug print
-            return offline
+            return !isConnected || isExpensive || isConstrained
+        }
+        
+        deinit {
+            stopMonitoring()
         }
     }
 }
@@ -686,6 +680,34 @@ public extension Hub {
 public extension [String] {
     func matching(glob: String) -> [String] {
         filter { fnmatch(glob, $0, 0) == 0 }
+    }
+}
+
+public extension FileManager {
+    func getFileUrls(at directoryUrl: URL) throws -> [URL] {
+        var fileUrls = [URL]()
+        
+        // Get all contents including subdirectories
+        guard let enumerator = FileManager.default.enumerator(
+            at: directoryUrl,
+            includingPropertiesForKeys: [.isRegularFileKey, .isHiddenKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return fileUrls
+        }
+        
+        for case let fileURL as URL in enumerator {
+            do {
+                let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .isHiddenKey])
+                if resourceValues.isRegularFile == true && resourceValues.isHidden != true {
+                    fileUrls.append(fileURL)
+                }
+            } catch {
+                throw error
+            }
+        }
+        
+        return fileUrls
     }
 }
 
