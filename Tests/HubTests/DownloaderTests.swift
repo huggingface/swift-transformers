@@ -46,8 +46,7 @@ final class DownloaderTests: XCTestCase {
         
         let downloader = Downloader(
             from: url,
-            to: destination,
-            metadataDirURL: tempDir
+            to: destination
         )
         
         // Store subscriber outside the continuation to maintain its lifecycle
@@ -84,7 +83,6 @@ final class DownloaderTests: XCTestCase {
         let downloader = Downloader(
             from: url,
             to: destination,
-            metadataDirURL: tempDir,
             expectedSize: 999999  // Incorrect size
         )
         
@@ -110,7 +108,6 @@ final class DownloaderTests: XCTestCase {
         let downloader = Downloader(
             from: url,
             to: destination,
-            metadataDirURL: tempDir,
             expectedSize: 73194001
         )
         var threshold = 0.5

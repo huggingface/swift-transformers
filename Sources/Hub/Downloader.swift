@@ -12,6 +12,8 @@ import Combine
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
 
+    private let chunkSize = 10 * 1024 * 1024  // 10MB
+
     enum DownloadState {
         case notStarted
         case downloading(Double)
@@ -29,7 +31,17 @@ class Downloader: NSObject, ObservableObject {
 
     private var urlSession: URLSession? = nil
 
-    init(from url: URL, to destination: URL, using authToken: String? = nil, inBackground: Bool = false) {
+    init(
+        from url: URL,
+        to destination: URL,
+        using authToken: String? = nil,
+        inBackground: Bool = false,
+        resumeSize: Int = 0,
+        headers: [String: String]? = nil,
+        expectedSize: Int? = nil,
+        timeout: TimeInterval = 10,
+        numRetries: Int = 5
+    ) {
         self.destination = destination
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"

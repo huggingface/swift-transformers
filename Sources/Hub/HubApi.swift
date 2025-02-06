@@ -396,7 +396,7 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession)
+            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
