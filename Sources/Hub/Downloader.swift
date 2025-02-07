@@ -55,10 +55,18 @@ class Downloader: NSObject, ObservableObject {
 
         self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        setupDownload(from: url, with: authToken)
+        setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
 
-    private func setupDownload(from url: URL, with authToken: String?) {
+    private func setupDownload(
+        from url: URL,
+        with authToken: String?,
+        resumeSize: Int,
+        headers: [String: String]?,
+        expectedSize: Int?,
+        timeout: TimeInterval,
+        numRetries: Int
+    ) {
         downloadState.value = .downloading(0)
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
@@ -213,7 +221,7 @@ class Downloader: NSObject, ObservableObject {
             throw DownloadError.unexpectedError
         }
     }
-
+    
     @discardableResult
     func waitUntilDone() throws -> URL {
         // It's either this, or stream the bytes ourselves (add to a buffer, save to disk, etc; boring and finicky)

@@ -367,6 +367,7 @@ public extension HubApi {
             // From now on, etag, commit_hash, url and size are not empty
             guard let remoteCommitHash = remoteMetadata.commitHash,
                   let remoteEtag = remoteMetadata.etag,
+                  let remoteSize = remoteMetadata.size,
                   remoteMetadata.location != "" else {
                 throw EnvironmentError.invalidMetadataError("File metadata must have been retrieved from server")
             }
