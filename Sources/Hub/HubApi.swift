@@ -411,9 +411,9 @@ public extension HubApi {
             return destination
         }
     }
-
+    
     @discardableResult
-    func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    func snapshotWithDetailProgress(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress, String?, Progress?) -> Void = { _,_,_ in }) async throws -> URL {
         let filenames = try await getFilenames(from: repo, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         let repoDestination = localRepoLocation(repo)
@@ -429,11 +429,11 @@ public extension HubApi {
             )
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
-                progressHandler(progress)
+                progressHandler(progress, filename, fileProgress)
             }
             fileProgress.completedUnitCount = 100
         }
-        progressHandler(progress)
+        progressHandler(progress, nil, nil)
         return repoDestination
     }
     
@@ -450,6 +450,14 @@ public extension HubApi {
     @discardableResult
     func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         return try await snapshot(from: Repo(id: repoId), matching: [glob], progressHandler: progressHandler)
+    }
+    
+    // Compatible with single progress parameter
+    @discardableResult
+    func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await snapshotWithDetailProgress(from: repo, matching: globs) { progress, filename, fileProgress  in
+            progressHandler(progress)
+        }
     }
 }
 
