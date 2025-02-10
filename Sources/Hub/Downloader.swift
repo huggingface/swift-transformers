@@ -58,6 +58,16 @@ class Downloader: NSObject, ObservableObject {
         setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
 
+    /// Sets up and initiates a file download operation
+    ///
+    /// - Parameters:
+    ///   - url: Source URL to download from
+    ///   - authToken: Bearer token for authentication with Hugging Face
+    ///   - resumeSize: Number of bytes already downloaded for resuming interrupted downloads
+    ///   - headers: Additional HTTP headers to include in the request
+    ///   - expectedSize: Expected file size in bytes for validation
+    ///   - timeout: Time interval before the request times out
+    ///   - numRetries: Number of retry attempts for failed downloads
     private func setupDownload(
         from url: URL,
         with authToken: String?,
