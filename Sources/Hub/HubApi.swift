@@ -367,6 +367,7 @@ public extension HubApi {
             // From now on, etag, commit_hash, url and size are not empty
             guard let remoteCommitHash = remoteMetadata.commitHash,
                   let remoteEtag = remoteMetadata.etag,
+                  let remoteSize = remoteMetadata.size,
                   remoteMetadata.location != "" else {
                 throw EnvironmentError.invalidMetadataError("File metadata must have been retrieved from server")
             }
@@ -396,7 +397,7 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession)
+            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
             let downloadSubscriber = downloader.downloadState.sink { state in
                 if case .downloading(let progress) = state {
                     progressHandler(progress)
