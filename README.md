@@ -88,6 +88,8 @@ Using `swift-transformers` in your project? Let us know and we'll add you to the
 
 ## Supported Models
 
+You can run inference on Core ML models with `swift-transformers`. Note that Core ML is not required to use the `Tokenizers` or `Hub` modules.
+
 This package has been tested with autoregressive language models such as:
 
 - GPT, GPT-Neox, GPT-J.
