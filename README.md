@@ -84,6 +84,8 @@ targets: [
 - [WhisperKit](https://github.com/argmaxinc/WhisperKit): A Swift Package for state-of-the-art speech-to-text systems from [Argmax](https://github.com/argmaxinc)
 - [MLX Swift Examples](https://github.com/ml-explore/mlx-swift-examples): A Swift Package for integrating MLX models in Swift apps.
 
+Using `swift-transformers` in your project? Let us know and we'll add you to the list!
+
 ## Supported Models
 
 This package has been tested with autoregressive language models such as:
