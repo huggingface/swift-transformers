@@ -35,7 +35,7 @@ func testTokenizer() async throws {
 }
 ```
 
-- `Hub`: Utilities for interacting with the Huggingface Hub! Download models, tokenizers and other config files. Usage example:
+- `Hub`: Utilities for interacting with the Hugging Face Hub! Download models, tokenizers and other config files. Usage example:
 ```swift
 import Hub
 func testHub() async throws {
