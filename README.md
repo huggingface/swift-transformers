@@ -79,7 +79,7 @@ targets: [
 ]
 ```
 
-## Example Repos
+## Projects that use swift-transformers ❤️ 
 
 - [WhisperKit](https://github.com/argmaxinc/WhisperKit): A Swift Package for state-of-the-art speech-to-text systems from [Argmax](https://github.com/argmaxinc)
 - [MLX Swift Examples](https://github.com/ml-explore/mlx-swift-examples): A Swift Package for integrating MLX models in Swift apps.
