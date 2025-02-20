@@ -8,6 +8,8 @@ let package = Package(
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
+        .library(name: "Hub", targets: ["Hub"]),
+        .library(name: "Tokenizers", targets: ["Tokenizers"]),
         .executable(name: "transformers", targets: ["TransformersCLI"]),
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
