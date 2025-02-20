@@ -35,8 +35,6 @@ func testTokenizer() async throws {
 }
 ```
 
-You don't usually need to tokenize the input text yourself - the [`Generation` code](https://github.com/huggingface/swift-transformers/blob/17d4bfae3598482fc7ecf1a621aa77ab586d379a/Sources/Generation/Generation.swift#L82) will take care of it.
-
 - `Hub`: Utilities for interacting with the Huggingface Hub! Download models, tokenizers and other config files. Usage example:
 ```swift
 import Hub
@@ -54,7 +52,7 @@ func testHub() async throws {
 }
 ```
 
-- `Generation`: Algorithms for text generation. Currently supported ones are greedy search and top-k sampling.
+- `Generation`: Algorithms for text generation. Handles tokenization internally. Currently supported ones are greedy search and top-k sampling.
 - `Models`: Language model abstraction over a Core ML package.
 
 
@@ -70,7 +68,7 @@ dependencies: [
 
 And then, add the Transformers library as a dependency to your target:
 
-```
+```swift
 targets: [
     .target(
         name: "YourTargetName",
