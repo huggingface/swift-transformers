@@ -1,4 +1,14 @@
-# `swift-transformers`
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="media/swift-t-banner.png">
+    <source media="(prefers-color-scheme: light)" srcset="media/swift-t-banner.png">
+    <img alt="Swift + Transformers" src="media/swift-t-banner.png" style="max-width: 100%;">
+  </picture>
+  <br/>
+  <br/>
+</p>
+
+
 [![Unit Tests](https://github.com/huggingface/swift-transformers/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/huggingface/swift-transformers/actions/workflows/unit-tests.yml)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fhuggingface%2Fswift-transformers%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/huggingface/swift-transformers)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fhuggingface%2Fswift-transformers%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/huggingface/swift-transformers)
@@ -27,21 +37,26 @@ func testTokenizer() async throws {
 
 You don't usually need to tokenize the input text yourself - the [`Generation` code](https://github.com/huggingface/swift-transformers/blob/17d4bfae3598482fc7ecf1a621aa77ab586d379a/Sources/Generation/Generation.swift#L82) will take care of it.
 
-- `Hub`: Utilities to download config files from the Hub, used to instantiate tokenizers and learn about language model characteristics.
+- `Hub`: Utilities for interacting with the Huggingface Hub! Download models, tokenizers and other config files. Usage example:
+```swift
+import Hub
+func testHub() async throws {
+    let repo = Hub.Repo(id: "mlx-community/Qwen2.5-0.5B-Instruct-2bit-mlx")
+    let filesToDownload = ["config.json", "*.safetensors"]
+    let modelDirectory: URL = try await Hub.snapshot(
+        from: repo,
+        matching: filesToDownload,
+        progressHandler: { progress in
+            print("Download progress: \(progress.fractionCompleted * 100)%")
+        }
+    )
+    print("Files downloaded to: \(modelDirectory.path)")
+}
+```
+
 - `Generation`: Algorithms for text generation. Currently supported ones are greedy search and top-k sampling.
 - `Models`: Language model abstraction over a Core ML package.
 
-## Supported Models
-
-This package has been tested with autoregressive language models such as:
-
-- GPT, GPT-Neox, GPT-J.
-- SantaCoder.
-- StarCoder.
-- Falcon.
-- Llama 2.
-
-Encoder-decoder models such as T5 and Flan are currently _not supported_. They are high up in our [priority list](#roadmap).
 
 ## Usage via SwiftPM
 
@@ -66,12 +81,40 @@ targets: [
 ]
 ```
 
+## Example Repos
+
+- [WhisperKit](https://github.com/argmaxinc/WhisperKit): A Swift Package for state-of-the-art speech-to-text systems from [Argmax](https://github.com/argmaxinc)
+- [MLX Swift Examples](https://github.com/ml-explore/mlx-swift-examples): A Swift Package for integrating MLX models in Swift apps.
+
+## Supported Models
+
+This package has been tested with autoregressive language models such as:
+
+- GPT, GPT-Neox, GPT-J.
+- SantaCoder.
+- StarCoder.
+- Falcon.
+- Llama 2.
+
+Encoder-decoder models such as T5 and Flan are currently _not supported_. They are high up in our [priority list](#roadmap).
+
 ## Other Tools
 
 - [`swift-chat`](https://github.com/huggingface/swift-chat), a simple app demonstrating how to use this package.
 - [`exporters`](https://github.com/huggingface/exporters), a Core ML conversion package for transformers models, based on Apple's [`coremltools`](https://github.com/apple/coremltools).
 - [`transformers-to-coreml`](https://huggingface.co/spaces/coreml-projects/transformers-to-coreml), a no-code Core ML conversion tool built on `exporters`.
 
+## Contributing 
+
+Swift Transformers is a community project and we welcome contributions. Please
+check out [Issues](https://github.com/huggingface/swift-transformers/issues)
+tagged with `good first issue` if you are looking for a place to start!
+
+Please ensure your code passes the build and test suite before submitting a pull
+request. You can run the tests with `swift test`.
+
 ## License
 
 [Apache 2](LICENSE).
+
+
