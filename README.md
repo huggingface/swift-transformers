@@ -52,7 +52,7 @@ func testHub() async throws {
 }
 ```
 
-- `Generation`: Algorithms for text generation. Handles tokenization internally. Currently supported ones are greedy search and top-k sampling.
+- `Generation`: Algorithms for text generation. Handles tokenization internally. Currently supported ones are: greedy search, top-k sampling, and top-p sampling.
 - `Models`: Language model abstraction over a Core ML package.
 
 
