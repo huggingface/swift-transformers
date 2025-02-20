@@ -94,7 +94,7 @@ This package has been tested with autoregressive language models such as:
 - Falcon.
 - Llama 2.
 
-Encoder-decoder models such as T5 and Flan are currently _not supported_. They are high up in our [priority list](#roadmap).
+Encoder-decoder models such as T5 and Flan are currently _not supported_.
 
 ## Other Tools
 
