@@ -100,7 +100,14 @@ public struct Config {
     }
     
     /// Tuple of token identifier and string value
-    public var tokenValue: (UInt, String)? { value as? (UInt, String) }
+    public var tokenValue: (UInt, String)? { 
+        switch value {
+        case let (i, t) as (UInt, String): return (i, t)
+        case let (t, i) as (String, UInt): return (i, t)
+        case let a as [Any] where a.count == 2: return (a[1], a[0]) as? (UInt, String)
+        default: return nil
+        }
+    }
 }
 
 public class LanguageModelConfigurationFromHub {

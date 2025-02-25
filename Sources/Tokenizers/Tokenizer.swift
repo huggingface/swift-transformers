@@ -77,6 +77,7 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 
 struct TokenizerModel {
     static let knownTokenizers: [String : PreTrainedTokenizerModel.Type] = [
+        "BartTokenizer"      : BertTokenizer.self,
         "BertTokenizer"      : BertTokenizer.self,
         "DistilbertTokenizer": BertTokenizer.self,
         "DistilBertTokenizer": BertTokenizer.self,
