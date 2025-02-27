@@ -211,8 +211,9 @@ What's in this image?<|vision_start|><|image_pad|><|vision_end|><|im_end|>
 <|im_start|>assistant
 
 """
-        XCTAssertTrue(qwen2VLEncoded == qwen2_5VLEncoded)
-        XCTAssertTrue(qwen2VLDecoded == qwen2_5VLDecoded && qwen2_5VLDecoded == expectedOutput)
+        XCTAssertEqual(qwen2VLEncoded, qwen2_5VLEncoded, "Encoded sequences should be equal")
+        XCTAssertEqual(qwen2VLDecoded, qwen2_5VLDecoded, "Decoded sequences should be equal")
+        XCTAssertEqual(qwen2_5VLDecoded, expectedOutput, "Decoded sequence should match expected output")
     }
 
     func testApplyTemplateError() async throws {

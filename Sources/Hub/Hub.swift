@@ -183,45 +183,33 @@ public class LanguageModelConfigurationFromHub {
 
         return try await loadConfig(modelFolder: downloadedModelFolder, hubApi: hubApi)
     }
-    
+
     func loadConfig(
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
-        // Note tokenizerConfig may be nil (does not exist in all models)
+        // Load required configurations
         let modelConfig = try hubApi.configuration(fileURL: modelFolder.appending(path: "config.json"))
-        // First try to get the tokenizer_config.json
-        let tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
-        // Check for chat_template.json, which contains the preferred chat template for vision language models
-        if let chatTemplateConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "chat_template.json")) {
-            // If chat_template.json exists and contains a chat_template field, use it to override the tokenizer_config
-            if let chatTemplate = chatTemplateConfig.chatTemplate?.stringValue {
-                var updatedConfig: Config
-                if var configDict = tokenizerConfig?.dictionary {
-                    // Override the chat template in the existing tokenizer config
-                    configDict["chat_template"] = chatTemplate
-                    updatedConfig = Config(configDict)
-                } else {
-                    // Create a new config with just the chat template
-                    updatedConfig = Config(["chat_template": chatTemplate])
-                }
-                let tokenizerVocab = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
-                let configs = Configurations(
-                    modelConfig: modelConfig,
-                    tokenizerConfig: updatedConfig,
-                    tokenizerData: tokenizerVocab
-                )
-                return configs
+        let tokenizerData = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
+        // Load tokenizer config
+        var tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
+        // Check for chat template and merge if available
+        if let chatTemplateConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "chat_template.json")),
+           let chatTemplate = chatTemplateConfig.chatTemplate?.stringValue {
+            // The value of chat_template could also be an array of strings, but we're not handling that case here, since it's discouraged.
+            // Create or update tokenizer config with chat template
+            if var configDict = tokenizerConfig?.dictionary {
+                configDict["chat_template"] = chatTemplate
+                tokenizerConfig = Config(configDict)
+            } else {
+                tokenizerConfig = Config(["chat_template": chatTemplate])
             }
         }
-        // If chat_template.json doesn't exist or doesn't have a chat_template field, use the tokenizer_config as is
-        let tokenizerVocab = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
-        let configs = Configurations(
+        return Configurations(
             modelConfig: modelConfig,
             tokenizerConfig: tokenizerConfig,
-            tokenizerData: tokenizerVocab
+            tokenizerData: tokenizerData
         )
-        return configs
     }
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
