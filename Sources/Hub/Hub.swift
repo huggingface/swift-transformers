@@ -177,28 +177,39 @@ public class LanguageModelConfigurationFromHub {
         modelName: String,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
-        let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
+        let filesToDownload = ["config.json", "tokenizer_config.json", "chat_template.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)
         let downloadedModelFolder = try await hubApi.snapshot(from: repo, matching: filesToDownload)
 
         return try await loadConfig(modelFolder: downloadedModelFolder, hubApi: hubApi)
     }
-    
+
     func loadConfig(
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
-        // Note tokenizerConfig may be nil (does not exist in all models)
+        // Load required configurations
         let modelConfig = try hubApi.configuration(fileURL: modelFolder.appending(path: "config.json"))
-        let tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
-        let tokenizerVocab = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
-        
-        let configs = Configurations(
+        let tokenizerData = try hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer.json"))
+        // Load tokenizer config
+        var tokenizerConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "tokenizer_config.json"))
+        // Check for chat template and merge if available
+        if let chatTemplateConfig = try? hubApi.configuration(fileURL: modelFolder.appending(path: "chat_template.json")),
+           let chatTemplate = chatTemplateConfig.chatTemplate?.stringValue {
+            // The value of chat_template could also be an array of strings, but we're not handling that case here, since it's discouraged.
+            // Create or update tokenizer config with chat template
+            if var configDict = tokenizerConfig?.dictionary {
+                configDict["chat_template"] = chatTemplate
+                tokenizerConfig = Config(configDict)
+            } else {
+                tokenizerConfig = Config(["chat_template": chatTemplate])
+            }
+        }
+        return Configurations(
             modelConfig: modelConfig,
             tokenizerConfig: tokenizerConfig,
-            tokenizerData: tokenizerVocab
+            tokenizerData: tokenizerData
         )
-        return configs
     }
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
