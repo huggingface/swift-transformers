@@ -118,4 +118,14 @@ class HubTests: XCTestCase {
         let vocab_dict = config.dictionary["vocab"] as! [String: Int]
         XCTAssertNotEqual(vocab_dict.count, 2)
     }
+
+    func testConfigTokenValueDifferentOrder() {
+        let data: Data! = "{\"sep\": [\"</s>\", 2], \"cls\": [0, \"<s>\"]}".data(using: .utf8)
+        let dict = try! JSONSerialization.jsonObject(with: data, options: []) as! [NSString: Any]
+        let config = Config(dict)
+        XCTAssertEqual(config.sep!.tokenValue!.0, 2)
+        XCTAssertEqual(config.sep!.tokenValue!.1, "</s>")
+        XCTAssertEqual(config.cls!.tokenValue!.0, 0)
+        XCTAssertEqual(config.cls!.tokenValue!.1, "<s>")
+    }
 }

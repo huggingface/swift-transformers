@@ -100,11 +100,11 @@ public struct Config {
     }
     
     /// Tuple of token identifier and string value
-    public var tokenValue: (UInt, String)? { 
-        switch value {
+    public var tokenValue: (UInt, String)? {
+        guard let pair = value as? [Any], pair.count == 2 else { return nil }
+        switch (pair[0], pair[1]) {
         case let (i, t) as (UInt, String): return (i, t)
         case let (t, i) as (String, UInt): return (i, t)
-        case let a as [Any] where a.count == 2: return (a[1], a[0]) as? (UInt, String)
         default: return nil
         }
     }
