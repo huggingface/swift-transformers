@@ -3,9 +3,18 @@ import CoreML
 
 public struct Weights {
 
-    enum WeightsError: Error {
+    enum WeightsError: LocalizedError {
         case notSupported(message: String)
         case invalidFile
+
+        public var errorDescription: String? {
+            switch self {
+                case .notSupported(let message):
+                    return String(localized: "The weight format '\(message)' is not supported by this application.", comment: "Error when weight format is not supported")
+                case .invalidFile:
+                    return String(localized: "The weights file is invalid or corrupted.", comment: "Error when weight file is invalid")
+            }
+        }
     }
 
     private let dictionary: [String: MLMultiArray]

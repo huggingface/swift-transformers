@@ -10,9 +10,18 @@ import Combine
 @testable import Hub
 
 /// Errors that can occur during the download process
-enum DownloadError: Error {
+enum DownloadError: LocalizedError {
     case invalidDownloadLocation
     case unexpectedError
+
+    var errorDescription: String? {
+        switch self {
+            case .invalidDownloadLocation:
+                return String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
+            case .unexpectedError:
+                return String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
+        }
+    }
 }
 
 final class DownloaderTests: XCTestCase {
