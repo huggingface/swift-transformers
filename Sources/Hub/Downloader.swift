@@ -11,26 +11,53 @@ import Combine
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
-
+    
     private let chunkSize = 10 * 1024 * 1024  // 10MB
-
+    
     enum DownloadState {
         case notStarted
         case downloading(Double)
         case completed(URL)
         case failed(Error)
     }
-
-    enum DownloadError: Error {
+    
+    enum DownloadError: LocalizedError {
         case invalidDownloadLocation
-        case unexpectedError
+        case invalidResponse
+        case httpError(Int)
+        case fileSizeMismatch(expected: Int, actual: Int)
+        case sessionInvalidated
+        case fileOperationFailed(Error)
+        case networkError(Error)
+        case retryLimitExceeded(Error)
+        
+        public var errorDescription: String? {
+            switch self {
+                case .invalidDownloadLocation:
+                    return String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
+                case .invalidResponse:
+                    return String(localized: "Received an invalid response from the server.", comment: "Error when server response is invalid")
+                case .httpError(let statusCode):
+                    return String(localized: "Server returned an error status code: \(statusCode)", comment: "Error when HTTP status code indicates failure")
+                case .fileSizeMismatch(let expected, let actual):
+                    return String(localized: "Downloaded file size (\(actual) bytes) doesn't match expected size (\(expected) bytes).", comment: "Error when file size validation fails")
+                case .sessionInvalidated:
+                    return String(localized: "The download session was invalidated.", comment: "Error when URLSession becomes invalid")
+                case .fileOperationFailed(let error):
+                    return String(localized: "File operation failed: \(error.localizedDescription)", comment: "Error during file operations")
+                case .networkError(let error):
+                    return String(localized: "Network error occurred: \(error.localizedDescription)", comment: "Error during network operations")
+                case .retryLimitExceeded(let error):
+                    return String(localized: "Download failed after multiple attempts: \(error.localizedDescription)", comment: "Error when all retry attempts are exhausted")
+            }
+        }
     }
-
+    
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
-
+    
     private var urlSession: URLSession? = nil
-
+    
     init(
         from url: URL,
         to destination: URL,
@@ -45,19 +72,19 @@ class Downloader: NSObject, ObservableObject {
         self.destination = destination
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
-
+        
         var config = URLSessionConfiguration.default
         if inBackground {
             config = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
             config.isDiscretionary = false
             config.sessionSendsLaunchEvents = true
         }
-
+        
         self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
+        
         setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
-
+    
     /// Sets up and initiates a file download operation
     ///
     /// - Parameters:
@@ -82,22 +109,22 @@ class Downloader: NSObject, ObservableObject {
             // If there's an existing pending background task with the same URL, let it proceed.
             if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
                 switch existing.state {
-                case .running:
-                    // print("Already downloading \(url)")
-                    return
-                case .suspended:
-                    // print("Resuming suspended download task for \(url)")
-                    existing.resume()
-                    return
-                case .canceling:
-                    // print("Starting new download task for \(url), previous was canceling")
-                    break
-                case .completed:
-                    // print("Starting new download task for \(url), previous is complete but the file is no longer present (I think it's cached)")
-                    break
-                @unknown default:
-                    // print("Unknown state for running task; cancelling and creating a new one")
-                    existing.cancel()
+                    case .running:
+                        // print("Already downloading \(url)")
+                        return
+                    case .suspended:
+                        // print("Resuming suspended download task for \(url)")
+                        existing.resume()
+                        return
+                    case .canceling:
+                        // print("Starting new download task for \(url), previous was canceling")
+                        break
+                    case .completed:
+                        // print("Starting new download task for \(url), previous is complete but the file is no longer present (I think it's cached)")
+                        break
+                    @unknown default:
+                        // print("Unknown state for running task; cancelling and creating a new one")
+                        existing.cancel()
                 }
             }
             var request = URLRequest(url: url)
@@ -116,7 +143,7 @@ class Downloader: NSObject, ObservableObject {
             
             request.timeoutInterval = timeout
             request.allHTTPHeaderFields = requestHeaders
-
+            
             Task {
                 do {
                     // Create a temp file to write
@@ -129,7 +156,12 @@ class Downloader: NSObject, ObservableObject {
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
-                    try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
+                    do {
+                        try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
+                    } catch {
+                        self.downloadState.value = .failed(DownloadError.fileOperationFailed(error))
+                        return
+                    }
                     
                     self.downloadState.value = .completed(self.destination)
                 } catch {
@@ -138,7 +170,7 @@ class Downloader: NSObject, ObservableObject {
             }
         }
     }
-
+    
     /// Downloads a file from given URL using chunked transfer and handles retries.
     ///
     /// Reference: https://github.com/huggingface/huggingface_hub/blob/418a6ffce7881f5c571b2362ed1c23ef8e4d7d20/src/huggingface_hub/file_download.py#L306
@@ -148,8 +180,7 @@ class Downloader: NSObject, ObservableObject {
     ///   - resumeSize: The number of bytes already downloaded. If set to 0 (default), the whole file is download. If set to a positive number, the download will resume at the given position
     ///   - numRetries: The number of retry attempts remaining for failed downloads
     ///   - expectedSize: The expected size of the file to download. If set, the download will raise an error if the size of the received content is different from the expected one.
-    /// - Throws: `DownloadError.unexpectedError` if the response is invalid or file size mismatch occurs
-    ///           `URLError` if the download fails after all retries are exhausted
+    /// - Throws: Various `DownloadError` types depending on the specific failure
     private func httpGet(
         request: URLRequest,
         tempFile: FileHandle,
@@ -158,7 +189,7 @@ class Downloader: NSObject, ObservableObject {
         expectedSize: Int?
     ) async throws {
         guard let session = self.urlSession else {
-            throw DownloadError.unexpectedError
+            throw DownloadError.sessionInvalidated
         }
         
         // Create a new request with Range header for resuming
@@ -170,14 +201,14 @@ class Downloader: NSObject, ObservableObject {
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
         
-        guard let response = response as? HTTPURLResponse else {
-            throw DownloadError.unexpectedError
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw DownloadError.invalidResponse
         }
-                
-        guard (200..<300).contains(response.statusCode) else {
-            throw DownloadError.unexpectedError
+        
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw DownloadError.httpError(httpResponse.statusCode)
         }
-
+        
         var downloadedSize = resumeSize
         
         // Create a buffer to collect bytes before writing to disk
@@ -209,7 +240,7 @@ class Downloader: NSObject, ObservableObject {
             }
         } catch let error as URLError {
             if newNumRetries <= 0 {
-                throw error
+                throw DownloadError.retryLimitExceeded(error)
             }
             try await Task.sleep(nanoseconds: 1_000_000_000)
             
@@ -223,12 +254,14 @@ class Downloader: NSObject, ObservableObject {
                 numRetries: newNumRetries - 1,
                 expectedSize: expectedSize
             )
+        } catch {
+            throw DownloadError.networkError(error)
         }
         
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
         if let expectedSize = expectedSize, expectedSize != actualSize {
-            throw DownloadError.unexpectedError
+            throw DownloadError.fileSizeMismatch(expected: expectedSize, actual: Int(actualSize))
         }
     }
     
@@ -238,20 +271,20 @@ class Downloader: NSObject, ObservableObject {
         let semaphore = DispatchSemaphore(value: 0)
         stateSubscriber = downloadState.sink { state in
             switch state {
-            case .completed: semaphore.signal()
-            case .failed:    semaphore.signal()
-            default:         break
+                case .completed: semaphore.signal()
+                case .failed:    semaphore.signal()
+                default:         break
             }
         }
         semaphore.wait()
-
+        
         switch downloadState.value {
-        case .completed(let url): return url
-        case .failed(let error):  throw error
-        default:                  throw DownloadError.unexpectedError
+            case .completed(let url): return url
+            case .failed(let error):  throw error
+            default:                  throw DownloadError.sessionInvalidated
         }
     }
-
+    
     func cancel() {
         urlSession?.invalidateAndCancel()
     }
@@ -261,24 +294,28 @@ extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         downloadState.value = .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
     }
-
+    
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         do {
             // If the downloaded file already exists on the filesystem, overwrite it
             try FileManager.default.moveDownloadedFile(from: location, to: self.destination)
             downloadState.value = .completed(destination)
         } catch {
-            downloadState.value = .failed(error)
+            downloadState.value = .failed(DownloadError.fileOperationFailed(error))
         }
     }
-
+    
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
-            downloadState.value = .failed(error)
-//        } else if let response = task.response as? HTTPURLResponse {
-//            print("HTTP response status code: \(response.statusCode)")
-//            let headers = response.allHeaderFields
-//            print("HTTP response headers: \(headers)")
+            if let urlError = error as? URLError {
+                downloadState.value = .failed(DownloadError.networkError(urlError))
+            } else {
+                downloadState.value = .failed(error)
+            }
+            //        } else if let response = task.response as? HTTPURLResponse {
+            //            print("HTTP response status code: \(response.statusCode)")
+            //            let headers = response.allHeaderFields
+            //            print("HTTP response headers: \(headers)")
         }
     }
 }
