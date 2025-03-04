@@ -655,21 +655,11 @@ class SnapshotDownloadTests: XCTestCase {
         let commitHash = metadataArr[0]
         let etag = metadataArr[1]
         
-        // Not needed for the downloads, just to test validation function
-        let downloader = HubApi.HubFileDownloader(
-            repo: Hub.Repo(id: lfsRepo),
-            repoDestination: downloadedTo,
-            relativeFilename: "x.bin",
-            hfToken: nil,
-            endpoint: nil,
-            backgroundSession: false
-        )
+        XCTAssertTrue(hubApi.isValidHash(hash: commitHash, pattern: hubApi.commitHashPattern))
+        XCTAssertTrue(hubApi.isValidHash(hash: etag, pattern: hubApi.sha256Pattern))
         
-        XCTAssertTrue(downloader.isValidHash(hash: commitHash, pattern: downloader.commitHashPattern))
-        XCTAssertTrue(downloader.isValidHash(hash: etag, pattern: downloader.sha256Pattern))
-        
-        XCTAssertFalse(downloader.isValidHash(hash: "\(commitHash)a", pattern: downloader.commitHashPattern))
-        XCTAssertFalse(downloader.isValidHash(hash: "\(etag)a", pattern: downloader.sha256Pattern))
+        XCTAssertFalse(hubApi.isValidHash(hash: "\(commitHash)a", pattern: hubApi.commitHashPattern))
+        XCTAssertFalse(hubApi.isValidHash(hash: "\(etag)a", pattern: hubApi.sha256Pattern))
     }
     
     func testLFSFileNoMetadata() async throws {
@@ -823,5 +813,159 @@ class SnapshotDownloadTests: XCTestCase {
         let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nd6ceb92ce9e3c83ab146dc8e92a93517ac1cc66f"
         
         XCTAssertTrue(metadataString.contains(expected))
+    }
+    
+    func testOfflineModeReturnsDestination() async throws {
+        var hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        var downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        
+        hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+    
+        downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+    }
+    
+    func testOfflineModeThrowsError() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+            
+        do {
+            try await hubApi.snapshot(from: repo, matching: "*.json")
+            XCTFail("Expected an error to be thrown")
+        } catch let error as HubApi.EnvironmentError {
+            switch error {
+            case .offlineModeError(let message):
+                XCTAssertEqual(message, "File not available locally in offline mode")
+            default:
+                XCTFail("Wrong error type: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+    
+    func testOfflineModeWithoutMetadata() async throws {
+        var hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        
+        let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "*") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
+        
+        let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
+        try FileManager.default.removeItem(atPath: metadataFile.path)
+        
+        hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+        
+        do {
+            try await hubApi.snapshot(from: lfsRepo, matching: "*")
+            XCTFail("Expected an error to be thrown")
+        } catch let error as HubApi.EnvironmentError {
+            switch error {
+            case .offlineModeError(let message):
+                XCTAssertEqual(message, "Metadata not available or invalid in offline mode")
+            default:
+                XCTFail("Wrong error type: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+    
+    func testOfflineModeWithCorruptedLFSMetadata() async throws {
+        var hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "*") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        
+        let metadataDestination = downloadedTo.appendingPathComponent(".cache/huggingface/download").appendingPathComponent("x.bin.metadata")
+        
+        try "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2ab4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4\n0\n".write(to: metadataDestination, atomically: true, encoding: .utf8)
+        
+        hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+    
+        do {
+            try await hubApi.snapshot(from: lfsRepo, matching: "*")
+            XCTFail("Expected an error to be thrown")
+        } catch let error as HubApi.EnvironmentError {
+            switch error {
+            case .offlineModeError(let message):
+                XCTAssertEqual(message, "File integrity check failed in offline mode")
+            default:
+                XCTFail("Wrong error type: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+    
+    func testOfflineModeWithNoFiles() async throws {
+        var hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+
+        let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            
+            lastProgress = progress
+        }
+        
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        
+        let fileDestination = downloadedTo.appendingPathComponent("x.bin")
+        try FileManager.default.removeItem(at: fileDestination)
+        
+        hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
+    
+        do {
+            try await hubApi.snapshot(from: lfsRepo, matching: "x.bin")
+            XCTFail("Expected an error to be thrown")
+        } catch let error as HubApi.EnvironmentError {
+            switch error {
+            case .offlineModeError(let message):
+                XCTAssertEqual(message, "File not available locally in offline mode")
+            default:
+                XCTFail("Wrong error type: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 }
