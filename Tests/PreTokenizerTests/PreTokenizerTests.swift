@@ -10,7 +10,7 @@ import XCTest
 
 class PreTokenizerTests: XCTestCase {
     func testWhitespacePreTokenizer() {
-        let preTokenizer = WhitespacePreTokenizer(config: Config([:]))
+        let preTokenizer = WhitespacePreTokenizer(config: Config([String: Config]()))
 
         XCTAssertEqual(
             preTokenizer.preTokenize(text: "Hey friend!"),
@@ -27,7 +27,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testPunctuationPreTokenizer() {
-        let preTokenizer = PunctuationPreTokenizer(config: Config([:]))
+        let preTokenizer = PunctuationPreTokenizer(config: Config([String: Config]()))
 
         XCTAssertEqual(
             preTokenizer.preTokenize(text: "Hey friend!"),
@@ -44,7 +44,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testByteLevelPreTokenizer() {
-        let preTokenizer1 = ByteLevelPreTokenizer(config: Config([:]))
+        let preTokenizer1 = ByteLevelPreTokenizer(config: Config([String: Config]()))
 
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "Hey friend!"),
@@ -91,7 +91,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testDigitsPreTokenizer() {
-        let preTokenizer1 = DigitsPreTokenizer(config: Config([:]))
+        let preTokenizer1 = DigitsPreTokenizer(config: Config([String: Config]()))
 
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "1 12 123! 1234abc"),
@@ -173,7 +173,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testBertPreTokenizer() {
-        let preTokenizer1 = BertPreTokenizer(config: Config([:]))
+        let preTokenizer1 = BertPreTokenizer(config: Config([String: Config]()))
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "Hey friend!"),
             ["Hey", "friend", "!"]
