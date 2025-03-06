@@ -425,19 +425,49 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
+            // Check for an existing incomplete file
+            let incompleteFile = Downloader.incompletePath(for: destination)
+            var resumeSize = 0
+            
+            if FileManager.default.fileExists(atPath: incompleteFile.path) {
+                if let fileAttributes = try? FileManager.default.attributesOfItem(atPath: incompleteFile.path) {
+                    resumeSize = (fileAttributes[FileAttributeKey.size] as? Int) ?? 0
+                    print("[HubApi] Found existing incomplete file for \(destination.lastPathComponent): \(resumeSize) bytes at \(incompleteFile.path)")
+                }
+            } else {
+                print("[HubApi] No existing incomplete file found for \(destination.lastPathComponent)")
+            }
+            
+            let downloader = Downloader(
+                from: source,
+                to: destination,
+                using: hfToken,
+                inBackground: backgroundSession,
+                resumeSize: resumeSize,
+                expectedSize: remoteSize
+            )
+            
             let downloadSubscriber = downloader.downloadState.sink { state in
-                if case let .downloading(progress) = state {
+                switch state {
+                case let .downloading(progress):
                     progressHandler(progress)
+                case .completed, .failed, .notStarted:
+                    break
                 }
             }
-            _ = try withExtendedLifetime(downloadSubscriber) {
-                try downloader.waitUntilDone()
+            do {
+                _ = try withExtendedLifetime(downloadSubscriber) {
+                    try downloader.waitUntilDone()
+                }
+                
+                try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                
+                return destination
+            } catch {
+                // If download fails, leave the incomplete file in place for future resume
+                print("[HubApi] Download failed but incomplete file is preserved for future resume: \(error.localizedDescription)")
+                throw error
             }
-            
-            try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
-            
-            return destination
         }
     }
 
