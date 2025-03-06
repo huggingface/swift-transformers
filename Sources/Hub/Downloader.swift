@@ -11,6 +11,7 @@ import Combine
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
+    private(set) var sourceURL: URL
 
     private let chunkSize = 10 * 1024 * 1024  // 10MB
 
@@ -24,10 +25,15 @@ class Downloader: NSObject, ObservableObject {
     enum DownloadError: Error {
         case invalidDownloadLocation
         case unexpectedError
+        case tempFileNotFound
     }
 
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
+    
+    private(set) var tempFilePath: URL?
+    private(set) var expectedSize: Int?
+    private(set) var downloadedSize: Int = 0
 
     private var urlSession: URLSession? = nil
 
@@ -40,9 +46,15 @@ class Downloader: NSObject, ObservableObject {
         headers: [String: String]? = nil,
         expectedSize: Int? = nil,
         timeout: TimeInterval = 10,
-        numRetries: Int = 5
+        numRetries: Int = 5,
+        existingTempFile: URL? = nil
     ) {
         self.destination = destination
+        self.sourceURL = url
+        self.expectedSize = expectedSize
+        self.downloadedSize = resumeSize
+        self.tempFilePath = existingTempFile
+        
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
 
@@ -77,7 +89,14 @@ class Downloader: NSObject, ObservableObject {
         timeout: TimeInterval,
         numRetries: Int
     ) {
-        downloadState.value = .downloading(0)
+        // If we have an expected size and resumeSize, calculate initial progress
+        if let expectedSize = expectedSize, expectedSize > 0 && resumeSize > 0 {
+            let initialProgress = Double(resumeSize) / Double(expectedSize)
+            downloadState.value = .downloading(initialProgress)
+        } else {
+            downloadState.value = .downloading(0)
+        }
+        
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
             if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
@@ -113,24 +132,54 @@ class Downloader: NSObject, ObservableObject {
                 requestHeaders["Range"] = "bytes=\(resumeSize)-"
             }
             
-            
             request.timeoutInterval = timeout
             request.allHTTPHeaderFields = requestHeaders
 
             Task {
                 do {
-                    // Create a temp file to write
-                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-                    FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+                    // Create or use existing temp file
+                    let tempURL: URL
+                    var existingSize = 0
+                    
+                    if let existingTempFile = self.tempFilePath, FileManager.default.fileExists(atPath: existingTempFile.path) {
+                        tempURL = existingTempFile
+                        let attributes = try FileManager.default.attributesOfItem(atPath: tempURL.path)
+                        existingSize = attributes[.size] as? Int ?? 0
+                        // If the reported resumeSize doesn't match the file size, trust the file size
+                        if existingSize != resumeSize {
+                            self.downloadedSize = existingSize
+                        }
+                    } else {
+                        // Create new temp file with predictable path for future resume
+                        let filename = url.lastPathComponent
+                        // Create a stable hash by extracting just the path component
+                        let urlPath = url.absoluteString
+                        // Use a deterministic hash that doesn't change between app launches
+                        let stableHash = abs(urlPath.data(using: .utf8)!.reduce(5381) {
+                            ($0 << 5) &+ $0 &+ Int32($1)
+                        })
+                        let hashedName = "\(filename)-\(stableHash)"
+                        tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(hashedName)
+                        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+                    }
+                    
+                    self.tempFilePath = tempURL
                     let tempFile = try FileHandle(forWritingTo: tempURL)
                     
+                    // If we're resuming, seek to end of file first
+                    if existingSize > 0 {
+                        try tempFile.seekToEnd()
+                    }
+                    
                     defer { tempFile.closeFile() }
-                    try await self.httpGet(request: request, tempFile: tempFile, resumeSize: resumeSize, numRetries: numRetries, expectedSize: expectedSize)
+                    try await self.httpGet(request: request, tempFile: tempFile, resumeSize: self.downloadedSize, numRetries: numRetries, expectedSize: expectedSize)
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
                     try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
                     
+                    // Clear temp file reference since it's been moved
+                    self.tempFilePath = nil
                     self.downloadState.value = .completed(self.destination)
                 } catch {
                     self.downloadState.value = .failed(error)
@@ -178,7 +227,7 @@ class Downloader: NSObject, ObservableObject {
             throw DownloadError.unexpectedError
         }
 
-        var downloadedSize = resumeSize
+        self.downloadedSize = resumeSize
         
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
@@ -192,10 +241,10 @@ class Downloader: NSObject, ObservableObject {
                     if !buffer.isEmpty { // Filter out keep-alive chunks
                         try tempFile.write(contentsOf: buffer)
                         buffer.removeAll(keepingCapacity: true)
-                        downloadedSize += chunkSize
+                        self.downloadedSize += chunkSize
                         newNumRetries = 5
                         guard let expectedSize = expectedSize else { continue }
-                        let progress = expectedSize != 0 ? Double(downloadedSize) / Double(expectedSize) : 0
+                        let progress = expectedSize != 0 ? Double(self.downloadedSize) / Double(expectedSize) : 0
                         downloadState.value = .downloading(progress)
                     }
                 }
@@ -203,7 +252,7 @@ class Downloader: NSObject, ObservableObject {
             
             if !buffer.isEmpty {
                 try tempFile.write(contentsOf: buffer)
-                downloadedSize += buffer.count
+                self.downloadedSize += buffer.count
                 buffer.removeAll(keepingCapacity: true)
                 newNumRetries = 5
             }
@@ -219,7 +268,7 @@ class Downloader: NSObject, ObservableObject {
             try await httpGet(
                 request: request,
                 tempFile: tempFile,
-                resumeSize: downloadedSize,
+                resumeSize: self.downloadedSize,
                 numRetries: newNumRetries - 1,
                 expectedSize: expectedSize
             )
@@ -289,5 +338,94 @@ extension FileManager {
             try removeItem(at: dstURL)
         }
         try moveItem(at: srcURL, to: dstURL)
+    }
+}
+
+/// Structs for persisting download state
+public struct PersistableDownloadState: Codable {
+    let sourceURL: URL
+    let destinationURL: URL
+    let tempFilePath: URL
+    let downloadedSize: Int
+    let expectedSize: Int?
+    
+    init(downloader: Downloader) {
+        self.sourceURL = downloader.sourceURL
+        self.destinationURL = downloader.destination
+        self.tempFilePath = downloader.tempFilePath ?? FileManager.default.temporaryDirectory.appendingPathComponent("unknown")
+        self.downloadedSize = downloader.downloadedSize
+        self.expectedSize = downloader.expectedSize
+    }
+}
+
+/// Extension for managing persisted download states
+extension Downloader {
+    /// Persists the current download state to UserDefaults
+    func persistState() {
+        guard let tempFilePath = self.tempFilePath else {
+            return // Nothing to persist if no temp file
+        }
+        
+        let state = PersistableDownloadState(downloader: self)
+        
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(state)
+            
+            // Store in UserDefaults
+            var states = Downloader.getPersistedStates()
+            states[sourceURL.absoluteString] = data
+            UserDefaults.standard.set(states, forKey: "SwiftTransformers.ActiveDownloads")
+        } catch {
+            print("Error persisting download state: \(error)")
+        }
+    }
+    
+    /// Removes this download from persisted states
+    func removePersistedState() {
+        var states = Downloader.getPersistedStates()
+        states.removeValue(forKey: sourceURL.absoluteString)
+        UserDefaults.standard.set(states, forKey: "SwiftTransformers.ActiveDownloads")
+    }
+    
+    /// Get all persisted download states
+    static func getPersistedStates() -> [String: Data] {
+        return UserDefaults.standard.dictionary(forKey: "SwiftTransformers.ActiveDownloads") as? [String: Data] ?? [:]
+    }
+    
+    /// Resume all persisted downloads
+    static func resumeAllPersistedDownloads(authToken: String? = nil) -> [Downloader] {
+        let states = getPersistedStates()
+        let decoder = JSONDecoder()
+        
+        var resumedDownloaders: [Downloader] = []
+        
+        for (_, stateData) in states {
+            do {
+                let state = try decoder.decode(PersistableDownloadState.self, from: stateData)
+                
+                // Check if temp file still exists
+                if FileManager.default.fileExists(atPath: state.tempFilePath.path) {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: state.tempFilePath.path)
+                    let fileSize = attributes[.size] as? Int ?? 0
+                    
+                    // Create a new downloader that resumes from the temp file
+                    let downloader = Downloader(
+                        from: state.sourceURL,
+                        to: state.destinationURL,
+                        using: authToken,
+                        resumeSize: fileSize,
+                        expectedSize: state.expectedSize,
+                        existingTempFile: state.tempFilePath
+                    )
+                    
+                    resumedDownloaders.append(downloader)
+                }
+            } catch {
+                print("Error restoring download: \(error)")
+            }
+        }
+        
+        return resumedDownloaders
     }
 }
