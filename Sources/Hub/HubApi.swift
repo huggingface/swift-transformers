@@ -401,10 +401,54 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
+            // Check for an existing partial download for this file
+            let filename = source.lastPathComponent
+            // Create a stable hash by extracting just the path component
+            let urlPath = source.absoluteString
+            // Use a deterministic hash that doesn't change between app launches
+            let stableHash = abs(urlPath.data(using: .utf8)!.reduce(5381) {
+                ($0 << 5) &+ $0 &+ Int32($1)
+            })
+            let hashedName = "\(filename)-\(stableHash)"
+            let possibleTempFile = FileManager.default.temporaryDirectory.appendingPathComponent(hashedName)
+            var resumeSize = 0
+            
+            if FileManager.default.fileExists(atPath: possibleTempFile.path) {
+                if let fileAttributes = try? FileManager.default.attributesOfItem(atPath: possibleTempFile.path) {
+                    resumeSize = (fileAttributes[FileAttributeKey.size] as? Int) ?? 0
+                    print("[HubApi] Found existing partial download for \(filename): \(resumeSize) bytes at \(possibleTempFile.path)")
+                }
+            } else {
+                print("[HubApi] No existing partial download found for \(filename)")
+            }
+            
+            let downloader = Downloader(
+                from: source,
+                to: destination,
+                using: hfToken,
+                inBackground: backgroundSession,
+                resumeSize: resumeSize,
+                expectedSize: remoteSize,
+                existingTempFile: FileManager.default.fileExists(atPath: possibleTempFile.path) ? possibleTempFile : nil
+            )
+            
             let downloadSubscriber = downloader.downloadState.sink { state in
-                if case .downloading(let progress) = state {
+                switch state {
+                case .downloading(let progress):
+                    // After we have a few bytes downloaded, we know the temp file exists
+                    // This is a good time to persist state
+                    if progress > 0.01 { // After we have 1% downloaded
+                        downloader.persistState()
+                    }
                     progressHandler(progress)
+                case .completed:
+                    // Remove from persisted downloads when complete
+                    downloader.removePersistedState()
+                case .failed:
+                    // Keep in persisted downloads when failed so it can be resumed
+                    downloader.persistState()
+                case .notStarted:
+                    break
                 }
             }
             _ = try withExtendedLifetime(downloadSubscriber) {

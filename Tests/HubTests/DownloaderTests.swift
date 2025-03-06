@@ -22,10 +22,14 @@ final class DownloaderTests: XCTestCase {
         super.setUp()
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        
+        // Clear any persisted downloads from previous tests
+        UserDefaults.standard.removeObject(forKey: "SwiftTransformers.ActiveDownloads")
     }
     
     override func tearDown() {
         try? FileManager.default.removeItem(at: tempDir)
+        UserDefaults.standard.removeObject(forKey: "SwiftTransformers.ActiveDownloads")
         super.tearDown()
     }
     
@@ -158,5 +162,46 @@ final class DownloaderTests: XCTestCase {
         } catch {
             throw error
         }
+    }
+    
+    func testPersistedDownloads() throws {
+        // Create a test downloader
+        let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
+        let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
+
+        // First create a temp file so we can persist the state
+        let urlPath = url.absoluteString
+        let stableHash = abs(urlPath.data(using: .utf8)!.reduce(5381) {
+            ($0 << 5) &+ $0 &+ Int32($1)
+        })
+        let hashedName = "\(url.lastPathComponent)-\(stableHash)"
+        let tempFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(hashedName)
+        
+        // Create a sample file
+        FileManager.default.createFile(atPath: tempFilePath.path, contents: "test content".data(using: .utf8))
+        
+        let downloader = Downloader(
+            from: url,
+            to: destination,
+            expectedSize: 73194001,
+            existingTempFile: tempFilePath
+        )
+        
+        // Persist the download state
+        downloader.persistState()
+        
+        // Check if we get a non-empty array when resuming
+        let resumedDownloaders = Downloader.resumeAllPersistedDownloads()
+        XCTAssertFalse(resumedDownloaders.isEmpty, "Should have resumed downloads")
+        
+        // Clean up persisted state
+        downloader.removePersistedState()
+        
+        // Check that the list is now empty
+        let emptyDownloaders = Downloader.resumeAllPersistedDownloads()
+        XCTAssertTrue(emptyDownloaders.isEmpty, "Should have no downloads after removal")
+        
+        // Clean up temp file
+        try? FileManager.default.removeItem(at: tempFilePath)
     }
 }

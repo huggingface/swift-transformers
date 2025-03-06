@@ -7,7 +7,19 @@
 
 import Foundation
 
-public struct Hub {}
+public struct Hub {
+    /// Resume all downloads that were in progress when the app was previously closed
+    ///
+    /// - Parameters:
+    ///   - authToken: Optional authentication token for accessing private repositories
+    /// - Returns: Array of Downloader objects for the resumed downloads
+    static func resumeAllDownloads(authToken: String? = nil) -> [Downloader] {
+        print("[Hub] Resuming all persisted downloads...")
+        let downloaders = Downloader.resumeAllPersistedDownloads(authToken: authToken)
+        print("[Hub] Resumed \(downloaders.count) downloads from previous session")
+        return downloaders
+    }
+}
 
 public extension Hub {
     enum HubClientError: Error {
@@ -15,15 +27,17 @@ public extension Hub {
         case authorizationRequired
         case unexpectedError
         case httpStatusCode(Int)
+        case missingFile
+        case noNetworkConnection
     }
     
-    enum RepoType: String {
+    enum RepoType: String, Codable {
         case models
         case datasets
         case spaces
     }
     
-    struct Repo {
+    struct Repo: Codable {
         public let id: String
         public let type: RepoType
         
@@ -31,6 +45,23 @@ public extension Hub {
             self.id = id
             self.type = type
         }
+    }
+}
+
+/// Network monitoring utility to track connectivity status
+internal class NetworkMonitor {
+    static let shared = NetworkMonitor()
+    
+    private(set) var isConnected: Bool = true
+    
+    static var isOffline: Bool {
+        return !NetworkMonitor.shared.isConnected
+    }
+    
+    func startMonitoring() {
+        // Simplified implementation - in a real app, use NWPathMonitor
+        // to actually track network status
+        self.isConnected = true
     }
 }
 
