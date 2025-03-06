@@ -89,12 +89,18 @@ class Downloader: NSObject, ObservableObject {
         timeout: TimeInterval,
         numRetries: Int
     ) {
+        print("[Downloader] Setting up download for \(url.lastPathComponent)")
+        print("[Downloader] Destination: \(destination.path)")
+        print("[Downloader] Temp file: \(tempFilePath?.path ?? "none")")
+        
         // If we have an expected size and resumeSize, calculate initial progress
         if let expectedSize = expectedSize, expectedSize > 0 && resumeSize > 0 {
             let initialProgress = Double(resumeSize) / Double(expectedSize)
             downloadState.value = .downloading(initialProgress)
+            print("[Downloader] Resuming from \(resumeSize)/\(expectedSize) bytes (\(Int(initialProgress * 100))%)")
         } else {
             downloadState.value = .downloading(0)
+            print("[Downloader] Starting new download")
         }
         
         urlSession?.getAllTasks { tasks in
@@ -148,6 +154,9 @@ class Downloader: NSObject, ObservableObject {
                         // If the reported resumeSize doesn't match the file size, trust the file size
                         if existingSize != resumeSize {
                             self.downloadedSize = existingSize
+                            print("[Downloader] Found existing temp file with \(existingSize) bytes (different from resumeSize: \(resumeSize))")
+                        } else {
+                            print("[Downloader] Found existing temp file with \(existingSize) bytes")
                         }
                     } else {
                         // Create new temp file with predictable path for future resume
@@ -160,6 +169,7 @@ class Downloader: NSObject, ObservableObject {
                         })
                         let hashedName = "\(filename)-\(stableHash)"
                         tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(hashedName)
+                        print("[Downloader] Creating new temp file at \(tempURL.path)")
                         FileManager.default.createFile(atPath: tempURL.path, contents: nil)
                     }
                     
@@ -168,6 +178,7 @@ class Downloader: NSObject, ObservableObject {
                     
                     // If we're resuming, seek to end of file first
                     if existingSize > 0 {
+                        print("[Downloader] Seeking to end of existing file (\(existingSize) bytes)")
                         try tempFile.seekToEnd()
                     }
                     
@@ -176,12 +187,16 @@ class Downloader: NSObject, ObservableObject {
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
+                    print("[Downloader] Download completed with total size \(self.downloadedSize) bytes")
+                    print("[Downloader] Moving temp file to destination: \(self.destination.path)")
                     try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
                     
                     // Clear temp file reference since it's been moved
                     self.tempFilePath = nil
+                    print("[Downloader] Download successfully completed")
                     self.downloadState.value = .completed(self.destination)
                 } catch {
+                    print("[Downloader] Error: \(error)")
                     self.downloadState.value = .failed(error)
                 }
             }
@@ -214,16 +229,27 @@ class Downloader: NSObject, ObservableObject {
         var newRequest = request
         if resumeSize > 0 {
             newRequest.setValue("bytes=\(resumeSize)-", forHTTPHeaderField: "Range")
+            print("[Downloader] Adding Range header: bytes=\(resumeSize)-")
         }
         
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
         
-        guard let response = response as? HTTPURLResponse else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            print("[Downloader] Error: Non-HTTP response received")
             throw DownloadError.unexpectedError
         }
+        
+        print("[Downloader] Received HTTP \(httpResponse.statusCode) response")
+        if let contentRange = httpResponse.value(forHTTPHeaderField: "Content-Range") {
+            print("[Downloader] Content-Range: \(contentRange)")
+        }
+        if let contentLength = httpResponse.value(forHTTPHeaderField: "Content-Length") {
+            print("[Downloader] Content-Length: \(contentLength)")
+        }
                 
-        guard (200..<300).contains(response.statusCode) else {
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            print("[Downloader] Error: HTTP status code \(httpResponse.statusCode)")
             throw DownloadError.unexpectedError
         }
 
@@ -277,7 +303,10 @@ class Downloader: NSObject, ObservableObject {
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
         if let expectedSize = expectedSize, expectedSize != actualSize {
+            print("[Downloader] Error: Size mismatch - expected \(expectedSize) bytes but got \(actualSize) bytes")
             throw DownloadError.unexpectedError
+        } else {
+            print("[Downloader] Final verification passed, size: \(actualSize) bytes")
         }
     }
     
@@ -363,6 +392,7 @@ extension Downloader {
     /// Persists the current download state to UserDefaults
     func persistState() {
         guard let tempFilePath = self.tempFilePath else {
+            print("[Downloader] Cannot persist state: No temp file path")
             return // Nothing to persist if no temp file
         }
         
@@ -376,8 +406,9 @@ extension Downloader {
             var states = Downloader.getPersistedStates()
             states[sourceURL.absoluteString] = data
             UserDefaults.standard.set(states, forKey: "SwiftTransformers.ActiveDownloads")
+            print("[Downloader] Persisted download state for \(sourceURL.lastPathComponent) - \(downloadedSize) bytes downloaded")
         } catch {
-            print("Error persisting download state: \(error)")
+            print("[Downloader] Error persisting download state: \(error)")
         }
     }
     
@@ -386,6 +417,7 @@ extension Downloader {
         var states = Downloader.getPersistedStates()
         states.removeValue(forKey: sourceURL.absoluteString)
         UserDefaults.standard.set(states, forKey: "SwiftTransformers.ActiveDownloads")
+        print("[Downloader] Removed persisted state for \(sourceURL.lastPathComponent)")
     }
     
     /// Get all persisted download states
@@ -398,16 +430,19 @@ extension Downloader {
         let states = getPersistedStates()
         let decoder = JSONDecoder()
         
+        print("[Downloader] Found \(states.count) persisted download states")
         var resumedDownloaders: [Downloader] = []
         
-        for (_, stateData) in states {
+        for (url, stateData) in states {
             do {
                 let state = try decoder.decode(PersistableDownloadState.self, from: stateData)
+                print("[Downloader] Trying to resume download for: \(state.sourceURL.lastPathComponent)")
                 
                 // Check if temp file still exists
                 if FileManager.default.fileExists(atPath: state.tempFilePath.path) {
                     let attributes = try FileManager.default.attributesOfItem(atPath: state.tempFilePath.path)
                     let fileSize = attributes[.size] as? Int ?? 0
+                    print("[Downloader] Found existing temp file with \(fileSize) bytes")
                     
                     // Create a new downloader that resumes from the temp file
                     let downloader = Downloader(
@@ -420,12 +455,16 @@ extension Downloader {
                     )
                     
                     resumedDownloaders.append(downloader)
+                    print("[Downloader] Successfully resumed download for \(state.sourceURL.lastPathComponent)")
+                } else {
+                    print("[Downloader] Temp file not found at \(state.tempFilePath.path)")
                 }
             } catch {
-                print("Error restoring download: \(error)")
+                print("[Downloader] Error restoring download for \(url): \(error)")
             }
         }
         
+        print("[Downloader] Successfully resumed \(resumedDownloaders.count) downloads")
         return resumedDownloaders
     }
 }
