@@ -14,7 +14,7 @@ public class BertTokenizer {
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
     private let tokenizeChineseChars: Bool
-    
+
     private let vocab: [String: Int]
     private let ids_to_tokens: [Int: String]
 
@@ -25,14 +25,15 @@ public class BertTokenizer {
 
     public let fuseUnknownTokens: Bool
 
-    public init(vocab: [String: Int],
-                merges: [String]?,
-                tokenizeChineseChars: Bool = true,
-                bosToken: String? = nil,
-                eosToken: String? = nil,
-                fuseUnknownTokens: Bool = false,
-                doLowerCase: Bool = true)
-    {
+    public init(
+        vocab: [String: Int],
+        merges: [String]?,
+        tokenizeChineseChars: Bool = true,
+        bosToken: String? = nil,
+        eosToken: String? = nil,
+        fuseUnknownTokens: Bool = false,
+        doLowerCase: Bool = true
+    ) {
         self.vocab = vocab
         ids_to_tokens = Utils.invert(vocab)
         basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
@@ -44,24 +45,40 @@ public class BertTokenizer {
         eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
         self.fuseUnknownTokens = fuseUnknownTokens
     }
-    
+
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard var vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw TokenizerError.missingVocab }
-        if let addedTokens = tokenizerData.added_tokens?.dictionary["value"] as? [[String: Any]],
-           let pairs = addedTokens.compactMap({ ($0["content"] as? String, $0["id"] as? Int) }) as? [(String, Int)]
-        {
-            vocab.merge(pairs, uniquingKeysWith: { $1 })
+        guard let vocab = tokenizerData.model.vocab.dictionary() else {
+            throw TokenizerError.missingVocab
         }
-        vocab.merge(addedTokens, uniquingKeysWith: { $1 })
-        let merges = tokenizerData.model?.merges?.value as? [String]
-        let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
-        let eosToken = tokenizerConfig.eosToken?.stringValue
-        let bosToken = tokenizerConfig.bosToken?.stringValue
-        let fuseUnknown = tokenizerConfig.fuseUnk?.boolValue ?? false
-        let doLowerCase = tokenizerConfig.doLowerCase?.boolValue ?? true
-        self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken, fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase)
+
+        let merges: [String]? = tokenizerData.model.merges.get()
+        let tokenizeChineseChars = tokenizerConfig.handleChineseChars.boolean(or: true)
+        let eosToken = tokenizerConfig.eosToken.string()
+        let bosToken = tokenizerConfig.bosToken.string()
+        let fuseUnknown = tokenizerConfig.fuseUnk.boolean(or: false)
+        let doLowerCase = tokenizerConfig.doLowerCase.boolean(or: true)
+
+        var vocabulary = vocab.reduce(into: [String: Int]()) { result, element in
+            if let val = element.value.integer() {
+                result[element.key.string] = val
+            }
+        }
+        if let pairs = tokenizerData.addedTokens.array()?.reduce(into: [String: Int](), { result, element in
+            guard let val = element["id"].integer() else { return }
+            guard let key = element["content"].string() else { return }
+            
+            result[key] = val
+        }) {
+            vocabulary.merge(pairs, uniquingKeysWith: { $1 })
+        }
+        
+        vocabulary.merge(addedTokens, uniquingKeysWith: { $1 })
+        
+        self.init(
+            vocab: vocabulary, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
+            fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase)
     }
-    
+
     public func tokenize(text: String) -> [String] {
         let text = tokenizeChineseCharsIfNeed(text)
         var tokens: [String] = []
@@ -72,7 +89,7 @@ public class BertTokenizer {
         }
         return tokens
     }
-    
+
     private func convertTokensToIds(tokens: [String]) throws -> [Int] {
         if tokens.count > maxLen {
             throw TokenizerError.tooLong(
@@ -85,26 +102,25 @@ public class BertTokenizer {
         }
         return tokens.compactMap { vocab[$0] }
     }
-    
+
     /// Main entry point
     func tokenizeToIds(text: String) -> [Int] {
         try! convertTokensToIds(tokens: tokenize(text: text))
     }
-    
+
     func tokenToId(token: String) -> Int {
         vocab[token]!
     }
-    
+
     /// Un-tokenization: get tokens from tokenIds
     func unTokenize(tokens: [Int]) -> [String] {
         tokens.compactMap { ids_to_tokens[$0] }
     }
-    
+
     /// Un-tokenization:
     func convertWordpieceToBasicTokenList(_ wordpieceTokenList: [String]) -> String {
         var tokenList: [String] = []
-        var individualToken = ""
-        
+        var individualToken: String = ""
         for token in wordpieceTokenList {
             if token.starts(with: "##") {
                 individualToken += String(token.suffix(token.count - 2))
@@ -112,21 +128,21 @@ public class BertTokenizer {
                 if individualToken.count > 0 {
                     tokenList.append(individualToken)
                 }
-                
+
                 individualToken = token
             }
         }
-        
+
         tokenList.append(individualToken)
-        
+
         return tokenList.joined(separator: " ")
     }
-    
+
     private func tokenizeChineseCharsIfNeed(_ text: String) -> String {
         guard tokenizeChineseChars else {
             return text
         }
-        
+
         return text.map { c in
             if let scalar = c.unicodeScalars.first, Utils.isChineseChar(scalar) {
                 " \(c) "
@@ -142,16 +158,16 @@ extension BertTokenizer: PreTrainedTokenizerModel {
     public var unknownTokenId: Int? { vocab[unknownToken!] }
 
     func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
-    
+
     func decode(tokens: [Int]) -> String {
         let tokens = unTokenize(tokens: tokens)
         return convertWordpieceToBasicTokenList(tokens)
     }
-    
+
     public func convertTokenToId(_ token: String) -> Int? {
         vocab[token] ?? unknownTokenId
     }
-    
+
     public func convertIdToToken(_ id: Int) -> String? {
         ids_to_tokens[id]
     }
@@ -227,11 +243,11 @@ class WordpieceTokenizer {
     let unkToken = "[UNK]"
     private let maxInputCharsPerWord = 100
     private let vocab: [String: Int]
-    
+
     init(vocab: [String: Int]) {
         self.vocab = vocab
     }
-    
+
     /// `word`: A single token.
     /// Warning: this differs from the `pytorch-transformers` implementation.
     /// This should have already been passed through `BasicTokenizer`.
