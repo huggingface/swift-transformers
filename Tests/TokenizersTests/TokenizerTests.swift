@@ -212,6 +212,34 @@ class BertSpacesTests: XCTestCase {
     }
 }
 
+class RobertaTests: XCTestCase {
+    func testEncodeDecode() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "ibm-granite/granite-embedding-30m-english") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.tokenize(text: "l'eure"), ["l", "'", "e", "ure"])
+        XCTAssertEqual(tokenizer.encode(text: "l'eure"), [0, 462, 108, 242, 2407, 2])
+        XCTAssertEqual(tokenizer.decode(tokens: tokenizer.encode(text: "l'eure"), skipSpecialTokens: true), "l'eure")
+
+        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["m", "Ä", "ħ", "ka"])
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [0, 119, 649, 5782, 2348, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["d", "Ã©", "part", "ement"])
+        XCTAssertEqual(tokenizer.encode(text: "département"), [0, 417, 1140, 7755, 6285, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "Who are you?"), ["Who", "Ġare", "Ġyou", "?"])
+        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [0, 12375, 32, 47, 116, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: " Who are you? "), ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"])
+        XCTAssertEqual(tokenizer.encode(text: " Who are you? "), [0, 3394, 32, 47, 116, 1437, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "<s>Who are you?</s>"), ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
+        XCTAssertEqual(tokenizer.encode(text: "<s>Who are you?</s>"), [0, 0, 12375, 32, 47, 116, 2, 2])
+    }
+}
+
 
 struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String

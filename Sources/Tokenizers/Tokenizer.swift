@@ -90,7 +90,8 @@ struct TokenizerModel {
         "WhisperTokenizer"   : WhisperTokenizer.self,
         "CohereTokenizer"    : CohereTokenizer.self,
         "Qwen2Tokenizer"     : Qwen2Tokenizer.self,
-        "PreTrainedTokenizer": BPETokenizer.self
+        "PreTrainedTokenizer": BPETokenizer.self,
+        "RobertaTokenizer"   : BPETokenizer.self,
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {

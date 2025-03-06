@@ -118,4 +118,40 @@ class HubTests: XCTestCase {
         let vocab_dict = config.dictionary["vocab"] as! [String: Int]
         XCTAssertNotEqual(vocab_dict.count, 2)
     }
+
+    func testConfigTokenValue() throws {
+        let config1 = Config(["cls": (100, "str") as (UInt, String)])
+        let tokenValue1 = config1.cls?.tokenValue
+        XCTAssertEqual(tokenValue1?.0, 100)
+        XCTAssertEqual(tokenValue1?.1, "str")
+
+        let config2 = Config(["cls": ("str", 100) as (String, UInt)])
+        let tokenValue2 = config2.cls?.tokenValue
+        XCTAssertEqual(tokenValue2?.0, 100)
+        XCTAssertEqual(tokenValue2?.1, "str")
+
+        let config3 = Config(["cls": [100 as UInt, "str" as String] as [Any]])
+        let tokenValue3 = config3.cls?.tokenValue
+        XCTAssertEqual(tokenValue3?.0, 100)
+        XCTAssertEqual(tokenValue3?.1, "str")
+
+        let config4 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
+        let tokenValue4 = config4.cls?.tokenValue
+        XCTAssertEqual(tokenValue4?.0, 100)
+        XCTAssertEqual(tokenValue4?.1, "str")
+
+        let data5 = #"{"cls": [100, "str"]}"#.data(using: .utf8)!
+        let dict5 = try JSONSerialization.jsonObject(with: data5, options: []) as! [NSString: Any]
+        let config5 = Config(dict5)
+        let tokenValue5 = config5.cls?.tokenValue
+        XCTAssertEqual(tokenValue5?.0, 100)
+        XCTAssertEqual(tokenValue5?.1, "str")
+
+        let data6 = #"{"cls": ["str", 100]}"#.data(using: .utf8)!
+        let dict6 = try JSONSerialization.jsonObject(with: data6, options: []) as! [NSString: Any]
+        let config6 = Config(dict6)
+        let tokenValue6 = config6.cls?.tokenValue
+        XCTAssertEqual(tokenValue6?.0, 100)
+        XCTAssertEqual(tokenValue6?.1, "str")
+    }
 }
