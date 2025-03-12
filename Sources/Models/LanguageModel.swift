@@ -214,6 +214,13 @@ extension LanguageModel: TextGenerationModel {
     }
 }
 
-public enum TokenizerError: Error {
+public enum TokenizerError: LocalizedError {
     case tokenizerConfigNotFound
+
+    public var errorDescription: String? {
+        switch self {
+            case .tokenizerConfigNotFound:
+                return String(localized: "Tokenizer configuration could not be found. The model may be missing required tokenizer files.", comment: "Error when tokenizer configuration is missing")
+        }
+    }
 }

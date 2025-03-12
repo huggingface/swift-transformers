@@ -12,7 +12,7 @@ import Jinja
 public typealias Message = [String: Any]
 public typealias ToolSpec = [String: Any]
 
-public enum TokenizerError: Error {
+public enum TokenizerError: LocalizedError {
     case missingConfig
     case missingTokenizerClassInConfig
     case unsupportedTokenizer(String)
@@ -21,6 +21,27 @@ public enum TokenizerError: Error {
     case chatTemplate(String)
     case tooLong(String)
     case mismatchedConfig(String)
+
+    public var errorDescription: String? {
+        switch self {
+            case .missingConfig:
+                return String(localized: "Tokenizer configuration is missing.", comment: "Error when tokenizer config cannot be found")
+            case .missingTokenizerClassInConfig:
+                return String(localized: "The tokenizer class is not specified in the configuration.", comment: "Error when tokenizer_class is missing in config")
+            case .unsupportedTokenizer(let name):
+                return String(localized: "The tokenizer type '\(name)' is not supported.", comment: "Error when tokenizer type is not supported")
+            case .missingVocab:
+                return String(localized: "Vocabulary file is missing from the tokenizer configuration.", comment: "Error when vocab file is missing")
+            case .malformedVocab:
+                return String(localized: "The vocabulary file is malformed or corrupted.", comment: "Error when vocab file is malformed")
+            case .chatTemplate(let message):
+                return String(localized: "Chat template error: \(message)", comment: "Error with chat template")
+            case .tooLong(let message):
+                return String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
+            case .mismatchedConfig(let message):
+                return String(localized: "Tokenizer configuration mismatch: \(message)", comment: "Error when tokenizer configuration is inconsistent")
+        }
+    }
 }
 
 public protocol TokenizingModel {
