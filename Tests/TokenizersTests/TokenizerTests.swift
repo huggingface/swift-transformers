@@ -214,7 +214,7 @@ class BertSpacesTests: XCTestCase {
 
 class RobertaTests: XCTestCase {
     func testEncodeDecode() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "ibm-granite/granite-embedding-30m-english") as? PreTrainedTokenizer else {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer else {
             XCTFail()
             return
         }

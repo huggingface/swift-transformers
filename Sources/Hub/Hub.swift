@@ -101,21 +101,13 @@ public struct Config {
     
     /// Tuple of token identifier and string value
     public var tokenValue: (UInt, String)? {
-        if let value = value as? (UInt, String) {
-            return value
+        guard let value = value as? [Any] else {
+            return nil
         }
-        if let value = value as? (String, UInt) {
-            return (value.1, value.0)
+        guard let stringValue = value.first as? String, let intValue = value.dropFirst().first as? UInt else {
+            return nil
         }
-        if let value = value as? [Any] {
-            if let stringValue = value.first as? String, let intValue = value.dropFirst().first as? UInt {
-                return (intValue, stringValue)
-            }
-            if let intValue = value.first as? UInt, let stringValue = value.dropFirst().first as? String {
-                return (intValue, stringValue)
-            }
-        }
-        return nil
+        return (intValue, stringValue)
     }
 }
 
