@@ -92,18 +92,30 @@ public extension HubApi {
         if let hfToken = hfToken {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
-        
-        switch response.statusCode {
-        case 200..<300: break
-        case 400..<500: throw Hub.HubClientError.authorizationRequired
-        default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
-        }
 
-        return (data, response)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw Hub.HubClientError.unexpectedError
+            }
+
+            switch httpResponse.statusCode {
+                case 200..<300:
+                    return (data, httpResponse)
+                case 401, 403:
+                    throw Hub.HubClientError.authorizationRequired
+                case 404:
+                    throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
+                default:
+                    throw Hub.HubClientError.httpStatusCode(httpResponse.statusCode)
+            }
+        } catch let error as Hub.HubClientError {
+            throw error
+        } catch {
+            throw Hub.HubClientError.downloadError(error.localizedDescription)
+        }
     }
-    
+
     /// Throws error if page does not exist or is not accessible.
     /// Allows relative redirects but ignores absolute ones for LFS files.
     func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
@@ -162,12 +174,19 @@ public extension HubApi {
     enum EnvironmentError: LocalizedError {
         case invalidMetadataError(String)
         case offlineModeError(String)
-                    
+        case fileIntegrityError(String)
+        case fileWriteError(String)
+
         public var errorDescription: String? {
             switch self {
-            case .invalidMetadataError(let message),
-                 .offlineModeError(let message):
-                return message
+                case .invalidMetadataError(let message):
+                    return String(localized: "Invalid metadata: \(message)")
+                case .offlineModeError(let message):
+                    return String(localized: "Offline mode error: \(message)")
+                case .fileIntegrityError(let message):
+                    return String(localized: "File integrity check failed: \(message)")
+                case .fileWriteError(let message):
+                    return String(localized: "Failed to write file: \(message)")
             }
         }
     }
@@ -224,43 +243,47 @@ public extension HubApi {
     func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
         if FileManager.default.fileExists(atPath: metadataPath.path) {
             do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: metadataPath.path)
-                print("File attributes: \(attributes)")
                 let contents = try String(contentsOf: metadataPath, encoding: .utf8)
                 let lines = contents.components(separatedBy: .newlines)
-                
+
                 guard lines.count >= 3 else {
-                    throw EnvironmentError.invalidMetadataError("Metadata file is missing required fields.")
+                    throw EnvironmentError.invalidMetadataError(String(localized: "Metadata file is missing required fields"))
                 }
-                
+
                 let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
                 let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
+
                 guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                    throw EnvironmentError.invalidMetadataError("Missing or invalid timestamp.")
+                    throw EnvironmentError.invalidMetadataError(String(localized: "Invalid timestamp format"))
                 }
+
                 let timestampDate = Date(timeIntervalSince1970: timestamp)
-                        
-                // TODO: check if file hasn't been modified since the metadata was saved
-                // Reference: https://github.com/huggingface/huggingface_hub/blob/2fdc6f48ef5e6b22ee9bcdc1945948ac070da675/src/huggingface_hub/_local_folder.py#L303
-                
                 let filename = metadataPath.lastPathComponent.replacingOccurrences(of: ".metadata", with: "")
-                
+
                 return LocalDownloadFileMetadata(commitHash: commitHash, etag: etag, filename: filename, timestamp: timestampDate)
-            } catch {
+            } catch let error as EnvironmentError {
                 do {
-                    HubApi.logger.warning("Invalid metadata file \(metadataPath): \(error). Removing it from disk and continue.")
+                    HubApi.logger.warning("Invalid metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
                     try FileManager.default.removeItem(at: metadataPath)
                 } catch {
-                    throw EnvironmentError.invalidMetadataError("Could not remove corrupted metadata file \(metadataPath): \(error)")
+                    throw EnvironmentError.invalidMetadataError(String(localized: "Could not remove corrupted metadata file: \(error.localizedDescription)"))
+                }
+                return nil
+            } catch {
+                do {
+                    HubApi.logger.warning("Error reading metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
+                    try FileManager.default.removeItem(at: metadataPath)
+                } catch {
+                    throw EnvironmentError.invalidMetadataError(String(localized: "Could not remove corrupted metadata file: \(error.localizedDescription)"))
                 }
                 return nil
             }
         }
-            
+
         // metadata file does not exist
         return nil
     }
-    
+
     func isValidHash(hash: String, pattern: String) -> Bool {
         let regex = try? NSRegularExpression(pattern: pattern)
         let range = NSRange(location: 0, length: hash.utf16.count)
@@ -270,34 +293,35 @@ public extension HubApi {
     func computeFileHash(file url: URL) throws -> String {
         // Open file for reading
         guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
-            throw Hub.HubClientError.unexpectedError
+            throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
         }
-        
+
         defer {
             try? fileHandle.close()
         }
-        
+
         var hasher = SHA256()
         let chunkSize = 1024 * 1024 // 1MB chunks
-        
+
         while autoreleasepool(invoking: {
             let nextChunk = try? fileHandle.read(upToCount: chunkSize)
-            
+
             guard let nextChunk,
-                    !nextChunk.isEmpty
+                  !nextChunk.isEmpty
             else {
                 return false
             }
-            
+
             hasher.update(data: nextChunk)
-            
+
             return true
         }) { }
-        
+
         let digest = hasher.finalize()
         return digest.map { String(format: "%02x", $0) }.joined()
+
     }
-    
+
     /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L391
     func writeDownloadMetadata(commitHash: String, etag: String, metadataPath: URL) throws {
         let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
@@ -305,10 +329,10 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
             try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
         } catch {
-            throw EnvironmentError.invalidMetadataError("Failed to write metadata file \(metadataPath)")
+            throw EnvironmentError.fileWriteError(String(localized: "Failed to write metadata to \(metadataPath.path): \(error.localizedDescription)"))
         }
     }
-    
+
     struct HubFileDownloader {
         let repo: Repo
         let repoDestination: URL
@@ -427,39 +451,39 @@ public extension HubApi {
         
         if useOfflineMode ?? NetworkMonitor.shared.shouldUseOfflineMode() {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
-                throw EnvironmentError.offlineModeError("File not available locally in offline mode")
+                throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
             }
-            
+
             let fileUrls = try FileManager.default.getFileUrls(at: repoDestination)
             if fileUrls.isEmpty {
-                throw EnvironmentError.offlineModeError("File not available locally in offline mode")
+                throw EnvironmentError.offlineModeError(String(localized: "No files available locally for this repository"))
             }
-            
+
             for fileUrl in fileUrls {
                 let metadataPath = URL(fileURLWithPath: fileUrl.path.replacingOccurrences(
-                    of: repoDestination.path, 
+                    of: repoDestination.path,
                     with: repoMetadataDestination.path
                 ) + ".metadata")
-                
+
                 let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
-                
+
                 guard let localMetadata = localMetadata else {
-                    throw EnvironmentError.offlineModeError("Metadata not available or invalid in offline mode")
+                    throw EnvironmentError.offlineModeError(String(localized: "Metadata not available for \(fileUrl.lastPathComponent)"))
                 }
                 let localEtag = localMetadata.etag
-                
+
                 // LFS file so check file integrity
                 if self.isValidHash(hash: localEtag, pattern: self.sha256Pattern) {
                     let fileHash = try computeFileHash(file: fileUrl)
                     if fileHash != localEtag {
-                        throw EnvironmentError.offlineModeError("File integrity check failed in offline mode")
+                        throw EnvironmentError.fileIntegrityError(String(localized: "Hash mismatch for \(fileUrl.lastPathComponent)"))
                     }
                 }
             }
-            
+
             return repoDestination
         }
-        
+
         let filenames = try await getFilenames(from: repo, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         for filename in filenames {

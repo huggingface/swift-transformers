@@ -852,7 +852,7 @@ class SnapshotDownloadTests: XCTestCase {
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case .offlineModeError(let message):
-                XCTAssertEqual(message, "File not available locally in offline mode")
+                XCTAssertEqual(message, "Repository not available locally")
             default:
                 XCTFail("Wrong error type: \(error)")
             }
@@ -889,7 +889,7 @@ class SnapshotDownloadTests: XCTestCase {
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case .offlineModeError(let message):
-                XCTAssertEqual(message, "Metadata not available or invalid in offline mode")
+                XCTAssertEqual(message, "Metadata not available for x.bin")
             default:
                 XCTFail("Wrong error type: \(error)")
             }
@@ -924,8 +924,8 @@ class SnapshotDownloadTests: XCTestCase {
             XCTFail("Expected an error to be thrown")
         } catch let error as HubApi.EnvironmentError {
             switch error {
-            case .offlineModeError(let message):
-                XCTAssertEqual(message, "File integrity check failed in offline mode")
+            case .fileIntegrityError(let message):
+                XCTAssertEqual(message, "Hash mismatch for x.bin")
             default:
                 XCTFail("Wrong error type: \(error)")
             }
@@ -960,7 +960,7 @@ class SnapshotDownloadTests: XCTestCase {
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case .offlineModeError(let message):
-                XCTAssertEqual(message, "File not available locally in offline mode")
+                XCTAssertEqual(message, "No files available locally for this repository")
             default:
                 XCTFail("Wrong error type: \(error)")
             }
