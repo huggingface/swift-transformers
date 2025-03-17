@@ -7,8 +7,8 @@ class PostProcessorTests: XCTestCase {
        let testCases: [(Config, [String], [String]?, [String])] = [
             // Should keep spaces; uneven spaces; ignore `addPrefixSpace`.
             (
-                Config(["cls": (0, "[HEAD]") as (UInt, String),
-                        "sep": (0, "[END]") as (UInt, String),
+                Config(["cls": ["[HEAD]", 0 as UInt],
+                        "sep": ["[END]", 0 as UInt],
                         "trimOffset": false,
                         "addPrefixSpace": true,
                        ]),
@@ -18,8 +18,8 @@ class PostProcessorTests: XCTestCase {
             ),
             // Should leave only one space around each token.
             (
-                Config(["cls": (0, "[START]") as (UInt, String),
-                        "sep": (0, "[BREAK]") as (UInt, String),
+                Config(["cls": ["[START]", 0 as UInt],
+                        "sep": ["[BREAK]", 0 as UInt],
                         "trimOffset": true,
                         "addPrefixSpace": true,
                        ]),
@@ -29,8 +29,8 @@ class PostProcessorTests: XCTestCase {
             ),
             // Should ignore empty tokens pair.
             (
-                Config(["cls": (0, "[START]") as (UInt, String),
-                        "sep": (0, "[BREAK]") as (UInt, String),
+                Config(["cls": ["[START]", 0 as UInt],
+                        "sep": ["[BREAK]", 0 as UInt],
                         "trimOffset": true,
                         "addPrefixSpace": true,
                        ]),
@@ -40,8 +40,8 @@ class PostProcessorTests: XCTestCase {
             ),
             // Should trim all whitespace.
             (
-                Config(["cls": (0, "[CLS]") as (UInt, String),
-                        "sep": (0, "[SEP]") as (UInt, String),
+                Config(["cls": ["[CLS]", 0 as UInt],
+                        "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
                         "addPrefixSpace": false,
                        ]),
@@ -51,8 +51,8 @@ class PostProcessorTests: XCTestCase {
             ),
             // Should add tokens.
             (
-                Config(["cls": (0, "[CLS]") as (UInt, String),
-                        "sep": (0, "[SEP]") as (UInt, String),
+                Config(["cls": ["[CLS]", 0 as UInt],
+                        "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
                         "addPrefixSpace": true,
                        ]),
@@ -63,8 +63,8 @@ class PostProcessorTests: XCTestCase {
                  "mat", "[SEP]"]
             ),
             (
-                Config(["cls": (0, "[CLS]") as (UInt, String),
-                        "sep": (0, "[SEP]") as (UInt, String),
+                Config(["cls": ["[CLS]", 0 as UInt],
+                        "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
                         "addPrefixSpace": true,
                        ]),
