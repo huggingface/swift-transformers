@@ -72,6 +72,23 @@ class BertUncasedTokenizerTests: TokenizerTests {
     override class var unknownTokenId: Int? { 100 }
 }
 
+class BartLargeMnliTokenizerTests: TokenizerTests {
+    override class var hubModelName: String? { "facebook/bart-large-mnli" }
+    override class var encodedSamplesFilename: String? { "bart_large_mnli" }
+    override class var unknownTokenId: Int? { 3 }
+
+    override func testTokenize() async {
+        let testCases: [(String, [String])] = [
+            ("Justin Timberlake and Jessica Biel, welcome to parenthood.", ["Justin", "\u{0120}Timber", "lake", "\u{0120}and", "\u{0120}Jessica", "\u{0120}B", "iel", ",", "\u{0120}welcome", "\u{0120}to", "\u{0120}p", "arenthood", "."]),
+            ("Silas Randall Timberlake, in statements to People. \"Silas was the middle name of Timberlake's maternal grandfather Bill Bomar, who died in 2012, while Randall is the musician's own middle name, as well as his father's first,\" People reports.", ["Sil", "as", "\u{0120}Randall", "\u{0120}Timber", "lake", ",", "\u{0120}in", "\u{0120}statements", "\u{0120}to", "\u{0120}People", ".", "\u{0120}\"", "Sil", "as", "\u{0120}was", "\u{0120}the", "\u{0120}middle", "\u{0120}name", "\u{0120}of", "\u{0120}Timber", "lake", "'s", "\u{0120}maternal", "\u{0120}grandfather", "\u{0120}Bill", "\u{0120}Bom", "ar", ",", "\u{0120}who", "\u{0120}died", "\u{0120}in", "\u{0120}2012", ",", "\u{0120}while", "\u{0120}Randall", "\u{0120}is", "\u{0120}the", "\u{0120}musician", "'s", "\u{0120}own", "\u{0120}middle", "\u{0120}name", ",", "\u{0120}as", "\u{0120}well", "\u{0120}as", "\u{0120}his", "\u{0120}father", "'s", "\u{0120}first", ",\"", "\u{0120}People", "\u{0120}reports", "."]),
+        ]
+        let tokenizer = await BartLargeMnliTokenizerTests._tester!.tokenizer!
+        for (text, expectTokens) in testCases {
+            XCTAssertEqual(tokenizer.tokenize(text: text), expectTokens)
+        }
+    }
+}
+
 class GemmaTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
     override class var encodedSamplesFilename: String? { "gemma_encoded" }
