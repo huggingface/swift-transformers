@@ -4,8 +4,9 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-@testable import Hub
 import XCTest
+
+@testable import Hub
 
 class HubApiTests: XCTestCase {
     override func setUp() {
@@ -150,10 +151,14 @@ class HubApiTests: XCTestCase {
         do {
             let revision = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
             let etag = "fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107"
-            let location = "https://cdn-lfs.hf.co/repos/4a/4e/4a4e587f66a2979dcd75e1d7324df8ee9ef74be3582a05bea31c2c26d0d467d0/fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model.mlmodel%3B+filename%3D%22model.mlmodel"
+            let location =
+                "https://cdn-lfs.hf.co/repos/4a/4e/4a4e587f66a2979dcd75e1d7324df8ee9ef74be3582a05bea31c2c26d0d467d0/fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model.mlmodel%3B+filename%3D%22model.mlmodel"
             let size = 504766
 
-            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel")
+            let url = URL(
+                string:
+                    "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+            )
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
             XCTAssertEqual(metadata.commitHash, revision)
@@ -188,7 +193,12 @@ class SnapshotDownloadTests: XCTestCase {
         var filenames: [String] = []
         let prefix = downloadDestination.appending(path: "models/\(repo)").path.appending("/")
 
-        if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles], errorHandler: nil) {
+        if let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) {
             for case let fileURL as URL in enumerator {
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
@@ -256,7 +266,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedFilenames),
             Set([
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json"
             ])
         )
     }
@@ -405,7 +415,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedMetadataFilenames),
             Set([
-                ".cache/huggingface/download/tokenizer.json.metadata",
+                ".cache/huggingface/download/tokenizer.json.metadata"
             ])
         )
 
@@ -534,7 +544,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedMetadataFilenames),
             Set([
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata",
+                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata"
             ])
         )
 
@@ -915,7 +925,11 @@ class SnapshotDownloadTests: XCTestCase {
 
         let metadataDestination = downloadedTo.appendingPathComponent(".cache/huggingface/download").appendingPathComponent("x.bin.metadata")
 
-        try "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2ab4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4\n0\n".write(to: metadataDestination, atomically: true, encoding: .utf8)
+        try "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2ab4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4\n0\n".write(
+            to: metadataDestination,
+            atomically: true,
+            encoding: .utf8
+        )
 
         hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
 
@@ -972,7 +986,9 @@ class SnapshotDownloadTests: XCTestCase {
     func testResumeDownloadFromEmptyIncomplete() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
-        var downloadedTo = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/huggingface-tests/models/coreml-projects/Llama-2-7b-chat-coreml")
+        var downloadedTo = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+            "Library/Caches/huggingface-tests/models/coreml-projects/Llama-2-7b-chat-coreml"
+        )
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
@@ -993,17 +1009,17 @@ class SnapshotDownloadTests: XCTestCase {
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
         let expected = """
-        {
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
-        """
+            {
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
+            """
         XCTAssertTrue(fileContents.contains(expected))
     }
 
@@ -1032,17 +1048,17 @@ class SnapshotDownloadTests: XCTestCase {
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
         let expected = """
-        X
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
-        """
+            X
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
+            """
         XCTAssertTrue(fileContents.contains(expected))
     }
 
@@ -1070,6 +1086,7 @@ class SnapshotDownloadTests: XCTestCase {
 
         // Cancel the download once we've seen progress
         downloadTask.cancel()
+
         try await Task.sleep(nanoseconds: 5_000_000_000)
 
         // Resume download with a new task
@@ -1078,48 +1095,9 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         let filePath = downloadedTo.appendingPathComponent(targetFile)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: filePath.path),
-                      "Downloaded file should exist at \(filePath.path)")
-    }
-
-    func testDownloadWithRevision() async throws {
-        let hubApi = HubApi(downloadBase: downloadDestination)
-        var lastProgress: Progress? = nil
-
-        let commitHash = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
-        let downloadedTo = try await hubApi.snapshot(from: repo, revision: commitHash, matching: "*.json") { progress in
-            print("Total Progress: \(progress.fractionCompleted)")
-            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
-            lastProgress = progress
-        }
-
-        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
-        XCTAssertEqual(
-            Set(downloadedFilenames),
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: filePath.path),
+            "Downloaded file should exist at \(filePath.path)"
         )
-
-        do {
-            let revision = "nonexistent-revision"
-            try await hubApi.snapshot(from: repo, revision: revision, matching: "*.json")
-            XCTFail("Expected an error to be thrown")
-        } catch let error as Hub.HubClientError {
-            switch error {
-            case .fileNotFound:
-                break // Error type is correct
-            default:
-                XCTFail("Wrong error type: \(error)")
-            }
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
     }
 }

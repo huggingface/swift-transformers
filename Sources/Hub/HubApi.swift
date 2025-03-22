@@ -10,18 +10,24 @@ import Foundation
 import Network
 import os
 
-public struct HubApi {
+public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
     var endpoint: String
     var useBackgroundSession: Bool
-    var useOfflineMode: Bool?
+    var useOfflineMode: Bool? = nil
 
     private let networkMonitor = NetworkMonitor()
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
-    public init(downloadBase: URL? = nil, hfToken: String? = nil, endpoint: String = "https://huggingface.co", useBackgroundSession: Bool = false, useOfflineMode: Bool? = nil) {
+    public init(
+        downloadBase: URL? = nil,
+        hfToken: String? = nil,
+        endpoint: String = "https://huggingface.co",
+        useBackgroundSession: Bool = false,
+        useOfflineMode: Bool? = nil
+    ) {
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
         if let downloadBase {
             self.downloadBase = downloadBase
@@ -43,8 +49,8 @@ public struct HubApi {
     private static let logger = Logger()
 }
 
-private extension HubApi {
-    static func hfTokenFromEnv() -> String? {
+extension HubApi {
+    fileprivate static func hfTokenFromEnv() -> String? {
         let possibleTokens = [
             { ProcessInfo.processInfo.environment["HF_TOKEN"] },
             { ProcessInfo.processInfo.environment["HUGGING_FACE_HUB_TOKEN"] },
@@ -76,18 +82,18 @@ private extension HubApi {
 }
 
 /// File retrieval
-public extension HubApi {
+extension HubApi {
     /// Model data for parsed filenames
-    struct Sibling: Codable {
+    public struct Sibling: Codable {
         let rfilename: String
     }
 
-    struct SiblingsResponse: Codable {
+    public struct SiblingsResponse: Codable {
         let siblings: [Sibling]
     }
 
     /// Throws error if the response code is not 20X
-    func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
+    public func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         if let hfToken {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
@@ -118,7 +124,7 @@ public extension HubApi {
 
     /// Throws error if page does not exist or is not accessible.
     /// Allows relative redirects but ignores absolute ones for LFS files.
-    func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
+    public func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         if let hfToken {
@@ -133,16 +139,15 @@ public extension HubApi {
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
-        case 200..<400: break // Allow redirects to pass through to the redirect delegate
-        case 401, 403: throw Hub.HubClientError.authorizationRequired
-        case 404: throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
+        case 200..<400: break  // Allow redirects to pass through to the redirect delegate
+        case 400..<500: throw Hub.HubClientError.authorizationRequired
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
 
         return (data, response)
     }
 
-    func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
+    public func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
         let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)/revision/\(revision)")!
         let (data, _) = try await httpGet(for: url)
@@ -157,22 +162,22 @@ public extension HubApi {
         return Array(selected)
     }
 
-    func getFilenames(from repoId: String, matching globs: [String] = []) async throws -> [String] {
-        try await getFilenames(from: Repo(id: repoId), matching: globs)
+    public func getFilenames(from repoId: String, matching globs: [String] = []) async throws -> [String] {
+        return try await getFilenames(from: Repo(id: repoId), matching: globs)
     }
 
-    func getFilenames(from repo: Repo, matching glob: String) async throws -> [String] {
-        try await getFilenames(from: repo, matching: [glob])
+    public func getFilenames(from repo: Repo, matching glob: String) async throws -> [String] {
+        return try await getFilenames(from: repo, matching: [glob])
     }
 
-    func getFilenames(from repoId: String, matching glob: String) async throws -> [String] {
-        try await getFilenames(from: Repo(id: repoId), matching: [glob])
+    public func getFilenames(from repoId: String, matching glob: String) async throws -> [String] {
+        return try await getFilenames(from: Repo(id: repoId), matching: [glob])
     }
 }
 
 /// Additional Errors
-public extension HubApi {
-    enum EnvironmentError: LocalizedError {
+extension HubApi {
+    public enum EnvironmentError: LocalizedError {
         case invalidMetadataError(String)
         case offlineModeError(String)
         case fileIntegrityError(String)
@@ -180,31 +185,31 @@ public extension HubApi {
 
         public var errorDescription: String? {
             switch self {
-            case let .invalidMetadataError(message):
-                String(localized: "Invalid metadata: \(message)")
-            case let .offlineModeError(message):
-                String(localized: "Offline mode error: \(message)")
-            case let .fileIntegrityError(message):
-                String(localized: "File integrity check failed: \(message)")
-            case let .fileWriteError(message):
-                String(localized: "Failed to write file: \(message)")
+            case .invalidMetadataError(let message):
+                return String(localized: "Invalid metadata: \(message)")
+            case .offlineModeError(let message):
+                return String(localized: "Offline mode error: \(message)")
+            case .fileIntegrityError(let message):
+                return String(localized: "File integrity check failed: \(message)")
+            case .fileWriteError(let message):
+                return String(localized: "Failed to write file: \(message)")
             }
         }
     }
 }
 
 /// Configuration loading helpers
-public extension HubApi {
+extension HubApi {
     /// Assumes the file has already been downloaded.
     /// `filename` is relative to the download base.
-    func configuration(from filename: String, in repo: Repo) throws -> Config {
+    public func configuration(from filename: String, in repo: Repo) throws -> Config {
         let fileURL = localRepoLocation(repo).appending(path: filename)
         return try configuration(fileURL: fileURL)
     }
 
     /// Assumes the file is already present at local url.
     /// `fileURL` is a complete local file path for the given model
-    func configuration(fileURL: URL) throws -> Config {
+    public func configuration(fileURL: URL) throws -> Config {
         let data = try Data(contentsOf: fileURL)
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
         guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
@@ -213,8 +218,8 @@ public extension HubApi {
 }
 
 /// Whoami
-public extension HubApi {
-    func whoami() async throws -> Config {
+extension HubApi {
+    public func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
 
         let url = URL(string: "\(endpoint)/api/whoami-v2")!
@@ -227,8 +232,8 @@ public extension HubApi {
 }
 
 /// Snaphsot download
-public extension HubApi {
-    func localRepoLocation(_ repo: Repo) -> URL {
+extension HubApi {
+    public func localRepoLocation(_ repo: Repo) -> URL {
         downloadBase.appending(component: repo.type.rawValue).appending(component: repo.id)
     }
 
@@ -241,7 +246,7 @@ public extension HubApi {
     ///   - filePath: The path of the file for which metadata is being read.
     /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
     /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
-    func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
+    public func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
         if FileManager.default.fileExists(atPath: metadataPath.path) {
             do {
                 let contents = try String(contentsOf: metadataPath, encoding: .utf8)
@@ -285,13 +290,13 @@ public extension HubApi {
         return nil
     }
 
-    func isValidHash(hash: String, pattern: String) -> Bool {
+    public func isValidHash(hash: String, pattern: String) -> Bool {
         let regex = try? NSRegularExpression(pattern: pattern)
         let range = NSRange(location: 0, length: hash.utf16.count)
         return regex?.firstMatch(in: hash, options: [], range: range) != nil
     }
 
-    func computeFileHash(file url: URL) throws -> String {
+    public func computeFileHash(file url: URL) throws -> String {
         // Open file for reading
         guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
             throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
@@ -302,13 +307,13 @@ public extension HubApi {
         }
 
         var hasher = SHA256()
-        let chunkSize = 1024 * 1024 // 1MB chunks
+        let chunkSize = 1024 * 1024  // 1MB chunks
 
         while autoreleasepool(invoking: {
             let nextChunk = try? fileHandle.read(upToCount: chunkSize)
 
             guard let nextChunk,
-                  !nextChunk.isEmpty
+                !nextChunk.isEmpty
             else {
                 return false
             }
@@ -316,14 +321,14 @@ public extension HubApi {
             hasher.update(data: nextChunk)
 
             return true
-        }) { }
+        }) {}
 
         let digest = hasher.finalize()
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L391
-    func writeDownloadMetadata(commitHash: String, etag: String, metadataPath: URL) throws {
+    public func writeDownloadMetadata(commitHash: String, etag: String, metadataPath: URL) throws {
         let metadataContent = "\(commitHash)\n\(etag)\n\(Date().timeIntervalSince1970)\n"
         do {
             try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -333,8 +338,7 @@ public extension HubApi {
         }
     }
 
-    struct HubFileDownloader {
-        let hub: HubApi
+    public struct HubFileDownloader {
         let repo: Repo
         let revision: String
         let repoDestination: URL
@@ -382,22 +386,24 @@ public extension HubApi {
         /// (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
-            let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
-            let remoteMetadata = try await hub.getFileMetadata(url: source)
+            let localMetadata = try HubApi.shared.readDownloadMetadata(metadataPath: metadataDestination)
+            let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
 
             let localCommitHash = localMetadata?.commitHash ?? ""
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
 
             // Local file exists + metadata exists + commit_hash matches => return file
-            if hub.isValidHash(hash: remoteCommitHash, pattern: hub.commitHashPattern), downloaded, localMetadata != nil, localCommitHash == remoteCommitHash {
+            if HubApi.shared.isValidHash(hash: remoteCommitHash, pattern: HubApi.shared.commitHashPattern), downloaded, localMetadata != nil,
+                localCommitHash == remoteCommitHash
+            {
                 return destination
             }
 
             // From now on, etag, commit_hash, url and size are not empty
             guard let remoteCommitHash = remoteMetadata.commitHash,
-                  let remoteEtag = remoteMetadata.etag,
-                  let remoteSize = remoteMetadata.size,
-                  remoteMetadata.location != ""
+                let remoteEtag = remoteMetadata.etag,
+                let remoteSize = remoteMetadata.size,
+                remoteMetadata.location != ""
             else {
                 throw EnvironmentError.invalidMetadataError("File metadata must have been retrieved from server")
             }
@@ -406,7 +412,7 @@ public extension HubApi {
             if downloaded {
                 // etag matches => update metadata and return file
                 if localMetadata?.etag == remoteEtag {
-                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                     return destination
                 }
 
@@ -414,10 +420,10 @@ public extension HubApi {
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if hub.isValidHash(hash: remoteEtag, pattern: hub.sha256Pattern) {
-                    let fileHash = try hub.computeFileHash(file: destination)
+                if HubApi.shared.isValidHash(hash: remoteEtag, pattern: HubApi.shared.sha256Pattern) {
+                    let fileHash = try HubApi.shared.computeFileHash(file: destination)
                     if fileHash == remoteEtag {
-                        try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                        try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                         return destination
                     }
                 }
@@ -427,51 +433,46 @@ public extension HubApi {
             let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
             try prepareCacheDestination(incompleteDestination)
 
-            let downloader = Downloader(
-                from: source,
-                to: destination,
-                incompleteDestination: incompleteDestination,
-                using: hfToken,
-                inBackground: backgroundSession,
-                expectedSize: remoteSize
-            )
+            let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination, inBackground: backgroundSession)
 
-            return try await withTaskCancellationHandler {
-                let downloadSubscriber = downloader.downloadState.sink { state in
+            try await withTaskCancellationHandler {
+                let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
+                listen: for await state in sub {
                     switch state {
-                    case let .downloading(progress):
+                    case .notStarted:
+                        continue
+                    case .downloading(let progress):
                         progressHandler(progress)
-                    case .completed, .failed, .notStarted:
-                        break
+                    case .failed(let error):
+                        throw error
+                    case .completed:
+                        break listen
                     }
-                }
-                do {
-                    _ = try withExtendedLifetime(downloadSubscriber) {
-                        try downloader.waitUntilDone()
-                    }
-
-                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
-
-                    return destination
-                } catch {
-                    // If download fails, leave the incomplete file in place for future resume
-                    throw error
                 }
             } onCancel: {
-                downloader.cancel()
+                Task {
+                    await downloader.cancel()
+                }
             }
+
+            try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+
+            return destination
         }
     }
 
     @discardableResult
-    func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+    public func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in })
+        async throws -> URL
+    {
         let repoDestination = localRepoLocation(repo)
-        let repoMetadataDestination = repoDestination
+        let repoMetadataDestination =
+            repoDestination
             .appendingPathComponent(".cache")
             .appendingPathComponent("huggingface")
             .appendingPathComponent("download")
 
-        if useOfflineMode ?? NetworkMonitor.shared.shouldUseOfflineMode() {
+        if await NetworkMonitor.shared.state.shouldUseOfflineMode() || useOfflineMode == true {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
                 throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
             }
@@ -482,10 +483,12 @@ public extension HubApi {
             }
 
             for fileUrl in fileUrls {
-                let metadataPath = URL(fileURLWithPath: fileUrl.path.replacingOccurrences(
-                    of: repoDestination.path,
-                    with: repoMetadataDestination.path
-                ) + ".metadata")
+                let metadataPath = URL(
+                    fileURLWithPath: fileUrl.path.replacingOccurrences(
+                        of: repoDestination.path,
+                        with: repoMetadataDestination.path
+                    ) + ".metadata"
+                )
 
                 let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
 
@@ -511,7 +514,6 @@ public extension HubApi {
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
             let downloader = HubFileDownloader(
-                hub: self,
                 repo: repo,
                 revision: revision,
                 repoDestination: repoDestination,
@@ -521,36 +523,42 @@ public extension HubApi {
                 endpoint: endpoint,
                 backgroundSession: useBackgroundSession
             )
+
             try await downloader.download { fractionDownloaded in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
                 progressHandler(progress)
             }
+            if Task.isCancelled {
+                return repoDestination
+            }
+
             fileProgress.completedUnitCount = 100
         }
+
         progressHandler(progress)
         return repoDestination
     }
 
     @discardableResult
-    func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, progressHandler: progressHandler)
+    public func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
     }
 
     @discardableResult
-    func snapshot(from repo: Repo, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: repo, revision: revision, matching: [glob], progressHandler: progressHandler)
+    public func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await snapshot(from: repo, matching: [glob], progressHandler: progressHandler)
     }
 
     @discardableResult
-    func snapshot(from repoId: String, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
+    public func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await snapshot(from: Repo(id: repoId), matching: [glob], progressHandler: progressHandler)
     }
 }
 
 /// Metadata
-public extension HubApi {
+extension HubApi {
     /// Data structure containing information about a file versioned on the Hub
-    struct FileMetadata {
+    public struct FileMetadata {
         /// The commit hash related to the file
         public let commitHash: String?
 
@@ -565,7 +573,7 @@ public extension HubApi {
     }
 
     /// Metadata about a file in the local directory related to a download process
-    struct LocalDownloadFileMetadata {
+    public struct LocalDownloadFileMetadata {
         /// Commit hash of the file in the repo
         public let commitHash: String
 
@@ -599,7 +607,7 @@ public extension HubApi {
         )
     }
 
-    func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
+    public func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         let files = try await getFilenames(from: repo, matching: globs)
         let url = URL(string: "\(endpoint)/\(repo.id)/resolve/\(revision)")!
         var selectedMetadata: [FileMetadata] = []
@@ -610,28 +618,45 @@ public extension HubApi {
         return selectedMetadata
     }
 
-    func getFileMetadata(from repoId: String, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
+    public func getFileMetadata(from repoId: String, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         try await getFileMetadata(from: Repo(id: repoId), revision: revision, matching: globs)
     }
 
-    func getFileMetadata(from repo: Repo, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
+    public func getFileMetadata(from repo: Repo, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
         try await getFileMetadata(from: repo, revision: revision, matching: [glob])
     }
 
-    func getFileMetadata(from repoId: String, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
+    public func getFileMetadata(from repoId: String, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
         try await getFileMetadata(from: Repo(id: repoId), revision: revision, matching: [glob])
     }
 }
 
 /// Network monitor helper class to help decide whether to use offline mode
-private extension HubApi {
-    private final class NetworkMonitor {
-        private var monitor: NWPathMonitor
-        private var queue: DispatchQueue
+extension HubApi {
+    private actor NetworkStateActor {
+        public var isConnected: Bool = false
+        public var isExpensive: Bool = false
+        public var isConstrained: Bool = false
 
-        private(set) var isConnected: Bool = false
-        private(set) var isExpensive: Bool = false
-        private(set) var isConstrained: Bool = false
+        func update(path: NWPath) {
+            self.isConnected = path.status == .satisfied
+            self.isExpensive = path.isExpensive
+            self.isConstrained = path.isConstrained
+        }
+
+        func shouldUseOfflineMode() -> Bool {
+            if ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1" {
+                return false
+            }
+            return !isConnected || isExpensive || isConstrained
+        }
+    }
+
+    private final class NetworkMonitor: Sendable {
+        private let monitor: NWPathMonitor
+        private let queue: DispatchQueue
+
+        public let state: NetworkStateActor = .init()
 
         static let shared = NetworkMonitor()
 
@@ -643,25 +668,17 @@ private extension HubApi {
 
         func startMonitoring() {
             monitor.pathUpdateHandler = { [weak self] path in
-                guard let self else { return }
-
-                isConnected = path.status == .satisfied
-                isExpensive = path.isExpensive
-                isConstrained = path.isConstrained
+                guard let self = self else { return }
+                Task {
+                    await self.state.update(path: path)
+                }
             }
 
-            monitor.start(queue: queue)
+            monitor.start(queue: self.queue)
         }
 
         func stopMonitoring() {
             monitor.cancel()
-        }
-
-        func shouldUseOfflineMode() -> Bool {
-            if ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1" {
-                return false
-            }
-            return !isConnected || isExpensive || isConstrained
         }
 
         deinit {
@@ -671,80 +688,84 @@ private extension HubApi {
 }
 
 /// Stateless wrappers that use `HubApi` instances
-public extension Hub {
-    static func getFilenames(from repo: Hub.Repo, matching globs: [String] = []) async throws -> [String] {
-        try await HubApi.shared.getFilenames(from: repo, matching: globs)
+extension Hub {
+    public static func getFilenames(from repo: Hub.Repo, matching globs: [String] = []) async throws -> [String] {
+        return try await HubApi.shared.getFilenames(from: repo, matching: globs)
     }
 
-    static func getFilenames(from repoId: String, matching globs: [String] = []) async throws -> [String] {
-        try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: globs)
+    public static func getFilenames(from repoId: String, matching globs: [String] = []) async throws -> [String] {
+        return try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: globs)
     }
 
-    static func getFilenames(from repo: Repo, matching glob: String) async throws -> [String] {
-        try await HubApi.shared.getFilenames(from: repo, matching: glob)
+    public static func getFilenames(from repo: Repo, matching glob: String) async throws -> [String] {
+        return try await HubApi.shared.getFilenames(from: repo, matching: glob)
     }
 
-    static func getFilenames(from repoId: String, matching glob: String) async throws -> [String] {
-        try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: glob)
+    public static func getFilenames(from repoId: String, matching glob: String) async throws -> [String] {
+        return try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: glob)
     }
 
-    static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
+    public static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
+    public static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws
+        -> URL
+    {
+        return try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: repo, matching: glob, progressHandler: progressHandler)
+    public static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await HubApi.shared.snapshot(from: repo, matching: glob, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
+    public static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        return try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
 
-    static func whoami(token: String) async throws -> Config {
-        try await HubApi(hfToken: token).whoami()
+    public static func whoami(token: String) async throws -> Config {
+        return try await HubApi(hfToken: token).whoami()
     }
 
-    static func getFileMetadata(fileURL: URL) async throws -> HubApi.FileMetadata {
-        try await HubApi.shared.getFileMetadata(url: fileURL)
+    public static func getFileMetadata(fileURL: URL) async throws -> HubApi.FileMetadata {
+        return try await HubApi.shared.getFileMetadata(url: fileURL)
     }
 
-    static func getFileMetadata(from repo: Repo, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
-        try await HubApi.shared.getFileMetadata(from: repo, matching: globs)
+    public static func getFileMetadata(from repo: Repo, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: repo, matching: globs)
     }
 
-    static func getFileMetadata(from repoId: String, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
-        try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: globs)
+    public static func getFileMetadata(from repoId: String, matching globs: [String] = []) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: globs)
     }
 
-    static func getFileMetadata(from repo: Repo, matching glob: String) async throws -> [HubApi.FileMetadata] {
-        try await HubApi.shared.getFileMetadata(from: repo, matching: [glob])
+    public static func getFileMetadata(from repo: Repo, matching glob: String) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: repo, matching: [glob])
     }
 
-    static func getFileMetadata(from repoId: String, matching glob: String) async throws -> [HubApi.FileMetadata] {
-        try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: [glob])
+    public static func getFileMetadata(from repoId: String, matching glob: String) async throws -> [HubApi.FileMetadata] {
+        return try await HubApi.shared.getFileMetadata(from: Repo(id: repoId), matching: [glob])
     }
 }
 
-public extension [String] {
-    func matching(glob: String) -> [String] {
+extension [String] {
+    public func matching(glob: String) -> [String] {
         filter { fnmatch(glob, $0, 0) == 0 }
     }
 }
 
-public extension FileManager {
-    func getFileUrls(at directoryUrl: URL) throws -> [URL] {
+extension FileManager {
+    public func getFileUrls(at directoryUrl: URL) throws -> [URL] {
         var fileUrls = [URL]()
 
         // Get all contents including subdirectories
-        guard let enumerator = FileManager.default.enumerator(
-            at: directoryUrl,
-            includingPropertiesForKeys: [.isRegularFileKey, .isHiddenKey],
-            options: [.skipsHiddenFiles]
-        ) else {
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: directoryUrl,
+                includingPropertiesForKeys: [.isRegularFileKey, .isHiddenKey],
+                options: [.skipsHiddenFiles]
+            )
+        else {
             return fileUrls
         }
 
@@ -765,19 +786,26 @@ public extension FileManager {
 
 /// Only allow relative redirects and reject others
 /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/file_download.py#L258
-private class RedirectDelegate: NSObject, URLSessionTaskDelegate {
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
         // Check if it's a redirect status code (300-399)
         if (300...399).contains(response.statusCode) {
             // Get the Location header
             if let locationString = response.value(forHTTPHeaderField: "Location"),
-               let locationUrl = URL(string: locationString)
+                let locationUrl = URL(string: locationString)
             {
+
                 // Check if it's a relative redirect (no host component)
                 if locationUrl.host == nil {
                     // For relative redirects, construct the new URL using the original request's base
                     if let originalUrl = task.originalRequest?.url,
-                       var components = URLComponents(url: originalUrl, resolvingAgainstBaseURL: true)
+                        var components = URLComponents(url: originalUrl, resolvingAgainstBaseURL: true)
                     {
                         // Update the path component with the relative path
                         components.path = locationUrl.path

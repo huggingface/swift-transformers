@@ -6,6 +6,8 @@
 //
 
 import Combine
+import XCTest
+
 @testable import Hub
 import XCTest
 
@@ -17,18 +19,19 @@ enum DownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidDownloadLocation:
-            String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
+            return String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
         case .unexpectedError:
-            String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
+            return String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
         }
     }
 }
 
 private extension Downloader {
-    func interruptDownload() {
-        session?.invalidateAndCancel()
+    func interruptDownload() async {
+        await self.session.get()?.invalidateAndCancel()
     }
 }
+
 
 final class DownloaderTests: XCTestCase {
     var tempDir: URL!
@@ -53,18 +56,18 @@ final class DownloaderTests: XCTestCase {
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
         let fileContent = """
-        {
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
+            {
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
 
-        """
+            """
 
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
@@ -72,32 +75,21 @@ final class DownloaderTests: XCTestCase {
         let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
-        let downloader = Downloader(
-            from: url,
-            to: destination,
-            incompleteDestination: incompleteDestination
-        )
+        let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
+        let sub = await downloader.download(from: url)
 
-        // Store subscriber outside the continuation to maintain its lifecycle
-        var subscriber: AnyCancellable?
-
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            subscriber = downloader.downloadState.sink { state in
-                switch state {
-                case .completed:
-                    continuation.resume()
-                case let .failed(error):
-                    continuation.resume(throwing: error)
-                case .downloading:
-                    break
-                case .notStarted:
-                    break
-                }
+        listen: for await state in sub {
+            switch state {
+            case .notStarted:
+                continue
+            case .downloading(let progress):
+                continue
+            case .failed(let error):
+                throw error
+            case .completed:
+                break listen
             }
         }
-
-        // Cancel subscription after continuation completes
-        subscriber?.cancel()
 
         // Verify download completed successfully
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path))
@@ -116,18 +108,22 @@ final class DownloaderTests: XCTestCase {
         let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
-        // Create downloader with incorrect expected size
-        let downloader = Downloader(
-            from: url,
-            to: destination,
-            incompleteDestination: incompleteDestination,
-            expectedSize: 999999 // Incorrect size
-        )
-
-        do {
-            try downloader.waitUntilDone()
-            XCTFail("Download should have failed due to size mismatch")
-        } catch { }
+        let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
+        // Download with incorrect expected size
+        let sub = await downloader.download(from: url, expectedSize: 999999)  // Incorrect size
+        listen: for await state in sub {
+            switch state {
+            case .notStarted:
+                continue
+            case .downloading(let progress):
+                continue
+            case .failed:
+                break listen
+            case .completed:
+                XCTFail("Download should have failed due to size mismatch")
+                break listen
+            }
+        }
 
         // Verify no file was created at destination
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
@@ -141,8 +137,10 @@ final class DownloaderTests: XCTestCase {
         let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
 
         // Create parent directory if it doesn't exist
-        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(),
-                                                withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
 
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
@@ -150,42 +148,32 @@ final class DownloaderTests: XCTestCase {
         let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
-        let downloader = Downloader(
-            from: url,
-            to: destination,
-            incompleteDestination: incompleteDestination,
-            expectedSize: 73194001 // Correct size for verification
-        )
+        let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
+        let sub = await downloader.download(from: url, expectedSize: 73_194_001)  // Correct size for verification
 
         // First interruption point at 50%
         var threshold = 0.5
 
-        var subscriber: AnyCancellable?
-
         do {
             // Monitor download progress and interrupt at thresholds to test if
             // download continues from where it left off
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                subscriber = downloader.downloadState.sink { state in
-                    switch state {
-                    case let .downloading(progress):
-                        if threshold != 1.0, progress >= threshold {
-                            // Move to next threshold and interrupt
-                            threshold = threshold == 0.5 ? 0.75 : 1.0
-                            downloader.interruptDownload()
-                        }
-                    case .completed:
-                        continuation.resume()
-                    case let .failed(error):
-                        continuation.resume(throwing: error)
-                    case .notStarted:
-                        break
+            listen: for await state in sub {
+                switch state {
+                case .notStarted:
+                    continue
+                case .downloading(let progress):
+                    if threshold != 1.0 && progress >= threshold {
+                        // Move to next threshold and interrupt
+                        threshold = threshold == 0.5 ? 0.75 : 1.0
+                        await downloader.interruptDownload()
                     }
+                case .failed(let error):
+                    throw error
+                case .completed:
+                    break listen
                 }
             }
-
-            subscriber?.cancel()
-
+            
             // Verify the file exists and is complete
             if FileManager.default.fileExists(atPath: destination.path) {
                 let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
