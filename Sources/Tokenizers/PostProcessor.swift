@@ -1,6 +1,6 @@
 //
 //  PostProcessor.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 17/7/23.
 //
@@ -32,15 +32,15 @@ enum PostProcessorType: String {
 struct PostProcessorFactory {
     static func fromConfig(config: Config?) -> PostProcessor? {
         guard let config = config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard let typeName = config.type.string() else { return nil }
         let type = PostProcessorType(rawValue: typeName)
         switch type {
-            case .TemplateProcessing : return TemplateProcessing(config: config)
-            case .ByteLevel          : return ByteLevelPostProcessor(config: config)
-            case .RobertaProcessing  : return RobertaProcessing(config: config)
-            case .BertProcessing     : return BertProcessing(config: config)
-            case .Sequence           : return SequenceProcessing(config: config)
-            default                  : fatalError("Unsupported PostProcessor type: \(typeName)")
+        case .TemplateProcessing: return TemplateProcessing(config: config)
+        case .ByteLevel: return ByteLevelPostProcessor(config: config)
+        case .RobertaProcessing: return RobertaProcessing(config: config)
+        case .BertProcessing: return BertProcessing(config: config)
+        case .Sequence: return SequenceProcessing(config: config)
+        default: fatalError("Unsupported PostProcessor type: \(typeName)")
         }
     }
 }
@@ -48,30 +48,28 @@ struct PostProcessorFactory {
 class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
-    
+
     required public init(config: Config) {
-        guard let single = config.single?.arrayValue else { fatalError("Missing `single` processor configuration") }
-        guard let pair = config.pair?.arrayValue else { fatalError("Missing `pair` processor configuration") }
-        
+        guard let single = config.single.array() else { fatalError("Missing `single` processor configuration") }
+        guard let pair = config.pair.array() else { fatalError("Missing `pair` processor configuration") }
+
         self.single = single
         self.pair = pair
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
         let config = tokensPair == nil ? single : pair
 
         var toReturn: [String] = []
         for item in config {
-            if let specialToken = item.SpecialToken {
+            if let id = item.SpecialToken.id.string() {
                 if addSpecialTokens {
-                    toReturn.append(specialToken.id!.stringValue!)
+                    toReturn.append(id)
                 }
-            } else if let sequence = item.Sequence {
-                if sequence.id?.stringValue == "A" {
-                    toReturn += tokens
-                } else if sequence.id?.stringValue == "B" {
-                    toReturn += tokensPair!
-                }
+            } else if item.Sequence.id.string() == "A" {
+                toReturn += tokens
+            } else if item.Sequence.id.string() == "B" {
+                toReturn += tokensPair!
             }
         }
         return toReturn
@@ -92,14 +90,14 @@ class RobertaProcessing: PostProcessor {
     private let addPrefixSpace: Bool
 
     required public init(config: Config) {
-        guard let sep = config.sep?.tokenValue else { fatalError("Missing `sep` processor configuration") }
-        guard let cls = config.cls?.tokenValue else { fatalError("Missing `cls` processor configuration") }
+        guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
+        guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
-        self.trimOffset = config.trimOffset?.boolValue ?? true
-        self.addPrefixSpace = config.addPrefixSpace?.boolValue ?? true
+        self.trimOffset = config.trimOffset.boolean(or: true)
+        self.addPrefixSpace = config.addPrefixSpace.boolean(or: true)
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
         var outTokens = tokens
         var tokensPair = tokensPair
@@ -107,7 +105,7 @@ class RobertaProcessing: PostProcessor {
             if addPrefixSpace {
                 outTokens = outTokens.map({ trimExtraSpaces(token: $0) })
                 tokensPair = tokensPair?.map({ trimExtraSpaces(token: $0) })
-           } else {
+            } else {
                 outTokens = outTokens.map({ $0.trimmingCharacters(in: .whitespaces) })
                 tokensPair = tokensPair?.map({ $0.trimmingCharacters(in: .whitespaces) })
             }
@@ -149,8 +147,8 @@ class BertProcessing: PostProcessor {
     private let cls: (UInt, String)
 
     required public init(config: Config) {
-        guard let sep = config.sep?.tokenValue else { fatalError("Missing `sep` processor configuration") }
-        guard let cls = config.cls?.tokenValue else { fatalError("Missing `cls` processor configuration") }
+        guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
+        guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
     }
@@ -171,7 +169,7 @@ class SequenceProcessing: PostProcessor {
     private let processors: [PostProcessor]
 
     required public init(config: Config) {
-        guard let processorConfigs = config.processors?.arrayValue else {
+        guard let processorConfigs = config.processors.array() else {
             fatalError("Missing `processors` configuration")
         }
 

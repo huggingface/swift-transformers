@@ -19,7 +19,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = LowercaseNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -42,7 +42,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = NFDNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -65,7 +65,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = NFCNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -88,7 +88,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = NFKDNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -111,7 +111,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = NFKCNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -171,7 +171,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = BertNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -196,7 +196,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = PrecompiledNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
@@ -219,7 +219,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([:])
+            let config = Config([String: Config]())
             let normalizer = StripAccentsNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
