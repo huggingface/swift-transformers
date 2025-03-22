@@ -425,14 +425,19 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
-            let downloadSubscriber = downloader.downloadState.sink { state in
-                if case .downloading(let progress) = state {
+            let downloader = Downloader(to: destination, inBackground: backgroundSession)
+            let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
+            listen: for await state in sub {
+                switch state {
+                case .notStarted:
+                    continue
+                case .downloading(let progress):
                     progressHandler(progress)
+                case .failed(let error):
+                    throw error
+                case .completed:
+                    break listen
                 }
-            }
-            _ = try withExtendedLifetime(downloadSubscriber) {
-                try downloader.waitUntilDone()
             }
             
             try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
