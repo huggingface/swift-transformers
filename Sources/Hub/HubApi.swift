@@ -10,7 +10,7 @@ import CryptoKit
 import Network
 import os
 
-public struct HubApi {
+public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
     var endpoint: String
@@ -425,14 +425,19 @@ public extension HubApi {
             try prepareDestination()
             try prepareMetadataDestination()
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
-            let downloadSubscriber = downloader.downloadState.sink { state in
-                if case .downloading(let progress) = state {
+            let downloader = Downloader(to: destination, inBackground: backgroundSession)
+            let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
+            listen: for await state in sub {
+                switch state {
+                case .notStarted:
+                    continue
+                case .downloading(let progress):
                     progressHandler(progress)
+                case .failed(let error):
+                    throw error
+                case .completed:
+                    break listen
                 }
-            }
-            _ = try withExtendedLifetime(downloadSubscriber) {
-                try downloader.waitUntilDone()
             }
             
             try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
@@ -449,7 +454,7 @@ public extension HubApi {
             .appendingPathComponent("huggingface")
             .appendingPathComponent("download")
         
-        if useOfflineMode ?? NetworkMonitor.shared.shouldUseOfflineMode() {
+        if await NetworkMonitor.shared.state.shouldUseOfflineMode() || useOfflineMode == true {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
                 throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
             }
@@ -601,40 +606,47 @@ public extension HubApi {
 
 /// Network monitor helper class to help decide whether to use offline mode
 private extension HubApi {
-    private final class NetworkMonitor {
-        private var monitor: NWPathMonitor
-        private var queue: DispatchQueue
+    private actor NetworkStateActor {
+        public var isConnected: Bool = false
+        public var isExpensive: Bool = false
+        public var isConstrained: Bool = false
         
-        private(set) var isConnected: Bool = false
-        private(set) var isExpensive: Bool = false
-        private(set) var isConstrained: Bool = false
+        func update(path: NWPath) {
+            self.isConnected = path.status == .satisfied
+            self.isExpensive = path.isExpensive
+            self.isConstrained = path.isConstrained
+        }
         
+        func shouldUseOfflineMode() -> Bool {
+            return !isConnected || isExpensive || isConstrained
+        }
+    }
+    
+    private final class NetworkMonitor: Sendable {
+        private let monitor: NWPathMonitor
+        
+        public let state: NetworkStateActor = .init()
+    
         static let shared = NetworkMonitor()
         
         init() {
             monitor = NWPathMonitor()
-            queue = DispatchQueue(label: "HubApi.NetworkMonitor")
             startMonitoring()
         }
         
         func startMonitoring() {
             monitor.pathUpdateHandler = { [weak self] path in
                 guard let self = self else { return }
-                
-                self.isConnected = path.status == .satisfied
-                self.isExpensive = path.isExpensive
-                self.isConstrained = path.isConstrained
+                Task {
+                    await self.state.update(path: path)
+                }
             }
             
-            monitor.start(queue: queue)
+            monitor.start(queue: DispatchQueue(label: "HubApi.NetworkMonitor"))
         }
         
         func stopMonitoring() {
             monitor.cancel()
-        }
-        
-        func shouldUseOfflineMode() -> Bool {
-            return !isConnected || isExpensive || isConstrained
         }
         
         deinit {
@@ -738,7 +750,7 @@ public extension FileManager {
 
 /// Only allow relative redirects and reject others
 /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/file_download.py#L258
-private class RedirectDelegate: NSObject, URLSessionTaskDelegate {
+private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         // Check if it's a redirect status code (300-399)
         if (300...399).contains(response.statusCode) {

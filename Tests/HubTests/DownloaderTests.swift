@@ -57,31 +57,22 @@ final class DownloaderTests: XCTestCase {
         
         """
         
-        let downloader = Downloader(
-            from: url,
-            to: destination
-        )
+        let downloader = Downloader(to: destination)
+        let sub = await downloader.download(from: url)
         
-        // Store subscriber outside the continuation to maintain its lifecycle
-        var subscriber: AnyCancellable?
-        
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            subscriber = downloader.downloadState.sink { state in
-                switch state {
-                case .completed:
-                    continuation.resume()
-                case .failed(let error):
-                    continuation.resume(throwing: error)
-                case .downloading:
-                    break
-                case .notStarted:
-                    break
-                }
+        listen: for await state in sub {
+            switch state {
+            case .notStarted:
+                continue
+            case .downloading(let progress):
+                print("download progress \(progress)")
+                continue
+            case .failed(let error):
+                throw error
+            case .completed:
+                break listen
             }
         }
-        
-        // Cancel subscription after continuation completes
-        subscriber?.cancel()
         
         // Verify download completed successfully
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path))
@@ -93,18 +84,22 @@ final class DownloaderTests: XCTestCase {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let destination = tempDir.appendingPathComponent("config.json")
         
-        // Create downloader with incorrect expected size
-        let downloader = Downloader(
-            from: url,
-            to: destination,
-            expectedSize: 999999  // Incorrect size
-        )
-        
-        do {
-            try downloader.waitUntilDone()
-            XCTFail("Download should have failed due to size mismatch")
-        } catch {
-            
+        let downloader = Downloader(to: destination)
+        // Download with incorrect expected size
+        let sub = await downloader.download(from: url, expectedSize: 999999) // Incorrect size
+        listen: for await state in sub {
+            switch state {
+            case .notStarted:
+                continue
+            case .downloading(let progress):
+                print("download progress \(progress)")
+                continue
+            case .failed:
+                break listen
+            case .completed:
+                XCTFail("Download should have failed due to size mismatch")
+                break listen
+            }
         }
         
         // Verify no file was created at destination
@@ -121,40 +116,53 @@ final class DownloaderTests: XCTestCase {
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(),
                                              withIntermediateDirectories: true)
                 
-        let downloader = Downloader(
-            from: url,
-            to: destination,
-            expectedSize: 73194001 // Correct size for verification
-        )
+        let downloader = Downloader(to: destination)
+        let sub = await downloader.download(from: url, expectedSize: 73194001) // Correct size for verification
         
         // First interruption point at 50%
         var threshold = 0.5
         
-        var subscriber: AnyCancellable?
-        
         do {
             // Monitor download progress and interrupt at thresholds to test if
             // download continues from where it left off
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                subscriber = downloader.downloadState.sink { state in
-                    switch state {
-                    case .downloading(let progress):
-                        if threshold != 1.0 && progress >= threshold {
-                            // Move to next threshold and interrupt
-                            threshold = threshold == 0.5 ? 0.75 : 1.0
-                            downloader.cancel()
-                        }
-                    case .completed:
-                        continuation.resume()
-                    case .failed(let error):
-                        continuation.resume(throwing: error)
-                    case .notStarted:
-                        break
+            listen: for await state in sub {
+                switch state {
+                case .notStarted:
+                    continue
+                case .downloading(let progress):
+                    if threshold != 1.0 && progress >= threshold {
+                        // Move to next threshold and interrupt
+                        threshold = threshold == 0.5 ? 0.75 : 1.0
+                        await downloader.cancel()
                     }
+                case .failed(let error):
+                    throw error
+                case .completed:
+                    break listen
                 }
             }
             
-            subscriber?.cancel()
+            
+//            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+//                subscriber = downloader.downloadState.sink { state in
+//                    switch state {
+//                    case .downloading(let progress):
+//                        if threshold != 1.0 && progress >= threshold {
+//                            // Move to next threshold and interrupt
+//                            threshold = threshold == 0.5 ? 0.75 : 1.0
+//                            downloader.cancel()
+//                        }
+//                    case .completed:
+//                        continuation.resume()
+//                    case .failed(let error):
+//                        continuation.resume(throwing: error)
+//                    case .notStarted:
+//                        break
+//                    }
+//                }
+//            }
+            
+//            subscriber?.cancel()
             
             // Verify the file exists and is complete
             if FileManager.default.fileExists(atPath: destination.path) {

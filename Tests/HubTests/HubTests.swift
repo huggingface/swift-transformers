@@ -32,34 +32,33 @@ class HubTests: XCTestCase {
             let config = try await configLoader.modelConfig
             
             // Test leaf value (Int)
-            guard let eos = config.eos_token_id?.intValue else {
+            guard let eos = config["eos_token_id"].integer() else {
                 XCTFail("nil leaf value (Int)")
                 return
             }
             XCTAssertEqual(eos, 1)
             
             // Test leaf value (String)
-            guard let modelType = config.model_type?.stringValue else {
+            guard let modelType = config["model_type"].string() else {
                 XCTFail("nil leaf value (String)")
                 return
             }
             XCTAssertEqual(modelType, "t5")
             
             // Test leaf value (Array)
-            guard let architectures = config.architectures?.value as? [String] else {
+            guard let architectures: [String] = config["architectures"].get() else {
                 XCTFail("nil array")
                 return
             }
             XCTAssertEqual(architectures, ["T5ForConditionalGeneration"])
             
             // Test nested wrapper
-            guard let taskParams = config.task_specific_params else {
+            guard !config["task_specific_params"].isNull() else {
                 XCTFail("nil nested wrapper")
                 return
             }
-            XCTAssertTrue(type(of: taskParams) == Config.self)
 
-            guard let summarizationMaxLength = config.task_specific_params?.summarization?.max_length?.intValue else {
+            guard let summarizationMaxLength = config["task_specific_params"]["summarization"]["max_length"].integer() else {
                 XCTFail("cannot traverse nested containers")
                 return
             }
@@ -75,20 +74,20 @@ class HubTests: XCTestCase {
             let config = try await configLoader.modelConfig
 
             // Test leaf value (Int)
-            guard let eos = config.eosTokenId?.intValue else {
+            guard let eos = config["eosTokenId"].integer() else {
                 XCTFail("nil leaf value (Int)")
                 return
             }
             XCTAssertEqual(eos, 1)
             
             // Test leaf value (String)
-            guard let modelType = config.modelType?.stringValue else {
+            guard let modelType = config["modelType"].string() else {
                 XCTFail("nil leaf value (String)")
                 return
             }
             XCTAssertEqual(modelType, "t5")
                         
-            guard let summarizationMaxLength = config.taskSpecificParams?.summarization?.maxLength?.intValue else {
+            guard let summarizationMaxLength = config["taskSpecificParams"]["summarization"]["maxLength"].integer() else {
                 XCTFail("cannot traverse nested containers")
                 return
             }
@@ -105,17 +104,8 @@ class HubTests: XCTestCase {
         let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
         let config = Config(dict)
 
-        let vocab_nsdict = config.dictionary["vocab"] as! NSDictionary
-        let vocab_nsstring = config.dictionary["vocab"] as! [NSString: Int]
-        let vocab = config.vocab!.dictionary
+        let vocab = config["vocab"].dictionary(or: [:])
 
-        XCTAssertEqual(vocab_nsdict.count, 2)
-        XCTAssertEqual(vocab_nsstring.count, 2)
         XCTAssertEqual(vocab.count, 2)
-
-        // This is expected because, unlike with NSString, String comparison uses the canonical Unicode representation
-        // https://developer.apple.com/documentation/swift/string#Modifying-and-Comparing-Strings
-        let vocab_dict = config.dictionary["vocab"] as! [String: Int]
-        XCTAssertNotEqual(vocab_dict.count, 2)
     }
 }
