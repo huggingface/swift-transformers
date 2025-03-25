@@ -34,7 +34,7 @@ final class DownloaderTests: XCTestCase {
     }
     
     override func tearDown() {
-        if let tempDir = tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
+        if let tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
             try? FileManager.default.removeItem(at: tempDir)
         }
         super.tearDown()
