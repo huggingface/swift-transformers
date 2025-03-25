@@ -1,17 +1,16 @@
-import XCTest
-@testable import Tokenizers
 @testable import Hub
+@testable import Tokenizers
+import XCTest
 
 class PostProcessorTests: XCTestCase {
     func testRobertaProcessing() {
-       let testCases: [(Config, [String], [String]?, [String])] = [
+        let testCases: [(Config, [String], [String]?, [String])] = [
             // Should keep spaces; uneven spaces; ignore `addPrefixSpace`.
             (
                 Config(["cls": ["[HEAD]", 0 as UInt],
                         "sep": ["[END]", 0 as UInt],
                         "trimOffset": false,
-                        "addPrefixSpace": true,
-                       ]),
+                        "addPrefixSpace": true]),
                 [" The", " sun", "sets ", "  in  ", "   the  ", "west"],
                 nil,
                 ["[HEAD]", " The", " sun", "sets ", "  in  ", "   the  ", "west", "[END]"]
@@ -21,8 +20,7 @@ class PostProcessorTests: XCTestCase {
                 Config(["cls": ["[START]", 0 as UInt],
                         "sep": ["[BREAK]", 0 as UInt],
                         "trimOffset": true,
-                        "addPrefixSpace": true,
-                       ]),
+                        "addPrefixSpace": true]),
                 [" The ", " sun", "sets ", "  in ", "  the    ", "west"],
                 nil,
                 ["[START]", " The ", " sun", "sets ", " in ", " the ", "west", "[BREAK]"]
@@ -32,8 +30,7 @@ class PostProcessorTests: XCTestCase {
                 Config(["cls": ["[START]", 0 as UInt],
                         "sep": ["[BREAK]", 0 as UInt],
                         "trimOffset": true,
-                        "addPrefixSpace": true,
-                       ]),
+                        "addPrefixSpace": true]),
                 [" The ", " sun", "sets ", "  in ", "  the    ", "west"],
                 [],
                 ["[START]", " The ", " sun", "sets ", " in ", " the ", "west", "[BREAK]"]
@@ -43,8 +40,7 @@ class PostProcessorTests: XCTestCase {
                 Config(["cls": ["[CLS]", 0 as UInt],
                         "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
-                        "addPrefixSpace": false,
-                       ]),
+                        "addPrefixSpace": false]),
                 [" The ", " sun", "sets ", "  in ", "  the    ", "west"],
                 nil,
                 ["[CLS]", "The", "sun", "sets", "in", "the", "west", "[SEP]"]
@@ -54,20 +50,18 @@ class PostProcessorTests: XCTestCase {
                 Config(["cls": ["[CLS]", 0 as UInt],
                         "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
-                        "addPrefixSpace": true,
-                       ]),
+                        "addPrefixSpace": true]),
                 [" The ", " sun", "sets ", "  in ", "  the    ", "west"],
                 [".", "The", " cat ", "   is ", " sitting  ", " on", "the ", "mat"],
                 ["[CLS]", " The ", " sun", "sets ", " in ", " the ", "west", "[SEP]",
-                "[SEP]", ".", "The", " cat ", " is ", " sitting ", " on", "the ",
+                 "[SEP]", ".", "The", " cat ", " is ", " sitting ", " on", "the ",
                  "mat", "[SEP]"]
             ),
             (
                 Config(["cls": ["[CLS]", 0 as UInt],
                         "sep": ["[SEP]", 0 as UInt],
                         "trimOffset": true,
-                        "addPrefixSpace": true,
-                       ]),
+                        "addPrefixSpace": true]),
                 [" 你 ", " 好 ", ","],
                 [" 凯  ", "  蒂  ", "!"],
                 ["[CLS]", " 你 ", " 好 ", ",", "[SEP]", "[SEP]", " 凯 ", " 蒂 ", "!", "[SEP]"]

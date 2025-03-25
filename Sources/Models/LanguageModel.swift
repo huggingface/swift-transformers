@@ -1,14 +1,14 @@
 //
 //  LanguageModel.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 7/5/23.
 //
 
 import CoreML
-import Tokenizers
 import Generation
 import Hub
+import Tokenizers
 
 public class LanguageModel {
     public let model: MLModel
@@ -25,8 +25,8 @@ public class LanguageModel {
         var tokenizerData: Config
     }
 
-    private var configuration: LanguageModelConfigurationFromHub? = nil
-    private var _tokenizer: Tokenizer? = nil
+    private var configuration: LanguageModelConfigurationFromHub?
+    private var _tokenizer: Tokenizer?
 
     public required init(model: MLModel) {
         self.model = model
@@ -56,7 +56,7 @@ public class LanguageModel {
             maxContextLength = 128
         }
                 
-        self.configuration = LanguageModelConfigurationFromHub(modelName: modelName)
+        configuration = LanguageModelConfigurationFromHub(modelName: modelName)
     }
 }
 
@@ -72,7 +72,8 @@ public extension LanguageModel {
 public extension LanguageModel {
     var description: String {
         if let description = model.modelDescription.metadata[MLModelMetadataKey.description] as? String,
-           !description.isEmpty {
+           !description.isEmpty
+        {
             return description
         }
         return model.configuration.modelDisplayName ?? ""
@@ -80,8 +81,9 @@ public extension LanguageModel {
     
     /// `name_or_path` in the Python world
     var modelName: String {
-        if let userFields = model.modelDescription.metadata[MLModelMetadataKey.creatorDefinedKey] as? [String : String],
-           let name = userFields["co.huggingface.exporters.name"] {
+        if let userFields = model.modelDescription.metadata[MLModelMetadataKey.creatorDefinedKey] as? [String: String],
+           let name = userFields["co.huggingface.exporters.name"]
+        {
             return name
         }
         // This is usually the basename of the file, that's our best bet if no metadata exists
@@ -106,20 +108,20 @@ public extension LanguageModel {
         model.modelDescription.inputDescriptionsByName[attention_mask] != nil
     }
     
-    // MLShapedArrayProtocol is either a MLShapedArray or a MLShapedArraySlice
+    /// MLShapedArrayProtocol is either a MLShapedArray or a MLShapedArraySlice
     func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
         // TODO: exceptions
         
         // Maybe pad or truncate
         let maxTokens = min(tokens.count, maxContextLength)
-        let padLength = maxTokens >= minContextLength ? 0 : minContextLength-maxTokens
+        let padLength = maxTokens >= minContextLength ? 0 : minContextLength - maxTokens
         let inputTokens = Array(tokens[0..<maxTokens]) + Array(repeating: config.padTokenId ?? 0, count: padLength)
         
         let inputIds = MLShapedArray<Int32>(scalars: inputTokens.map { Int32($0) }, shape: inputIdsShape)
         var inputDictionary = [inputIdsName: MLFeatureValue(shapedArray: inputIds)]
         if requiresAttention {
             let mask = Array(repeating: 1, count: maxTokens) + Array(repeating: 0, count: padLength)
-            let attentionMask = MLShapedArray<Int32>(scalars: mask.map{ Int32($0) }, shape: inputIdsShape)
+            let attentionMask = MLShapedArray<Int32>(scalars: mask.map { Int32($0) }, shape: inputIdsShape)
             inputDictionary[attention_mask] = MLFeatureValue(shapedArray: attentionMask)
         }
         let input = try! MLDictionaryFeatureProvider(dictionary: inputDictionary)
@@ -201,7 +203,7 @@ public extension LanguageModel {
 }
 
 extension LanguageModel: TextGenerationModel {
-    //TODO: retrieve from the json: https://huggingface.co/nlpcloud/instruct-gpt-j-fp16/blob/main/config.json#L26
+    // TODO: retrieve from the json: https://huggingface.co/nlpcloud/instruct-gpt-j-fp16/blob/main/config.json#L26
     public var defaultGenerationConfig: GenerationConfig {
         var config = GenerationConfig(maxNewTokens: 30)
         switch modelName.lowercased() {
@@ -214,6 +216,13 @@ extension LanguageModel: TextGenerationModel {
     }
 }
 
-public enum TokenizerError: Error {
+public enum TokenizerError: LocalizedError {
     case tokenizerConfigNotFound
+
+    public var errorDescription: String? {
+        switch self {
+        case .tokenizerConfigNotFound:
+            String(localized: "Tokenizer configuration could not be found. The model may be missing required tokenizer files.", comment: "Error when tokenizer configuration is missing")
+        }
+    }
 }

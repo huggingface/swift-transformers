@@ -14,6 +14,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         var token: String
         var score: Float
     }
+
     let vocab: [SentencePieceToken]
     
     let unknownPiece: SentencePieceToken
@@ -30,19 +31,20 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     let eosToken: String?
     let eosTokenId: Int?
 
-    // Hardcoded in Unigram tokenizers
+    /// Hardcoded in Unigram tokenizers
     let fuseUnknownTokens: Bool = true
 
     private let trie: Trie<Character>
         
-    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
+    required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
         guard let configVocab = tokenizerData.model?.vocab?.value as? [[Any]] else {
             throw TokenizerError.missingVocab
         }
         
         vocab = try configVocab.map { piece in
             guard let token = piece.first as? String,
-                  let scoreValue = piece.last else {
+                  let scoreValue = piece.last
+            else {
                 throw TokenizerError.malformedVocab
             }
 
@@ -64,10 +66,10 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         
         guard let unknownTokenId = tokenizerData.model?.unkId?.intValue else { throw TokenizerError.malformedVocab }
         self.unknownTokenId = unknownTokenId
-        self.unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
+        unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
         
         tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token as NSString }.enumerated().map { ($1, $0) })
-        bosTokenId = tokensToIds[bosToken! as NSString]      // May be nil
+        bosTokenId = tokensToIds[bosToken! as NSString] // May be nil
 
         eosToken = tokenizerConfig.eosToken?.stringValue
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
@@ -77,11 +79,11 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     }
 
     func convertTokenToId(_ token: String) -> Int? {
-        return tokensToIds[token as NSString] ?? self.unknownTokenId
+        tokensToIds[token as NSString] ?? unknownTokenId
     }
     
     func convertIdToToken(_ id: Int) -> String? {
-        return vocab[id].token
+        vocab[id].token
     }
         
     func tokenize(text: String) -> [String] {
@@ -99,7 +101,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
                 guard let tokenId = tokensToIds[token as NSString] else { fatalError("Token not in vocab: \(token)") }
                 let tokenScore = vocab[tokenId].score
                 lattice.insert(startOffset: beginPos, length: token.count, score: tokenScore, tokenId: tokenId)
-                if !hasSingleNode && token.count == mblen {
+                if !hasSingleNode, token.count == mblen {
                     hasSingleNode = true
                 }
             }

@@ -1,6 +1,6 @@
 //
 //  PreTokenizer.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 18/7/23.
 //
@@ -29,11 +29,11 @@ extension PreTokenizer {
     }
 
     func callAsFunction(texts: [String], options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        return preTokenize(texts: texts, options: options)
+        preTokenize(texts: texts, options: options)
     }
     
     func callAsFunction(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        return preTokenize(text: text, options: options)
+        preTokenize(text: text, options: options)
     }
 }
 
@@ -47,17 +47,17 @@ enum PreTokenizerType: String {
     case WhitespaceSplit
     case Metaspace
     case BertPreTokenizer
-    // Several more to be supported
+    /// Several more to be supported
     case Unknown = ""
 }
 
 struct PreTokenizerFactory {
     static func fromConfig(config: Config?) -> PreTokenizer? {
-        guard let config = config else { return nil }
+        guard let config else { return nil }
         guard let typeName = config.type?.stringValue else { return nil }
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
-        case .Sequence : return PreTokenizerSequence(config: config)
+        case .Sequence: return PreTokenizerSequence(config: config)
         case .ByteLevel: return ByteLevelPreTokenizer(config: config)
         case .Punctuation: return PunctuationPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
@@ -79,7 +79,7 @@ class BertPreTokenizer: PreTokenizer {
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        return text.ranges(of: re).map { String(text[$0]) }
+        text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -106,7 +106,7 @@ class WhitespacePreTokenizer: PreTokenizer {
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        return text.ranges(of: re).map { String(text[$0]) }
+        text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -128,7 +128,7 @@ class MetaspacePreTokenizer: PreTokenizer {
         
         static var defaultScheme: PrependScheme { .always }
         static func from(rawValue value: String?) -> PrependScheme {
-            guard let value = value else { return defaultScheme }
+            guard let value else { return defaultScheme }
             return PrependScheme(rawValue: value) ?? defaultScheme
         }
     }
@@ -143,8 +143,8 @@ class MetaspacePreTokenizer: PreTokenizer {
         prependScheme = PrependScheme.from(rawValue: config.prependScheme?.stringValue)
     }
     
-    // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
-    // https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
+    /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
+    /// https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
         let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
         
@@ -157,11 +157,11 @@ class MetaspacePreTokenizer: PreTokenizer {
         // FIXME: (2b) always prepends, we are not passing section info
 
         var prepend = ""
-        if addPrefixSpace && !normalized.hasPrefix(replacement) {
+        if addPrefixSpace, !normalized.hasPrefix(replacement) {
             if prependScheme == .always {
                 prepend = stringReplacement
             }
-            if prependScheme == .first && options.contains(.firstSection) {
+            if prependScheme == .first, options.contains(.firstSection) {
                 prepend = stringReplacement
             }
         }
@@ -186,14 +186,14 @@ class ByteLevelPreTokenizer: PreTokenizer {
     
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
         // Split on whitespace and punctuation
-        let tokens = useRegex ? text.ranges(of: RE).map({ String(text[$0]) }) : [text]
+        let tokens = useRegex ? text.ranges(of: RE).map { String(text[$0]) } : [text]
         return tokens.map { token in
-            if addPrefixSpace && !token.hasPrefix(" ") {
+            if addPrefixSpace, !token.hasPrefix(" ") {
                 return " " + token
             }
             return token
         }.map { token in
-            return Array(token.utf8).map { byteEncoder[$0]! }.joined()
+            Array(token.utf8).map { byteEncoder[$0]! }.joined()
         }
     }
 }
@@ -207,7 +207,7 @@ class PunctuationPreTokenizer: PreTokenizer {
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
         // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
-        return text.ranges(of: re).map { String(text[$0]) }
+        text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -220,7 +220,7 @@ class DigitsPreTokenizer: PreTokenizer {
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        return text.ranges(of: re).map { String(text[$0]) }
+        text.ranges(of: re).map { String(text[$0]) }
     }
 }
 
@@ -234,7 +234,7 @@ class SplitPreTokenizer: PreTokenizer {
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        guard let pattern = pattern else { return [text] }
+        guard let pattern else { return [text] }
         return pattern.split(text, invert: invert)
     }
 }
@@ -247,10 +247,10 @@ enum StringSplitPattern {
 extension StringSplitPattern {
     func split(_ text: String, invert: Bool = true) -> [String] {
         switch self {
-        case .regexp(let regexp):
-            return text.split(by: regexp, includeSeparators: true)
-        case .string(let substring):
-            return text.split(by: substring, options: [], includeSeparators: !invert)
+        case let .regexp(regexp):
+            text.split(by: regexp, includeSeparators: true)
+        case let .string(substring):
+            text.split(by: substring, options: [], includeSeparators: !invert)
         }
     }
 }
@@ -283,7 +283,7 @@ public extension String {
         var start = startIndex
         while let range = range(of: string, options: options, range: start..<endIndex) {
             // Prevent empty strings
-            if omittingEmptySubsequences && start < range.lowerBound {
+            if omittingEmptySubsequences, start < range.lowerBound {
                 result.append(String(self[start..<range.lowerBound]))
             }
             if includeSeparators {
@@ -292,7 +292,7 @@ public extension String {
             start = range.upperBound
         }
         
-        if omittingEmptySubsequences && start < endIndex {
+        if omittingEmptySubsequences, start < endIndex {
             result.append(String(self[start...]))
         }
         return result

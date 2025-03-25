@@ -6,13 +6,11 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
-import XCTest
+@testable import Hub
 @testable import Tokenizers
-
-
+import XCTest
 
 class BertTokenizerTests: XCTestCase {
-
     override func setUp() {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -45,7 +43,7 @@ class BertTokenizerTests: XCTestCase {
         XCTAssertEqual(
             basicTokenizer.tokenize(text: text), tokens
         )
-        /// Verify that `XCTAssertEqual` does what deep equality checks on arrays of strings.
+        // Verify that `XCTAssertEqual` does what deep equality checks on arrays of strings.
         XCTAssertEqual(["foo", "bar"], ["foo", "bar"])
     }
     
@@ -95,7 +93,7 @@ class BertTokenizerTests: XCTestCase {
     func testPureChineseTokenization() {
         let tokenizer = bertTokenizer
         let text = "明日，大家上山看日出。"
-        let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出","。"]
+        let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出", "。"]
         let tokens = tokenizer.tokenize(text: text)
         
         XCTAssertEqual(tokens, expectedTokens)
@@ -123,7 +121,7 @@ class BertTokenizerTests: XCTestCase {
         let tokenizer = bertTokenizer
 
         // This is an example of a performance test case.
-        self.measure {
+        measure {
             // Put the code you want to measure the time of here.
             _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
         }
@@ -177,5 +175,36 @@ class BertTokenizerTests: XCTestCase {
             let decoded = tokenizer.decode(tokens: encoded)
             XCTAssertEqual(decoded, String(expected))
         }
+    }
+
+    func testBertTokenizerAddedTokensRecognized() async throws {
+        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        let hubApi = HubApi(downloadBase: base)
+        let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
+        guard let tokenizerConfig = try await configuration.tokenizerConfig else { fatalError("missing tokenizer config") }
+        let tokenizerData = try await configuration.tokenizerData
+        let addedTokens = [
+            "[ROAD]": 60_001,
+            "[RIVER]": 60_002,
+            "[BUILDING]": 60_003,
+            "[PARK]": 60_004,
+            "[BUFFER]": 60_005,
+            "[INTERSECT]": 60_006,
+            "[UNION]": 60_007,
+        ]
+        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        for (token, idx) in addedTokens {
+            XCTAssertEqual(tokenizer.convertTokenToId(token), idx)
+        }
+        for (token, idx) in addedTokens {
+            XCTAssertEqual(tokenizer.convertIdToToken(idx), token)
+        }
+
+        // Reading added_tokens from tokenizer.json
+        XCTAssertEqual(tokenizer.convertTokenToId("[PAD]"), 0)
+        XCTAssertEqual(tokenizer.convertTokenToId("[UNK]"), 100)
+        XCTAssertEqual(tokenizer.convertTokenToId("[CLS]"), 101)
+        XCTAssertEqual(tokenizer.convertTokenToId("[SEP]"), 102)
+        XCTAssertEqual(tokenizer.convertTokenToId("[MASK]"), 103)
     }
 }

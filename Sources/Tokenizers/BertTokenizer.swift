@@ -31,24 +31,28 @@ public class BertTokenizer {
                 bosToken: String? = nil,
                 eosToken: String? = nil,
                 fuseUnknownTokens: Bool = false,
-                doLowerCase: Bool = true
-    ) {
+                doLowerCase: Bool = true)
+    {
         self.vocab = vocab
-        self.ids_to_tokens = Utils.invert(vocab)
-        self.basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
-        self.wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
+        ids_to_tokens = Utils.invert(vocab)
+        basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
+        wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
         self.tokenizeChineseChars = tokenizeChineseChars
         self.bosToken = bosToken
-        self.bosTokenId = bosToken == nil ? nil : vocab[bosToken!]
+        bosTokenId = bosToken == nil ? nil : vocab[bosToken!]
         self.eosToken = eosToken
-        self.eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
+        eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
         self.fuseUnknownTokens = fuseUnknownTokens
     }
     
-    public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
-            throw TokenizerError.missingVocab
+    public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
+        guard var vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw TokenizerError.missingVocab }
+        if let addedTokens = tokenizerData.added_tokens?.dictionary["value"] as? [[String: Any]],
+           let pairs = addedTokens.compactMap({ ($0["content"] as? String, $0["id"] as? Int) }) as? [(String, Int)]
+        {
+            vocab.merge(pairs, uniquingKeysWith: { $1 })
         }
+        vocab.merge(addedTokens, uniquingKeysWith: { $1 })
         let merges = tokenizerData.model?.merges?.value as? [String]
         let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
         let eosToken = tokenizerConfig.eosToken?.stringValue
@@ -57,7 +61,6 @@ public class BertTokenizer {
         let doLowerCase = tokenizerConfig.doLowerCase?.boolValue ?? true
         self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken, fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase)
     }
-    
     
     public func tokenize(text: String) -> [String] {
         let text = tokenizeChineseCharsIfNeed(text)
@@ -85,22 +88,22 @@ public class BertTokenizer {
     
     /// Main entry point
     func tokenizeToIds(text: String) -> [Int] {
-        return try! convertTokensToIds(tokens: tokenize(text: text))
+        try! convertTokensToIds(tokens: tokenize(text: text))
     }
     
     func tokenToId(token: String) -> Int {
-        return vocab[token]!
+        vocab[token]!
     }
     
     /// Un-tokenization: get tokens from tokenIds
     func unTokenize(tokens: [Int]) -> [String] {
-        return tokens.compactMap { ids_to_tokens[$0] }
+        tokens.compactMap { ids_to_tokens[$0] }
     }
     
     /// Un-tokenization:
     func convertWordpieceToBasicTokenList(_ wordpieceTokenList: [String]) -> String {
         var tokenList: [String] = []
-        var individualToken: String = ""
+        var individualToken = ""
         
         for token in wordpieceTokenList {
             if token.starts(with: "##") {
@@ -134,7 +137,6 @@ public class BertTokenizer {
     }
 }
 
-
 extension BertTokenizer: PreTrainedTokenizerModel {
     public var unknownToken: String? { wordpieceTokenizer.unkToken }
     public var unknownTokenId: Int? { vocab[unknownToken!] }
@@ -147,14 +149,13 @@ extension BertTokenizer: PreTrainedTokenizerModel {
     }
     
     public func convertTokenToId(_ token: String) -> Int? {
-        return vocab[token] ?? unknownTokenId
+        vocab[token] ?? unknownTokenId
     }
     
     public func convertIdToToken(_ id: Int) -> String? {
-        return ids_to_tokens[id]
+        ids_to_tokens[id]
     }
 }
-
 
 class BasicTokenizer {
     let doLowerCase: Bool
@@ -164,7 +165,7 @@ class BasicTokenizer {
     }
 
     let neverSplit = [
-        "[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"
+        "[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]",
     ]
 
     func maybeStripAccents(_ text: String) -> String {
@@ -179,7 +180,7 @@ class BasicTokenizer {
 
     func tokenize(text: String) -> [String] {
         let splitTokens = maybeStripAccents(text).components(separatedBy: NSCharacterSet.whitespaces)
-        let tokens = splitTokens.flatMap({ (token: String) -> [String] in
+        let tokens = splitTokens.flatMap { (token: String) -> [String] in
             if neverSplit.contains(token) {
                 return [token]
             }
@@ -200,7 +201,7 @@ class BasicTokenizer {
                 toks.append(currentTok)
             }
             return toks
-        })
+        }
         return tokens
     }
 }
@@ -211,11 +212,11 @@ extension Character {
         if isPunctuation { return true }
         if let value = unicodeScalars.first?.value {
             switch value {
-                case 33...47: return true
-                case 58...64: return true
-                case 91...96: return true
-                case 123...126: return true
-                default: return false
+            case 33...47: return true
+            case 58...64: return true
+            case 91...96: return true
+            case 123...126: return true
+            default: return false
             }
         }
         return false
@@ -244,7 +245,7 @@ class WordpieceTokenizer {
         var subTokens: [String] = []
         while start < word.count {
             var end = word.count
-            var cur_substr: String? = nil
+            var cur_substr: String?
             while start < end {
                 var substr = Utils.substr(word, start..<end)!
                 if start > 0 {
