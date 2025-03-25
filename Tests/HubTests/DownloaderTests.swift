@@ -34,7 +34,9 @@ final class DownloaderTests: XCTestCase {
     }
     
     override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
+        if let tempDir = tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         super.tearDown()
     }
     
@@ -54,7 +56,7 @@ final class DownloaderTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-            
+
         """
         
         let downloader = Downloader(
