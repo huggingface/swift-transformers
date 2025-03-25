@@ -53,7 +53,6 @@ class Downloader: NSObject, ObservableObject {
             if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path),
                let fileSize = attributes[.size] as? Int
             {
-                print("[Downloader] Found existing incomplete file for \(destination.lastPathComponent): \(fileSize) bytes")
                 return fileSize
             }
         }
@@ -122,19 +121,13 @@ class Downloader: NSObject, ObservableObject {
         timeout: TimeInterval,
         numRetries: Int
     ) {
-        print("[Downloader] Setting up download for \(url.lastPathComponent)")
-        print("[Downloader] Destination: \(destination.path)")
-        print("[Downloader] Incomplete file: \(tempFilePath?.path ?? "none")")
-        
         urlSession?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
             if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
                 switch existing.state {
                 case .running:
-                    print("[Downloader] Task already running for \(url.lastPathComponent)")
                     return
                 case .suspended:
-                    print("[Downloader] Resuming suspended download task for \(url.lastPathComponent)")
                     existing.resume()
                     return
                 case .canceling, .completed:
@@ -156,7 +149,6 @@ class Downloader: NSObject, ObservableObject {
                     if fileManager.fileExists(atPath: incompleteFilePath.path) {
                         let attributes = try fileManager.attributesOfItem(atPath: incompleteFilePath.path)
                         existingSize = attributes[.size] as? Int ?? 0
-                        print("[Downloader] Found incomplete file with \(existingSize) bytes")
                         self.downloadedSize = existingSize
                     } else {
                         // Create parent directory if needed
@@ -164,7 +156,6 @@ class Downloader: NSObject, ObservableObject {
                         
                         // Create empty incomplete file
                         fileManager.createFile(atPath: incompleteFilePath.path, contents: nil)
-                        print("[Downloader] Created new incomplete file at \(incompleteFilePath.path)")
                     }
                     
                     // Set up the request with appropriate headers
@@ -183,14 +174,11 @@ class Downloader: NSObject, ObservableObject {
                         if let expectedSize, expectedSize > 0 {
                             let initialProgress = Double(existingSize) / Double(expectedSize)
                             self.downloadState.value = .downloading(initialProgress)
-                            print("[Downloader] Resuming from \(existingSize)/\(expectedSize) bytes (\(Int(initialProgress * 100))%)")
                         } else {
                             self.downloadState.value = .downloading(0)
-                            print("[Downloader] Resuming download from byte \(existingSize)")
                         }
                     } else {
                         self.downloadState.value = .downloading(0)
-                        print("[Downloader] Starting new download")
                     }
                     
                     request.timeoutInterval = timeout
@@ -209,14 +197,9 @@ class Downloader: NSObject, ObservableObject {
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
-                    print("[Downloader] Download completed with total size \(self.downloadedSize) bytes")
-                    print("[Downloader] Moving incomplete file to destination: \(self.destination.path)")
                     try fileManager.moveDownloadedFile(from: incompleteFilePath, to: self.destination)
-                    
-                    print("[Downloader] Download successfully completed")
                     self.downloadState.value = .completed(self.destination)
                 } catch {
-                    print("[Downloader] Error: \(error)")
                     self.downloadState.value = .failed(error)
                 }
             }
@@ -249,27 +232,15 @@ class Downloader: NSObject, ObservableObject {
         var newRequest = request
         if resumeSize > 0 {
             newRequest.setValue("bytes=\(resumeSize)-", forHTTPHeaderField: "Range")
-            print("[Downloader] Adding Range header: bytes=\(resumeSize)-")
         }
         
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("[Downloader] Error: Non-HTTP response received")
             throw DownloadError.unexpectedError
         }
-        
-        print("[Downloader] Received HTTP \(httpResponse.statusCode) response")
-        if let contentRange = httpResponse.value(forHTTPHeaderField: "Content-Range") {
-            print("[Downloader] Content-Range: \(contentRange)")
-        }
-        if let contentLength = httpResponse.value(forHTTPHeaderField: "Content-Length") {
-            print("[Downloader] Content-Length: \(contentLength)")
-        }
-                
         guard (200..<300).contains(httpResponse.statusCode) else {
-            print("[Downloader] Error: HTTP status code \(httpResponse.statusCode)")
             throw DownloadError.unexpectedError
         }
 
@@ -323,10 +294,7 @@ class Downloader: NSObject, ObservableObject {
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
         if let expectedSize, expectedSize != actualSize {
-            print("[Downloader] Error: Size mismatch - expected \(expectedSize) bytes but got \(actualSize) bytes")
             throw DownloadError.unexpectedError
-        } else {
-            print("[Downloader] Final verification passed, size: \(actualSize) bytes")
         }
     }
     

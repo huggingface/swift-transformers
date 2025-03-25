@@ -432,10 +432,7 @@ public extension HubApi {
             if FileManager.default.fileExists(atPath: incompleteFile.path) {
                 if let fileAttributes = try? FileManager.default.attributesOfItem(atPath: incompleteFile.path) {
                     resumeSize = (fileAttributes[FileAttributeKey.size] as? Int) ?? 0
-                    print("[HubApi] Found existing incomplete file for \(destination.lastPathComponent): \(resumeSize) bytes at \(incompleteFile.path)")
                 }
-            } else {
-                print("[HubApi] No existing incomplete file found for \(destination.lastPathComponent)")
             }
             
             let downloader = Downloader(
@@ -465,7 +462,6 @@ public extension HubApi {
                 return destination
             } catch {
                 // If download fails, leave the incomplete file in place for future resume
-                print("[HubApi] Download failed but incomplete file is preserved for future resume: \(error.localizedDescription)")
                 throw error
             }
         }
