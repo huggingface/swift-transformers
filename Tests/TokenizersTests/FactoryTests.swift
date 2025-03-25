@@ -1,13 +1,13 @@
 //
 //  FactoryTests.swift
-//  
+//
 //
 //  Created by Pedro Cuenca on 4/8/23.
 //
 
-import XCTest
-import Tokenizers
 import Hub
+import Tokenizers
+import XCTest
 
 class TestWithCustomHubDownloadLocation: XCTestCase {
     let downloadDestination: URL = {
@@ -15,7 +15,7 @@ class TestWithCustomHubDownloadLocation: XCTestCase {
         return base.appending(component: "huggingface-tests")
     }()
 
-    override func setUp() {}
+    override func setUp() { }
 
     override func tearDown() {
         do {
@@ -26,7 +26,7 @@ class TestWithCustomHubDownloadLocation: XCTestCase {
     }
 
     var hubApi: HubApi {
-        return HubApi(downloadBase: downloadDestination)
+        HubApi(downloadBase: downloadDestination)
     }
 }
 

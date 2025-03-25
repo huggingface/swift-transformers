@@ -6,13 +6,13 @@
 //  See LICENSE at https://github.com/huggingface/swift-coreml-diffusers/LICENSE
 //
 
-import Foundation
 import Combine
+import Foundation
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
 
-    private let chunkSize = 10 * 1024 * 1024  // 10MB
+    private let chunkSize = 10 * 1024 * 1024 // 10MB
 
     enum DownloadState {
         case notStarted
@@ -53,7 +53,7 @@ class Downloader: NSObject, ObservableObject {
             config.sessionSendsLaunchEvents = true
         }
 
-        self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
         setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
@@ -106,13 +106,12 @@ class Downloader: NSObject, ObservableObject {
             var requestHeaders = headers ?? [:]
             
             // Populate header auth and range fields
-            if let authToken = authToken {
+            if let authToken {
                 requestHeaders["Authorization"] = "Bearer \(authToken)"
             }
             if resumeSize > 0 {
                 requestHeaders["Range"] = "bytes=\(resumeSize)-"
             }
-            
             
             request.timeoutInterval = timeout
             request.allHTTPHeaderFields = requestHeaders
@@ -157,7 +156,7 @@ class Downloader: NSObject, ObservableObject {
         numRetries: Int,
         expectedSize: Int?
     ) async throws {
-        guard let session = self.urlSession else {
+        guard let session = urlSession else {
             throw DownloadError.unexpectedError
         }
         
@@ -194,7 +193,7 @@ class Downloader: NSObject, ObservableObject {
                         buffer.removeAll(keepingCapacity: true)
                         downloadedSize += chunkSize
                         newNumRetries = 5
-                        guard let expectedSize = expectedSize else { continue }
+                        guard let expectedSize else { continue }
                         let progress = expectedSize != 0 ? Double(downloadedSize) / Double(expectedSize) : 0
                         downloadState.value = .downloading(progress)
                     }
@@ -227,7 +226,7 @@ class Downloader: NSObject, ObservableObject {
         
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
-        if let expectedSize = expectedSize, expectedSize != actualSize {
+        if let expectedSize, expectedSize != actualSize {
             throw DownloadError.unexpectedError
         }
     }
@@ -239,16 +238,16 @@ class Downloader: NSObject, ObservableObject {
         stateSubscriber = downloadState.sink { state in
             switch state {
             case .completed: semaphore.signal()
-            case .failed:    semaphore.signal()
-            default:         break
+            case .failed: semaphore.signal()
+            default: break
             }
         }
         semaphore.wait()
 
         switch downloadState.value {
-        case .completed(let url): return url
-        case .failed(let error):  throw error
-        default:                  throw DownloadError.unexpectedError
+        case let .completed(url): return url
+        case let .failed(error): throw error
+        default: throw DownloadError.unexpectedError
         }
     }
 
@@ -265,7 +264,7 @@ extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         do {
             // If the downloaded file already exists on the filesystem, overwrite it
-            try FileManager.default.moveDownloadedFile(from: location, to: self.destination)
+            try FileManager.default.moveDownloadedFile(from: location, to: destination)
             downloadState.value = .completed(destination)
         } catch {
             downloadState.value = .failed(error)
@@ -273,7 +272,7 @@ extension Downloader: URLSessionDownloadDelegate {
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error {
+        if let error {
             downloadState.value = .failed(error)
 //        } else if let response = task.response as? HTTPURLResponse {
 //            print("HTTP response status code: \(response.statusCode)")

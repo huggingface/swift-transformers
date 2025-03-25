@@ -6,9 +6,9 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
-import Foundation
 import Accelerate
 import CoreML
+import Foundation
 
 ///
 /// From M.I. Hollemans
@@ -16,7 +16,6 @@ import CoreML
 /// https://github.com/hollance/CoreMLHelpers
 ///
 public struct Math {
-    
     /**
      Returns the index and value of the largest element in the array.
      
@@ -146,7 +145,7 @@ public struct Math {
             }
         }
         // This point might be reached due to floating point inaccuracies:
-        return (probabilities.count - 1)
+        return probabilities.count - 1
     }
 }
 

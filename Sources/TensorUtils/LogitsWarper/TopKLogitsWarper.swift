@@ -1,5 +1,5 @@
-import Foundation
 import Accelerate
+import Foundation
 
 /// Top-K.
 /// Select the k most-probable element indices from `arr`

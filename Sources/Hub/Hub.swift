@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Hub {}
+public struct Hub { }
 
 public extension Hub {
     enum HubClientError: LocalizedError {
@@ -25,28 +25,28 @@ public extension Hub {
 
         public var errorDescription: String? {
             switch self {
-                case .authorizationRequired:
-                    return String(localized: "Authentication required. Please provide a valid Hugging Face token.")
-                case .httpStatusCode(let code):
-                    return String(localized: "HTTP error with status code: \(code)")
-                case .parse:
-                    return String(localized: "Failed to parse server response.")
-                case .unexpectedError:
-                    return String(localized: "An unexpected error occurred.")
-                case .downloadError(let message):
-                    return String(localized: "Download failed: \(message)")
-                case .fileNotFound(let filename):
-                    return String(localized: "File not found: \(filename)")
-                case .networkError(let error):
-                    return String(localized: "Network error: \(error.localizedDescription)")
-                case .resourceNotFound(let resource):
-                    return String(localized: "Resource not found: \(resource)")
-                case .configurationMissing(let file):
-                    return String(localized: "Required configuration file missing: \(file)")
-                case .fileSystemError(let error):
-                    return String(localized: "File system error: \(error.localizedDescription)")
-                case .parseError(let message):
-                    return String(localized: "Parse error: \(message)")
+            case .authorizationRequired:
+                String(localized: "Authentication required. Please provide a valid Hugging Face token.")
+            case let .httpStatusCode(code):
+                String(localized: "HTTP error with status code: \(code)")
+            case .parse:
+                String(localized: "Failed to parse server response.")
+            case .unexpectedError:
+                String(localized: "An unexpected error occurred.")
+            case let .downloadError(message):
+                String(localized: "Download failed: \(message)")
+            case let .fileNotFound(filename):
+                String(localized: "File not found: \(filename)")
+            case let .networkError(error):
+                String(localized: "Network error: \(error.localizedDescription)")
+            case let .resourceNotFound(resource):
+                String(localized: "Resource not found: \(resource)")
+            case let .configurationMissing(file):
+                String(localized: "Required configuration file missing: \(file)")
+            case let .fileSystemError(error):
+                String(localized: "File system error: \(error.localizedDescription)")
+            case let .parseError(message):
+                String(localized: "Parse error: \(message)")
             }
         }
     }
@@ -79,7 +79,7 @@ public struct Config {
     }
 
     func camelCase(_ string: String) -> String {
-        return string
+        string
             .split(separator: "_")
             .enumerated()
             .map { $0.offset == 0 ? $0.element.lowercased() : $0.element.capitalized }
@@ -108,7 +108,6 @@ public struct Config {
         return result
     }
 
-
     public subscript(dynamicMember member: String) -> Config? {
         let key = (dictionary[member as NSString] != nil ? member : uncamelCase(member)) as NSString
         if let value = dictionary[key] as? [NSString: Any] {
@@ -120,17 +119,17 @@ public struct Config {
     }
 
     public var value: Any? {
-        return dictionary["value"]
+        dictionary["value"]
     }
 
     public var intValue: Int? { value as? Int }
     public var boolValue: Bool? { value as? Bool }
     public var stringValue: String? { value as? String }
 
-    // Instead of doing this we could provide custom classes and decode to them
+    /// Instead of doing this we could provide custom classes and decode to them
     public var arrayValue: [Config]? {
         guard let list = value as? [Any] else { return nil }
-        return list.map { Config($0 as! [NSString : Any]) }
+        return list.map { Config($0 as! [NSString: Any]) }
     }
 
     /// Tuple of token identifier and string value
@@ -144,14 +143,14 @@ public class LanguageModelConfigurationFromHub {
         var tokenizerData: Config
     }
 
-    private var configPromise: Task<Configurations, Error>? = nil
+    private var configPromise: Task<Configurations, Error>?
 
     public init(
         modelName: String,
         hubApi: HubApi = .shared
     ) {
-        self.configPromise = Task.init {
-            return try await self.loadConfig(modelName: modelName, hubApi: hubApi)
+        configPromise = Task.init {
+            try await self.loadConfig(modelName: modelName, hubApi: hubApi)
         }
     }
 
@@ -159,8 +158,8 @@ public class LanguageModelConfigurationFromHub {
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) {
-        self.configPromise = Task {
-            return try await self.loadConfig(modelFolder: modelFolder, hubApi: hubApi)
+        configPromise = Task {
+            try await self.loadConfig(modelFolder: modelFolder, hubApi: hubApi)
         }
     }
 
@@ -221,12 +220,12 @@ public class LanguageModelConfigurationFromHub {
             // Convert generic errors to more specific ones
             if let urlError = error as? URLError {
                 switch urlError.code {
-                    case .notConnectedToInternet, .networkConnectionLost:
-                        throw Hub.HubClientError.networkError(urlError)
-                    case .resourceUnavailable:
-                        throw Hub.HubClientError.resourceNotFound(modelName)
-                    default:
-                        throw Hub.HubClientError.networkError(urlError)
+                case .notConnectedToInternet, .networkConnectionLost:
+                    throw Hub.HubClientError.networkError(urlError)
+                case .resourceUnavailable:
+                    throw Hub.HubClientError.resourceNotFound(modelName)
+                default:
+                    throw Hub.HubClientError.networkError(urlError)
                 }
             } else {
                 throw error
@@ -265,7 +264,8 @@ public class LanguageModelConfigurationFromHub {
             let chatTemplateURL = modelFolder.appending(path: "chat_template.json")
             if FileManager.default.fileExists(atPath: chatTemplateURL.path),
                let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateURL),
-               let chatTemplate = chatTemplateConfig.chatTemplate?.stringValue {
+               let chatTemplate = chatTemplateConfig.chatTemplate?.stringValue
+            {
                 // Create or update tokenizer config with chat template
                 if var configDict = tokenizerConfig?.dictionary {
                     configDict["chat_template"] = chatTemplate
@@ -284,7 +284,7 @@ public class LanguageModelConfigurationFromHub {
             throw error
         } catch {
             if let nsError = error as NSError? {
-                if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError {
+                if nsError.domain == NSCocoaErrorDomain, nsError.code == NSFileReadNoSuchFileError {
                     throw Hub.HubClientError.fileSystemError(error)
                 } else if nsError.domain == "NSJSONSerialization" {
                     throw Hub.HubClientError.parseError("Invalid JSON format: \(nsError.localizedDescription)")

@@ -4,12 +4,11 @@
 //  Created by Jan Krukowski on 23/11/2023.
 //
 
-import XCTest
 import Hub
 @testable import Tokenizers
+import XCTest
 
 class PreTokenizerTests: XCTestCase {
-
     func testWhitespacePreTokenizer() {
         let preTokenizer = WhitespacePreTokenizer(config: Config([:]))
 
@@ -152,13 +151,13 @@ class PreTokenizerTests: XCTestCase {
         )
     }
     
-    // https://github.com/huggingface/tokenizers/pull/1357
+    /// https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspacePreTokenizer() {
         // Prepend "always"
         let preTokenizer = MetaspacePreTokenizer(config: Config([
             "add_prefix_space": true,
             "replacement": "▁",
-            "prepend_scheme": "always"
+            "prepend_scheme": "always",
         ]))
         
         // TODO: different sections on <s>

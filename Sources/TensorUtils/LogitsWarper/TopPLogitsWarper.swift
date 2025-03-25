@@ -30,8 +30,8 @@ public struct TopPLogitsWarper: LogitsWarper {
             break
         }
 
-        let toppIndices = indexLogitProb[0 ... sliceIndex].map { indices[$0.index] }
-        let toppLogits = indexLogitProb[0 ... sliceIndex].map(\.logit)
+        let toppIndices = indexLogitProb[0...sliceIndex].map { indices[$0.index] }
+        let toppLogits = indexLogitProb[0...sliceIndex].map(\.logit)
         return (indices: toppIndices, logits: toppLogits)
     }
 }

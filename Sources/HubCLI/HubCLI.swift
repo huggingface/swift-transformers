@@ -15,13 +15,12 @@ struct HubCLI: AsyncParsableCommand {
 }
 
 protocol SubcommandWithToken {
-
     var token: String? { get }
 }
 
 extension SubcommandWithToken {
     var hfToken: String? {
-        if let token = token { return token }
+        if let token { return token }
         return try? String(contentsOfFile: defaultTokenLocation, encoding: .utf8)
     }
 }
@@ -36,9 +35,9 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
         
         var asHubApiRepoType: HubApi.RepoType {
             switch self {
-            case .model: return .models
-            case .dataset: return .datasets
-            case .space: return .spaces
+            case .model: .models
+            case .dataset: .datasets
+            case .space: .spaces
             }
         }
     }
@@ -91,6 +90,6 @@ struct Whoami: AsyncParsableCommand, SubcommandWithToken {
 
 extension Double {
     func formatted(_ format: String) -> String {
-        return String(format: "\(format)", self)
+        String(format: "\(format)", self)
     }
 }

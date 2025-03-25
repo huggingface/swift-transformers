@@ -2,8 +2,8 @@ import ArgumentParser
 import CoreML
 import Foundation
 
-import Models
 import Generation
+import Models
 
 @available(iOS 16.2, macOS 13.1, *)
 struct TransformersCLI: ParsableCommand {
@@ -88,10 +88,10 @@ enum ComputeUnits: String, ExpressibleByArgument, CaseIterable {
     case all, cpuAndGPU, cpuOnly, cpuAndNeuralEngine
     var asMLComputeUnits: MLComputeUnits {
         switch self {
-        case .all: return .all
-        case .cpuAndGPU: return .cpuAndGPU
-        case .cpuOnly: return .cpuOnly
-        case .cpuAndNeuralEngine: return .cpuAndNeuralEngine
+        case .all: .all
+        case .cpuAndGPU: .cpuAndGPU
+        case .cpuOnly: .cpuOnly
+        case .cpuAndNeuralEngine: .cpuAndNeuralEngine
         }
     }
 }
@@ -104,6 +104,6 @@ if #available(iOS 16.2, macOS 13.1, *) {
 
 extension Double {
     func formatted(_ format: String) -> String {
-        return String(format: "\(format)", self)
+        String(format: "\(format)", self)
     }
 }

@@ -1,18 +1,16 @@
 import CoreML
 
-
 public struct Weights {
-
     enum WeightsError: LocalizedError {
         case notSupported(message: String)
         case invalidFile
 
         public var errorDescription: String? {
             switch self {
-                case .notSupported(let message):
-                    return String(localized: "The weight format '\(message)' is not supported by this application.", comment: "Error when weight format is not supported")
-                case .invalidFile:
-                    return String(localized: "The weights file is invalid or corrupted.", comment: "Error when weight file is invalid")
+            case let .notSupported(message):
+                String(localized: "The weight format '\(message)' is not supported by this application.", comment: "Error when weight format is not supported")
+            case .invalidFile:
+                String(localized: "The weights file is invalid or corrupted.", comment: "Error when weight file is invalid")
             }
         }
     }
@@ -31,19 +29,17 @@ public struct Weights {
 
         let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
         switch ([UInt8](data.subdata(in: 0..<4)), [UInt8](data.subdata(in: 4..<6))) {
-        case ([0x47, 0x47, 0x55, 0x46], _): throw WeightsError.notSupported(message: ("gguf"))
-        case ([0x93, 0x4e, 0x55, 0x4d], [0x50, 0x59]): throw WeightsError.notSupported(message: "mlx")
+        case ([0x47, 0x47, 0x55, 0x46], _): throw WeightsError.notSupported(message: "gguf")
+        case ([0x93, 0x4E, 0x55, 0x4D], [0x50, 0x59]): throw WeightsError.notSupported(message: "mlx")
         default: return try Safetensor.from(data: data)
         }
     }
 }
 
 struct Safetensor {
-
     typealias Error = Weights.WeightsError
 
     struct Header {
-
         struct Offset: Decodable {
             let dataOffsets: [Int]?
             let dtype: String?
@@ -71,7 +67,7 @@ struct Safetensor {
     }
 
     static func from(data: Data) throws -> Weights {
-        let headerSize: Int = data.subdata(in: 0..<8).withUnsafeBytes({ $0.load(as: Int.self) })
+        let headerSize: Int = data.subdata(in: 0..<8).withUnsafeBytes { $0.load(as: Int.self) }
         guard headerSize < data.count else { throw Error.invalidFile }
         let header = try Header.from(data: data.subdata(in: 8..<(headerSize + 8)))
 

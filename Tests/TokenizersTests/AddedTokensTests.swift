@@ -5,9 +5,9 @@
 //  Created by Pedro Cuenca on 20240426.
 //
 
-import XCTest
-import Tokenizers
 import Hub
+import Tokenizers
+import XCTest
 
 class AddedTokensTests: XCTestCase {
     func testPhiAddedTokens() async throws {
@@ -71,6 +71,5 @@ class AddedTokensTests: XCTestCase {
             "<|raw|><|end|>".split(by: captureRegex),
             ["<|raw|>", "<|end|>"]
         )
-
     }
 }

@@ -6,13 +6,11 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
-import XCTest
-@testable import Tokenizers
 @testable import Hub
-
+@testable import Tokenizers
+import XCTest
 
 class BertTokenizerTests: XCTestCase {
-
     override func setUp() {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -45,7 +43,7 @@ class BertTokenizerTests: XCTestCase {
         XCTAssertEqual(
             basicTokenizer.tokenize(text: text), tokens
         )
-        /// Verify that `XCTAssertEqual` does what deep equality checks on arrays of strings.
+        // Verify that `XCTAssertEqual` does what deep equality checks on arrays of strings.
         XCTAssertEqual(["foo", "bar"], ["foo", "bar"])
     }
     
@@ -95,7 +93,7 @@ class BertTokenizerTests: XCTestCase {
     func testPureChineseTokenization() {
         let tokenizer = bertTokenizer
         let text = "明日，大家上山看日出。"
-        let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出","。"]
+        let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出", "。"]
         let tokens = tokenizer.tokenize(text: text)
         
         XCTAssertEqual(tokens, expectedTokens)
@@ -123,7 +121,7 @@ class BertTokenizerTests: XCTestCase {
         let tokenizer = bertTokenizer
 
         // This is an example of a performance test case.
-        self.measure {
+        measure {
             // Put the code you want to measure the time of here.
             _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
         }
