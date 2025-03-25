@@ -4,9 +4,9 @@
 //  Created by Jan Krukowski on 09/12/2023.
 //
 
-import XCTest
 import CoreML
 @testable import TensorUtils
+import XCTest
 
 final class LogitsWarperTests: XCTestCase {
     private let accuracy: Float = 0.00001
@@ -68,7 +68,7 @@ final class LogitsWarperTests: XCTestCase {
         XCTAssertTrue(result1.indices.isEmpty)
         XCTAssertTrue(result1.logits.isEmpty)
 
-        let logits = (0 ..< 10).map { Float($0) }
+        let logits = (0..<10).map { Float($0) }
         let indices = Array(logits.indices)
         let result2 = TopPLogitsWarper(p: 0.99)(indices, logits)
         XCTAssertEqual(result2.indices, [9, 8, 7, 6, 5])
@@ -89,7 +89,7 @@ final class LogitsWarperTests: XCTestCase {
 
     func testRepetitionPenaltyWarper() {
         let indices = Array(0..<10)
-        let logits = indices.map({ Float($0) })
+        let logits = indices.map { Float($0) }
 
         let result1 = RepetitionPenaltyWarper(penalty: 1.0)(indices, logits)
         XCTAssertEqual(result1.indices, indices)
@@ -97,7 +97,7 @@ final class LogitsWarperTests: XCTestCase {
 
         let result2 = RepetitionPenaltyWarper(penalty: 3.75)(indices, logits)
         XCTAssertEqual(result2.indices, indices)
-        let logits2 = indices.map({ Float($0) / 3.75 })
+        let logits2 = indices.map { Float($0) / 3.75 }
         XCTAssertEqual(result2.logits, logits2, accuracy: accuracy)
         
         let result3 = RepetitionPenaltyWarper(penalty: 0.75)([0, 1, 2], [0.8108, 0.9954, 0.0119])

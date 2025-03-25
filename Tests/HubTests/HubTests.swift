@@ -4,9 +4,8 @@
 //  Created by Pedro Cuenca on 18/05/2023.
 //
 
-import XCTest
 @testable import Hub
-
+import XCTest
 
 class HubTests: XCTestCase {
     let downloadDestination: URL = {
@@ -14,7 +13,7 @@ class HubTests: XCTestCase {
         return base.appending(component: "huggingface-tests")
     }()
 
-    override func setUp() {}
+    override func setUp() { }
 
     override func tearDown() {
         do {

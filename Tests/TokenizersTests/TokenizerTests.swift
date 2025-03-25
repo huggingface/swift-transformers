@@ -6,10 +6,10 @@
 //  Copyright © 2023 Hugging Face. All rights reserved.
 //
 
-import XCTest
 import Hub
-@testable import Tokenizers
 @testable import Models
+@testable import Tokenizers
+import XCTest
 
 class GPT2TokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "distilgpt2" }
@@ -84,7 +84,7 @@ class GemmaTokenizerTests: TokenizerTests {
         }
 
         // These are two different characters
-        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
+        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
         let expected = [217138, 1305]
 
         // These are different characters
@@ -212,7 +212,6 @@ class BertSpacesTests: XCTestCase {
     }
 }
 
-
 struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String
     // Bad naming, not just for bpe.
@@ -222,8 +221,7 @@ struct EncodedTokenizerSamplesDataset: Decodable {
     let decoded_text: String
 }
 
-
-typealias EdgeCasesDataset = [String : [EdgeCase]]
+typealias EdgeCasesDataset = [String: [EdgeCase]]
 
 struct EdgeCase: Decodable {
     let input: String
@@ -238,14 +236,13 @@ struct EncodedData: Decodable {
     let attention_mask: [Int]
 }
 
-
 class TokenizerTester {
     let encodedSamplesFilename: String
     let unknownTokenId: Int?
     
-    private var configuration: LanguageModelConfigurationFromHub? = nil
-    private var edgeCases: [EdgeCase]? = nil
-    private var _tokenizer: Tokenizer? = nil
+    private var configuration: LanguageModelConfigurationFromHub?
+    private var edgeCases: [EdgeCase]?
+    private var _tokenizer: Tokenizer?
     
     init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
@@ -270,7 +267,6 @@ class TokenizerTester {
         let dataset = try! decoder.decode(EncodedTokenizerSamplesDataset.self, from: json)
         return dataset
     }()
-    
     
     var tokenizer: Tokenizer? {
         get async {
@@ -322,7 +318,7 @@ class TokenizerTester {
     
     /// Test encode and decode for a few edge cases
     func testEdgeCases() async {
-        guard let edgeCases = edgeCases else {
+        guard let edgeCases else {
             print("Edge cases test ignored")
             return
         }
@@ -363,13 +359,13 @@ class TokenizerTester {
 }
 
 class TokenizerTests: XCTestCase {
-    // Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
+    /// Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
     static var _tester: TokenizerTester? = nil
     
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }
     
-    // Known id retrieved from Python, to verify it was parsed correctly
+    /// Known id retrieved from Python, to verify it was parsed correctly
     class var unknownTokenId: Int? { nil }
 
     static var downloadDestination: URL = {
@@ -380,7 +376,7 @@ class TokenizerTests: XCTestCase {
     class var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 
     override class func setUp() {
-        if let hubModelName = hubModelName, let encodedSamplesFilename = encodedSamplesFilename {
+        if let hubModelName, let encodedSamplesFilename {
             _tester = TokenizerTester(
                 hubModelName: hubModelName,
                 encodedSamplesFilename: encodedSamplesFilename,

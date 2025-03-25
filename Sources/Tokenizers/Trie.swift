@@ -34,7 +34,9 @@ public extension Trie {
     }
     
     func append(contentsOf container: any Sequence<any Sequence<T>>) {
-        for t in container { insert(t) }
+        for t in container {
+            insert(t)
+        }
     }
         
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
@@ -57,12 +59,12 @@ public extension Trie {
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
     /// Returns an iterator
     func commonPrefixSearchIterator(_ text: any Sequence<T>) -> LeavesWithCommonPrefixIterator<T> {
-        return LeavesWithCommonPrefixIterator(node: root, text: text)
+        LeavesWithCommonPrefixIterator(node: root, text: text)
     }
 }
 
 public extension Trie {
-    // Only used for testing, could migrate to collection
+    /// Only used for testing, could migrate to collection
     func get(_ element: any Sequence<T>) -> Node? {
         var node = root
         for item in element {
@@ -79,7 +81,7 @@ public class TrieNode<T: Hashable> {
     var children: [T: TrieNode] = [:]
 }
 
-public struct LeavesWithCommonPrefixIterator<T: Hashable> : Sequence, IteratorProtocol {
+public struct LeavesWithCommonPrefixIterator<T: Hashable>: Sequence, IteratorProtocol {
     var node: TrieNode<T>
     var text: any Sequence<T>
     var seq: [T] = []

@@ -5,11 +5,11 @@
 //  Created by Pedro Cuenca on 20240120.
 //
 
-import XCTest
 import Tokenizers
+import XCTest
 
 class SplitTests: XCTestCase {
-    func testSplitBehaviorMergedWithPrevious() {        
+    func testSplitBehaviorMergedWithPrevious() {
         XCTAssertEqual(
             "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["the-", "final-", "-", "countdown"]

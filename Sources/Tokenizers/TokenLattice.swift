@@ -26,8 +26,8 @@ public struct TokenLattice {
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
         
-        beginNodes = Array(repeating: [], count: sentence.count+1)
-        endNodes = Array(repeating: [], count: sentence.count+1)
+        beginNodes = Array(repeating: [], count: sentence.count + 1)
+        endNodes = Array(repeating: [], count: sentence.count + 1)
         
         let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
         let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: sentence.count, length: 0, score: 0)
@@ -67,7 +67,7 @@ extension TokenLattice {
             for rnode in beginNodes[offset] {
                 rnode.prev = nil
                 var bestScore: Float = 0
-                var bestNode: TokenLatticeNode? = nil
+                var bestNode: TokenLatticeNode?
                 for lnode in endNodes[offset] {
                     let score = lnode.backtraceScore + rnode.score
                     if bestNode == nil || score > bestScore {
@@ -88,10 +88,10 @@ extension TokenLattice {
 
         // TODO: the reference implementations have a few more clones here: verify
         var result: [TokenLatticeNode] = []
-        var node = prev     //.clone()
+        var node = prev // .clone()
         while node.prev != nil {
             result.append(node.clone())
-            node = node.prev!   //.clone()
+            node = node.prev! // .clone()
         }
         return result.reversed()
     }
@@ -125,7 +125,7 @@ class TokenLatticeNode {
     let length: Int
     let score: Float
     
-    var prev: TokenLatticeNode? = nil
+    var prev: TokenLatticeNode?
     var backtraceScore: Float = 0
     
     init(tokenId: Int, startOffset: Int, length: Int, score: Float, prev: TokenLatticeNode? = nil, backtraceScore: Float = 0) {
@@ -139,8 +139,8 @@ class TokenLatticeNode {
 }
 
 extension TokenLatticeNode {
-    // This is a reference type because structs can't contain references to the same type
-    // We could implement NSCopying, but frankly I don't see the point
+    /// This is a reference type because structs can't contain references to the same type
+    /// We could implement NSCopying, but frankly I don't see the point
     func clone() -> TokenLatticeNode {
         TokenLatticeNode(tokenId: tokenId, startOffset: startOffset, length: length, score: score, prev: prev, backtraceScore: backtraceScore)
     }

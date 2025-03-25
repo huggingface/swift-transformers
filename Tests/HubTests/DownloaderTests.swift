@@ -5,9 +5,9 @@
 //  Created by Arda Atahan Ibis on 1/28/25.
 //
 
-import XCTest
 import Combine
 @testable import Hub
+import XCTest
 
 /// Errors that can occur during the download process
 enum DownloadError: LocalizedError {
@@ -16,10 +16,10 @@ enum DownloadError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case .invalidDownloadLocation:
-                return String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
-            case .unexpectedError:
-                return String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
+        case .invalidDownloadLocation:
+            String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
+        case .unexpectedError:
+            String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
         }
     }
 }
@@ -34,7 +34,9 @@ final class DownloaderTests: XCTestCase {
     }
     
     override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
+        if let tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
         super.tearDown()
     }
     
@@ -54,7 +56,7 @@ final class DownloaderTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-        
+
         """
         
         let downloader = Downloader(
@@ -70,7 +72,7 @@ final class DownloaderTests: XCTestCase {
                 switch state {
                 case .completed:
                     continuation.resume()
-                case .failed(let error):
+                case let .failed(error):
                     continuation.resume(throwing: error)
                 case .downloading:
                     break
@@ -97,15 +99,13 @@ final class DownloaderTests: XCTestCase {
         let downloader = Downloader(
             from: url,
             to: destination,
-            expectedSize: 999999  // Incorrect size
+            expectedSize: 999999 // Incorrect size
         )
         
         do {
             try downloader.waitUntilDone()
             XCTFail("Download should have failed due to size mismatch")
-        } catch {
-            
-        }
+        } catch { }
         
         // Verify no file was created at destination
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
@@ -119,7 +119,7 @@ final class DownloaderTests: XCTestCase {
         
         // Create parent directory if it doesn't exist
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(),
-                                             withIntermediateDirectories: true)
+                                                withIntermediateDirectories: true)
                 
         let downloader = Downloader(
             from: url,
@@ -138,15 +138,15 @@ final class DownloaderTests: XCTestCase {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 subscriber = downloader.downloadState.sink { state in
                     switch state {
-                    case .downloading(let progress):
-                        if threshold != 1.0 && progress >= threshold {
+                    case let .downloading(progress):
+                        if threshold != 1.0, progress >= threshold {
                             // Move to next threshold and interrupt
                             threshold = threshold == 0.5 ? 0.75 : 1.0
                             downloader.cancel()
                         }
                     case .completed:
                         continuation.resume()
-                    case .failed(let error):
+                    case let .failed(error):
                         continuation.resume(throwing: error)
                     case .notStarted:
                         break

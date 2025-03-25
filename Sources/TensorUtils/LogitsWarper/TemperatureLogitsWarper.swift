@@ -8,6 +8,6 @@ public struct TemperatureLogitsWarper: LogitsWarper {
     }
 
     public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
-        return (indices: indices, logits: logits.map { $0 / temperature })
+        (indices: indices, logits: logits.map { $0 / temperature })
     }
 }
