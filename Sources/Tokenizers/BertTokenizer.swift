@@ -46,9 +46,12 @@ public class BertTokenizer {
     }
     
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String : Int]) throws {
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else {
-            throw TokenizerError.missingVocab
+        guard var vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw TokenizerError.missingVocab }
+        if let addedTokens = tokenizerData.added_tokens?.dictionary["value"] as? [[String: Any]],
+           let pairs = addedTokens.compactMap({ ($0["content"] as? String, $0["id"] as? Int) }) as? [(String, Int)] {
+            vocab.merge(pairs, uniquingKeysWith: {$1})
         }
+        vocab.merge(addedTokens, uniquingKeysWith: {$1})
         let merges = tokenizerData.model?.merges?.value as? [String]
         let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
         let eosToken = tokenizerConfig.eosToken?.stringValue

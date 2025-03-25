@@ -8,7 +8,7 @@
 
 import XCTest
 @testable import Tokenizers
-
+@testable import Hub
 
 
 class BertTokenizerTests: XCTestCase {
@@ -177,5 +177,36 @@ class BertTokenizerTests: XCTestCase {
             let decoded = tokenizer.decode(tokens: encoded)
             XCTAssertEqual(decoded, String(expected))
         }
+    }
+
+    func testBertTokenizerAddedTokensRecognized() async throws {
+        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        let hubApi = HubApi(downloadBase: base)
+        let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
+        guard let tokenizerConfig = try await configuration.tokenizerConfig else { fatalError("missing tokenizer config") }
+        let tokenizerData = try await configuration.tokenizerData
+        let addedTokens = [
+            "[ROAD]": 60_001,
+            "[RIVER]": 60_002,
+            "[BUILDING]": 60_003,
+            "[PARK]": 60_004,
+            "[BUFFER]": 60_005,
+            "[INTERSECT]": 60_006,
+            "[UNION]": 60_007,
+        ]
+        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        for (token, idx) in addedTokens {
+            XCTAssertEqual(tokenizer.convertTokenToId(token), idx)
+        }
+        for (token, idx) in addedTokens {
+            XCTAssertEqual(tokenizer.convertIdToToken(idx), token)
+        }
+
+        // Reading added_tokens from tokenizer.json
+        XCTAssertEqual(tokenizer.convertTokenToId("[PAD]"), 0)
+        XCTAssertEqual(tokenizer.convertTokenToId("[UNK]"), 100)
+        XCTAssertEqual(tokenizer.convertTokenToId("[CLS]"), 101)
+        XCTAssertEqual(tokenizer.convertTokenToId("[SEP]"), 102)
+        XCTAssertEqual(tokenizer.convertTokenToId("[MASK]"), 103)
     }
 }
