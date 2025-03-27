@@ -101,6 +101,7 @@ struct TokenizerModel {
         "BertTokenizer": BertTokenizer.self,
         "DistilbertTokenizer": BertTokenizer.self,
         "DistilBertTokenizer": BertTokenizer.self,
+        "RobertaTokenizer": BPETokenizer.self,
         "CodeGenTokenizer": CodeGenTokenizer.self,
         "CodeLlamaTokenizer": CodeLlamaTokenizer.self,
         "FalconTokenizer": FalconTokenizer.self,
@@ -230,7 +231,7 @@ public extension Tokenizer {
     func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
     }
-    
+
     func decode(tokens: [Int]) -> String {
         decode(tokens: tokens, skipSpecialTokens: false)
     }

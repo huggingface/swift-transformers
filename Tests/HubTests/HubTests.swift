@@ -117,4 +117,18 @@ class HubTests: XCTestCase {
         let vocab_dict = config.dictionary["vocab"] as! [String: Int]
         XCTAssertNotEqual(vocab_dict.count, 2)
     }
+
+    func testConfigTokenValue() throws {
+        let config1 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
+        let tokenValue1 = config1.cls?.tokenValue
+        XCTAssertEqual(tokenValue1?.0, 100)
+        XCTAssertEqual(tokenValue1?.1, "str")
+
+        let data = #"{"cls": ["str", 100]}"#.data(using: .utf8)!
+        let dict = try JSONSerialization.jsonObject(with: data, options: []) as! [NSString: Any]
+        let config2 = Config(dict)
+        let tokenValue2 = config2.cls?.tokenValue
+        XCTAssertEqual(tokenValue2?.0, 100)
+        XCTAssertEqual(tokenValue2?.1, "str")
+    }
 }

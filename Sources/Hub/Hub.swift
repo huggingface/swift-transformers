@@ -133,7 +133,15 @@ public struct Config {
     }
 
     /// Tuple of token identifier and string value
-    public var tokenValue: (UInt, String)? { value as? (UInt, String) }
+    public var tokenValue: (UInt, String)? {
+        guard let value = value as? [Any] else {
+            return nil
+        }
+        guard let stringValue = value.first as? String, let intValue = value.dropFirst().first as? UInt else {
+            return nil
+        }
+        return (intValue, stringValue)
+    }
 }
 
 public class LanguageModelConfigurationFromHub {
