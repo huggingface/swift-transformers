@@ -31,7 +31,7 @@ enum PostProcessorType: String {
 
 struct PostProcessorFactory {
     static func fromConfig(config: Config?) -> PostProcessor? {
-        guard let config = config else { return nil }
+        guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = PostProcessorType(rawValue: typeName)
         switch type {
@@ -94,8 +94,8 @@ class RobertaProcessing: PostProcessor {
         guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
-        self.trimOffset = config.trimOffset.boolean(or: true)
-        self.addPrefixSpace = config.addPrefixSpace.boolean(or: true)
+        trimOffset = config.trimOffset.boolean(or: true)
+        addPrefixSpace = config.addPrefixSpace.boolean(or: true)
     }
 
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {

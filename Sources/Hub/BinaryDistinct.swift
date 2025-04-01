@@ -1,5 +1,5 @@
 //
-//  BinaryDistinctString.swift
+//  BinaryDistinct.swift
 //  swift-transformers
 //
 //  Created by Piotr Kowalczuk on 06.03.25.
@@ -12,28 +12,28 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
     public let value: [UInt16]
 
     public var nsString: NSString {
-        return String(utf16CodeUnits: self.value, count: self.value.count) as NSString
+        String(utf16CodeUnits: value, count: value.count) as NSString
     }
 
     public var string: String {
-        return String(self.nsString)
+        String(nsString)
     }
 
     public var count: Int {
-        self.string.count
+        string.count
     }
 
     /// Satisfies ``CustomStringConvertible`` protocol.
     public var description: String {
-        return self.string
+        string
     }
 
     public init(_ bytes: [UInt16]) {
-        self.value = bytes
+        value = bytes
     }
 
     public init(_ str: NSString) {
-        self.value = Array(str as String).flatMap { $0.utf16 }
+        value = Array(str as String).flatMap { $0.utf16 }
     }
 
     public init(_ str: String) {
@@ -41,7 +41,7 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
     }
 
     public init(_ character: BinaryDistinctCharacter) {
-        self.value = character.bytes
+        value = character.bytes
     }
 
     public init(_ characters: [BinaryDistinctCharacter]) {
@@ -49,7 +49,7 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
         for character in characters {
             data.append(contentsOf: character.bytes)
         }
-        self.value = data
+        value = data
     }
 
     /// Satisfies ``ExpressibleByStringLiteral`` protocol.
@@ -58,51 +58,51 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
     }
 
     public static func == (lhs: BinaryDistinctString, rhs: BinaryDistinctString) -> Bool {
-        return lhs.value == rhs.value
+        lhs.value == rhs.value
     }
 
     public static func < (lhs: BinaryDistinctString, rhs: BinaryDistinctString) -> Bool {
-        return lhs.value.lexicographicallyPrecedes(rhs.value)
+        lhs.value.lexicographicallyPrecedes(rhs.value)
     }
 
     public static func + (lhs: BinaryDistinctString, rhs: BinaryDistinctString) -> BinaryDistinctString {
-        return BinaryDistinctString(lhs.value + rhs.value)
+        BinaryDistinctString(lhs.value + rhs.value)
     }
 
     public func hasPrefix(_ prefix: BinaryDistinctString) -> Bool {
-        guard prefix.value.count <= self.value.count else { return false }
-        return self.value.starts(with: prefix.value)
+        guard prefix.value.count <= value.count else { return false }
+        return value.starts(with: prefix.value)
     }
 
     public func hasSuffix(_ suffix: BinaryDistinctString) -> Bool {
-        guard suffix.value.count <= self.value.count else { return false }
-        return self.value.suffix(suffix.value.count) == suffix.value
+        guard suffix.value.count <= value.count else { return false }
+        return value.suffix(suffix.value.count) == suffix.value
     }
 
     public func lowercased() -> BinaryDistinctString {
-        .init(self.string.lowercased())
+        .init(string.lowercased())
     }
 
     public func replacingOccurrences(of: Self, with: Self) -> BinaryDistinctString {
-        return BinaryDistinctString(self.string.replacingOccurrences(of: of.string, with: with.string))
+        BinaryDistinctString(string.replacingOccurrences(of: of.string, with: with.string))
     }
 }
 
-extension BinaryDistinctString {
-    public typealias Index = Int  // Treat indices as integers
+public extension BinaryDistinctString {
+    typealias Index = Int // Treat indices as integers
 
-    public var startIndex: Index { return 0 }
-    public var endIndex: Index { return self.count }
+    var startIndex: Index { 0 }
+    var endIndex: Index { count }
 
-    public func index(_ i: Index, offsetBy distance: Int) -> Index {
+    func index(_ i: Index, offsetBy distance: Int) -> Index {
         let newIndex = i + distance
-        guard newIndex >= 0, newIndex <= self.count else {
+        guard newIndex >= 0, newIndex <= count else {
             fatalError("Index out of bounds")
         }
         return newIndex
     }
 
-    public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
+    func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
         let newIndex = i + distance
         return newIndex <= limit ? newIndex : nil
     }
@@ -110,7 +110,7 @@ extension BinaryDistinctString {
 
 extension BinaryDistinctString: Sequence {
     public func makeIterator() -> AnyIterator<BinaryDistinctCharacter> {
-        var iterator = self.string.makeIterator()  // Use native Swift String iterator
+        var iterator = string.makeIterator() // Use native Swift String iterator
 
         return AnyIterator {
             guard let char = iterator.next() else { return nil }
@@ -119,104 +119,100 @@ extension BinaryDistinctString: Sequence {
     }
 }
 
-extension BinaryDistinctString {
-    public subscript(bounds: PartialRangeFrom<Int>) -> BinaryDistinctString {
-        get {
-            let validRange = bounds.lowerBound..<self.value.count  // Convert to Range<Int>
-            return self[validRange]
-        }
+public extension BinaryDistinctString {
+    subscript(bounds: PartialRangeFrom<Int>) -> BinaryDistinctString {
+        let validRange = bounds.lowerBound..<value.count // Convert to Range<Int>
+        return self[validRange]
     }
 
     /// Returns a slice of the `BinaryDistinctString` while ensuring correct rune (grapheme cluster) boundaries.
-    public subscript(bounds: Range<Int>) -> BinaryDistinctString {
-        get {
-            guard bounds.lowerBound >= 0, bounds.upperBound <= self.count else {
-                fatalError("Index out of bounds")
-            }
-
-            let utf8Bytes = self.value
-            var byteIndices: [Int] = []
-
-            // Decode UTF-8 manually to find rune start positions
-            var currentByteIndex = 0
-            for (index, scalar) in self.string.unicodeScalars.enumerated() {
-                if index == bounds.lowerBound {
-                    byteIndices.append(currentByteIndex)
-                }
-                currentByteIndex += scalar.utf8.count
-                if index == bounds.upperBound - 1 {
-                    byteIndices.append(currentByteIndex)
-                    break
-                }
-            }
-
-            // Extract the byte range
-            let startByteIndex = byteIndices.first ?? 0
-            let endByteIndex = byteIndices.last ?? utf8Bytes.count
-
-            let slicedBytes = Array(utf8Bytes[startByteIndex..<endByteIndex])
-            return BinaryDistinctString(slicedBytes)
+    subscript(bounds: Range<Int>) -> BinaryDistinctString {
+        guard bounds.lowerBound >= 0, bounds.upperBound <= count else {
+            fatalError("Index out of bounds")
         }
+
+        let utf8Bytes = value
+        var byteIndices: [Int] = []
+
+        // Decode UTF-8 manually to find rune start positions
+        var currentByteIndex = 0
+        for (index, scalar) in string.unicodeScalars.enumerated() {
+            if index == bounds.lowerBound {
+                byteIndices.append(currentByteIndex)
+            }
+            currentByteIndex += scalar.utf8.count
+            if index == bounds.upperBound - 1 {
+                byteIndices.append(currentByteIndex)
+                break
+            }
+        }
+
+        // Extract the byte range
+        let startByteIndex = byteIndices.first ?? 0
+        let endByteIndex = byteIndices.last ?? utf8Bytes.count
+
+        let slicedBytes = Array(utf8Bytes[startByteIndex..<endByteIndex])
+        return BinaryDistinctString(slicedBytes)
     }
 }
 
-extension Dictionary where Key == BinaryDistinctString {
+public extension Dictionary where Key == BinaryDistinctString {
     /// Merges another `BinaryDistinctDictionary` into this one
-    public mutating func merge(_ other: [BinaryDistinctString: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
-        self.merge(other, uniquingKeysWith: strategy)
+    mutating func merge(_ other: [BinaryDistinctString: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
+        merge(other, uniquingKeysWith: strategy)
     }
 
     /// Merges a `[String: Value]` dictionary into this one
-    public mutating func merge(_ other: [String: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
+    mutating func merge(_ other: [String: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
         let converted = Dictionary(uniqueKeysWithValues: other.map { (BinaryDistinctString($0.key), $0.value) })
-        self.merge(converted, uniquingKeysWith: strategy)
+        merge(converted, uniquingKeysWith: strategy)
     }
 
     /// Merges a `[NSString: Value]` dictionary into this one
-    public mutating func merge(_ other: [NSString: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
+    mutating func merge(_ other: [NSString: Value], strategy: (Value, Value) -> Value = { _, new in new }) {
         let converted = Dictionary(uniqueKeysWithValues: other.map { (BinaryDistinctString($0.key), $0.value) })
-        self.merge(converted, uniquingKeysWith: strategy)
+        merge(converted, uniquingKeysWith: strategy)
     }
 
-    public func merging(_ other: [String: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
+    func merging(_ other: [String: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
         var newDict = self
         newDict.merge(other, strategy: strategy)
         return newDict
     }
 
-    public func merging(_ other: [BinaryDistinctString: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
+    func merging(_ other: [BinaryDistinctString: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
         var newDict = self
         newDict.merge(other, strategy: strategy)
         return newDict
     }
 
-    public func merging(_ other: [NSString: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
+    func merging(_ other: [NSString: Value], strategy: (Value, Value) -> Value = { _, new in new }) -> Self {
         var newDict = self
         newDict.merge(other, strategy: strategy)
         return newDict
     }
 }
 
-public protocol StringConvertible: ExpressibleByStringLiteral {}
+public protocol StringConvertible: ExpressibleByStringLiteral { }
 
-extension BinaryDistinctString: StringConvertible {}
-extension String: StringConvertible {}
-extension NSString: StringConvertible {}
+extension BinaryDistinctString: StringConvertible { }
+extension String: StringConvertible { }
+extension NSString: StringConvertible { }
 
 public struct BinaryDistinctCharacter: Equatable, Hashable, CustomStringConvertible, ExpressibleByStringLiteral {
     let bytes: [UInt16]
 
     public init(_ character: Character) {
-        self.bytes = Array(character.utf16)
+        bytes = Array(character.utf16)
     }
 
     public init(_ string: String) {
-        self.bytes = Array(string.utf16)
+        bytes = Array(string.utf16)
     }
 
     public init(_ nsString: NSString) {
         let swiftString = nsString as String
-        self.bytes = Array(swiftString.utf16)
+        bytes = Array(swiftString.utf16)
     }
 
     public init(bytes: [UInt16]) {
@@ -229,14 +225,14 @@ public struct BinaryDistinctCharacter: Equatable, Hashable, CustomStringConverti
     }
 
     var stringValue: String? {
-        String(utf16CodeUnits: self.bytes, count: self.bytes.count)
+        String(utf16CodeUnits: bytes, count: bytes.count)
     }
 
     public var description: String {
         if let str = stringValue {
-            return "BinaryDistinctCharacter('\(str)', bytes: \(bytes.map { String(format: "0x%02X", $0) }))"
+            "BinaryDistinctCharacter('\(str)', bytes: \(bytes.map { String(format: "0x%02X", $0) }))"
         } else {
-            return "BinaryDistinctCharacter(invalid UTF-8, bytes: \(bytes.map { String(format: "0x%02X", $0) }))"
+            "BinaryDistinctCharacter(invalid UTF-8, bytes: \(bytes.map { String(format: "0x%02X", $0) }))"
         }
     }
 

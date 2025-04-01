@@ -68,7 +68,7 @@ public protocol TokenizingModel {
 
 /// Helper - possibly to be moved somewhere else
 func addedTokenAsString(_ addedToken: Config?) -> String? {
-    guard let addedToken = addedToken else { return nil }
+    guard let addedToken else { return nil }
     if let stringValue = addedToken.string() {
         return stringValue
     }
@@ -77,16 +77,16 @@ func addedTokenAsString(_ addedToken: Config?) -> String? {
     return addedToken.content.string()
 }
 
-extension TokenizingModel {
-    public func callAsFunction(_ text: String) -> [String] {
+public extension TokenizingModel {
+    func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
     }
 
-    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         tokens.map { convertTokenToId($0) }
     }
 
-    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         ids.map { convertIdToToken($0) }
     }
 }
@@ -116,7 +116,7 @@ struct TokenizerModel {
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {
-        return tokenizerConfig.unkToken.content.string() ?? tokenizerConfig.unkToken.string()
+        tokenizerConfig.unkToken.content.string() ?? tokenizerConfig.unkToken.string()
     }
 
     public static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws -> TokenizingModel {
@@ -222,27 +222,28 @@ extension Tokenizer {
         if additionalContext == nil {
             try applyChatTemplate(
                 messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength,
-                tools: tools)
+                tools: tools
+            )
         } else {
             throw TokenizerError.chatTemplate("Not implemented")
         }
     }
 }
 
-extension Tokenizer {
-    public func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
+public extension Tokenizer {
+    func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
     }
 
-    public func decode(tokens: [Int]) -> String {
+    func decode(tokens: [Int]) -> String {
         decode(tokens: tokens, skipSpecialTokens: false)
     }
 
-    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         tokens.map { convertTokenToId($0) }
     }
 
-    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         ids.map { convertIdToToken($0) }
     }
 }
@@ -318,11 +319,11 @@ public class PreTrainedTokenizer: Tokenizer {
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
 
-        self.preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
-        self.normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
-        self.postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
-        self.decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
-        self.cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
+        preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
+        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
+        postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
+        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
+        cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
@@ -354,16 +355,16 @@ public class PreTrainedTokenizer: Tokenizer {
 
         return
             text
-            .replacingOccurrences(of: " .", with: ".")
-            .replacingOccurrences(of: " ?", with: "?")
-            .replacingOccurrences(of: " !", with: "!")
-            .replacingOccurrences(of: " ,", with: ",")
-            .replacingOccurrences(of: " ' ", with: "'")
-            .replacingOccurrences(of: " n't", with: "n't")
-            .replacingOccurrences(of: " 'm", with: "'m")
-            .replacingOccurrences(of: " 's", with: "'s")
-            .replacingOccurrences(of: " 've", with: "'ve")
-            .replacingOccurrences(of: " 're", with: "'re")
+                .replacingOccurrences(of: " .", with: ".")
+                .replacingOccurrences(of: " ?", with: "?")
+                .replacingOccurrences(of: " !", with: "!")
+                .replacingOccurrences(of: " ,", with: ",")
+                .replacingOccurrences(of: " ' ", with: "'")
+                .replacingOccurrences(of: " n't", with: "n't")
+                .replacingOccurrences(of: " 'm", with: "'m")
+                .replacingOccurrences(of: " 's", with: "'s")
+                .replacingOccurrences(of: " 've", with: "'ve")
+                .replacingOccurrences(of: " 're", with: "'re")
     }
 
     func fuseUnknown(_ tokens: [String]) -> [String] {
@@ -410,8 +411,8 @@ public class PreTrainedTokenizer: Tokenizer {
             let specialTokenIDs = Set(specialTokens.values)
             tokenStrings =
                 tokens
-                .filter { !specialTokenIDs.contains($0) }
-                .compactMap { model.convertIdToToken($0) }
+                    .filter { !specialTokenIDs.contains($0) }
+                    .compactMap { model.convertIdToToken($0) }
         } else {
             tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
         }
@@ -469,7 +470,8 @@ public class PreTrainedTokenizer: Tokenizer {
     ) throws -> [Int] {
         try applyChatTemplate(
             messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: addGenerationPrompt, truncation: truncation, maxLength: maxLength,
-            tools: tools, additionalContext: nil)
+            tools: tools, additionalContext: nil
+        )
     }
 
     public func applyChatTemplate(
@@ -501,7 +503,7 @@ public class PreTrainedTokenizer: Tokenizer {
                         }
                         return (name, template)
                     })
-                if let chatTemplate, case .name(let name) = chatTemplate {
+                if let chatTemplate, case let .name(name) = chatTemplate {
                     // Select chat template from config by name
                     if let matchingDictEntry = templateDict[name] {
                         selectedChatTemplate = matchingDictEntry
@@ -628,7 +630,6 @@ public extension AutoTokenizer {
 }
 
 // MARK: - Tokenizer model classes
-
 
 class GPT2Tokenizer: BPETokenizer { }
 class FalconTokenizer: BPETokenizer { }

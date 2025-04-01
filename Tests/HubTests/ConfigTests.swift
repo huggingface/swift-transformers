@@ -150,6 +150,7 @@ import Testing
         #expect(cfg.array() == nil)
         #expect(cfg.array(or: ["a"]) == ["a"])
     }
+
     @Test("Config can be converted to a dictionary of configs")
     func dictionaryOfConfigs() async throws {
         let cfg: Config = ["a": .init([1, 2]), "b": .init([3, 4])]
@@ -315,18 +316,18 @@ import Testing
 
     @Test func utf16() async throws {
         let json = """
-                {
-                  "a": ["val_1", "val_2"],
-                  "b": 2,
-                  "c": [[10, "tkn_1"], [12, "tkn_2"], [4, "tkn_3"]],
-                  "d": false,
-                  "e": {
-                    "e_1": 1.1,
-                    "e_2": [1, 2, 3]
-                  },
-                  "f": null
-                }
-            """
+            {
+              "a": ["val_1", "val_2"],
+              "b": 2,
+              "c": [[10, "tkn_1"], [12, "tkn_2"], [4, "tkn_3"]],
+              "d": false,
+              "e": {
+                "e_1": 1.1,
+                "e_2": [1, 2, 3]
+              },
+              "f": null
+            }
+        """
 
         let urlUTF8 = try createFile(with: json, encoding: .utf8, fileName: "config_utf8.json")
         let urlUTF16LE = try createFile(with: json, encoding: .utf16LittleEndian, fileName: "config_utf16_le.json")
@@ -385,52 +386,52 @@ import Testing
             "null": Config(),
         ])
         let template = """
-            {{ config["dict_of_floats"]["key1"] }}
-            {{ config["dict_of_tokens"]["key6"]["12"] }}
-            {{ config["arr_of_ints"][0] }}
-            {{ config["arr_of_ints"][1] }}
-            {{ config["arr_of_ints"][2] }}
-            {{ config["arr_of_floats"][0] }}
-            {{ config["arr_of_floats"][1] }}
-            {{ config["arr_of_strings"][0] }}
-            {{ config["arr_of_strings"][1] }}
-            {{ config["arr_of_bools"][0] }}
-            {{ config["arr_of_bools"][1] }}
-            {{ config["arr_of_dicts"][0]["key7"] }}
-            {{ config["arr_of_dicts"][1]["key8"] }}
-            {{ config["arr_of_tokens"][0]["1"] }}
-            {{ config["arr_of_tokens"][1]["2"] }}
-            {{ config["int"] }}
-            {{ config["float"] }}
-            {{ config["string"] }}
-            {{ config["bool"] }}
-            {{ config["token"]["1"] }}
-            """
+        {{ config["dict_of_floats"]["key1"] }}
+        {{ config["dict_of_tokens"]["key6"]["12"] }}
+        {{ config["arr_of_ints"][0] }}
+        {{ config["arr_of_ints"][1] }}
+        {{ config["arr_of_ints"][2] }}
+        {{ config["arr_of_floats"][0] }}
+        {{ config["arr_of_floats"][1] }}
+        {{ config["arr_of_strings"][0] }}
+        {{ config["arr_of_strings"][1] }}
+        {{ config["arr_of_bools"][0] }}
+        {{ config["arr_of_bools"][1] }}
+        {{ config["arr_of_dicts"][0]["key7"] }}
+        {{ config["arr_of_dicts"][1]["key8"] }}
+        {{ config["arr_of_tokens"][0]["1"] }}
+        {{ config["arr_of_tokens"][1]["2"] }}
+        {{ config["int"] }}
+        {{ config["float"] }}
+        {{ config["string"] }}
+        {{ config["bool"] }}
+        {{ config["token"]["1"] }}
+        """
         let exp = """
-            1.1
-            dfe
-            1
-            2
-            3
-            1.1
-            1.2
-            tre
-            jeq
-            true
-            false
-            1.1
-            1.2
-            ghz
-            pkr
-            678
-            1.1
-            hha
-            true
-            iop
-            """
+        1.1
+        dfe
+        1
+        2
+        3
+        1.1
+        1.2
+        tre
+        jeq
+        true
+        false
+        1.1
+        1.2
+        ghz
+        pkr
+        678
+        1.1
+        hha
+        true
+        iop
+        """
 
         let got = try Template(template).render([
-            "config": cfg.toJinjaCompatible()
+            "config": cfg.toJinjaCompatible(),
         ])
 
         #expect(got == exp)

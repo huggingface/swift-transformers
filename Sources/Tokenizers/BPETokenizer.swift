@@ -53,10 +53,10 @@ class BPETokenizer: PreTrainedTokenizerModel {
 
         if let merges = config.array() {
             return merges.reduce(into: [[String]]()) { result, element in
-                if let val: [String] = element.get() {  // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
+                if let val: [String] = element.get() { // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
                     result.append(val)
                 }
-                if let val: String = element.get() {  // legacy
+                if let val: String = element.get() { // legacy
                     result.append(val.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) })
                 }
             }
@@ -80,11 +80,11 @@ class BPETokenizer: PreTrainedTokenizerModel {
         let addedTokens = addedTokens.reduce(into: [BinaryDistinctString: Config]()) { result, element in
             result[BinaryDistinctString(element.key)] = .init(element.value)
         }
-        self.tokensToIds = vocab.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
+        tokensToIds = vocab.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
             result[element.key.nsString] = element.value.integer()
         }
 
-        self.idsToTokens = Utils.invert(self.tokensToIds)
+        idsToTokens = Utils.invert(tokensToIds)
 
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
@@ -168,8 +168,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
                     newWord.append(contentsOf: word[i..<word.count])
                     break
                 }
-                if word[i] == first && i < word.count - 1 && word[i + 1] == second {
-
+                if word[i] == first, i < word.count - 1, word[i + 1] == second {
                     newWord.append(first + second)
                     i += 2
                 } else {

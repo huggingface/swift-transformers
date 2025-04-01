@@ -76,7 +76,8 @@ public class BertTokenizer {
         
         self.init(
             vocab: vocabulary, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
-            fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase)
+            fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase
+        )
     }
 
     public func tokenize(text: String) -> [String] {
@@ -120,7 +121,7 @@ public class BertTokenizer {
     /// Un-tokenization:
     func convertWordpieceToBasicTokenList(_ wordpieceTokenList: [String]) -> String {
         var tokenList: [String] = []
-        var individualToken: String = ""
+        var individualToken = ""
         for token in wordpieceTokenList {
             if token.starts(with: "##") {
                 individualToken += String(token.suffix(token.count - 2))

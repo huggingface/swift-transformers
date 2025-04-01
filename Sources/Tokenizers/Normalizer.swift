@@ -40,7 +40,7 @@ enum NormalizerType: String {
 
 struct NormalizerFactory {
     static func fromConfig(config: Config?) -> Normalizer? {
-        guard let config = config else { return nil }
+        guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = NormalizerType(rawValue: typeName)
         switch type {
@@ -150,10 +150,10 @@ class BertNormalizer: Normalizer {
     let shouldLowercase: Bool
 
     required init(config: Config) {
-        self.shouldCleanText = config.cleanText.boolean(or: true)
-        self.shouldHandleChineseChars = config.handleChineseChars.boolean(or: true)
-        self.shouldLowercase = config.lowercase.boolean(or: true)
-        self.shouldStripAccents = config.stripAccents.boolean(or: shouldLowercase)
+        shouldCleanText = config.cleanText.boolean(or: true)
+        shouldHandleChineseChars = config.handleChineseChars.boolean(or: true)
+        shouldLowercase = config.lowercase.boolean(or: true)
+        shouldStripAccents = config.stripAccents.boolean(or: shouldLowercase)
     }
 
     func normalize(text: String) -> String {
@@ -281,8 +281,8 @@ class StripNormalizer: Normalizer {
     let rightStrip: Bool
 
     required init(config: Config) {
-        self.leftStrip = config.stripLeft.boolean(or: true)
-        self.rightStrip = config.stripRight.boolean(or: true)
+        leftStrip = config.stripLeft.boolean(or: true)
+        rightStrip = config.stripRight.boolean(or: true)
     }
 
     func normalize(text: String) -> String {
