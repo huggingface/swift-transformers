@@ -36,7 +36,7 @@ enum DecoderType: String {
 struct DecoderFactory {
     static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
         // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
-        guard let config = config else { return nil }
+        guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
@@ -63,7 +63,7 @@ class WordPieceDecoder: Decoder {
     public required init(config: Config) {
         guard let prefix = config.prefix.string() else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
         self.prefix = prefix
-        self.cleanup = config.cleanup.boolean(or: false)
+        cleanup = config.cleanup.boolean(or: false)
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -198,7 +198,6 @@ class StripDecoder: Decoder {
     let start: Int
     let stop: Int
     
-
     public required init(config: Config) {
         guard let content = config.content.string() else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
         guard let start = config.start.integer() else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }

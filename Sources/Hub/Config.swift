@@ -39,27 +39,27 @@ public struct Config: Hashable, Sendable,
             switch (lhs, rhs) {
             case (.null, .null):
                 return true
-            case (.string(let lhs), _):
+            case let (.string(lhs), _):
                 if let rhs = rhs.string() {
                     return lhs == BinaryDistinctString(rhs)
                 }
-            case (.integer(let lhs), _):
+            case let (.integer(lhs), _):
                 if let rhs = rhs.integer() {
                     return lhs == rhs
                 }
-            case (.boolean(let lhs), _):
+            case let (.boolean(lhs), _):
                 if let rhs = rhs.boolean() {
                     return lhs == rhs
                 }
-            case (.floating(let lhs), _):
+            case let (.floating(lhs), _):
                 if let rhs = rhs.floating() {
                     return lhs == rhs
                 }
-            case (.dictionary(let lhs), .dictionary(let rhs)):
+            case let (.dictionary(lhs), .dictionary(rhs)):
                 return lhs == rhs
-            case (.array(let lhs), .array(let rhs)):
+            case let (.array(lhs), .array(rhs)):
                 return lhs == rhs
-            case (.token(let lhs), .token(let rhs)):
+            case let (.token(lhs), .token(rhs)):
                 return lhs == rhs
             default:
                 return false
@@ -67,19 +67,19 @@ public struct Config: Hashable, Sendable,
 
             // right hand side might be a super set of left hand side
             switch rhs {
-            case .string(let rhs):
+            case let .string(rhs):
                 if let lhs = lhs.string() {
                     return BinaryDistinctString(lhs) == rhs
                 }
-            case .integer(let rhs):
+            case let .integer(rhs):
                 if let lhs = lhs.integer() {
                     return lhs == rhs
                 }
-            case .boolean(let rhs):
+            case let .boolean(rhs):
                 if let lhs = lhs.boolean() {
                     return lhs == rhs
                 }
-            case .floating(let rhs):
+            case let .floating(rhs):
                 if let lhs = lhs.floating() {
                     return lhs == rhs
                 }
@@ -93,39 +93,39 @@ public struct Config: Hashable, Sendable,
         public var description: String {
             switch self {
             case .null:
-                return "null"
-            case .string(let value):
-                return "\"\(value)\""
-            case .integer(let value):
-                return "\(value)"
-            case .boolean(let value):
-                return "\(value)"
-            case .floating(let value):
-                return "\(value)"
-            case .array(let arr):
-                return "[\(arr)]"
-            case .dictionary(let val):
-                return "{\(val)}"
-            case .token(let val):
-                return "(\(val.0), \(val.1))"
+                "null"
+            case let .string(value):
+                "\"\(value)\""
+            case let .integer(value):
+                "\(value)"
+            case let .boolean(value):
+                "\(value)"
+            case let .floating(value):
+                "\(value)"
+            case let .array(arr):
+                "[\(arr)]"
+            case let .dictionary(val):
+                "{\(val)}"
+            case let .token(val):
+                "(\(val.0), \(val.1))"
             }
         }
 
         public func string() -> String? {
-            if case .string(let val) = self {
+            if case let .string(val) = self {
                 return val.string
             }
             return nil
         }
 
         public func boolean() -> Bool? {
-            if case .boolean(let val) = self {
+            if case let .boolean(val) = self {
                 return val
             }
-            if case .integer(let val) = self {
+            if case let .integer(val) = self {
                 return val == 1
             }
-            if case .string(let val) = self {
+            if case let .string(val) = self {
                 switch val.string.lowercased() {
                 case "true", "t", "1":
                     return true
@@ -139,17 +139,17 @@ public struct Config: Hashable, Sendable,
         }
 
         public func integer() -> Int? {
-            if case .integer(let val) = self {
+            if case let .integer(val) = self {
                 return val
             }
             return nil
         }
 
         public func floating() -> Float? {
-            if case .floating(let val) = self {
+            if case let .floating(val) = self {
                 return val
             }
-            if case .integer(let val) = self {
+            if case let .integer(val) = self {
                 return Float(val)
             }
             return nil
@@ -214,31 +214,31 @@ public struct Config: Hashable, Sendable,
 
     private static func convertToBinaryDistinctKeys(_ object: Any) -> Config {
         if let dict = object as? [NSString: Any] {
-            return Config(Dictionary(uniqueKeysWithValues: dict.map { (BinaryDistinctString($0.key), convertToBinaryDistinctKeys($0.value)) }))
+            Config(Dictionary(uniqueKeysWithValues: dict.map { (BinaryDistinctString($0.key), convertToBinaryDistinctKeys($0.value)) }))
         } else if let array = object as? [Any] {
-            return Config(array.map { convertToBinaryDistinctKeys($0) })
+            Config(array.map { convertToBinaryDistinctKeys($0) })
         } else {
             switch object {
             case let obj as String:
-                return Config(obj)
+                Config(obj)
             case let obj as Int:
-                return Config(obj)
+                Config(obj)
             case let obj as Float:
-                return Config(obj)
+                Config(obj)
             case let obj as Bool:
-                return Config(obj)
+                Config(obj)
             case let obj as NSNumber:
                 if CFNumberIsFloatType(obj) {
-                    return Config(obj.floatValue)
+                    Config(obj.floatValue)
                 } else {
-                    return Config(obj.intValue)
+                    Config(obj.intValue)
                 }
             case _ as NSNull:
-                return Config()
+                Config()
             case let obj as Config:
-                return obj
+                obj
             case let obj as (UInt, String):
-                return Config((obj.0, BinaryDistinctString(obj.1)))
+                Config((obj.0, BinaryDistinctString(obj.1)))
             default:
                 fatalError("unknown type: \(type(of: object)) \(object)")
             }
@@ -247,22 +247,22 @@ public struct Config: Hashable, Sendable,
 
     // MARK: constructors
 
-    // Conformance to ExpressibleByStringLiteral
+    /// Conformance to ExpressibleByStringLiteral
     public init(stringLiteral value: String) {
         self.value = .string(.init(value))
     }
 
-    // Conformance to ExpressibleByIntegerLiteral
+    /// Conformance to ExpressibleByIntegerLiteral
     public init(integerLiteral value: Int) {
         self.value = .integer(value)
     }
 
-    // Conformance to ExpressibleByBooleanLiteral
+    /// Conformance to ExpressibleByBooleanLiteral
     public init(booleanLiteral value: Bool) {
         self.value = .boolean(value)
     }
 
-    // Conformance to ExpressibleByFloatLiteral
+    /// Conformance to ExpressibleByFloatLiteral
     public init(floatLiteral value: Float) {
         self.value = .floating(value)
     }
@@ -289,15 +289,15 @@ public struct Config: Hashable, Sendable,
     // MARK: getters - string
 
     public func get() -> String? {
-        return self.string()
+        self.string()
     }
 
     public func get(or: String) -> String? {
-        return self.string(or: or)
+        self.string(or: or)
     }
 
     public func string() -> String? {
-        return self.value.string()
+        self.value.string()
     }
 
     public func string(or: String) -> String {
@@ -308,15 +308,15 @@ public struct Config: Hashable, Sendable,
     }
 
     public func get() -> BinaryDistinctString? {
-        return self.binaryDistinctString()
+        self.binaryDistinctString()
     }
 
     public func get(or: BinaryDistinctString) -> BinaryDistinctString? {
-        return self.binaryDistinctString(or: or)
+        self.binaryDistinctString(or: or)
     }
 
     public func binaryDistinctString() -> BinaryDistinctString? {
-        if case .string(let val) = self.value {
+        if case let .string(val) = self.value {
             return val
         }
         return nil
@@ -332,15 +332,15 @@ public struct Config: Hashable, Sendable,
     // MARK: getters - boolean
 
     public func get() -> Bool? {
-        return self.boolean()
+        self.boolean()
     }
 
     public func get(or: Bool) -> Bool? {
-        return self.boolean(or: or)
+        self.boolean(or: or)
     }
 
     public func boolean() -> Bool? {
-        return self.value.boolean()
+        self.value.boolean()
     }
 
     public func boolean(or: Bool) -> Bool {
@@ -353,15 +353,15 @@ public struct Config: Hashable, Sendable,
     // MARK: getters - integer
 
     public func get() -> Int? {
-        return self.integer()
+        self.integer()
     }
 
     public func get(or: Int) -> Int? {
-        return self.integer(or: or)
+        self.integer(or: or)
     }
 
     public func integer() -> Int? {
-        return self.value.integer()
+        self.value.integer()
     }
 
     public func integer(or: Int) -> Int {
@@ -374,15 +374,15 @@ public struct Config: Hashable, Sendable,
     // MARK: getters/operators - floating
 
     public func get() -> Float? {
-        return self.value.floating()
+        self.value.floating()
     }
 
     public func get(or: Float) -> Float? {
-        return self.floating(or: or)
+        self.floating(or: or)
     }
 
     public func floating() -> Float? {
-        return self.value.floating()
+        self.value.floating()
     }
 
     public func floating(or: Float) -> Float {
@@ -407,32 +407,32 @@ public struct Config: Hashable, Sendable,
     }
 
     public func get() -> [BinaryDistinctString: Config]? {
-        return self.dictionary()
+        self.dictionary()
     }
 
     public func get(or: [BinaryDistinctString: Config]) -> [BinaryDistinctString: Config] {
-        return self.dictionary(or: or)
+        self.dictionary(or: or)
     }
 
     public func toJinjaCompatible() -> Any? {
         switch self.value {
-        case .array(let val):
+        case let .array(val):
             return val.map { $0.toJinjaCompatible() }
-        case .dictionary(let val):
+        case let .dictionary(val):
             var result: [String: Any?] = [:]
             for (key, config) in val {
                 result[key.string] = config.toJinjaCompatible()
             }
             return result
-        case .boolean(let val):
+        case let .boolean(val):
             return val
-        case .floating(let val):
+        case let .floating(val):
             return val
-        case .integer(let val):
+        case let .integer(val):
             return val
-        case .string(let val):
+        case let .string(val):
             return val.string
-        case .token(let val):
+        case let .token(val):
             return [String(val.0): val.1.string] as [String: String]
         case .null:
             return nil
@@ -440,7 +440,7 @@ public struct Config: Hashable, Sendable,
     }
 
     public func dictionary() -> [BinaryDistinctString: Config]? {
-        if case .dictionary(let val) = self.value {
+        if case let .dictionary(val) = self.value {
             return val
         }
         return nil
@@ -496,15 +496,15 @@ public struct Config: Hashable, Sendable,
     }
 
     public func get() -> [Config]? {
-        return self.array()
+        self.array()
     }
 
     public func get(or: [Config]) -> [Config] {
-        return self.array(or: or)
+        self.array(or: or)
     }
 
     public func array() -> [Config]? {
-        if case .array(let val) = self.value {
+        if case let .array(val) = self.value {
             return val
         }
         return nil
@@ -520,19 +520,19 @@ public struct Config: Hashable, Sendable,
     // MARK: getters - token
 
     public func get() -> (UInt, String)? {
-        return self.token()
+        self.token()
     }
 
     public func get(or: (UInt, String)) -> (UInt, String) {
-        return self.token(or: or)
+        self.token(or: or)
     }
 
     public func token() -> (UInt, String)? {
-        if case .token(let val) = self.value {
+        if case let .token(val) = self.value {
             return (val.0, val.1.string)
         }
         
-        if case .array(let arr) = self.value {
+        if case let .array(arr) = self.value {
             guard arr.count == 2 else {
                 return nil
             }
@@ -559,43 +559,35 @@ public struct Config: Hashable, Sendable,
     // MARK: subscript
 
     public subscript(index: BinaryDistinctString) -> Config {
-        get {
-            if let dict = self.dictionary() {
-                return dict[index] ?? dict[self.uncamelCase(index)] ?? Config()
-            }
-
-            return Config()
+        if let dict = self.dictionary() {
+            return dict[index] ?? dict[self.uncamelCase(index)] ?? Config()
         }
+
+        return Config()
     }
 
     public subscript(index: Int) -> Config {
-        get {
-            if let arr = self.array(), index >= 0, index < arr.count {
-                return arr[index]
-            }
-
-            return Config()
+        if let arr = self.array(), index >= 0, index < arr.count {
+            return arr[index]
         }
+
+        return Config()
     }
 
     public subscript(dynamicMember member: String) -> Config? {
-        get {
-            if let dict = self.dictionary() {
-                return dict[BinaryDistinctString(member)] ?? dict[self.uncamelCase(BinaryDistinctString(member))] ?? Config()
-            }
-
-            return nil  // backward compatibility
+        if let dict = self.dictionary() {
+            return dict[BinaryDistinctString(member)] ?? dict[self.uncamelCase(BinaryDistinctString(member))] ?? Config()
         }
+
+        return nil // backward compatibility
     }
 
     public subscript(dynamicMember member: String) -> Config {
-        get {
-            if let dict = self.dictionary() {
-                return dict[BinaryDistinctString(member)] ?? dict[self.uncamelCase(BinaryDistinctString(member))] ?? Config()
-            }
-
-            return Config()
+        if let dict = self.dictionary() {
+            return dict[BinaryDistinctString(member)] ?? dict[self.uncamelCase(BinaryDistinctString(member))] ?? Config()
         }
+
+        return Config()
     }
 
     func uncamelCase(_ string: BinaryDistinctString) -> BinaryDistinctString {
@@ -621,7 +613,7 @@ public struct Config: Hashable, Sendable,
     }
 
     public var description: String {
-        return "\(self.value.description)"
+        "\(self.value.description)"
     }
 }
 
@@ -638,27 +630,22 @@ extension Config: Codable {
                 let intValue = try container.decode(Int.self)
                 self.value = .integer(intValue)
                 return
-            } catch {
-            }
+            } catch { }
             do {
                 let floatValue = try container.decode(Float.self)
                 self.value = .floating(floatValue)
                 return
-            } catch {
-            }
+            } catch { }
             do {
                 let boolValue = try container.decode(Bool.self)
                 self.value = .boolean(boolValue)
                 return
-            } catch {
-            }
+            } catch { }
             do {
                 let stringValue = try container.decode(String.self)
                 self.value = .string(.init(stringValue))
                 return
-            } catch {
-
-            }
+            } catch { }
         }
 
         if let tupple = Self.decodeTuple(decoder) {
@@ -686,9 +673,7 @@ extension Config: Codable {
                     let intValue = try container.decode(UInt.self)
                     let stringValue = try container.decode(String.self)
                     return .token((intValue, .init(stringValue)))
-                } catch {
-
-                }
+                } catch { }
             }
         }
         return nil
@@ -704,9 +689,7 @@ extension Config: Codable {
                 }
                 return .array(elements)
             }
-        } catch {
-
-        }
+        } catch { }
         return nil
     }
 
@@ -730,27 +713,27 @@ extension Config: Codable {
         case .null:
             var container = encoder.singleValueContainer()
             try container.encodeNil()
-        case .integer(let val):
+        case let .integer(val):
             var container = encoder.singleValueContainer()
             try container.encode(val)
-        case .floating(let val):
+        case let .floating(val):
             var container = encoder.singleValueContainer()
             try container.encode(val)
-        case .boolean(let val):
+        case let .boolean(val):
             var container = encoder.singleValueContainer()
             try container.encode(val)
-        case .string(let val):
+        case let .string(val):
             var container = encoder.singleValueContainer()
             try container.encode(val.string)
-        case .dictionary(let val):
+        case let .dictionary(val):
             var container = encoder.container(keyedBy: CodingKeys.self)
             for (key, value) in val {
                 try container.encode(value, forKey: CodingKeys(stringValue: key.string)!)
             }
-        case .array(let val):
+        case let .array(val):
             var container = encoder.unkeyedContainer()
             try container.encode(contentsOf: val)
-        case .token(let val):
+        case let .token(val):
             var tupple = encoder.unkeyedContainer()
             try tupple.encode(val.0)
             try tupple.encode(val.1.string)
@@ -770,7 +753,7 @@ extension Config: Codable {
 
 extension Config: Equatable {
     public static func == (lhs: Config, rhs: Config) -> Bool {
-        return lhs.value == rhs.value
+        lhs.value == rhs.value
     }
 }
 
@@ -778,29 +761,29 @@ extension Config.Data: Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .null:
-            hasher.combine(0)  // Discriminator for null
-        case .string(let s):
-            hasher.combine(1)  // Discriminator for string
+            hasher.combine(0) // Discriminator for null
+        case let .string(s):
+            hasher.combine(1) // Discriminator for string
             hasher.combine(s)
-        case .integer(let i):
-            hasher.combine(2)  // Discriminator for integer
+        case let .integer(i):
+            hasher.combine(2) // Discriminator for integer
             hasher.combine(i)
-        case .boolean(let b):
-            hasher.combine(3)  // Discriminator for boolean
+        case let .boolean(b):
+            hasher.combine(3) // Discriminator for boolean
             hasher.combine(b)
-        case .floating(let f):
-            hasher.combine(4)  // Discriminator for floating
+        case let .floating(f):
+            hasher.combine(4) // Discriminator for floating
             hasher.combine(f)
-        case .dictionary(let d):
-            hasher.combine(5)  // Discriminator for dict
+        case let .dictionary(d):
+            hasher.combine(5) // Discriminator for dict
             d.hash(into: &hasher)
-        case .array(let a):
-            hasher.combine(6)  // Discriminator for array
+        case let .array(a):
+            hasher.combine(6) // Discriminator for array
             for e in a {
                 e.hash(into: &hasher)
             }
-        case .token(let a):
-            hasher.combine(7)  // Discriminator for token
+        case let .token(a):
+            hasher.combine(7) // Discriminator for token
             a.0.hash(into: &hasher)
             a.1.hash(into: &hasher)
         }

@@ -53,7 +53,7 @@ enum PreTokenizerType: String {
 
 struct PreTokenizerFactory {
     static func fromConfig(config: Config?) -> PreTokenizer? {
-        guard let config = config else { return nil }
+        guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
@@ -267,8 +267,8 @@ extension StringSplitPattern {
     }
 }
 
-extension String {
-    public func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
+public extension String {
+    func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
         var result: [Range<Index>] = []
         var start = startIndex
         while let range = range(of: string, options: options, range: start..<endIndex) {
@@ -278,7 +278,7 @@ extension String {
         return result
     }
 
-    public func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true)
+    func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true)
         -> [String]
     {
         var result: [String] = []
@@ -293,14 +293,14 @@ extension String {
             }
             start = range.upperBound
         }
-        if omittingEmptySubsequences && start < endIndex {
+        if omittingEmptySubsequences, start < endIndex {
             result.append(String(self[start...]))
         }
         return result
     }
 
     /// This version supports capture groups, wheres the one above doesn't
-    public func split(by captureRegex: NSRegularExpression) -> [String] {
+    func split(by captureRegex: NSRegularExpression) -> [String] {
         // Find the matching capture groups
         let selfRange = NSRange(startIndex..<endIndex, in: self)
         let matches = captureRegex.matches(in: self, options: [], range: selfRange)
@@ -346,8 +346,8 @@ public enum SplitDelimiterBehavior {
     case mergedWithNext
 }
 
-extension String {
-    public func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
+public extension String {
+    func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
         func mergedWithNext(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
             var merged: [Range<String.Index>] = []
             var currentStart = startIndex

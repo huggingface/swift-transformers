@@ -196,7 +196,8 @@ public class LanguageModelConfigurationFromHub {
             let chatTemplateURL = modelFolder.appending(path: "chat_template.json")
             if FileManager.default.fileExists(atPath: chatTemplateURL.path),
                let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateURL),
-               let chatTemplate = chatTemplateConfig.chatTemplate.string() {
+               let chatTemplate = chatTemplateConfig.chatTemplate.string()
+            {
                 // Create or update tokenizer config with chat template
                 if var configDict = tokenizerConfig?.dictionary() {
                     configDict["chat_template"] = .init(chatTemplate)

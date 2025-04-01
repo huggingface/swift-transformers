@@ -36,7 +36,6 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
 
     private let trie: Trie<Character>
         
-
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
         guard let configVocab = tokenizerData.model.vocab.array() else {
             throw TokenizerError.missingVocab
@@ -46,7 +45,8 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
             let tuple = piece.array(or: [])
             
             guard let token = tuple.first?.string(),
-                  let scoreValue = tuple.last else {
+                  let scoreValue = tuple.last
+            else {
                 throw TokenizerError.malformedVocab
             }
 
