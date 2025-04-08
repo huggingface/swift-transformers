@@ -333,6 +333,7 @@ public extension HubApi {
     }
 
     struct HubFileDownloader {
+        let hub: HubApi
         let repo: Repo
         let repoDestination: URL
         let repoMetadataDestination: URL
@@ -380,14 +381,14 @@ public extension HubApi {
         /// (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
         func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
-            let localMetadata = try HubApi.shared.readDownloadMetadata(metadataPath: metadataDestination)
-            let remoteMetadata = try await HubApi.shared.getFileMetadata(url: source)
+            let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
+            let remoteMetadata = try await hub.getFileMetadata(url: source)
             
             let localCommitHash = localMetadata?.commitHash ?? ""
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
             
             // Local file exists + metadata exists + commit_hash matches => return file
-            if HubApi.shared.isValidHash(hash: remoteCommitHash, pattern: HubApi.shared.commitHashPattern), downloaded, localMetadata != nil, localCommitHash == remoteCommitHash {
+            if hub.isValidHash(hash: remoteCommitHash, pattern: hub.commitHashPattern), downloaded, localMetadata != nil, localCommitHash == remoteCommitHash {
                 return destination
             }
             
@@ -404,7 +405,7 @@ public extension HubApi {
             if downloaded {
                 // etag matches => update metadata and return file
                 if localMetadata?.etag == remoteEtag {
-                    try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                     return destination
                 }
                 
@@ -412,10 +413,10 @@ public extension HubApi {
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if HubApi.shared.isValidHash(hash: remoteEtag, pattern: HubApi.shared.sha256Pattern) {
-                    let fileHash = try HubApi.shared.computeFileHash(file: destination)
+                if hub.isValidHash(hash: remoteEtag, pattern: hub.sha256Pattern) {
+                    let fileHash = try hub.computeFileHash(file: destination)
                     if fileHash == remoteEtag {
-                        try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                        try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                         return destination
                     }
                 }
@@ -435,7 +436,7 @@ public extension HubApi {
                 try downloader.waitUntilDone()
             }
             
-            try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+            try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
             
             return destination
         }
@@ -489,6 +490,7 @@ public extension HubApi {
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
             let downloader = HubFileDownloader(
+                hub: self,
                 repo: repo,
                 repoDestination: repoDestination,
                 repoMetadataDestination: repoMetadataDestination,
