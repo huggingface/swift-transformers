@@ -361,6 +361,10 @@ public extension HubApi {
             repoMetadataDestination.appending(path: relativeFilename + ".metadata")
         }
         
+        var incompleteDestination: URL {
+            repoMetadataDestination.appending(path: relativeFilename + ".incomplete")
+        }
+        
         var downloaded: Bool {
             FileManager.default.fileExists(atPath: destination.path)
         }
@@ -370,9 +374,13 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
         }
         
-        func prepareMetadataDestination() throws {
-            let directoryURL = metadataDestination.deletingLastPathComponent()
+        // We're using incomplete destination to prepare cache destination because incomplete files include lfs + non-lfs files (vs only lfs for metadata files)
+        func prepareCacheDestination() throws {
+            let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+            if !FileManager.default.fileExists(atPath: incompleteDestination.path) {
+                try "".write(to: incompleteDestination, atomically: true, encoding: .utf8)
+            }
         }
         
         /// Note we go from Combine in Downloader to callback-based progress reporting
@@ -423,24 +431,14 @@ public extension HubApi {
             
             // Otherwise, let's download the file!
             try prepareDestination()
-            try prepareMetadataDestination()
+            try prepareCacheDestination()
 
-            // Check for an existing incomplete file
-            let incompleteFile = Downloader.incompletePath(for: destination)
-            var resumeSize = 0
-            
-            if FileManager.default.fileExists(atPath: incompleteFile.path) {
-                if let fileAttributes = try? FileManager.default.attributesOfItem(atPath: incompleteFile.path) {
-                    resumeSize = (fileAttributes[FileAttributeKey.size] as? Int) ?? 0
-                }
-            }
-            
             let downloader = Downloader(
                 from: source,
                 to: destination,
+                incompleteDestination: incompleteDestination,
                 using: hfToken,
                 inBackground: backgroundSession,
-                resumeSize: resumeSize,
                 expectedSize: remoteSize
             )
             

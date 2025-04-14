@@ -59,9 +59,16 @@ final class DownloaderTests: XCTestCase {
 
         """
         
+        let cacheDir = tempDir.appendingPathComponent("cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
+        
         let downloader = Downloader(
             from: url,
-            to: destination
+            to: destination,
+            incompleteDestination: incompleteDestination
         )
         
         // Store subscriber outside the continuation to maintain its lifecycle
@@ -95,10 +102,17 @@ final class DownloaderTests: XCTestCase {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let destination = tempDir.appendingPathComponent("config.json")
         
+        let cacheDir = tempDir.appendingPathComponent("cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
+
         // Create downloader with incorrect expected size
         let downloader = Downloader(
             from: url,
             to: destination,
+            incompleteDestination: incompleteDestination,
             expectedSize: 999999 // Incorrect size
         )
         
@@ -120,10 +134,17 @@ final class DownloaderTests: XCTestCase {
         // Create parent directory if it doesn't exist
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(),
                                                 withIntermediateDirectories: true)
-                
+        
+        let cacheDir = tempDir.appendingPathComponent("cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
+
         let downloader = Downloader(
             from: url,
             to: destination,
+            incompleteDestination: incompleteDestination,
             expectedSize: 73194001 // Correct size for verification
         )
         
@@ -167,29 +188,5 @@ final class DownloaderTests: XCTestCase {
         } catch {
             throw error
         }
-    }
-    
-    func testAutomaticIncompleteFileDetection() throws {
-        let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
-        let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
-        
-        // Create a sample incomplete file with test content
-        let incompletePath = Downloader.incompletePath(for: destination)
-        try FileManager.default.createDirectory(at: incompletePath.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let testContent = Data(repeating: 65, count: 1024) // 1KB of data
-        FileManager.default.createFile(atPath: incompletePath.path, contents: testContent)
-        
-        // Create a downloader for the same destination
-        // It should automatically detect and use the incomplete file
-        let downloader = Downloader(
-            from: url,
-            to: destination
-        )
-        
-        // Verify the downloader found and is using the incomplete file
-        XCTAssertEqual(downloader.downloadedSize, 1024, "Should have detected the incomplete file and set resumeSize")
-        
-        // Clean up
-        try? FileManager.default.removeItem(at: incompletePath)
     }
 }

@@ -11,7 +11,6 @@ import Foundation
 
 class Downloader: NSObject, ObservableObject {
     private(set) var destination: URL
-    private(set) var sourceURL: URL
 
     private let chunkSize = 10 * 1024 * 1024 // 10MB
 
@@ -31,28 +30,18 @@ class Downloader: NSObject, ObservableObject {
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
     
-    private(set) var tempFilePath: URL?
+    private(set) var tempFilePath: URL
     private(set) var expectedSize: Int?
     private(set) var downloadedSize: Int = 0
 
     private var urlSession: URLSession? = nil
     
-    /// Creates the incomplete file path for a given destination URL
-    /// This is similar to the Hugging Face Hub approach of using .incomplete files
-    static func incompletePath(for destination: URL) -> URL {
-        destination.appendingPathExtension("incomplete")
-    }
-    
     /// Check if an incomplete file exists for the destination and returns its size
     /// - Parameter destination: The destination URL for the download
     /// - Returns: Size of the incomplete file if it exists, otherwise 0
-    static func checkForIncompleteFile(at destination: URL) -> Int {
-        let incompletePath = Self.incompletePath(for: destination)
-        
+    static func incompleteFileSize(at incompletePath: URL) -> Int {
         if FileManager.default.fileExists(atPath: incompletePath.path) {
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path),
-               let fileSize = attributes[.size] as? Int
-            {
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
                 return fileSize
             }
         }
@@ -63,29 +52,22 @@ class Downloader: NSObject, ObservableObject {
     init(
         from url: URL,
         to destination: URL,
+        incompleteDestination: URL,
         using authToken: String? = nil,
         inBackground: Bool = false,
-        resumeSize: Int = 0, // Can be specified manually, but will also check for incomplete files
         headers: [String: String]? = nil,
         expectedSize: Int? = nil,
         timeout: TimeInterval = 10,
         numRetries: Int = 5
     ) {
         self.destination = destination
-        sourceURL = url
         self.expectedSize = expectedSize
         
         // Create incomplete file path based on destination
-        tempFilePath = Downloader.incompletePath(for: destination)
+        self.tempFilePath = incompleteDestination
         
         // If resume size wasn't specified, check for an existing incomplete file
-        let actualResumeSize: Int = if resumeSize > 0 {
-            resumeSize
-        } else {
-            Downloader.checkForIncompleteFile(at: destination)
-        }
-        
-        downloadedSize = actualResumeSize
+        let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
         
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
@@ -99,7 +81,7 @@ class Downloader: NSObject, ObservableObject {
 
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        setUpDownload(from: url, with: authToken, resumeSize: actualResumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+        setUpDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
 
     /// Sets up and initiates a file download operation
@@ -139,25 +121,6 @@ class Downloader: NSObject, ObservableObject {
             
             Task {
                 do {
-                    // Check if incomplete file exists and get its size
-                    var existingSize = 0
-                    guard let incompleteFilePath = self.tempFilePath else {
-                        throw DownloadError.unexpectedError
-                    }
-                    
-                    let fileManager = FileManager.default
-                    if fileManager.fileExists(atPath: incompleteFilePath.path) {
-                        let attributes = try fileManager.attributesOfItem(atPath: incompleteFilePath.path)
-                        existingSize = attributes[.size] as? Int ?? 0
-                        self.downloadedSize = existingSize
-                    } else {
-                        // Create parent directory if needed
-                        try fileManager.createDirectory(at: incompleteFilePath.deletingLastPathComponent(), withIntermediateDirectories: true)
-                        
-                        // Create empty incomplete file
-                        fileManager.createFile(atPath: incompleteFilePath.path, contents: nil)
-                    }
-                    
                     // Set up the request with appropriate headers
                     var request = URLRequest(url: url)
                     var requestHeaders = headers ?? [:]
@@ -167,12 +130,12 @@ class Downloader: NSObject, ObservableObject {
                     }
                     
                     // Set Range header if we're resuming
-                    if existingSize > 0 {
-                        requestHeaders["Range"] = "bytes=\(existingSize)-"
+                    if resumeSize > 0 {
+                        requestHeaders["Range"] = "bytes=\(resumeSize)-"
                         
                         // Calculate and show initial progress
                         if let expectedSize, expectedSize > 0 {
-                            let initialProgress = Double(existingSize) / Double(expectedSize)
+                            let initialProgress = Double(resumeSize) / Double(expectedSize)
                             self.downloadState.value = .downloading(initialProgress)
                         } else {
                             self.downloadState.value = .downloading(0)
@@ -185,10 +148,10 @@ class Downloader: NSObject, ObservableObject {
                     request.allHTTPHeaderFields = requestHeaders
                     
                     // Open the incomplete file for writing
-                    let tempFile = try FileHandle(forWritingTo: incompleteFilePath)
+                    let tempFile = try FileHandle(forWritingTo: self.tempFilePath)
                     
                     // If resuming, seek to end of file
-                    if existingSize > 0 {
+                    if resumeSize > 0 {
                         try tempFile.seekToEnd()
                     }
                     
@@ -197,7 +160,7 @@ class Downloader: NSObject, ObservableObject {
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
-                    try fileManager.moveDownloadedFile(from: incompleteFilePath, to: self.destination)
+                    try FileManager.default.moveDownloadedFile(from: self.tempFilePath, to: self.destination)
                     self.downloadState.value = .completed(self.destination)
                 } catch {
                     self.downloadState.value = .failed(error)

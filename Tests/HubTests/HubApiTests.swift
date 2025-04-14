@@ -968,4 +968,78 @@ class SnapshotDownloadTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+    
+    func testResumeDownloadFromEmptyIncomplete() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        var downloadedTo = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Library/Caches/huggingface-tests/models/coreml-projects/Llama-2-7b-chat-coreml")
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
+        
+        try FileManager.default.createDirectory(at: metadataDestination, withIntermediateDirectories: true, attributes: nil)
+        try "".write(to: metadataDestination.appendingPathComponent("config.json.incomplete"), atomically: true, encoding: .utf8)
+        downloadedTo = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
+                
+        let expected = """
+        {
+          "architectures": [
+            "LlamaForCausalLM"
+          ],
+          "bos_token_id": 1,
+          "eos_token_id": 2,
+          "model_type": "llama",
+          "pad_token_id": 0,
+          "vocab_size": 32000
+        }
+
+        """
+        XCTAssertTrue(fileContents.contains(expected))
+    }
+    
+    func testResumeDownloadFromNonEmptyIncomplete() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        var downloadedTo = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Library/Caches/huggingface-tests/models/coreml-projects/Llama-2-7b-chat-coreml")
+        
+        let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
+        
+        try FileManager.default.createDirectory(at: metadataDestination, withIntermediateDirectories: true, attributes: nil)
+        try "X".write(to: metadataDestination.appendingPathComponent("config.json.incomplete"), atomically: true, encoding: .utf8)
+        downloadedTo = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
+                
+        let expected = """
+        X
+          "architectures": [
+            "LlamaForCausalLM"
+          ],
+          "bos_token_id": 1,
+          "eos_token_id": 2,
+          "model_type": "llama",
+          "pad_token_id": 0,
+          "vocab_size": 32000
+        }
+
+        """
+        XCTAssertTrue(fileContents.contains(expected))
+    }
 }
