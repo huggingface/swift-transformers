@@ -1042,4 +1042,25 @@ class SnapshotDownloadTests: XCTestCase {
         """
         XCTAssertTrue(fileContents.contains(expected))
     }
+
+    func testRealDownloadInterruptionAndResumption() async throws {
+        // Use the DepthPro model weights file
+        let targetFile = "DepthProNormalizedInverseDepth.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+        let repo = "coreml-projects/DepthPro-coreml-normalized-inverse-depth"
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        
+        // Create a task for the download
+        let downloadTask = Task {
+            try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
+                print("Progress reached 1 \(progress.fractionCompleted * 100)%")
+            }
+        }
+        
+        try await Task.sleep(nanoseconds: 15_000_000_000)
+        downloadTask.cancel()
+        
+        try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
+            print("Progress reached 2 \(progress.fractionCompleted * 100)%")
+        }
+    }
 }

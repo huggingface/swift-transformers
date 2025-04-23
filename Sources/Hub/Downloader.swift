@@ -129,6 +129,8 @@ class Downloader: NSObject, ObservableObject {
                         requestHeaders["Authorization"] = "Bearer \(authToken)"
                     }
                     
+                    self.downloadedSize = resumeSize
+                    
                     // Set Range header if we're resuming
                     if resumeSize > 0 {
                         requestHeaders["Range"] = "bytes=\(resumeSize)-"
@@ -207,7 +209,7 @@ class Downloader: NSObject, ObservableObject {
             throw DownloadError.unexpectedError
         }
 
-        downloadedSize = resumeSize
+//        downloadedSize = resumeSize
         
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
@@ -283,6 +285,7 @@ class Downloader: NSObject, ObservableObject {
 
     func cancel() {
         urlSession?.invalidateAndCancel()
+        downloadState.value = .failed(URLError(.cancelled))
     }
 }
 

@@ -442,25 +442,31 @@ public extension HubApi {
                 expectedSize: remoteSize
             )
             
-            let downloadSubscriber = downloader.downloadState.sink { state in
-                switch state {
-                case let .downloading(progress):
-                    progressHandler(progress)
-                case .completed, .failed, .notStarted:
-                    break
+            return try await withTaskCancellationHandler {
+                let downloadSubscriber = downloader.downloadState.sink { state in
+                    switch state {
+                    case let .downloading(progress):
+                        progressHandler(progress)
+                    case .completed, .failed, .notStarted:
+                        break
+                    }
                 }
-            }
-            do {
-                _ = try withExtendedLifetime(downloadSubscriber) {
-                    try downloader.waitUntilDone()
+                do {
+                    _ = try withExtendedLifetime(downloadSubscriber) {
+                        do { try Task.checkCancellation() } catch { print("Task cancelled") }
+                        try downloader.waitUntilDone()
+                    }
+                    
+                    try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    
+                    return destination
+                } catch {
+                    // If download fails, leave the incomplete file in place for future resume
+                    throw error
                 }
-                
-                try HubApi.shared.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
-                
-                return destination
-            } catch {
-                // If download fails, leave the incomplete file in place for future resume
-                throw error
+            } onCancel: {
+                print("download canceled")
+                downloader.cancel()
             }
         }
     }
