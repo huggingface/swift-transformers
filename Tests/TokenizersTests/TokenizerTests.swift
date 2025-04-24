@@ -212,6 +212,34 @@ class BertSpacesTests: XCTestCase {
     }
 }
 
+class RobertaTests: XCTestCase {
+    func testEncodeDecode() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        XCTAssertEqual(tokenizer.tokenize(text: "l'eure"), ["l", "'", "e", "ure"])
+        XCTAssertEqual(tokenizer.encode(text: "l'eure"), [0, 462, 108, 242, 2407, 2])
+        XCTAssertEqual(tokenizer.decode(tokens: tokenizer.encode(text: "l'eure"), skipSpecialTokens: true), "l'eure")
+
+        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["m", "Ä", "ħ", "ka"])
+        XCTAssertEqual(tokenizer.encode(text: "mąka"), [0, 119, 649, 5782, 2348, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["d", "Ã©", "part", "ement"])
+        XCTAssertEqual(tokenizer.encode(text: "département"), [0, 417, 1140, 7755, 6285, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "Who are you?"), ["Who", "Ġare", "Ġyou", "?"])
+        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [0, 12375, 32, 47, 116, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: " Who are you? "), ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"])
+        XCTAssertEqual(tokenizer.encode(text: " Who are you? "), [0, 3394, 32, 47, 116, 1437, 2])
+
+        XCTAssertEqual(tokenizer.tokenize(text: "<s>Who are you?</s>"), ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
+        XCTAssertEqual(tokenizer.encode(text: "<s>Who are you?</s>"), [0, 0, 12375, 32, 47, 116, 2, 2])
+    }
+}
+
 struct EncodedTokenizerSamplesDataset: Decodable {
     let text: String
     // Bad naming, not just for bpe.
@@ -239,16 +267,16 @@ struct EncodedData: Decodable {
 class TokenizerTester {
     let encodedSamplesFilename: String
     let unknownTokenId: Int?
-    
+
     private var configuration: LanguageModelConfigurationFromHub?
     private var edgeCases: [EdgeCase]?
     private var _tokenizer: Tokenizer?
-    
+
     init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
         self.encodedSamplesFilename = encodedSamplesFilename
         self.unknownTokenId = unknownTokenId
-        
+
         // Read the edge cases dataset
         edgeCases = {
             let url = Bundle.module.url(forResource: "tokenizer_tests", withExtension: "json")!
@@ -259,7 +287,7 @@ class TokenizerTester {
             return cases[hubModelName]
         }()
     }
-    
+
     lazy var dataset: EncodedTokenizerSamplesDataset = {
         let url = Bundle.module.url(forResource: encodedSamplesFilename, withExtension: "json")!
         let json = try! Data(contentsOf: url)
@@ -267,7 +295,7 @@ class TokenizerTester {
         let dataset = try! decoder.decode(EncodedTokenizerSamplesDataset.self, from: json)
         return dataset
     }()
-    
+
     var tokenizer: Tokenizer? {
         get async {
             guard _tokenizer == nil else { return _tokenizer! }
@@ -283,7 +311,7 @@ class TokenizerTester {
             return _tokenizer
         }
     }
-    
+
     var tokenizerModel: TokenizingModel? {
         get async {
             // The model is not usually accessible; maybe it should
@@ -291,7 +319,7 @@ class TokenizerTester {
             return (tokenizer as! PreTrainedTokenizer).model
         }
     }
-        
+
     func testTokenize() async {
         let tokenized = await tokenizer?.tokenize(text: dataset.text)
         XCTAssertEqual(
@@ -299,7 +327,7 @@ class TokenizerTester {
             dataset.bpe_tokens
         )
     }
-    
+
     func testEncode() async {
         let encoded = await tokenizer?.encode(text: dataset.text)
         XCTAssertEqual(
@@ -307,7 +335,7 @@ class TokenizerTester {
             dataset.token_ids
         )
     }
-    
+
     func testDecode() async {
         let decoded = await tokenizer?.decode(tokens: dataset.token_ids)
         XCTAssertEqual(
@@ -315,7 +343,7 @@ class TokenizerTester {
             dataset.decoded_text
         )
     }
-    
+
     /// Test encode and decode for a few edge cases
     func testEdgeCases() async {
         guard let edgeCases else {
@@ -339,7 +367,7 @@ class TokenizerTester {
             )
         }
     }
-    
+
     func testUnknownToken() async {
         guard let model = await tokenizerModel else { return }
         XCTAssertEqual(model.unknownTokenId, unknownTokenId)
@@ -361,10 +389,10 @@ class TokenizerTester {
 class TokenizerTests: XCTestCase {
     /// Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
     static var _tester: TokenizerTester? = nil
-    
+
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }
-    
+
     /// Known id retrieved from Python, to verify it was parsed correctly
     class var unknownTokenId: Int? { nil }
 
@@ -399,25 +427,25 @@ class TokenizerTests: XCTestCase {
             await tester.testTokenize()
         }
     }
-    
+
     func testEncode() async {
         if let tester = Self._tester {
             await tester.testEncode()
         }
     }
-    
+
     func testDecode() async {
         if let tester = Self._tester {
             await tester.testDecode()
         }
     }
-    
+
     func testEdgeCases() async {
         if let tester = Self._tester {
             await tester.testEdgeCases()
         }
     }
-    
+
     func testUnknownToken() async {
         if let tester = Self._tester {
             await tester.testUnknownToken()
