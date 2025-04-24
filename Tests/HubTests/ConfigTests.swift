@@ -346,7 +346,7 @@ class ConfigTextEncodingTests: XCTestCase {
 
     func testUnicode() {
         // These are two different characters
-        let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
+        let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
         let data = json.data(using: .utf8)
         let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
         let config = Config(dict)
