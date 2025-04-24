@@ -34,7 +34,7 @@ class Downloader: NSObject, ObservableObject {
     private(set) var expectedSize: Int?
     private(set) var downloadedSize: Int = 0
 
-    private var urlSession: URLSession? = nil
+    internal var session: URLSession? = nil
     
     /// Check if an incomplete file exists for the destination and returns its size
     /// - Parameter destination: The destination URL for the download
@@ -79,7 +79,7 @@ class Downloader: NSObject, ObservableObject {
             config.sessionSendsLaunchEvents = true
         }
 
-        urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
         setUpDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
     }
@@ -103,7 +103,7 @@ class Downloader: NSObject, ObservableObject {
         timeout: TimeInterval,
         numRetries: Int
     ) {
-        urlSession?.getAllTasks { tasks in
+        session?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
             if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
                 switch existing.state {
@@ -189,7 +189,7 @@ class Downloader: NSObject, ObservableObject {
         numRetries: Int,
         expectedSize: Int?
     ) async throws {
-        guard let session = urlSession else {
+        guard let session = session else {
             throw DownloadError.unexpectedError
         }
         
@@ -209,8 +209,6 @@ class Downloader: NSObject, ObservableObject {
             throw DownloadError.unexpectedError
         }
 
-//        downloadedSize = resumeSize
-        
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
         
@@ -245,7 +243,7 @@ class Downloader: NSObject, ObservableObject {
             try await Task.sleep(nanoseconds: 1_000_000_000)
             
             let config = URLSessionConfiguration.default
-            self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+            self.session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
             
             try await httpGet(
                 request: request,
@@ -284,7 +282,7 @@ class Downloader: NSObject, ObservableObject {
     }
 
     func cancel() {
-        urlSession?.invalidateAndCancel()
+        session?.invalidateAndCancel()
         downloadState.value = .failed(URLError(.cancelled))
     }
 }
@@ -320,6 +318,10 @@ extension FileManager {
         if fileExists(atPath: dstURL.path) {
             try removeItem(at: dstURL)
         }
+        
+        let directoryURL = dstURL.deletingLastPathComponent()
+        try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+
         try moveItem(at: srcURL, to: dstURL)
     }
 }

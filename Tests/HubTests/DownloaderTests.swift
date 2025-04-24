@@ -24,6 +24,12 @@ enum DownloadError: LocalizedError {
     }
 }
 
+fileprivate extension Downloader {
+    func interruptDownload() {
+        self.session?.invalidateAndCancel()
+    }
+}
+
 final class DownloaderTests: XCTestCase {
     var tempDir: URL!
     
@@ -44,6 +50,7 @@ final class DownloaderTests: XCTestCase {
     func testSuccessfulDownload() async throws {
         // Create a test file
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
+        let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
         let fileContent = """
         {
@@ -62,7 +69,7 @@ final class DownloaderTests: XCTestCase {
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
         
         let downloader = Downloader(
@@ -100,12 +107,13 @@ final class DownloaderTests: XCTestCase {
     /// This test attempts to download with incorrect expected file, verifies the download fails, ensures no partial file is left behind
     func testDownloadFailsWithIncorrectSize() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
+        let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
         
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
         // Create downloader with incorrect expected size
@@ -129,6 +137,7 @@ final class DownloaderTests: XCTestCase {
     /// verifies the download can resume and complete successfully, checks the final file exists and has content
     func testSuccessfulInterruptedDownload() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
+        let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
         
         // Create parent directory if it doesn't exist
@@ -138,7 +147,7 @@ final class DownloaderTests: XCTestCase {
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
-        let incompleteDestination = cacheDir.appendingPathComponent("config.json.incomplete")
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
         let downloader = Downloader(
@@ -163,7 +172,7 @@ final class DownloaderTests: XCTestCase {
                         if threshold != 1.0, progress >= threshold {
                             // Move to next threshold and interrupt
                             threshold = threshold == 0.5 ? 0.75 : 1.0
-                            downloader.cancel()
+                            downloader.interruptDownload()
                         }
                     case .completed:
                         continuation.resume()

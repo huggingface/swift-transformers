@@ -361,21 +361,12 @@ public extension HubApi {
             repoMetadataDestination.appending(path: relativeFilename + ".metadata")
         }
         
-        var incompleteDestination: URL {
-            repoMetadataDestination.appending(path: relativeFilename + ".incomplete")
-        }
-        
         var downloaded: Bool {
             FileManager.default.fileExists(atPath: destination.path)
         }
         
-        func prepareDestination() throws {
-            let directoryURL = destination.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-        }
-        
         // We're using incomplete destination to prepare cache destination because incomplete files include lfs + non-lfs files (vs only lfs for metadata files)
-        func prepareCacheDestination() throws {
+        func prepareCacheDestination(_ incompleteDestination: URL) throws {
             let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
             if !FileManager.default.fileExists(atPath: incompleteDestination.path) {
@@ -430,8 +421,8 @@ public extension HubApi {
             }
             
             // Otherwise, let's download the file!
-            try prepareDestination()
-            try prepareCacheDestination()
+            let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
+            try prepareCacheDestination(incompleteDestination)
 
             let downloader = Downloader(
                 from: source,
@@ -453,7 +444,6 @@ public extension HubApi {
                 }
                 do {
                     _ = try withExtendedLifetime(downloadSubscriber) {
-                        do { try Task.checkCancellation() } catch { print("Task cancelled") }
                         try downloader.waitUntilDone()
                     }
                     
@@ -465,7 +455,6 @@ public extension HubApi {
                     throw error
                 }
             } onCancel: {
-                print("download canceled")
                 downloader.cancel()
             }
         }
