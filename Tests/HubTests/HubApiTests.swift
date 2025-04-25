@@ -1003,7 +1003,7 @@ class SnapshotDownloadTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-        
+            
         """
         XCTAssertTrue(fileContents.contains(expected))
     }
@@ -1043,27 +1043,38 @@ class SnapshotDownloadTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-        
+            
         """
         XCTAssertTrue(fileContents.contains(expected))
     }
     
     func testRealDownloadInterruptionAndResumption() async throws {
         // Use the DepthPro model weights file
-        let targetFile = "DepthProNormalizedInverseDepth.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
-        let repo = "coreml-projects/DepthPro-coreml-normalized-inverse-depth"
+        let targetFile = "SAM 2 Studio 1.1.zip"
+        let repo = "coreml-projects/sam-2-studio"
         let hubApi = HubApi(downloadBase: downloadDestination)
+        
+        // Create expectation for first progress update
+        let progressExpectation = expectation(description: "First progress update received")
         
         // Create a task for the download
         let downloadTask = Task {
             try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
                 print("Progress reached 1 \(progress.fractionCompleted * 100)%")
+                if progress.fractionCompleted > 0 {
+                    progressExpectation.fulfill()
+                }
             }
         }
         
-        try await Task.sleep(nanoseconds: 15_000_000_000)
-        downloadTask.cancel()
+        // Wait for the first progress update
+        await fulfillment(of: [progressExpectation], timeout: 30.0)
         
+        // Cancel the download once we've seen progress
+        downloadTask.cancel()
+        try await Task.sleep(nanoseconds: 5_000_000_000)
+        
+        // Resume download with a new task
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
             print("Progress reached 2 \(progress.fractionCompleted * 100)%")
         }

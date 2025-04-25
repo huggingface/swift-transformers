@@ -34,21 +34,9 @@ class Downloader: NSObject, ObservableObject {
     private(set) var expectedSize: Int?
     private(set) var downloadedSize: Int = 0
 
-    internal var session: URLSession? = nil
+    var session: URLSession? = nil
+    var downloadTask: Task<Void, Error>? = nil
     
-    /// Check if an incomplete file exists for the destination and returns its size
-    /// - Parameter destination: The destination URL for the download
-    /// - Returns: Size of the incomplete file if it exists, otherwise 0
-    static func incompleteFileSize(at incompletePath: URL) -> Int {
-        if FileManager.default.fileExists(atPath: incompletePath.path) {
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
-                return fileSize
-            }
-        }
-        
-        return 0
-    }
-
     init(
         from url: URL,
         to destination: URL,
@@ -64,7 +52,7 @@ class Downloader: NSObject, ObservableObject {
         self.expectedSize = expectedSize
         
         // Create incomplete file path based on destination
-        self.tempFilePath = incompleteDestination
+        tempFilePath = incompleteDestination
         
         // If resume size wasn't specified, check for an existing incomplete file
         let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
@@ -82,6 +70,19 @@ class Downloader: NSObject, ObservableObject {
         session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
         setUpDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+    }
+
+    /// Check if an incomplete file exists for the destination and returns its size
+    /// - Parameter destination: The destination URL for the download
+    /// - Returns: Size of the incomplete file if it exists, otherwise 0
+    static func incompleteFileSize(at incompletePath: URL) -> Int {
+        if FileManager.default.fileExists(atPath: incompletePath.path) {
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
+                return fileSize
+            }
+        }
+        
+        return 0
     }
 
     /// Sets up and initiates a file download operation
@@ -119,7 +120,7 @@ class Downloader: NSObject, ObservableObject {
                 }
             }
             
-            Task {
+            self.downloadTask = Task {
                 do {
                     // Set up the request with appropriate headers
                     var request = URLRequest(url: url)
@@ -157,11 +158,12 @@ class Downloader: NSObject, ObservableObject {
                         try tempFile.seekToEnd()
                     }
                     
-                    defer { tempFile.closeFile() }
                     try await self.httpGet(request: request, tempFile: tempFile, resumeSize: self.downloadedSize, numRetries: numRetries, expectedSize: expectedSize)
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
+                    
+                    try Task.checkCancellation()
                     try FileManager.default.moveDownloadedFile(from: self.tempFilePath, to: self.destination)
                     self.downloadState.value = .completed(self.destination)
                 } catch {
@@ -189,7 +191,7 @@ class Downloader: NSObject, ObservableObject {
         numRetries: Int,
         expectedSize: Int?
     ) async throws {
-        guard let session = session else {
+        guard let session else {
             throw DownloadError.unexpectedError
         }
         
@@ -283,6 +285,7 @@ class Downloader: NSObject, ObservableObject {
 
     func cancel() {
         session?.invalidateAndCancel()
+        downloadTask?.cancel()
         downloadState.value = .failed(URLError(.cancelled))
     }
 }
@@ -315,7 +318,7 @@ extension Downloader: URLSessionDownloadDelegate {
 
 extension FileManager {
     func moveDownloadedFile(from srcURL: URL, to dstURL: URL) throws {
-        if fileExists(atPath: dstURL.path) {
+        if fileExists(atPath: dstURL.path()) {
             try removeItem(at: dstURL)
         }
         

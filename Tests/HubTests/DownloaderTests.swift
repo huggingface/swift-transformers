@@ -24,9 +24,9 @@ enum DownloadError: LocalizedError {
     }
 }
 
-fileprivate extension Downloader {
+private extension Downloader {
     func interruptDownload() {
-        self.session?.invalidateAndCancel()
+        session?.invalidateAndCancel()
     }
 }
 

@@ -366,7 +366,7 @@ public extension HubApi {
             FileManager.default.fileExists(atPath: destination.path)
         }
         
-        // We're using incomplete destination to prepare cache destination because incomplete files include lfs + non-lfs files (vs only lfs for metadata files)
+        /// We're using incomplete destination to prepare cache destination because incomplete files include lfs + non-lfs files (vs only lfs for metadata files)
         func prepareCacheDestination(_ incompleteDestination: URL) throws {
             let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
