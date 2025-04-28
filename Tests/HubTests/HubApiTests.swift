@@ -1003,7 +1003,6 @@ class SnapshotDownloadTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-            
         """
         XCTAssertTrue(fileContents.contains(expected))
     }
@@ -1043,7 +1042,6 @@ class SnapshotDownloadTests: XCTestCase {
           "pad_token_id": 0,
           "vocab_size": 32000
         }
-            
         """
         XCTAssertTrue(fileContents.contains(expected))
     }
