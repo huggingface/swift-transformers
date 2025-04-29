@@ -19,6 +19,7 @@ public enum TokenizerError: LocalizedError {
     case missingVocab
     case malformedVocab
     case chatTemplate(String)
+    case missingChatTemplate
     case tooLong(String)
     case mismatchedConfig(String)
 
@@ -36,6 +37,8 @@ public enum TokenizerError: LocalizedError {
             String(localized: "The vocabulary file is malformed or corrupted.", comment: "Error when vocab file is malformed")
         case let .chatTemplate(message):
             String(localized: "Chat template error: \(message)", comment: "Error with chat template")
+        case .missingChatTemplate:
+            String(localized: "This tokenizer does not have a chat template, and no template was passed.")
         case let .tooLong(message):
             String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
         case let .mismatchedConfig(message):
@@ -514,7 +517,7 @@ public class PreTrainedTokenizer: Tokenizer {
         }
 
         guard let selectedChatTemplate else {
-            throw TokenizerError.chatTemplate("This tokenizer does not have a chat template, and no template was passed.")
+            throw TokenizerError.missingChatTemplate
         }
 
         let template = try Template(selectedChatTemplate)
