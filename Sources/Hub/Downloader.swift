@@ -24,25 +24,39 @@ class Downloader: NSObject, ObservableObject {
     enum DownloadError: Error {
         case invalidDownloadLocation
         case unexpectedError
+        case tempFileNotFound
     }
 
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
+    
+    private(set) var tempFilePath: URL
+    private(set) var expectedSize: Int?
+    private(set) var downloadedSize: Int = 0
 
-    private var urlSession: URLSession? = nil
-
+    var session: URLSession? = nil
+    var downloadTask: Task<Void, Error>? = nil
+    
     init(
         from url: URL,
         to destination: URL,
+        incompleteDestination: URL,
         using authToken: String? = nil,
         inBackground: Bool = false,
-        resumeSize: Int = 0,
         headers: [String: String]? = nil,
         expectedSize: Int? = nil,
         timeout: TimeInterval = 10,
         numRetries: Int = 5
     ) {
         self.destination = destination
+        self.expectedSize = expectedSize
+        
+        // Create incomplete file path based on destination
+        tempFilePath = incompleteDestination
+        
+        // If resume size wasn't specified, check for an existing incomplete file
+        let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
+        
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
 
@@ -53,9 +67,22 @@ class Downloader: NSObject, ObservableObject {
             config.sessionSendsLaunchEvents = true
         }
 
-        urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
 
-        setupDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+        setUpDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+    }
+
+    /// Check if an incomplete file exists for the destination and returns its size
+    /// - Parameter destination: The destination URL for the download
+    /// - Returns: Size of the incomplete file if it exists, otherwise 0
+    static func incompleteFileSize(at incompletePath: URL) -> Int {
+        if FileManager.default.fileExists(atPath: incompletePath.path) {
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
+                return fileSize
+            }
+        }
+        
+        return 0
     }
 
     /// Sets up and initiates a file download operation
@@ -68,7 +95,7 @@ class Downloader: NSObject, ObservableObject {
     ///   - expectedSize: Expected file size in bytes for validation
     ///   - timeout: Time interval before the request times out
     ///   - numRetries: Number of retry attempts for failed downloads
-    private func setupDownload(
+    private func setUpDownload(
         from url: URL,
         with authToken: String?,
         resumeSize: Int,
@@ -77,59 +104,67 @@ class Downloader: NSObject, ObservableObject {
         timeout: TimeInterval,
         numRetries: Int
     ) {
-        downloadState.value = .downloading(0)
-        urlSession?.getAllTasks { tasks in
+        session?.getAllTasks { tasks in
             // If there's an existing pending background task with the same URL, let it proceed.
             if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
                 switch existing.state {
                 case .running:
-                    // print("Already downloading \(url)")
                     return
                 case .suspended:
-                    // print("Resuming suspended download task for \(url)")
                     existing.resume()
                     return
-                case .canceling:
-                    // print("Starting new download task for \(url), previous was canceling")
-                    break
-                case .completed:
-                    // print("Starting new download task for \(url), previous is complete but the file is no longer present (I think it's cached)")
-                    break
+                case .canceling, .completed:
+                    existing.cancel()
                 @unknown default:
-                    // print("Unknown state for running task; cancelling and creating a new one")
                     existing.cancel()
                 }
             }
-            var request = URLRequest(url: url)
             
-            // Use headers from argument else create an empty header dictionary
-            var requestHeaders = headers ?? [:]
-            
-            // Populate header auth and range fields
-            if let authToken {
-                requestHeaders["Authorization"] = "Bearer \(authToken)"
-            }
-            if resumeSize > 0 {
-                requestHeaders["Range"] = "bytes=\(resumeSize)-"
-            }
-            
-            request.timeoutInterval = timeout
-            request.allHTTPHeaderFields = requestHeaders
-
-            Task {
+            self.downloadTask = Task {
                 do {
-                    // Create a temp file to write
-                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-                    FileManager.default.createFile(atPath: tempURL.path, contents: nil)
-                    let tempFile = try FileHandle(forWritingTo: tempURL)
+                    // Set up the request with appropriate headers
+                    var request = URLRequest(url: url)
+                    var requestHeaders = headers ?? [:]
                     
-                    defer { tempFile.closeFile() }
-                    try await self.httpGet(request: request, tempFile: tempFile, resumeSize: resumeSize, numRetries: numRetries, expectedSize: expectedSize)
+                    if let authToken {
+                        requestHeaders["Authorization"] = "Bearer \(authToken)"
+                    }
+                    
+                    self.downloadedSize = resumeSize
+                    
+                    // Set Range header if we're resuming
+                    if resumeSize > 0 {
+                        requestHeaders["Range"] = "bytes=\(resumeSize)-"
+                        
+                        // Calculate and show initial progress
+                        if let expectedSize, expectedSize > 0 {
+                            let initialProgress = Double(resumeSize) / Double(expectedSize)
+                            self.downloadState.value = .downloading(initialProgress)
+                        } else {
+                            self.downloadState.value = .downloading(0)
+                        }
+                    } else {
+                        self.downloadState.value = .downloading(0)
+                    }
+                    
+                    request.timeoutInterval = timeout
+                    request.allHTTPHeaderFields = requestHeaders
+                    
+                    // Open the incomplete file for writing
+                    let tempFile = try FileHandle(forWritingTo: self.tempFilePath)
+                    
+                    // If resuming, seek to end of file
+                    if resumeSize > 0 {
+                        try tempFile.seekToEnd()
+                    }
+                    
+                    try await self.httpGet(request: request, tempFile: tempFile, resumeSize: self.downloadedSize, numRetries: numRetries, expectedSize: expectedSize)
                     
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
-                    try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
                     
+                    try Task.checkCancellation()
+                    try FileManager.default.moveDownloadedFile(from: self.tempFilePath, to: self.destination)
                     self.downloadState.value = .completed(self.destination)
                 } catch {
                     self.downloadState.value = .failed(error)
@@ -156,7 +191,7 @@ class Downloader: NSObject, ObservableObject {
         numRetries: Int,
         expectedSize: Int?
     ) async throws {
-        guard let session = urlSession else {
+        guard let session else {
             throw DownloadError.unexpectedError
         }
         
@@ -169,16 +204,13 @@ class Downloader: NSObject, ObservableObject {
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
         
-        guard let response = response as? HTTPURLResponse else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw DownloadError.unexpectedError
         }
-                
-        guard (200..<300).contains(response.statusCode) else {
+        guard (200..<300).contains(httpResponse.statusCode) else {
             throw DownloadError.unexpectedError
         }
 
-        var downloadedSize = resumeSize
-        
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
         
@@ -213,12 +245,12 @@ class Downloader: NSObject, ObservableObject {
             try await Task.sleep(nanoseconds: 1_000_000_000)
             
             let config = URLSessionConfiguration.default
-            self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+            self.session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
             
             try await httpGet(
                 request: request,
                 tempFile: tempFile,
-                resumeSize: downloadedSize,
+                resumeSize: self.downloadedSize,
                 numRetries: newNumRetries - 1,
                 expectedSize: expectedSize
             )
@@ -252,7 +284,9 @@ class Downloader: NSObject, ObservableObject {
     }
 
     func cancel() {
-        urlSession?.invalidateAndCancel()
+        session?.invalidateAndCancel()
+        downloadTask?.cancel()
+        downloadState.value = .failed(URLError(.cancelled))
     }
 }
 
@@ -284,9 +318,13 @@ extension Downloader: URLSessionDownloadDelegate {
 
 extension FileManager {
     func moveDownloadedFile(from srcURL: URL, to dstURL: URL) throws {
-        if fileExists(atPath: dstURL.path) {
+        if fileExists(atPath: dstURL.path()) {
             try removeItem(at: dstURL)
         }
+        
+        let directoryURL = dstURL.deletingLastPathComponent()
+        try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+
         try moveItem(at: srcURL, to: dstURL)
     }
 }
