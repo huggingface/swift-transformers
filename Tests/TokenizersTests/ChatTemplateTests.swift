@@ -220,14 +220,16 @@ class ChatTemplateTests: XCTestCase {
     func testApplyTemplateError() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
         XCTAssertFalse(tokenizer.hasChatTemplate)
-        XCTAssertThrowsError(try tokenizer.applyChatTemplate(messages: []))
-        do {
-            _ = try tokenizer.applyChatTemplate(messages: [])
-            XCTFail()
-        } catch let TokenizerError.chatTemplate(message) {
-            XCTAssertEqual(message, "This tokenizer does not have a chat template, and no template was passed.")
-        } catch {
-            XCTFail()
+        XCTAssertThrowsError(try tokenizer.applyChatTemplate(messages: [])) { error in
+            guard let tokenizerError = error as? TokenizerError else {
+                XCTFail("Expected error of type TokenizerError, but got \(type(of: error))")
+                return
+            }
+            if case .missingChatTemplate = tokenizerError {
+                // Correct error caught, test passes
+            } else {
+                XCTFail("Expected .missingChatTemplate, but got \(tokenizerError)")
+            }
         }
     }
 }
