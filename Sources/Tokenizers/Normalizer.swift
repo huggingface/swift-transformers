@@ -41,7 +41,7 @@ enum NormalizerType: String {
 struct NormalizerFactory {
     static func fromConfig(config: Config?) -> Normalizer? {
         guard let config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard let typeName = config.type.string() else { return nil }
         let type = NormalizerType(rawValue: typeName)
         switch type {
         case .Sequence: return NormalizerSequence(config: config)
@@ -65,7 +65,7 @@ class NormalizerSequence: Normalizer {
     let normalizers: [Normalizer]
 
     public required init(config: Config) {
-        guard let configs = config.normalizers?.arrayValue else {
+        guard let configs = config.normalizers.array() else {
             fatalError("No normalizers in Sequence")
         }
         normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
@@ -82,7 +82,7 @@ class PrependNormalizer: Normalizer {
     let prepend: String
 
     public required init(config: Config) {
-        prepend = config.prepend?.stringValue ?? ""
+        prepend = config.prepend.string(or: "")
     }
 
     public func normalize(text: String) -> String {
@@ -150,10 +150,10 @@ class BertNormalizer: Normalizer {
     let shouldLowercase: Bool
 
     required init(config: Config) {
-        shouldCleanText = config.cleanText?.boolValue ?? true
-        shouldHandleChineseChars = config.handleChineseChars?.boolValue ?? true
-        shouldLowercase = config.lowercase?.boolValue ?? true
-        shouldStripAccents = config.stripAccents?.boolValue ?? shouldLowercase
+        shouldCleanText = config.cleanText.boolean(or: true)
+        shouldHandleChineseChars = config.handleChineseChars.boolean(or: true)
+        shouldLowercase = config.lowercase.boolean(or: true)
+        shouldStripAccents = config.stripAccents.boolean(or: shouldLowercase)
     }
 
     func normalize(text: String) -> String {
@@ -281,8 +281,8 @@ class StripNormalizer: Normalizer {
     let rightStrip: Bool
 
     required init(config: Config) {
-        leftStrip = config.stripLeft?.boolValue ?? true
-        rightStrip = config.stripRight?.boolValue ?? true
+        leftStrip = config.stripLeft.boolean(or: true)
+        rightStrip = config.stripRight.boolean(or: true)
     }
 
     func normalize(text: String) -> String {
@@ -322,11 +322,11 @@ extension StringReplacePattern {
 
 extension StringReplacePattern {
     static func from(config: Config) -> StringReplacePattern? {
-        guard let replacement = config.content?.stringValue else { return nil }
-        if let pattern = config.pattern?.String?.stringValue {
+        guard let replacement = config.content.string() else { return nil }
+        if let pattern = config.pattern.String.string() {
             return StringReplacePattern.string(pattern: pattern, replacement: replacement)
         }
-        if let pattern = config.pattern?.Regex?.stringValue {
+        if let pattern = config.pattern.Regex.string() {
             guard let regexp = try? NSRegularExpression(pattern: pattern, options: []) else {
                 fatalError("Cannot build regexp from \(pattern)")
             }
