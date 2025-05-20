@@ -366,14 +366,13 @@ public extension HubApi {
             FileManager.default.fileExists(atPath: destination.path)
         }
         
-        func prepareDestination() throws {
-            let directoryURL = destination.deletingLastPathComponent()
+        /// We're using incomplete destination to prepare cache destination because incomplete files include lfs + non-lfs files (vs only lfs for metadata files)
+        func prepareCacheDestination(_ incompleteDestination: URL) throws {
+            let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-        }
-        
-        func prepareMetadataDestination() throws {
-            let directoryURL = metadataDestination.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+            if !FileManager.default.fileExists(atPath: incompleteDestination.path) {
+                try "".write(to: incompleteDestination, atomically: true, encoding: .utf8)
+            }
         }
         
         /// Note we go from Combine in Downloader to callback-based progress reporting
@@ -423,22 +422,42 @@ public extension HubApi {
             }
             
             // Otherwise, let's download the file!
-            try prepareDestination()
-            try prepareMetadataDestination()
+            let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
+            try prepareCacheDestination(incompleteDestination)
 
-            let downloader = Downloader(from: source, to: destination, using: hfToken, inBackground: backgroundSession, expectedSize: remoteSize)
-            let downloadSubscriber = downloader.downloadState.sink { state in
-                if case let .downloading(progress) = state {
-                    progressHandler(progress)
+            let downloader = Downloader(
+                from: source,
+                to: destination,
+                incompleteDestination: incompleteDestination,
+                using: hfToken,
+                inBackground: backgroundSession,
+                expectedSize: remoteSize
+            )
+            
+            return try await withTaskCancellationHandler {
+                let downloadSubscriber = downloader.downloadState.sink { state in
+                    switch state {
+                    case let .downloading(progress):
+                        progressHandler(progress)
+                    case .completed, .failed, .notStarted:
+                        break
+                    }
                 }
+                do {
+                    _ = try withExtendedLifetime(downloadSubscriber) {
+                        try downloader.waitUntilDone()
+                    }
+                    
+                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    
+                    return destination
+                } catch {
+                    // If download fails, leave the incomplete file in place for future resume
+                    throw error
+                }
+            } onCancel: {
+                downloader.cancel()
             }
-            _ = try withExtendedLifetime(downloadSubscriber) {
-                try downloader.waitUntilDone()
-            }
-            
-            try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
-            
-            return destination
         }
     }
 
