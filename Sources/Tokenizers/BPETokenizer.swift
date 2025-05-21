@@ -21,7 +21,7 @@ struct BytePair: Hashable {
         a = tuple[0]
         b = tuple[1]
     }
-    
+
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
         lhs.a == rhs.a && lhs.b == rhs.b
     }
@@ -72,10 +72,10 @@ class BPETokenizer: PreTrainedTokenizerModel {
             bpeRanks[bp] = i
         }
         self.bpeRanks = bpeRanks
-        
+
         tokensToIds = vocab.merging(addedTokens as [NSString: Int]) { $1 }
         idsToTokens = Utils.invert(tokensToIds)
-        
+
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
@@ -97,7 +97,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
     func convertTokenToId(_ token: String) -> Int? {
         tokensToIds[token as NSString] ?? unknownTokenId
     }
-    
+
     func convertIdToToken(_ id: Int) -> String? {
         idsToTokens[id] as String?
     }
@@ -109,7 +109,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).compactMap { byteEncoder[$0] }.joined()
         }
     }
-    
+
     func hexaEncode(text: String) -> [String] {
         let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
         let tokens = text.ranges(of: RE).map { String(text[$0]) }
@@ -117,7 +117,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
             return Array(token.utf8).map { String(format: "<0x%02X>", $0) }
         }
     }
-    
+
     private func getPairs(word: [String]) -> Set<BytePair> {
         var s = Set<BytePair>()
         for i in 0..<word.count - 1 {
@@ -129,15 +129,15 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
         return s
     }
-    
+
     func bpe(token: String) -> String {
         if token.count <= 1 {
             return token
         }
-        
+
         var word = Array(token).map { String($0) }
         var pairs = Array(getPairs(word: word))
-        
+
         while true {
             let bigrams = pairs.filter { bp -> Bool in bpeRanks[bp] != nil }
             if bigrams.count == 0 {
@@ -158,7 +158,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
                     newWord.append(contentsOf: word[i..<word.count])
                     break
                 }
-                
+
                 if word[i] == first, i < word.count - 1, word[i + 1] == second {
                     newWord.append(first + second)
                     i += 2

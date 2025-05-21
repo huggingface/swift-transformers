@@ -14,56 +14,56 @@ class SplitTests: XCTestCase {
             "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["the-", "final-", "-", "countdown"]
         )
-        
+
         XCTAssertEqual(
             "the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["the-", "final-", "-", "countdown-"]
         )
-        
+
         XCTAssertEqual(
             "the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["the-", "final-", "-", "countdown-", "-"]
         )
-        
+
         XCTAssertEqual(
             "-the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["-", "the-", "final-", "-", "countdown-", "-"]
         )
-        
+
         XCTAssertEqual(
             "--the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
             ["-", "-", "the-", "final-", "-", "countdown-", "-"]
         )
     }
-    
+
     func testSplitBehaviorMergedWithNext() {
         XCTAssertEqual(
             "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
             ["the", "-final", "-", "-countdown"]
         )
-        
+
         XCTAssertEqual(
             "-the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
             ["-the", "-final", "-", "-countdown"]
         )
-        
+
         XCTAssertEqual(
             "--the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
             ["-", "-the", "-final", "-", "-countdown"]
         )
-        
+
         XCTAssertEqual(
             "--the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
             ["-", "-the", "-final", "-", "-countdown", "-"]
         )
     }
-    
+
     func testSplitBehaviorOther() {
         XCTAssertEqual(
             "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .isolated),
             ["the", "-", "final", "-", "-", "countdown"]
         )
-        
+
         XCTAssertEqual(
             "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .removed),
             ["the", "final", "countdown"]
