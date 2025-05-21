@@ -29,14 +29,14 @@ class Downloader: NSObject, ObservableObject {
 
     private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
     private var stateSubscriber: Cancellable?
-    
+
     private(set) var tempFilePath: URL
     private(set) var expectedSize: Int?
     private(set) var downloadedSize: Int = 0
 
     var session: URLSession? = nil
     var downloadTask: Task<Void, Error>? = nil
-    
+
     init(
         from url: URL,
         to destination: URL,
@@ -50,13 +50,13 @@ class Downloader: NSObject, ObservableObject {
     ) {
         self.destination = destination
         self.expectedSize = expectedSize
-        
+
         // Create incomplete file path based on destination
         tempFilePath = incompleteDestination
-        
+
         // If resume size wasn't specified, check for an existing incomplete file
         let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
-        
+
         super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
 
@@ -81,7 +81,7 @@ class Downloader: NSObject, ObservableObject {
                 return fileSize
             }
         }
-        
+
         return 0
     }
 
@@ -119,23 +119,23 @@ class Downloader: NSObject, ObservableObject {
                     existing.cancel()
                 }
             }
-            
+
             self.downloadTask = Task {
                 do {
                     // Set up the request with appropriate headers
                     var request = URLRequest(url: url)
                     var requestHeaders = headers ?? [:]
-                    
+
                     if let authToken {
                         requestHeaders["Authorization"] = "Bearer \(authToken)"
                     }
-                    
+
                     self.downloadedSize = resumeSize
-                    
+
                     // Set Range header if we're resuming
                     if resumeSize > 0 {
                         requestHeaders["Range"] = "bytes=\(resumeSize)-"
-                        
+
                         // Calculate and show initial progress
                         if let expectedSize, expectedSize > 0 {
                             let initialProgress = Double(resumeSize) / Double(expectedSize)
@@ -146,23 +146,23 @@ class Downloader: NSObject, ObservableObject {
                     } else {
                         self.downloadState.value = .downloading(0)
                     }
-                    
+
                     request.timeoutInterval = timeout
                     request.allHTTPHeaderFields = requestHeaders
-                    
+
                     // Open the incomplete file for writing
                     let tempFile = try FileHandle(forWritingTo: self.tempFilePath)
-                    
+
                     // If resuming, seek to end of file
                     if resumeSize > 0 {
                         try tempFile.seekToEnd()
                     }
-                    
+
                     try await self.httpGet(request: request, tempFile: tempFile, resumeSize: self.downloadedSize, numRetries: numRetries, expectedSize: expectedSize)
-                    
+
                     // Clean up and move the completed download to its final destination
                     tempFile.closeFile()
-                    
+
                     try Task.checkCancellation()
                     try FileManager.default.moveDownloadedFile(from: self.tempFilePath, to: self.destination)
                     self.downloadState.value = .completed(self.destination)
@@ -194,16 +194,16 @@ class Downloader: NSObject, ObservableObject {
         guard let session else {
             throw DownloadError.unexpectedError
         }
-        
+
         // Create a new request with Range header for resuming
         var newRequest = request
         if resumeSize > 0 {
             newRequest.setValue("bytes=\(resumeSize)-", forHTTPHeaderField: "Range")
         }
-        
+
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DownloadError.unexpectedError
         }
@@ -213,7 +213,7 @@ class Downloader: NSObject, ObservableObject {
 
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
-        
+
         var newNumRetries = numRetries
         do {
             for try await byte in asyncBytes {
@@ -231,7 +231,7 @@ class Downloader: NSObject, ObservableObject {
                     }
                 }
             }
-            
+
             if !buffer.isEmpty {
                 try tempFile.write(contentsOf: buffer)
                 downloadedSize += buffer.count
@@ -243,10 +243,10 @@ class Downloader: NSObject, ObservableObject {
                 throw error
             }
             try await Task.sleep(nanoseconds: 1_000_000_000)
-            
+
             let config = URLSessionConfiguration.default
             self.session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-            
+
             try await httpGet(
                 request: request,
                 tempFile: tempFile,
@@ -255,14 +255,14 @@ class Downloader: NSObject, ObservableObject {
                 expectedSize: expectedSize
             )
         }
-        
+
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
         if let expectedSize, expectedSize != actualSize {
             throw DownloadError.unexpectedError
         }
     }
-    
+
     @discardableResult
     func waitUntilDone() throws -> URL {
         // It's either this, or stream the bytes ourselves (add to a buffer, save to disk, etc; boring and finicky)
@@ -321,7 +321,7 @@ extension FileManager {
         if fileExists(atPath: dstURL.path()) {
             try removeItem(at: dstURL)
         }
-        
+
         let directoryURL = dstURL.deletingLastPathComponent()
         try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
 

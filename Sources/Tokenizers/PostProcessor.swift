@@ -48,15 +48,15 @@ struct PostProcessorFactory {
 class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
-    
+
     public required init(config: Config) {
         guard let single = config.single?.arrayValue else { fatalError("Missing `single` processor configuration") }
         guard let pair = config.pair?.arrayValue else { fatalError("Missing `pair` processor configuration") }
-        
+
         self.single = single
         self.pair = pair
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] {
         let config = tokensPair == nil ? single : pair
 
@@ -99,7 +99,7 @@ class RobertaProcessing: PostProcessor {
         trimOffset = config.trimOffset?.boolValue ?? true
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? true
     }
-    
+
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
         var outTokens = tokens
         var tokensPair = tokensPair

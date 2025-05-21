@@ -14,27 +14,27 @@ public struct TokenLattice {
     let sentence: String
     let bosTokenId: Int
     let eosTokenId: Int
-    
+
     var nodes: [TokenLatticeNode] = []
     var beginNodes: [[TokenLatticeNode]]
     var endNodes: [[TokenLatticeNode]]
-    
+
     var count: Int { sentence.count }
 
     init(sentence: String, bosTokenId: Int, eosTokenId: Int) {
         self.sentence = sentence
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
-        
+
         beginNodes = Array(repeating: [], count: sentence.count + 1)
         endNodes = Array(repeating: [], count: sentence.count + 1)
-        
+
         let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
         let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: sentence.count, length: 0, score: 0)
-        
+
         nodes.append(bos)
         nodes.append(eos)
-        
+
         beginNodes[sentence.count].append(eos)
         endNodes[0].append(bos)
     }
@@ -63,7 +63,7 @@ extension TokenLattice {
     func viterbi() -> [TokenLatticeNode] {
         for offset in 0...count {
             guard beginNodes[offset].count > 0 else { return [] }
-            
+
             for rnode in beginNodes[offset] {
                 rnode.prev = nil
                 var bestScore: Float = 0
@@ -75,14 +75,14 @@ extension TokenLattice {
                         bestScore = score
                     }
                 }
-                
+
                 if bestNode != nil {
                     rnode.prev = bestNode
                     rnode.backtraceScore = bestScore
                 }
             }
         }
-        
+
         let root = beginNodes[count][0]
         guard let prev = root.prev else { return [] }
 
@@ -95,7 +95,7 @@ extension TokenLattice {
         }
         return result.reversed()
     }
-    
+
     /// Returns the substring of the sentence to be tokenized associated to the specified node
     ///
     /// - Parameters:
@@ -113,7 +113,7 @@ public extension TokenLattice {
     var tokens: [String] {
         viterbi().map { String(piece($0)) }
     }
-    
+
     var tokenIds: [Int] {
         viterbi().map { $0.tokenId }
     }
@@ -124,10 +124,10 @@ class TokenLatticeNode {
     let startOffset: Int
     let length: Int
     let score: Float
-    
+
     var prev: TokenLatticeNode?
     var backtraceScore: Float = 0
-    
+
     init(tokenId: Int, startOffset: Int, length: Int, score: Float, prev: TokenLatticeNode? = nil, backtraceScore: Float = 0) {
         self.tokenId = tokenId
         self.startOffset = startOffset

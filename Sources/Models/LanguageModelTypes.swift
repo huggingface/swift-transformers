@@ -15,9 +15,9 @@ public protocol LanguageModelProtocol {
 
     var tokenizer: Tokenizer { get async throws }
     var model: MLModel { get }
-    
+
     init(model: MLModel)
-    
+
     /// Make prediction callable (this works like __call__ in Python)
     func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
     func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol

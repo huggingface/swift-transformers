@@ -25,7 +25,7 @@ public extension MLMultiArray {
         }
         return o
     }
-    
+
     /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
     static func from(_ arr: [Double], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
@@ -41,7 +41,7 @@ public extension MLMultiArray {
         }
         return o
     }
-    
+
     /// This will concatenate all dimensions into one one-dim array.
     static func toIntArray(_ o: MLMultiArray) -> [Int] {
         var arr = Array(repeating: 0, count: o.count)
@@ -51,9 +51,9 @@ public extension MLMultiArray {
         }
         return arr
     }
-    
+
     func toIntArray() -> [Int] { Self.toIntArray(self) }
-    
+
     /// This will concatenate all dimensions into one one-dim array.
     static func toDoubleArray(_ o: MLMultiArray) -> [Double] {
         var arr: [Double] = Array(repeating: 0, count: o.count)
@@ -63,9 +63,9 @@ public extension MLMultiArray {
         }
         return arr
     }
-    
+
     func toDoubleArray() -> [Double] { Self.toDoubleArray(self) }
-    
+
     /// Helper to construct a sequentially-indexed multi array,
     /// useful for debugging and unit tests
     /// Example in 3 dimensions:
@@ -93,7 +93,7 @@ public extension MLMultiArray {
         case select(Int)
         case slice
     }
-    
+
     /// Slice an array according to a list of `Indexing` enums.
     ///
     /// You must specify all dimensions.
@@ -117,7 +117,7 @@ public extension MLMultiArray {
             selectDims: selectDims
         )
     }
-    
+
     /// Slice an array according to a list, according to `sliceDim` (which dimension to slice on)
     /// and a dictionary of `dim` to `index`.
     ///
@@ -130,7 +130,7 @@ public extension MLMultiArray {
         shape[sliceDim] = o.shape[sliceDim]
         // print("About to slice ndarray of shape \(o.shape) into ndarray of shape \(shape)")
         let arr = try! MLMultiArray(shape: shape, dataType: .double)
-        
+
         // let srcPtr = UnsafeMutablePointer<Double>(OpaquePointer(o.dataPointer))
         // TODO: use srcPtr instead of array subscripting.
         let dstPtr = UnsafeMutablePointer<Double>(OpaquePointer(arr.dataPointer))
@@ -154,7 +154,7 @@ extension MLMultiArray {
     var debug: String {
         debug([])
     }
-    
+
     /// From https://twitter.com/mhollemans
     ///
     /// Slightly tweaked
@@ -163,11 +163,11 @@ extension MLMultiArray {
         func indent(_ x: Int) -> String {
             String(repeating: " ", count: x)
         }
-        
+
         // This function is called recursively for every dimension.
         // Add an entry for this dimension to the end of the array.
         var indices = indices + [0]
-        
+
         let d = indices.count - 1 // the current dimension
         let N = shape[d].intValue // how many elements in this dimension
         var s = "["

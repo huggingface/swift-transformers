@@ -32,7 +32,7 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
         case model
         case dataset
         case space
-        
+
         var asHubApiRepoType: HubApi.RepoType {
             switch self {
             case .model: .models
@@ -41,7 +41,7 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
             }
         }
     }
-    
+
     @Argument(help: "Repo ID")
     var repo: String
 
@@ -50,10 +50,10 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
 
     @Option(help: "Glob patterns for files to include")
     var include: [String] = []
-    
+
     @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
-        
+
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let repo = Hub.Repo(id: repo, type: repoType.asHubApiRepoType)
@@ -70,10 +70,10 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
 
 struct Whoami: AsyncParsableCommand, SubcommandWithToken {
     static let configuration = CommandConfiguration(abstract: "whoami")
-         
+
     @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
-    
+
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()

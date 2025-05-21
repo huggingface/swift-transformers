@@ -52,7 +52,7 @@ struct Squad {
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let squadDataset = try! decoder.decode(SquadDataset.self, from: json)
-        
+
         var examples: [SquadExample] = []
         for datum in squadDataset.data {
             for paragraph in datum.paragraphs {

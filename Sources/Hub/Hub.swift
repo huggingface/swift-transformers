@@ -56,7 +56,7 @@ public extension Hub {
         case datasets
         case spaces
     }
-    
+
     struct Repo: Codable {
         public let id: String
         public let type: RepoType
