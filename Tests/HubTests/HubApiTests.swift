@@ -90,7 +90,7 @@ class HubApiTests: XCTestCase {
     
     func testGetFileMetadata() async throws {
         do {
-            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")
+            let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
             
             XCTAssertNotNil(metadata.commitHash)
@@ -104,7 +104,7 @@ class HubApiTests: XCTestCase {
     
     func testGetFileMetadataBlobPath() async throws {
         do {
-            let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")
+            let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
             
             XCTAssertNotNil(metadata.commitHash)
