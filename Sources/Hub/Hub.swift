@@ -155,10 +155,11 @@ public class LanguageModelConfigurationFromHub {
 
     public init(
         modelName: String,
+        revision: String = "main",
         hubApi: HubApi = .shared
     ) {
         configPromise = Task.init {
-            try await self.loadConfig(modelName: modelName, hubApi: hubApi)
+            try await self.loadConfig(modelName: modelName, revision: revision, hubApi: hubApi)
         }
     }
 
@@ -216,13 +217,14 @@ public class LanguageModelConfigurationFromHub {
 
     func loadConfig(
         modelName: String,
+        revision: String,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
         let filesToDownload = ["config.json", "tokenizer_config.json", "chat_template.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)
 
         do {
-            let downloadedModelFolder = try await hubApi.snapshot(from: repo, matching: filesToDownload)
+            let downloadedModelFolder = try await hubApi.snapshot(from: repo, revision: revision, matching: filesToDownload)
             return try await loadConfig(modelFolder: downloadedModelFolder, hubApi: hubApi)
         } catch {
             // Convert generic errors to more specific ones

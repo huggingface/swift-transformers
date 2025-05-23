@@ -48,6 +48,9 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
     @Option(help: "Repo type")
     var repoType: RepoType = .model
 
+    @Option(help: "Specific revision (e.g. branch, commit hash or tag")
+    var revision: String = "main"
+    
     @Option(help: "Glob patterns for files to include")
     var include: [String] = []
     
@@ -57,7 +60,7 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let repo = Hub.Repo(id: repo, type: repoType.asHubApiRepoType)
-        let downloadedTo = try await hubApi.snapshot(from: repo, matching: include) { progress in
+        let downloadedTo = try await hubApi.snapshot(from: repo, revision: revision, matching: include) { progress in
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%", terminator: "\r")
