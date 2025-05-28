@@ -142,9 +142,9 @@ public extension HubApi {
         return (data, response)
     }
     
-    func getFilenames(from repo: Repo, matching globs: [String] = []) async throws -> [String] {
+    func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
-        let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)")!
+        let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)/revision/\(revision)")!
         let (data, _) = try await httpGet(for: url)
         let response = try JSONDecoder().decode(SiblingsResponse.self, from: data)
         let filenames = response.siblings.map { $0.rfilename }
@@ -506,7 +506,7 @@ public extension HubApi {
             return repoDestination
         }
 
-        let filenames = try await getFilenames(from: repo, matching: globs)
+        let filenames = try await getFilenames(from: repo, revision: revision, matching: globs)
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
