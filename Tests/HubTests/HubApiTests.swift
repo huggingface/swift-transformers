@@ -1081,7 +1081,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: filePath.path),
                       "Downloaded file should exist at \(filePath.path)")
     }
-    
+
     func testDownloadWithRevision() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil

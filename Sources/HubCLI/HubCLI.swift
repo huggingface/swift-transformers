@@ -50,7 +50,7 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
 
     @Option(help: "Specific revision (e.g. branch, commit hash or tag)")
     var revision: String = "main"
-    
+
     @Option(help: "Glob patterns for files to include")
     var include: [String] = []
 
