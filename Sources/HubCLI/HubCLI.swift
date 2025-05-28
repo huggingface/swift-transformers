@@ -80,9 +80,9 @@ struct Whoami: AsyncParsableCommand, SubcommandWithToken {
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()
-        if let name = userInfo.name?.stringValue,
-           let fullname = userInfo.fullname?.stringValue,
-           let email = userInfo.email?.stringValue
+        if let name = userInfo["name"].string(),
+           let fullname = userInfo["fullname"].string(),
+           let email = userInfo["email"].string()
         {
             print("\(name) (\(fullname) <\(email)>)")
         } else {

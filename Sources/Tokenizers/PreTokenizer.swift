@@ -54,7 +54,7 @@ enum PreTokenizerType: String {
 struct PreTokenizerFactory {
     static func fromConfig(config: Config?) -> PreTokenizer? {
         guard let config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard let typeName = config.type.string() else { return nil }
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
         case .Sequence: return PreTokenizerSequence(config: config)
@@ -87,7 +87,7 @@ class PreTokenizerSequence: PreTokenizer {
     let preTokenizers: [PreTokenizer]
 
     required init(config: Config) {
-        guard let configs = config.pretokenizers?.arrayValue else { fatalError("No pretokenizers in Sequence") }
+        guard let configs = config.pretokenizers.array() else { fatalError("No pretokenizers in Sequence") }
         preTokenizers = configs.compactMap { PreTokenizerFactory.fromConfig(config: $0) }
     }
 
@@ -137,10 +137,10 @@ class MetaspacePreTokenizer: PreTokenizer {
     let prependScheme: PrependScheme
 
     required init(config: Config) {
-        addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
-        replacement = config.replacement?.stringValue ?? " "
-        stringReplacement = config.strRep?.stringValue ?? replacement
-        prependScheme = PrependScheme.from(rawValue: config.prependScheme?.stringValue)
+        addPrefixSpace = config.addPrefixSpace.boolean(or: false)
+        replacement = config.replacement.string(or: " ")
+        stringReplacement = config.strRep.string(or: replacement)
+        prependScheme = PrependScheme.from(rawValue: config.prependScheme.string())
     }
 
     /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
@@ -179,9 +179,9 @@ class ByteLevelPreTokenizer: PreTokenizer {
     let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
 
     required init(config: Config) {
-        addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
-        trimOffsets = config.trimOffsets?.boolValue ?? true
-        useRegex = config.useRegex?.boolValue ?? true
+        addPrefixSpace = config.addPrefixSpace.boolean(or: false)
+        trimOffsets = config.trimOffsets.boolean(or: true)
+        useRegex = config.useRegex.boolean(or: true)
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
@@ -215,7 +215,7 @@ class DigitsPreTokenizer: PreTokenizer {
     let re: String
 
     required init(config: Config) {
-        let individualDigits = config.individualDigits?.boolValue ?? false
+        let individualDigits = config.individualDigits.boolean(or: false)
         re = "[^\\d]+|\\d\(individualDigits ? "" : "+")"
     }
 
@@ -230,7 +230,7 @@ class SplitPreTokenizer: PreTokenizer {
 
     required init(config: Config) {
         pattern = StringSplitPattern.from(config: config)
-        invert = config.invert?.boolValue ?? false
+        invert = config.invert.boolean(or: false)
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
@@ -257,10 +257,10 @@ extension StringSplitPattern {
 
 extension StringSplitPattern {
     static func from(config: Config) -> StringSplitPattern? {
-        if let pattern = config.pattern?.String?.stringValue {
+        if let pattern = config.pattern.String.string() {
             return StringSplitPattern.string(pattern: pattern)
         }
-        if let pattern = config.pattern?.Regex?.stringValue {
+        if let pattern = config.pattern.Regex.string() {
             return StringSplitPattern.regexp(regexp: pattern)
         }
         return nil

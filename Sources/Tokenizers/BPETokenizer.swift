@@ -51,19 +51,23 @@ class BPETokenizer: PreTrainedTokenizerModel {
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config else { return nil }
 
-        // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
-        if let merges = config.value as? [[String]] { return merges }
-
-        // Legacy: each merge is a string
-        guard let merges = config.value as? [String] else { return nil }
-        return merges.map { mergeString in
-            mergeString.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) }
+        if let merges = config.array() {
+            return merges.reduce(into: [[String]]()) { result, element in
+                if let val: [String] = element.get() { // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
+                    result.append(val)
+                }
+                if let val: String = element.get() { // legacy
+                    result.append(val.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) })
+                }
+            }
         }
+
+        return nil
     }
 
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard let merges = Self.mergesFromConfig(tokenizerData.model?.merges) else { fatalError("BPETokenizer requires merges") }
-        guard let vocab = tokenizerData.model?.vocab?.dictionary as? [NSString: Int] else {
+        guard let merges = Self.mergesFromConfig(tokenizerData.model.merges) else { fatalError("BPETokenizer requires merges") }
+        guard let vocab = tokenizerData.model.vocab.dictionary() else {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: [BytePair: Int] = [:]
@@ -73,7 +77,13 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
         self.bpeRanks = bpeRanks
 
-        tokensToIds = vocab.merging(addedTokens as [NSString: Int]) { $1 }
+        let addedTokens = addedTokens.reduce(into: [BinaryDistinctString: Config]()) { result, element in
+            result[BinaryDistinctString(element.key)] = .init(element.value)
+        }
+        tokensToIds = vocab.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
+            result[element.key.nsString] = element.value.integer()
+        }
+
         idsToTokens = Utils.invert(tokensToIds)
 
         // Populate tokens
@@ -91,7 +101,7 @@ class BPETokenizer: PreTrainedTokenizerModel {
         bosToken = addedTokenAsString(tokenizerConfig.bosToken)
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
-        fuseUnknownTokens = tokenizerConfig.fuseUnk?.boolValue ?? false
+        fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
     }
 
     func convertTokenToId(_ token: String) -> Int? {
@@ -158,7 +168,6 @@ class BPETokenizer: PreTrainedTokenizerModel {
                     newWord.append(contentsOf: word[i..<word.count])
                     break
                 }
-
                 if word[i] == first, i < word.count - 1, word[i + 1] == second {
                     newWord.append(first + second)
                     i += 2

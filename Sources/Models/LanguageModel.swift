@@ -159,33 +159,33 @@ public extension LanguageModel {
 
     var modelType: String? {
         get async throws {
-            try await modelConfig.modelType?.stringValue
+            try await modelConfig.modelType.string()
         }
     }
 
     var textGenerationParameters: Config? {
         get async throws {
-            try await modelConfig.taskSpecificParams?.textGeneration
+            try await modelConfig.taskSpecificParams.textGeneration
         }
     }
 
     var defaultDoSample: Bool {
         get async throws {
-            try await textGenerationParameters?.doSample?.boolValue ?? true
+            try await textGenerationParameters?.doSample.boolean() ?? true
         }
     }
 
     var bosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            return modelConfig.bosTokenId?.intValue
+            return modelConfig.bosTokenId.integer()
         }
     }
 
     var eosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            return modelConfig.eosTokenId?.intValue
+            return modelConfig.eosTokenId.integer()
         }
     }
 

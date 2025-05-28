@@ -25,14 +25,15 @@ public class BertTokenizer {
 
     public let fuseUnknownTokens: Bool
 
-    public init(vocab: [String: Int],
-                merges: [String]?,
-                tokenizeChineseChars: Bool = true,
-                bosToken: String? = nil,
-                eosToken: String? = nil,
-                fuseUnknownTokens: Bool = false,
-                doLowerCase: Bool = true)
-    {
+    public init(
+        vocab: [String: Int],
+        merges: [String]?,
+        tokenizeChineseChars: Bool = true,
+        bosToken: String? = nil,
+        eosToken: String? = nil,
+        fuseUnknownTokens: Bool = false,
+        doLowerCase: Bool = true
+    ) {
         self.vocab = vocab
         ids_to_tokens = Utils.invert(vocab)
         basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
@@ -46,20 +47,37 @@ public class BertTokenizer {
     }
 
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard var vocab = tokenizerData.model?.vocab?.dictionary as? [String: Int] else { throw TokenizerError.missingVocab }
-        if let addedTokens = tokenizerData.added_tokens?.dictionary["value"] as? [[String: Any]],
-           let pairs = addedTokens.compactMap({ ($0["content"] as? String, $0["id"] as? Int) }) as? [(String, Int)]
-        {
-            vocab.merge(pairs, uniquingKeysWith: { $1 })
+        guard let vocab = tokenizerData.model.vocab.dictionary() else {
+            throw TokenizerError.missingVocab
         }
-        vocab.merge(addedTokens, uniquingKeysWith: { $1 })
-        let merges = tokenizerData.model?.merges?.value as? [String]
-        let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolValue ?? true
-        let eosToken = tokenizerConfig.eosToken?.stringValue
-        let bosToken = tokenizerConfig.bosToken?.stringValue
-        let fuseUnknown = tokenizerConfig.fuseUnk?.boolValue ?? false
-        let doLowerCase = tokenizerConfig.doLowerCase?.boolValue ?? true
-        self.init(vocab: vocab, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken, fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase)
+
+        let merges: [String]? = tokenizerData.model.merges.get()
+        let tokenizeChineseChars = tokenizerConfig.handleChineseChars.boolean(or: true)
+        let eosToken = tokenizerConfig.eosToken.string()
+        let bosToken = tokenizerConfig.bosToken.string()
+        let fuseUnknown = tokenizerConfig.fuseUnk.boolean(or: false)
+        let doLowerCase = tokenizerConfig.doLowerCase.boolean(or: true)
+
+        var vocabulary = vocab.reduce(into: [String: Int]()) { result, element in
+            if let val = element.value.integer() {
+                result[element.key.string] = val
+            }
+        }
+        if let pairs = tokenizerData.addedTokens.array()?.reduce(into: [String: Int](), { result, element in
+            guard let val = element["id"].integer() else { return }
+            guard let key = element["content"].string() else { return }
+
+            result[key] = val
+        }) {
+            vocabulary.merge(pairs, uniquingKeysWith: { $1 })
+        }
+
+        vocabulary.merge(addedTokens, uniquingKeysWith: { $1 })
+
+        self.init(
+            vocab: vocabulary, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
+            fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase
+        )
     }
 
     public func tokenize(text: String) -> [String] {
@@ -104,7 +122,6 @@ public class BertTokenizer {
     func convertWordpieceToBasicTokenList(_ wordpieceTokenList: [String]) -> String {
         var tokenList: [String] = []
         var individualToken = ""
-
         for token in wordpieceTokenList {
             if token.starts(with: "##") {
                 individualToken += String(token.suffix(token.count - 2))
