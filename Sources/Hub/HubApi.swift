@@ -655,7 +655,10 @@ private extension HubApi {
         }
         
         func shouldUseOfflineMode() -> Bool {
-            !isConnected || isExpensive || isConstrained
+            if ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1" {
+                return false
+            }
+            return !isConnected || isExpensive || isConstrained
         }
         
         deinit {
