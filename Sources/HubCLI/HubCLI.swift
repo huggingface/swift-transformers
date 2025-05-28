@@ -48,7 +48,7 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
     @Option(help: "Repo type")
     var repoType: RepoType = .model
 
-    @Option(help: "Specific revision (e.g. branch, commit hash or tag")
+    @Option(help: "Specific revision (e.g. branch, commit hash or tag)")
     var revision: String = "main"
     
     @Option(help: "Glob patterns for files to include")
