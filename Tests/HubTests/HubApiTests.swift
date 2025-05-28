@@ -1113,7 +1113,7 @@ class SnapshotDownloadTests: XCTestCase {
             XCTFail("Expected an error to be thrown")
         } catch let error as Hub.HubClientError {
             switch error {
-            case .resourceNotFound:
+            case .fileNotFound:
                 break // Error type is correct
             default:
                 XCTFail("Wrong error type: \(error)")

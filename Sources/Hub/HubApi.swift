@@ -135,7 +135,7 @@ public extension HubApi {
         switch response.statusCode {
         case 200..<400: break // Allow redirects to pass through to the redirect delegate
         case 401, 403: throw Hub.HubClientError.authorizationRequired
-        case 404: throw Hub.HubClientError.resourceNotFound(url.absoluteString)
+        case 404: throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
 
