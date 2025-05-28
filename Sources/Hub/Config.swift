@@ -530,7 +530,7 @@ public struct Config: Hashable, Sendable,
         if case let .token(val) = self.value {
             return (val.0, val.1.string)
         }
-        
+
         if case let .array(arr) = self.value {
             guard arr.count == 2 else {
                 return nil
@@ -541,10 +541,10 @@ public struct Config: Hashable, Sendable,
             guard let id = arr[1].integer() else {
                 return nil
             }
-            
+
             return (UInt(id), token)
         }
-        
+
         return nil
     }
 

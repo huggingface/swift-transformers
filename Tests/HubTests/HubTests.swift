@@ -85,7 +85,7 @@ class HubTests: XCTestCase {
                 return
             }
             XCTAssertEqual(modelType, "t5")
-                        
+
             guard let summarizationMaxLength = config["taskSpecificParams"]["summarization"]["maxLength"].integer() else {
                 XCTFail("cannot traverse nested containers")
                 return

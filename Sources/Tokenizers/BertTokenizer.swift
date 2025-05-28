@@ -66,14 +66,14 @@ public class BertTokenizer {
         if let pairs = tokenizerData.addedTokens.array()?.reduce(into: [String: Int](), { result, element in
             guard let val = element["id"].integer() else { return }
             guard let key = element["content"].string() else { return }
-            
+
             result[key] = val
         }) {
             vocabulary.merge(pairs, uniquingKeysWith: { $1 })
         }
-        
+
         vocabulary.merge(addedTokens, uniquingKeysWith: { $1 })
-        
+
         self.init(
             vocab: vocabulary, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
             fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase

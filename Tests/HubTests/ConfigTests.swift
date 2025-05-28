@@ -98,6 +98,7 @@ class ConfigAccessorsTests: XCTestCase {
         XCTAssertEqual(cfg.model_type, "bert")
         XCTAssertTrue(cfg.unknown_key.isNull())
     }
+
     func testArray() throws {
         let cfg: Config = [1, 2, 3, 4]
 

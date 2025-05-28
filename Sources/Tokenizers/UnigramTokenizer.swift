@@ -43,7 +43,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
 
         vocab = try configVocab.map { piece in
             let tuple = piece.array(or: [])
-            
+
             guard let token = tuple.first?.string(),
                   let scoreValue = tuple.last
             else {
@@ -66,7 +66,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         minScore = vocab.reduce(999) { partial, token in
             min(partial, token.score)
         }
-        
+
         guard let unknownTokenId = tokenizerData.model["unkId"].integer() else { throw TokenizerError.malformedVocab }
         self.unknownTokenId = unknownTokenId
         unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
