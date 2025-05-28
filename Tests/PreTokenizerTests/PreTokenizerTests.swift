@@ -150,7 +150,7 @@ class PreTokenizerTests: XCTestCase {
             ["Hey", " friend", "!", "    ", " How", " are", " you", "?!?"]
         )
     }
-    
+
     /// https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspacePreTokenizer() {
         // Prepend "always"
@@ -159,7 +159,7 @@ class PreTokenizerTests: XCTestCase {
             "replacement": "▁",
             "prepend_scheme": "always",
         ]))
-        
+
         // TODO: different sections on <s>
         let text = "Hey my friend <s>how▁are you"
         let tokens = text

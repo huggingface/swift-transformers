@@ -7,7 +7,7 @@ import Foundation
 /// and their probabilities.
 public struct TopKLogitsWarper: LogitsWarper {
     public var k: Int
-    
+
     public init(k: Int) {
         self.k = k
     }

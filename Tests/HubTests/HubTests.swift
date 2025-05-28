@@ -29,28 +29,28 @@ class HubTests: XCTestCase {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
             let config = try await configLoader.modelConfig
-            
+
             // Test leaf value (Int)
             guard let eos = config["eos_token_id"].integer() else {
                 XCTFail("nil leaf value (Int)")
                 return
             }
             XCTAssertEqual(eos, 1)
-            
+
             // Test leaf value (String)
             guard let modelType = config["model_type"].string() else {
                 XCTFail("nil leaf value (String)")
                 return
             }
             XCTAssertEqual(modelType, "t5")
-            
+
             // Test leaf value (Array)
             guard let architectures: [String] = config["architectures"].get() else {
                 XCTFail("nil array")
                 return
             }
             XCTAssertEqual(architectures, ["T5ForConditionalGeneration"])
-            
+
             // Test nested wrapper
             guard !config["task_specific_params"].isNull() else {
                 XCTFail("nil nested wrapper")
@@ -66,7 +66,7 @@ class HubTests: XCTestCase {
             XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
-    
+
     func testConfigCamelCase() async {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
@@ -78,7 +78,7 @@ class HubTests: XCTestCase {
                 return
             }
             XCTAssertEqual(eos, 1)
-            
+
             // Test leaf value (String)
             guard let modelType = config["modelType"].string() else {
                 XCTFail("nil leaf value (String)")

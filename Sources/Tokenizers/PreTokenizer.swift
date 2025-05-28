@@ -278,9 +278,7 @@ public extension String {
         return result
     }
 
-    func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true)
-        -> [String]
-    {
+    func split(by string: String, options: CompareOptions = .regularExpression, includeSeparators: Bool = false, omittingEmptySubsequences: Bool = true) -> [String] {
         var result: [String] = []
         var start = startIndex
         while let range = range(of: string, options: options, range: start..<endIndex) {
@@ -293,6 +291,7 @@ public extension String {
             }
             start = range.upperBound
         }
+
         if omittingEmptySubsequences, start < endIndex {
             result.append(String(self[start...]))
         }
