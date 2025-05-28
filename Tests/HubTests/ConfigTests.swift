@@ -90,6 +90,14 @@ class ConfigAccessorsTests: XCTestCase {
         XCTAssertTrue(cfg[-1].isNull())
     }
 
+    func testDynamicLookup() throws {
+        let cfg: Config = ["model_type": "bert"]
+
+        XCTAssertEqual(cfg["model_type"], "bert")
+        XCTAssertEqual(cfg.modelType, "bert")
+        XCTAssertEqual(cfg.model_type, "bert")
+        XCTAssertTrue(cfg.unknown_key.isNull())
+    }
     func testArray() throws {
         let cfg: Config = [1, 2, 3, 4]
 
