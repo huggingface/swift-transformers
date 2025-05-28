@@ -51,13 +51,13 @@ public extension Hub {
         }
     }
 
-    enum RepoType: String {
+    enum RepoType: String, Codable {
         case models
         case datasets
         case spaces
     }
-
-    struct Repo {
+    
+    struct Repo: Codable {
         public let id: String
         public let type: RepoType
 
