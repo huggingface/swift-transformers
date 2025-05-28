@@ -599,9 +599,9 @@ public extension HubApi {
         )
     }
 
-    func getFileMetadata(from repo: Repo, matching globs: [String] = []) async throws -> [FileMetadata] {
+    func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         let files = try await getFilenames(from: repo, matching: globs)
-        let url = URL(string: "\(endpoint)/\(repo.id)/resolve/main")! // TODO: revisions
+        let url = URL(string: "\(endpoint)/\(repo.id)/resolve/\(revision)")!
         var selectedMetadata: [FileMetadata] = []
         for file in files {
             let fileURL = url.appending(path: file)
@@ -610,16 +610,16 @@ public extension HubApi {
         return selectedMetadata
     }
 
-    func getFileMetadata(from repoId: String, matching globs: [String] = []) async throws -> [FileMetadata] {
-        try await getFileMetadata(from: Repo(id: repoId), matching: globs)
+    func getFileMetadata(from repoId: String, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
+        try await getFileMetadata(from: Repo(id: repoId), revision: revision, matching: globs)
     }
 
-    func getFileMetadata(from repo: Repo, matching glob: String) async throws -> [FileMetadata] {
-        try await getFileMetadata(from: repo, matching: [glob])
+    func getFileMetadata(from repo: Repo, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
+        try await getFileMetadata(from: repo, revision: revision, matching: [glob])
     }
 
-    func getFileMetadata(from repoId: String, matching glob: String) async throws -> [FileMetadata] {
-        try await getFileMetadata(from: Repo(id: repoId), matching: [glob])
+    func getFileMetadata(from repoId: String, revision: String = "main", matching glob: String) async throws -> [FileMetadata] {
+        try await getFileMetadata(from: Repo(id: repoId), revision: revision, matching: [glob])
     }
 }
 
