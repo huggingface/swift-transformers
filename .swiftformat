@@ -83,5 +83,5 @@
 --disable blankLineAfterImports,unusedArguments
 --enable docComments
 --disable enumnamespaces
---trimwhitespace nonblank-lines
+--trimwhitespace always
 --disable preferKeyPath

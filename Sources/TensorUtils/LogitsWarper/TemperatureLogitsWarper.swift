@@ -2,7 +2,7 @@ import Foundation
 
 public struct TemperatureLogitsWarper: LogitsWarper {
     public var temperature: Float
-    
+
     public init(temperature: Float) {
         self.temperature = temperature
     }

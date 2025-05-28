@@ -11,7 +11,7 @@ import Hub
 public protocol Decoder {
     func decode(tokens: [String]) -> [String]
     func callAsFunction(tokens: [String]) -> [String]
-    
+
     init(config: Config)
 }
 
@@ -84,12 +84,12 @@ class WordPieceDecoder: Decoder {
 
 class DecoderSequence: Decoder {
     let decoders: [Decoder]
-    
+
     public required init(config: Config) {
         guard let configs = config.decoders?.arrayValue else { fatalError("No decoders in Sequence") }
         decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         decoders.reduce(tokens) { current, decoder in
             decoder(tokens: current)
@@ -99,26 +99,26 @@ class DecoderSequence: Decoder {
 
 class ByteLevelDecoder: Decoder {
     let addedTokens: Set<String>
-    
+
     public required init(config: Config) {
         addedTokens = []
     }
-    
+
     init(config: Config, addedTokens: Set<String>?) {
         self.addedTokens = addedTokens ?? []
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         var subTexts: [String] = []
         var currentSubText: [String] = []
-        
+
         func convertTokensToString(_ tokens: [String]) -> String {
             let text = tokens.joined(separator: "")
-            
+
             let utfCodepoints = text.map { byteDecoder[String($0)]! }
             return String(decoding: utfCodepoints, as: UTF8.self)
         }
-        
+
         for token in tokens {
             if addedTokens.contains(token) {
                 if !currentSubText.isEmpty {
@@ -130,22 +130,22 @@ class ByteLevelDecoder: Decoder {
                 currentSubText.append(token)
             }
         }
-        
+
         if !currentSubText.isEmpty {
             subTexts.append(convertTokensToString(currentSubText))
         }
-        
+
         return subTexts
     }
 }
 
 class ReplaceDecoder: Decoder {
     let pattern: StringReplacePattern?
-    
+
     public required init(config: Config) {
         pattern = StringReplacePattern.from(config: config)
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         guard let pattern else { return tokens }
         return tokens.map { pattern.replace($0) }
@@ -154,7 +154,7 @@ class ReplaceDecoder: Decoder {
 
 class ByteFallbackDecoder: Decoder {
     public required init(config: Config) { }
-    
+
     func decode(tokens: [String]) -> [String] {
         var newTokens: [String] = []
         var byteTokens: [Int] = []
@@ -167,7 +167,7 @@ class ByteFallbackDecoder: Decoder {
             let endIndex = token.index(token.startIndex, offsetBy: 5)
             return Int(token[startIndex..<endIndex], radix: 16)
         }
-        
+
         for token in tokens {
             if let byte = parseByte(token) {
                 byteTokens.append(byte)
@@ -187,7 +187,7 @@ class ByteFallbackDecoder: Decoder {
 
 class FuseDecoder: Decoder {
     public required init(config: Config) { }
-    
+
     func decode(tokens: [String]) -> [String] {
         [tokens.joined(separator: "")]
     }
@@ -197,7 +197,7 @@ class StripDecoder: Decoder {
     let content: String
     let start: Int
     let stop: Int
-    
+
     public required init(config: Config) {
         guard let content = config.content?.stringValue else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
         guard let start = config.start?.intValue else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }
@@ -206,7 +206,7 @@ class StripDecoder: Decoder {
         self.start = start
         self.stop = stop
     }
-    
+
     func decode(tokens: [String]) -> [String] {
         tokens.map { token in
             token.trimmingFromStart(upto: start).trimmingFromEnd(upto: stop)
@@ -217,7 +217,7 @@ class StripDecoder: Decoder {
 class MetaspaceDecoder: Decoder {
     let addPrefixSpace: Bool
     let replacement: String
-    
+
     public required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace?.boolValue ?? false
         replacement = config.replacement?.stringValue ?? "_"

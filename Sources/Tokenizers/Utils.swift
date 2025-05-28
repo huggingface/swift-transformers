@@ -17,7 +17,7 @@ struct Utils {
         print("[\(label)] \(diff)ms")
         return result
     }
-    
+
     /// Time a block in seconds and return (output, time)
     static func time<T>(_ block: () -> T) -> (T, Double) {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -25,24 +25,24 @@ struct Utils {
         let diff = CFAbsoluteTimeGetCurrent() - startTime
         return (result, diff)
     }
-    
+
     /// Return unix timestamp in ms
     static func dateNow() -> Int64 {
         // Use `Int` when we don't support 32-bits devices/OSes anymore.
         // Int crashes on iPhone 5c.
         Int64(Date().timeIntervalSince1970 * 1000)
     }
-    
+
     /// Clamp a val to [min, max]
     static func clamp<T: Comparable>(_ val: T, _ vmin: T, _ vmax: T) -> T {
         min(max(vmin, val), vmax)
     }
-    
+
     /// Fake func that can throw.
     static func fakeThrowable<T>(_ input: T) throws -> T {
         input
     }
-    
+
     /// Substring
     static func substr(_ s: String, _ r: Range<Int>) -> String? {
         let stringCount = s.count
@@ -53,7 +53,7 @@ struct Utils {
         let endIndex = s.index(startIndex, offsetBy: r.upperBound - r.lowerBound)
         return String(s[startIndex..<endIndex])
     }
-    
+
     /// Invert a (k, v) dictionary
     static func invert<K, V>(_ dict: [K: V]) -> [V: K] {
         var inverted: [V: K] = [:]
