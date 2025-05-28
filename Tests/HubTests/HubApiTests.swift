@@ -968,4 +968,45 @@ class SnapshotDownloadTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+    
+    func testDownloadWithRevision() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        var lastProgress: Progress? = nil
+        
+        let commitHash = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
+        let downloadedTo = try await hubApi.snapshot(from: repo, revision: commitHash, matching: "*.json") { progress in
+            print("Total Progress: \(progress.fractionCompleted)")
+            print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
+            lastProgress = progress
+        }
+        
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        XCTAssertEqual(
+            Set(downloadedFilenames),
+            Set([
+                "config.json", "tokenizer.json", "tokenizer_config.json",
+                "llama-2-7b-chat.mlpackage/Manifest.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+            ])
+        )
+        
+        do {
+            let revision = "nonexistent-revision"
+            try await hubApi.snapshot(from: repo, revision: revision, matching: "*.json")
+            XCTFail("Expected an error to be thrown")
+        } catch let error as Hub.HubClientError {
+            switch error {
+            case .resourceNotFound:
+                break // Error type is correct
+            default:
+                XCTFail("Wrong error type: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
 }

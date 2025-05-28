@@ -513,18 +513,18 @@ public extension HubApi {
     }
     
     @discardableResult
-    func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
+    func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, progressHandler: progressHandler)
     }
     
     @discardableResult
-    func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: repo, matching: [glob], progressHandler: progressHandler)
+    func snapshot(from repo: Repo, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: repo, revision: revision, matching: [glob], progressHandler: progressHandler)
     }
     
     @discardableResult
-    func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), matching: [glob], progressHandler: progressHandler)
+    func snapshot(from repoId: String, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
     }
 }
 
