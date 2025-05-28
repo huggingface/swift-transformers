@@ -23,7 +23,7 @@ struct TransformersCLI: ParsableCommand {
 
     @Option(help: "Compute units to load model with {all,cpuOnly,cpuAndGPU,cpuAndNeuralEngine}")
     var computeUnits: ComputeUnits = .cpuAndGPU
-    
+
     func generate(model: LanguageModel, config: GenerationConfig, prompt: String, printOutput: Bool = true) {
         let semaphore = DispatchSemaphore(value: 0)
         Task.init { [config] in
@@ -69,15 +69,15 @@ struct TransformersCLI: ParsableCommand {
         let compiledURL = try compile(at: url)
         print("Loading model \(compiledURL)")
         let model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
-        
+
         // Using greedy generation for now
         var config = model.defaultGenerationConfig
         config.doSample = false
         config.maxNewTokens = maxLength
-        
+
         print("Warming up...")
         generate(model: model, config: config, prompt: prompt, printOutput: false)
-        
+
         print("Generating")
         generate(model: model, config: config, prompt: prompt)
     }

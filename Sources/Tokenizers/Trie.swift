@@ -10,9 +10,9 @@ import Foundation
 
 public struct Trie<T: Hashable> {
     public typealias Node = TrieNode<T>
-    
+
     var root: Node
-    
+
     public init(root: Node? = nil) {
         self.root = root ?? Node()
     }
@@ -32,13 +32,13 @@ public extension Trie {
         }
         node.isLeaf = true
     }
-    
+
     func append(contentsOf container: any Sequence<any Sequence<T>>) {
         for t in container {
             insert(t)
         }
     }
-        
+
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
     /// Returns an array
     func commonPrefixSearch(_ text: any Sequence<T>) -> [[T]] {
@@ -55,7 +55,7 @@ public extension Trie {
         }
         return seqs
     }
-    
+
     /// Find all leaf nodes that share a common prefix with the input sequence (usually a text)
     /// Returns an iterator
     func commonPrefixSearchIterator(_ text: any Sequence<T>) -> LeavesWithCommonPrefixIterator<T> {
@@ -86,7 +86,7 @@ public struct LeavesWithCommonPrefixIterator<T: Hashable>: Sequence, IteratorPro
     var text: any Sequence<T>
     var seq: [T] = []
     lazy var iterator = text.makeIterator() as any IteratorProtocol<T>
-    
+
     public mutating func next() -> [T]? {
         while true {
             guard let item = iterator.next() else { return nil }

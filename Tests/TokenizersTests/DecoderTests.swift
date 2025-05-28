@@ -15,7 +15,7 @@ class DecoderTests: XCTestCase {
             "add_prefix_space": true,
             "replacement": "▁",
         ]))
-        
+
         let tokens = ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         let decoded = decoder.decode(tokens: tokens)
 
@@ -24,7 +24,7 @@ class DecoderTests: XCTestCase {
             ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         )
     }
-    
+
     func testWordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
         let decoder = WordPieceDecoder(config: config)
