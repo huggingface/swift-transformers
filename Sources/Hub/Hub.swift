@@ -144,7 +144,7 @@ public class LanguageModelConfigurationFromHub {
         revision: String,
         hubApi: HubApi = .shared
     ) async throws -> Configurations {
-        let filesToDownload = ["config.json", "tokenizer_config.json", "chat_template.json", "tokenizer.json"]
+        let filesToDownload = ["config.json", "tokenizer_config.json", "chat_template.jinja", "chat_template.json", "tokenizer.json"]
         let repo = Hub.Repo(id: modelName)
 
         do {
@@ -195,11 +195,22 @@ public class LanguageModelConfigurationFromHub {
             }
 
             // Check for chat template and merge if available
-            let chatTemplateURL = modelFolder.appending(path: "chat_template.json")
-            if FileManager.default.fileExists(atPath: chatTemplateURL.path),
-               let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateURL),
-               let chatTemplate = chatTemplateConfig.chatTemplate.string()
+            // Prefer .jinja template over .json template
+            var chatTemplate: String? = nil
+            let chatTemplateJinjaURL = modelFolder.appending(path: "chat_template.jinja")
+            let chatTemplateJsonURL = modelFolder.appending(path: "chat_template.json")
+
+            if FileManager.default.fileExists(atPath: chatTemplateJinjaURL.path) {
+                // Try to load .jinja template as plain text
+                chatTemplate = try? String(contentsOf: chatTemplateJinjaURL, encoding: .utf8)
+            } else if FileManager.default.fileExists(atPath: chatTemplateJsonURL.path),
+                      let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
             {
+                // Fall back to .json template
+                chatTemplate = chatTemplateConfig.chatTemplate.string()
+            }
+
+            if let chatTemplate {
                 // Create or update tokenizer config with chat template
                 if var configDict = tokenizerConfig?.dictionary() {
                     configDict["chat_template"] = .init(chatTemplate)
