@@ -616,22 +616,22 @@ public struct Config: Hashable, Sendable,
     }
 }
 
-// Old style, deprecated getters
-extension Config {
+/// Old style, deprecated getters
+public extension Config {
     @available(*, deprecated, message: "Use string() instead")
-    public var stringValue: String? { string() }
+    var stringValue: String? { string() }
 
     @available(*, deprecated, message: "Use integer() instead")
-    public var intValue: Int? { integer() }
+    var intValue: Int? { integer() }
 
     @available(*, deprecated, message: "Use boolean() instead")
-    public var boolValue: Bool? { boolean() }
+    var boolValue: Bool? { boolean() }
 
     @available(*, deprecated, message: "Use array() instead")
-    public var arrayValue: [Config]? { array() }
+    var arrayValue: [Config]? { array() }
 
     @available(*, deprecated, message: "Use token() instead")
-    public var tokenValue: (UInt, String)? { token() }
+    var tokenValue: (UInt, String)? { token() }
 }
 
 extension Config: Codable {
