@@ -80,11 +80,11 @@ class ChatTemplateTests: XCTestCase {
         XCTAssertEqual(decoded, decodedTarget)
     }
 
-    //https://github.com/huggingface/transformers/pull/33957
-    //.jinja files have been introduced! 
+    ///https://github.com/huggingface/transformers/pull/33957
+    ///.jinja files have been introduced!
     func testJinjaOnlyTemplate() async throws {
-        //Repo only contains .jinja file, no chat_template.json
-        let tokenizer = try await AutoTokenizer.from(pretrained: "FL33TW00D-HF/jinja-test") 
+        // Repo only contains .jinja file, no chat_template.json
+        let tokenizer = try await AutoTokenizer.from(pretrained: "FL33TW00D-HF/jinja-test")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [151643, 151669, 74785, 279, 23670, 15473, 4128, 13, 151670]
         let decoded = tokenizer.decode(tokens: encoded)
