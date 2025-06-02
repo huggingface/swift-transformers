@@ -616,6 +616,24 @@ public struct Config: Hashable, Sendable,
     }
 }
 
+/// Old style, deprecated getters
+public extension Config {
+    @available(*, deprecated, message: "Use string() instead")
+    var stringValue: String? { string() }
+
+    @available(*, deprecated, message: "Use integer() instead")
+    var intValue: Int? { integer() }
+
+    @available(*, deprecated, message: "Use boolean() instead")
+    var boolValue: Bool? { boolean() }
+
+    @available(*, deprecated, message: "Use array() instead")
+    var arrayValue: [Config]? { array() }
+
+    @available(*, deprecated, message: "Use token() instead")
+    var tokenValue: (UInt, String)? { token() }
+}
+
 extension Config: Codable {
     public init(from decoder: any Decoder) throws {
         // Try decoding as a single value first (for scalars and null)
