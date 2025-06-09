@@ -7,10 +7,10 @@
 
 import Foundation
 
-public struct Hub: Sendable {}
+public struct Hub: Sendable { }
 
-extension Hub {
-    public enum HubClientError: LocalizedError {
+public extension Hub {
+    enum HubClientError: LocalizedError {
         case authorizationRequired
         case httpStatusCode(Int)
         case parse
@@ -51,13 +51,13 @@ extension Hub {
         }
     }
 
-    public enum RepoType: String, Codable {
+    enum RepoType: String, Codable {
         case models
         case datasets
         case spaces
     }
 
-    public struct Repo: Codable {
+    struct Repo: Codable {
         public let id: String
         public let type: RepoType
 
@@ -82,8 +82,8 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         revision: String = "main",
         hubApi: HubApi = .shared
     ) {
-        self.configPromise = Task.init {
-            return try await Self.loadConfig(modelName: modelName, revision: revision, hubApi: hubApi)
+        configPromise = Task.init {
+            try await Self.loadConfig(modelName: modelName, revision: revision, hubApi: hubApi)
         }
     }
 
@@ -91,8 +91,8 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) {
-        self.configPromise = Task {
-            return try await Self.loadConfig(modelFolder: modelFolder, hubApi: hubApi)
+        configPromise = Task {
+            try await Self.loadConfig(modelFolder: modelFolder, hubApi: hubApi)
         }
     }
 
@@ -204,7 +204,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
                 // Try to load .jinja template as plain text
                 chatTemplate = try? String(contentsOf: chatTemplateJinjaURL, encoding: .utf8)
             } else if FileManager.default.fileExists(atPath: chatTemplateJsonURL.path),
-                let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
+                      let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
             {
                 // Fall back to .json template
                 chatTemplate = chatTemplateConfig.chatTemplate.string()

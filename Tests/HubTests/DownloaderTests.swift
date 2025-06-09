@@ -19,19 +19,18 @@ enum DownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidDownloadLocation:
-            return String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
+            String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
         case .unexpectedError:
-            return String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
+            String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
         }
     }
 }
 
 private extension Downloader {
     func interruptDownload() async {
-        await self.session.get()?.invalidateAndCancel()
+        await session.get()?.invalidateAndCancel()
     }
 }
-
 
 final class DownloaderTests: XCTestCase {
     var tempDir: URL!
@@ -56,18 +55,18 @@ final class DownloaderTests: XCTestCase {
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
         let fileContent = """
-            {
-              "architectures": [
-                "LlamaForCausalLM"
-              ],
-              "bos_token_id": 1,
-              "eos_token_id": 2,
-              "model_type": "llama",
-              "pad_token_id": 0,
-              "vocab_size": 32000
-            }
+        {
+          "architectures": [
+            "LlamaForCausalLM"
+          ],
+          "bos_token_id": 1,
+          "eos_token_id": 2,
+          "model_type": "llama",
+          "pad_token_id": 0,
+          "vocab_size": 32000
+        }
 
-            """
+        """
 
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
@@ -82,9 +81,9 @@ final class DownloaderTests: XCTestCase {
             switch state {
             case .notStarted:
                 continue
-            case .downloading(let progress):
+            case .downloading:
                 continue
-            case .failed(let error):
+            case let .failed(error):
                 throw error
             case .completed:
                 break listen
@@ -110,12 +109,12 @@ final class DownloaderTests: XCTestCase {
 
         let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
         // Download with incorrect expected size
-        let sub = await downloader.download(from: url, expectedSize: 999999)  // Incorrect size
+        let sub = await downloader.download(from: url, expectedSize: 999999) // Incorrect size
         listen: for await state in sub {
             switch state {
             case .notStarted:
                 continue
-            case .downloading(let progress):
+            case .downloading:
                 continue
             case .failed:
                 break listen
@@ -149,7 +148,7 @@ final class DownloaderTests: XCTestCase {
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
         let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
-        let sub = await downloader.download(from: url, expectedSize: 73_194_001)  // Correct size for verification
+        let sub = await downloader.download(from: url, expectedSize: 73_194_001) // Correct size for verification
 
         // First interruption point at 50%
         var threshold = 0.5
@@ -161,19 +160,19 @@ final class DownloaderTests: XCTestCase {
                 switch state {
                 case .notStarted:
                     continue
-                case .downloading(let progress):
-                    if threshold != 1.0 && progress >= threshold {
+                case let .downloading(progress):
+                    if threshold != 1.0, progress >= threshold {
                         // Move to next threshold and interrupt
                         threshold = threshold == 0.5 ? 0.75 : 1.0
                         await downloader.interruptDownload()
                     }
-                case .failed(let error):
+                case let .failed(error):
                     throw error
                 case .completed:
                     break listen
                 }
             }
-            
+
             // Verify the file exists and is complete
             if FileManager.default.fileExists(atPath: destination.path) {
                 let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
