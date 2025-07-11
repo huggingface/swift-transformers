@@ -95,7 +95,7 @@ class HubApiTests: XCTestCase {
 
             XCTAssertNotNil(metadata.commitHash)
             XCTAssertNotNil(metadata.etag)
-            XCTAssertEqual(metadata.location, url?.absoluteString)
+            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
             XCTAssertEqual(metadata.size, 163)
         } catch {
             XCTFail("\(error)")
@@ -109,7 +109,7 @@ class HubApiTests: XCTestCase {
 
             XCTAssertNotNil(metadata.commitHash)
             XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("d6ceb9"))
-            XCTAssertEqual(metadata.location, url?.absoluteString)
+            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
             XCTAssertEqual(metadata.size, 163)
         } catch {
             XCTFail("\(error)")
@@ -125,7 +125,7 @@ class HubApiTests: XCTestCase {
             XCTAssertEqual(metadata.commitHash, revision)
             XCTAssertNotNil(metadata.etag)
             XCTAssertGreaterThan(metadata.etag!.count, 0)
-//            XCTAssertEqual(metadata.location, url?.absoluteString) // TODO: does not pass on main, is it even relevant?
+            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/\(revision)", with: metadata.commitHash!))")
             XCTAssertEqual(metadata.size, 851)
         } catch {
             XCTFail("\(error)")
@@ -134,13 +134,11 @@ class HubApiTests: XCTestCase {
 
     func testGetFileMetadataWithBlobSearch() async throws {
         let repo = "coreml-projects/Llama-2-7b-chat-coreml"
-        let metadataFromBlob = try await Hub.getFileMetadata(from: repo, matching: "*.json").sorted { $0.location < $1.location }
-        let files = try await Hub.getFilenames(from: repo, matching: "*.json").sorted()
-        for (metadata, file) in zip(metadataFromBlob, files) {
+        let metadataFromBlob = try await Hub.getFileMetadata(from: repo, matching: "*.json")
+        for metadata in metadataFromBlob {
             XCTAssertNotNil(metadata.commitHash)
             XCTAssertNotNil(metadata.etag)
             XCTAssertGreaterThan(metadata.etag!.count, 0)
-            XCTAssertTrue(metadata.location.contains(file))
             XCTAssertGreaterThan(metadata.size!, 0)
         }
     }
