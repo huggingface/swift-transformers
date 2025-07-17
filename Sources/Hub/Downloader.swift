@@ -9,10 +9,11 @@
 import Combine
 import Foundation
 
-class Downloader: NSObject, ObservableObject {
-    private(set) var destination: URL
-
-    private let chunkSize = 10 * 1024 * 1024 // 10MB
+final class Downloader: NSObject, Sendable, ObservableObject {
+    private let destination: URL
+    private let incompleteDestination: URL
+    private let downloadResumeState: DownloadResumeState = .init()
+    private let chunkSize: Int
 
     enum DownloadState {
         case notStarted
@@ -27,37 +28,25 @@ class Downloader: NSObject, ObservableObject {
         case tempFileNotFound
     }
 
-    private(set) lazy var downloadState: CurrentValueSubject<DownloadState, Never> = CurrentValueSubject(.notStarted)
-    private var stateSubscriber: Cancellable?
+    private let broadcaster: Broadcaster<DownloadState> = Broadcaster<DownloadState> {
+        DownloadState.notStarted
+    }
 
-    private(set) var tempFilePath: URL
-    private(set) var expectedSize: Int?
-    private(set) var downloadedSize: Int = 0
-
-    var session: URLSession? = nil
-    var downloadTask: Task<Void, Error>? = nil
+    private let sessionConfig: URLSessionConfiguration
+    let session: SessionActor = .init()
+    private let task: TaskActor = .init()
 
     init(
-        from url: URL,
         to destination: URL,
         incompleteDestination: URL,
-        using authToken: String? = nil,
         inBackground: Bool = false,
-        headers: [String: String]? = nil,
-        expectedSize: Int? = nil,
-        timeout: TimeInterval = 10,
-        numRetries: Int = 5
+        chunkSize: Int = 10 * 1024 * 1024 // 10MB
     ) {
         self.destination = destination
-        self.expectedSize = expectedSize
-
         // Create incomplete file path based on destination
-        tempFilePath = incompleteDestination
+        self.incompleteDestination = incompleteDestination
+        self.chunkSize = chunkSize
 
-        // If resume size wasn't specified, check for an existing incomplete file
-        let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
-
-        super.init()
         let sessionIdentifier = "swift-transformers.hub.downloader"
 
         var config = URLSessionConfiguration.default
@@ -66,23 +55,33 @@ class Downloader: NSObject, ObservableObject {
             config.isDiscretionary = false
             config.sessionSendsLaunchEvents = true
         }
-
-        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
-        setUpDownload(from: url, with: authToken, resumeSize: resumeSize, headers: headers, expectedSize: expectedSize, timeout: timeout, numRetries: numRetries)
+        sessionConfig = config
     }
 
-    /// Check if an incomplete file exists for the destination and returns its size
-    /// - Parameter destination: The destination URL for the download
-    /// - Returns: Size of the incomplete file if it exists, otherwise 0
-    static func incompleteFileSize(at incompletePath: URL) -> Int {
-        if FileManager.default.fileExists(atPath: incompletePath.path) {
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
-                return fileSize
-            }
+    func download(
+        from url: URL,
+        using authToken: String? = nil,
+        headers: [String: String]? = nil,
+        expectedSize: Int? = nil,
+        timeout: TimeInterval = 10,
+        numRetries: Int = 5
+    ) async -> AsyncStream<DownloadState> {
+        if let task = await task.get() {
+            task.cancel()
         }
+        await downloadResumeState.setExpectedSize(expectedSize)
+        let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
+        await session.set(URLSession(configuration: sessionConfig, delegate: self, delegateQueue: nil))
+        await setUpDownload(
+            from: url,
+            with: authToken,
+            resumeSize: resumeSize,
+            headers: headers,
+            timeout: timeout,
+            numRetries: numRetries
+        )
 
-        return 0
+        return await broadcaster.subscribe()
     }
 
     /// Sets up and initiates a file download operation
@@ -100,77 +99,92 @@ class Downloader: NSObject, ObservableObject {
         with authToken: String?,
         resumeSize: Int,
         headers: [String: String]?,
-        expectedSize: Int?,
         timeout: TimeInterval,
         numRetries: Int
-    ) {
-        session?.getAllTasks { tasks in
-            // If there's an existing pending background task with the same URL, let it proceed.
-            if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
-                switch existing.state {
-                case .running:
-                    return
-                case .suspended:
-                    existing.resume()
-                    return
-                case .canceling, .completed:
-                    existing.cancel()
-                @unknown default:
-                    existing.cancel()
-                }
-            }
+    ) async {
+        let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
+        guard let tasks = await session.get()?.allTasks else {
+            return
+        }
 
-            self.downloadTask = Task {
+        // If there's an existing pending background task with the same URL, let it proceed.
+        if let existing = tasks.filter({ $0.originalRequest?.url == url }).first {
+            switch existing.state {
+            case .running:
+                return
+            case .suspended:
+                existing.resume()
+                return
+            case .canceling, .completed:
+                existing.cancel()
+                break
+            @unknown default:
+                existing.cancel()
+            }
+        }
+
+        await task.set(
+            Task {
                 do {
-                    // Set up the request with appropriate headers
                     var request = URLRequest(url: url)
+
+                    // Use headers from argument else create an empty header dictionary
                     var requestHeaders = headers ?? [:]
 
+                    // Populate header auth and range fields
                     if let authToken {
                         requestHeaders["Authorization"] = "Bearer \(authToken)"
                     }
 
-                    self.downloadedSize = resumeSize
+                    await self.downloadResumeState.setDownloadedSize(resumeSize)
+
+                    if resumeSize > 0 {
+                        requestHeaders["Range"] = "bytes=\(resumeSize)-"
+                    }
 
                     // Set Range header if we're resuming
                     if resumeSize > 0 {
                         requestHeaders["Range"] = "bytes=\(resumeSize)-"
 
                         // Calculate and show initial progress
-                        if let expectedSize, expectedSize > 0 {
+                        if let expectedSize = await self.downloadResumeState.expectedSize, expectedSize > 0 {
                             let initialProgress = Double(resumeSize) / Double(expectedSize)
-                            self.downloadState.value = .downloading(initialProgress)
+                            await self.broadcaster.broadcast(state: .downloading(initialProgress))
                         } else {
-                            self.downloadState.value = .downloading(0)
+                            await self.broadcaster.broadcast(state: .downloading(0))
                         }
                     } else {
-                        self.downloadState.value = .downloading(0)
+                        await self.broadcaster.broadcast(state: .downloading(0))
                     }
 
                     request.timeoutInterval = timeout
                     request.allHTTPHeaderFields = requestHeaders
 
                     // Open the incomplete file for writing
-                    let tempFile = try FileHandle(forWritingTo: self.tempFilePath)
+                    let tempFile = try FileHandle(forWritingTo: self.incompleteDestination)
 
                     // If resuming, seek to end of file
                     if resumeSize > 0 {
                         try tempFile.seekToEnd()
                     }
 
-                    try await self.httpGet(request: request, tempFile: tempFile, resumeSize: self.downloadedSize, numRetries: numRetries, expectedSize: expectedSize)
+                    defer { tempFile.closeFile() }
 
-                    // Clean up and move the completed download to its final destination
-                    tempFile.closeFile()
+                    try await self.httpGet(request: request, tempFile: tempFile, numRetries: numRetries)
 
                     try Task.checkCancellation()
-                    try FileManager.default.moveDownloadedFile(from: self.tempFilePath, to: self.destination)
-                    self.downloadState.value = .completed(self.destination)
+                    try FileManager.default.moveDownloadedFile(from: self.incompleteDestination, to: self.destination)
+
+                    //                    // Clean up and move the completed download to its final destination
+                    //                    tempFile.closeFile()
+                    //                    try FileManager.default.moveDownloadedFile(from: tempURL, to: self.destination)
+
+                    await self.broadcaster.broadcast(state: .completed(self.destination))
                 } catch {
-                    self.downloadState.value = .failed(error)
+                    await self.broadcaster.broadcast(state: .failed(error))
                 }
             }
-        }
+        )
     }
 
     /// Downloads a file from given URL using chunked transfer and handles retries.
@@ -187,27 +201,26 @@ class Downloader: NSObject, ObservableObject {
     private func httpGet(
         request: URLRequest,
         tempFile: FileHandle,
-        resumeSize: Int,
-        numRetries: Int,
-        expectedSize: Int?
+        numRetries: Int
     ) async throws {
-        guard let session else {
+        guard let session = await session.get() else {
             throw DownloadError.unexpectedError
         }
 
         // Create a new request with Range header for resuming
         var newRequest = request
-        if resumeSize > 0 {
-            newRequest.setValue("bytes=\(resumeSize)-", forHTTPHeaderField: "Range")
+        if await downloadResumeState.downloadedSize > 0 {
+            await newRequest.setValue("bytes=\(downloadResumeState.downloadedSize)-", forHTTPHeaderField: "Range")
         }
 
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
+        guard let response = response as? HTTPURLResponse else {
             throw DownloadError.unexpectedError
         }
-        guard (200..<300).contains(httpResponse.statusCode) else {
+
+        guard (200..<300).contains(response.statusCode) else {
             throw DownloadError.unexpectedError
         }
 
@@ -223,18 +236,19 @@ class Downloader: NSObject, ObservableObject {
                     if !buffer.isEmpty { // Filter out keep-alive chunks
                         try tempFile.write(contentsOf: buffer)
                         buffer.removeAll(keepingCapacity: true)
-                        downloadedSize += chunkSize
+
+                        await downloadResumeState.incDownloadedSize(chunkSize)
                         newNumRetries = 5
-                        guard let expectedSize else { continue }
-                        let progress = expectedSize != 0 ? Double(downloadedSize) / Double(expectedSize) : 0
-                        downloadState.value = .downloading(progress)
+                        guard let expectedSize = await downloadResumeState.expectedSize else { continue }
+                        let progress = await expectedSize != 0 ? Double(downloadResumeState.downloadedSize) / Double(expectedSize) : 0
+                        await broadcaster.broadcast(state: .downloading(progress))
                     }
                 }
             }
 
             if !buffer.isEmpty {
                 try tempFile.write(contentsOf: buffer)
-                downloadedSize += buffer.count
+                await downloadResumeState.incDownloadedSize(buffer.count)
                 buffer.removeAll(keepingCapacity: true)
                 newNumRetries = 5
             }
@@ -244,74 +258,73 @@ class Downloader: NSObject, ObservableObject {
             }
             try await Task.sleep(nanoseconds: 1_000_000_000)
 
-            let config = URLSessionConfiguration.default
-            self.session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+            await self.session.set(URLSession(configuration: self.sessionConfig, delegate: self, delegateQueue: nil))
 
             try await httpGet(
                 request: request,
                 tempFile: tempFile,
-                resumeSize: self.downloadedSize,
-                numRetries: newNumRetries - 1,
-                expectedSize: expectedSize
+                numRetries: newNumRetries - 1
             )
+            return
         }
 
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()
-        if let expectedSize, expectedSize != actualSize {
+        if let expectedSize = await downloadResumeState.expectedSize, expectedSize != actualSize {
             throw DownloadError.unexpectedError
         }
     }
 
-    @discardableResult
-    func waitUntilDone() throws -> URL {
-        // It's either this, or stream the bytes ourselves (add to a buffer, save to disk, etc; boring and finicky)
-        let semaphore = DispatchSemaphore(value: 0)
-        stateSubscriber = downloadState.sink { state in
-            switch state {
-            case .completed: semaphore.signal()
-            case .failed: semaphore.signal()
-            default: break
-            }
-        }
-        semaphore.wait()
-
-        switch downloadState.value {
-        case let .completed(url): return url
-        case let .failed(error): throw error
-        default: throw DownloadError.unexpectedError
-        }
+    func cancel() async {
+        await session.get()?.invalidateAndCancel()
+        await task.get()?.cancel()
+        await broadcaster.broadcast(state: .failed(URLError(.cancelled)))
     }
 
-    func cancel() {
-        session?.invalidateAndCancel()
-        downloadTask?.cancel()
-        downloadState.value = .failed(URLError(.cancelled))
+    /// Check if an incomplete file exists for the destination and returns its size
+    /// - Parameter destination: The destination URL for the download
+    /// - Returns: Size of the incomplete file if it exists, otherwise 0
+    static func incompleteFileSize(at incompletePath: URL) -> Int {
+        if FileManager.default.fileExists(atPath: incompletePath.path) {
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: incompletePath.path), let fileSize = attributes[.size] as? Int {
+                return fileSize
+            }
+        }
+
+        return 0
     }
 }
 
 extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        downloadState.value = .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        Task {
+            await self.broadcaster.broadcast(state: .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)))
+        }
     }
 
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         do {
             // If the downloaded file already exists on the filesystem, overwrite it
             try FileManager.default.moveDownloadedFile(from: location, to: destination)
-            downloadState.value = .completed(destination)
+            Task {
+                await self.broadcaster.broadcast(state: .completed(destination))
+            }
         } catch {
-            downloadState.value = .failed(error)
+            Task {
+                await self.broadcaster.broadcast(state: .failed(error))
+            }
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error {
-            downloadState.value = .failed(error)
-//        } else if let response = task.response as? HTTPURLResponse {
-//            print("HTTP response status code: \(response.statusCode)")
-//            let headers = response.allHeaderFields
-//            print("HTTP response headers: \(headers)")
+            Task {
+                await self.broadcaster.broadcast(state: .failed(error))
+            }
+            //        } else if let response = task.response as? HTTPURLResponse {
+            //            print("HTTP response status code: \(response.statusCode)")
+            //            let headers = response.allHeaderFields
+            //            print("HTTP response headers: \(headers)")
         }
     }
 }
@@ -326,5 +339,98 @@ extension FileManager {
         try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
 
         try moveItem(at: srcURL, to: dstURL)
+    }
+}
+
+private actor DownloadResumeState {
+    var expectedSize: Int?
+    var downloadedSize: Int = 0
+
+    func setExpectedSize(_ size: Int?) {
+        expectedSize = size
+    }
+
+    func setDownloadedSize(_ size: Int) {
+        downloadedSize = size
+    }
+
+    func incDownloadedSize(_ size: Int) {
+        downloadedSize += size
+    }
+}
+
+actor Broadcaster<E: Sendable> {
+    private let initialState: @Sendable () async -> E?
+    private var latestState: E?
+    private var continuations: [UUID: AsyncStream<E>.Continuation] = [:]
+
+    init(initialState: @Sendable @escaping () async -> E?) {
+        self.initialState = initialState
+    }
+
+    deinit {
+        self.continuations.removeAll()
+    }
+
+    func subscribe() -> AsyncStream<E> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.continuations[id] = continuation
+
+            continuation.onTermination = { @Sendable status in
+                Task {
+                    await self.unsubscribe(id)
+                }
+            }
+
+            Task {
+                if let state = self.latestState {
+                    continuation.yield(state)
+                    return
+                }
+                if let state = await self.initialState() {
+                    continuation.yield(state)
+                }
+            }
+        }
+    }
+
+    private func unsubscribe(_ id: UUID) {
+        continuations.removeValue(forKey: id)
+    }
+
+    func broadcast(state: E) async {
+        latestState = state
+        await withTaskGroup(of: Void.self) { group in
+            for continuation in continuations.values {
+                group.addTask {
+                    continuation.yield(state)
+                }
+            }
+        }
+    }
+}
+
+actor SessionActor {
+    private var urlSession: URLSession?
+
+    func set(_ urlSession: URLSession?) {
+        self.urlSession = urlSession
+    }
+
+    func get() -> URLSession? {
+        urlSession
+    }
+}
+
+actor TaskActor {
+    private var task: Task<Void, Error>?
+
+    func set(_ task: Task<Void, Error>?) {
+        self.task = task
+    }
+
+    func get() -> Task<Void, Error>? {
+        task
     }
 }
