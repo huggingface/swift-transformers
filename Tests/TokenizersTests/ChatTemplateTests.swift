@@ -80,7 +80,7 @@ class ChatTemplateTests: XCTestCase {
         XCTAssertEqual(decoded, decodedTarget)
     }
 
-    // https://github.com/huggingface/swift-transformers/issues/210
+    /// https://github.com/huggingface/swift-transformers/issues/210
     func testRepeatedEmojis() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "Qwen/Qwen3-0.6B")
 

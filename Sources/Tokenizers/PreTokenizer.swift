@@ -303,25 +303,25 @@ public extension String {
         // Find the matching capture groups
         let selfRange = NSRange(startIndex..<endIndex, in: self)
         let matches = captureRegex.matches(in: self, options: [], range: selfRange)
-        
+
         if matches.isEmpty { return [self] }
-        
+
         var result: [String] = []
         var start = startIndex
-        
+
         for match in matches {
-            //IMPORTANT: convert from NSRange to Range<String.Index>
-            //https://stackoverflow.com/questions/75543272/convert-a-given-utf8-nsrange-in-a-string-to-a-utf16-nsrange
+            // IMPORTANT: convert from NSRange to Range<String.Index>
+            // https://stackoverflow.com/questions/75543272/convert-a-given-utf8-nsrange-in-a-string-to-a-utf16-nsrange
             guard let matchRange = Range(match.range, in: self) else { continue }
-            
+
             // Add text before the match
             if start < matchRange.lowerBound {
                 result.append(String(self[start..<matchRange.lowerBound]))
             }
-            
+
             // Move start to after the match
             start = matchRange.upperBound
-            
+
             // Append separator, supporting capture groups
             for r in (0..<match.numberOfRanges).reversed() {
                 let nsRange = match.range(at: r)
@@ -331,12 +331,12 @@ public extension String {
                 }
             }
         }
-        
+
         // Append remaining suffix
         if start < endIndex {
             result.append(String(self[start...]))
         }
-        
+
         return result
     }
 }
