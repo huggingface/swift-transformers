@@ -298,7 +298,9 @@ public extension String {
         return result
     }
 
+    /// This version supports capture groups, wheres the one above doesn't
     func split(by captureRegex: NSRegularExpression) -> [String] {
+        // Find the matching capture groups
         let selfRange = NSRange(startIndex..<endIndex, in: self)
         let matches = captureRegex.matches(in: self, options: [], range: selfRange)
         
