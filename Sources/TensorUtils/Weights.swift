@@ -5,7 +5,7 @@ public struct Weights {
         case notSupported(message: String)
         case invalidFile
 
-        public var errorDescription: String? {
+        var errorDescription: String? {
             switch self {
             case let .notSupported(message):
                 String(localized: "The weight format '\(message)' is not supported by this application.", comment: "Error when weight format is not supported")

@@ -15,7 +15,7 @@ public struct HubApi: Sendable {
     var hfToken: String?
     var endpoint: String
     var useBackgroundSession: Bool
-    var useOfflineMode: Bool? = nil
+    var useOfflineMode: Bool?
 
     private let networkMonitor = NetworkMonitor()
     public typealias RepoType = Hub.RepoType
