@@ -29,6 +29,11 @@ public struct HubApi: Sendable {
         useOfflineMode: Bool? = nil
     ) {
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
+        if self.hfToken == nil {
+            print("🔴 NO TOKEN **")
+        } else {
+            print("✅ got token")
+        }
         if let downloadBase {
             self.downloadBase = downloadBase
         } else {
