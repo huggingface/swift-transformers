@@ -20,8 +20,8 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     let unknownPiece: SentencePieceToken
     var unknownTokenScore: Float { unknownPiece.score }
 
-    public let unknownTokenId: Int?
-    public var unknownToken: String? { unknownPiece.token }
+    let unknownTokenId: Int?
+    var unknownToken: String? { unknownPiece.token }
 
     let minScore: Float
     let tokensToIds: [NSString: Int]

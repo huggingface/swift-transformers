@@ -60,7 +60,7 @@ class WordPieceDecoder: Decoder {
     /// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L31
     private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'\\s|n't|'m|'s|'ve|'re)", options: [])
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let prefix = config.prefix.string() else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
         self.prefix = prefix
         cleanup = config.cleanup.boolean(or: false)
@@ -85,7 +85,7 @@ class WordPieceDecoder: Decoder {
 class DecoderSequence: Decoder {
     let decoders: [Decoder]
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let configs = config.decoders.array() else { fatalError("No decoders in Sequence") }
         decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
     }
@@ -100,7 +100,7 @@ class DecoderSequence: Decoder {
 class ByteLevelDecoder: Decoder {
     let addedTokens: Set<String>
 
-    public required init(config: Config) {
+    required init(config: Config) {
         addedTokens = []
     }
 
@@ -142,7 +142,7 @@ class ByteLevelDecoder: Decoder {
 class ReplaceDecoder: Decoder {
     let pattern: StringReplacePattern?
 
-    public required init(config: Config) {
+    required init(config: Config) {
         pattern = StringReplacePattern.from(config: config)
     }
 
@@ -153,7 +153,7 @@ class ReplaceDecoder: Decoder {
 }
 
 class ByteFallbackDecoder: Decoder {
-    public required init(config: Config) { }
+    required init(config: Config) { }
 
     func decode(tokens: [String]) -> [String] {
         var newTokens: [String] = []
@@ -186,7 +186,7 @@ class ByteFallbackDecoder: Decoder {
 }
 
 class FuseDecoder: Decoder {
-    public required init(config: Config) { }
+    required init(config: Config) { }
 
     func decode(tokens: [String]) -> [String] {
         [tokens.joined(separator: "")]
@@ -198,7 +198,7 @@ class StripDecoder: Decoder {
     let start: Int
     let stop: Int
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let content = config.content.string() else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
         guard let start = config.start.integer() else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }
         guard let stop = config.stop.integer() else { fatalError("Incorrect StripDecoder configuration: can't parse `stop`.") }
@@ -218,7 +218,7 @@ class MetaspaceDecoder: Decoder {
     let addPrefixSpace: Bool
     let replacement: String
 
-    public required init(config: Config) {
+    required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace.boolean(or: false)
         replacement = config.replacement.string(or: "_")
     }

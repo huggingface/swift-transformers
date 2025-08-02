@@ -80,6 +80,22 @@ class ChatTemplateTests: XCTestCase {
         XCTAssertEqual(decoded, decodedTarget)
     }
 
+    /// https://github.com/huggingface/swift-transformers/issues/210
+    func testRepeatedEmojis() async throws {
+        let tokenizer = try await AutoTokenizer.from(pretrained: "Qwen/Qwen3-0.6B")
+
+        let testMessages: [[String: String]] = [
+            [
+                "role": "user",
+                "content": "🥳🥳🥳",
+            ],
+        ]
+
+        let encoded = try tokenizer.applyChatTemplate(messages: testMessages)
+        let encodedTarget = [151644, 872, 198, 145863, 145863, 145863, 151645, 198, 151644, 77091, 198]
+        XCTAssertEqual(encoded, encodedTarget)
+    }
+
     /// https://github.com/huggingface/transformers/pull/33957
     /// .jinja files have been introduced!
     func testJinjaOnlyTemplate() async throws {

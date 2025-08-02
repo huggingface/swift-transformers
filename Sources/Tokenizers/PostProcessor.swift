@@ -49,7 +49,7 @@ class TemplateProcessing: PostProcessor {
     let single: [Config]
     let pair: [Config]
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let single = config.single.array() else { fatalError("Missing `single` processor configuration") }
         guard let pair = config.pair.array() else { fatalError("Missing `pair` processor configuration") }
 
@@ -77,7 +77,7 @@ class TemplateProcessing: PostProcessor {
 }
 
 class ByteLevelPostProcessor: PostProcessor {
-    public required init(config: Config) { }
+    required init(config: Config) { }
     func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] { tokens }
 }
 
@@ -89,7 +89,7 @@ class RobertaProcessing: PostProcessor {
     /// Keep one space character on each side. Depends on `trimOffsets` being `true`.
     private let addPrefixSpace: Bool
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
         guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
@@ -146,7 +146,7 @@ class BertProcessing: PostProcessor {
     private let sep: (UInt, String)
     private let cls: (UInt, String)
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
         guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
@@ -168,7 +168,7 @@ class BertProcessing: PostProcessor {
 class SequenceProcessing: PostProcessor {
     private let processors: [PostProcessor]
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let processorConfigs = config.processors.array() else {
             fatalError("Missing `processors` configuration")
         }

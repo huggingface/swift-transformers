@@ -388,7 +388,7 @@ class TokenizerTester {
 
 class TokenizerTests: XCTestCase {
     /// Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
-    static var _tester: TokenizerTester? = nil
+    static var _tester: TokenizerTester?
 
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }

@@ -64,14 +64,14 @@ struct NormalizerFactory {
 class NormalizerSequence: Normalizer {
     let normalizers: [Normalizer]
 
-    public required init(config: Config) {
+    required init(config: Config) {
         guard let configs = config.normalizers.array() else {
             fatalError("No normalizers in Sequence")
         }
         normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
     }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         normalizers.reduce(text) { current, normalizer in
             normalizer(text: current)
         }
@@ -81,11 +81,11 @@ class NormalizerSequence: Normalizer {
 class PrependNormalizer: Normalizer {
     let prepend: String
 
-    public required init(config: Config) {
+    required init(config: Config) {
         prepend = config.prepend.string(or: "")
     }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         prepend + text
     }
 }
@@ -93,36 +93,36 @@ class PrependNormalizer: Normalizer {
 class ReplaceNormalizer: Normalizer {
     let pattern: StringReplacePattern?
 
-    public required init(config: Config) {
+    required init(config: Config) {
         pattern = StringReplacePattern.from(config: config)
     }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         guard let pattern else { return text }
         return pattern.replace(text)
     }
 }
 
 class LowercaseNormalizer: Normalizer {
-    public required init(config: Config) { }
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.lowercased()
     }
 }
 
 class NFDNormalizer: Normalizer {
-    public required init(config: Config) { }
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.decomposedStringWithCanonicalMapping
     }
 }
 
 class NFCNormalizer: Normalizer {
-    public required init(config: Config) { }
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.precomposedStringWithCanonicalMapping
     }
 }

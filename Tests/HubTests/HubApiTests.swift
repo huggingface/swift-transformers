@@ -375,7 +375,7 @@ class SnapshotDownloadTests: XCTestCase {
             ])
         )
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -419,7 +419,7 @@ class SnapshotDownloadTests: XCTestCase {
 
         let originalMetadata = try String(contentsOf: metadataPath, encoding: .utf8)
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "tokenizer.json") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "tokenizer.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -483,7 +483,7 @@ class SnapshotDownloadTests: XCTestCase {
         print("Testing corrupted file.")
         try "a".write(to: metadataDestination.appendingPathComponent("config.json.metadata"), atomically: true, encoding: .utf8)
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -499,7 +499,7 @@ class SnapshotDownloadTests: XCTestCase {
         print("Testing corrupted timestamp.")
         try "a\nb\nc\n".write(to: metadataDestination.appendingPathComponent("config.json.metadata"), atomically: true, encoding: .utf8)
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -552,7 +552,7 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataFile = metadataDestination.appendingPathComponent("llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata")
         try corruptedMetadataString.write(to: metadataFile, atomically: true, encoding: .utf8)
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "*.mlmodel") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "*.mlmodel") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -702,7 +702,7 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
         try FileManager.default.removeItem(atPath: metadataFile.path)
 
-        let _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
+        _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -753,7 +753,7 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
         try "a".write(to: metadataFile, atomically: true, encoding: .utf8)
 
-        let _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
+        _ = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
@@ -804,7 +804,7 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataFile = metadataDestination.appendingPathComponent("config.json.metadata")
         try FileManager.default.removeItem(atPath: metadataFile.path)
 
-        let _ = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
+        _ = try await hubApi.snapshot(from: repo, matching: "config.json") { progress in
             print("Total Progress: \(progress.fractionCompleted)")
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress

@@ -39,14 +39,14 @@ class BPETokenizer: PreTrainedTokenizerModel {
 
     var vocabCount: Int { tokensToIds.count }
 
-    public let bosToken: String?
-    public let bosTokenId: Int?
-    public let eosToken: String?
-    public let eosTokenId: Int?
-    public let unknownToken: String?
-    public let unknownTokenId: Int?
+    let bosToken: String?
+    let bosTokenId: Int?
+    let eosToken: String?
+    let eosTokenId: Int?
+    let unknownToken: String?
+    let unknownTokenId: Int?
 
-    public let fuseUnknownTokens: Bool
+    let fuseUnknownTokens: Bool
 
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config else { return nil }

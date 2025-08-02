@@ -308,21 +308,24 @@ public extension String {
 
         var result: [String] = []
         var start = startIndex
+
         for match in matches {
-            // Safely move the prefix end to the start of the current match
-            let safePrefixEnd = index(startIndex, offsetBy: match.range.lowerBound, limitedBy: endIndex) ?? endIndex
-            if start < safePrefixEnd {
-                result.append(String(self[start..<safePrefixEnd]))
+            // IMPORTANT: convert from NSRange to Range<String.Index>
+            // https://stackoverflow.com/questions/75543272/convert-a-given-utf8-nsrange-in-a-string-to-a-utf16-nsrange
+            guard let matchRange = Range(match.range, in: self) else { continue }
+
+            // Add text before the match
+            if start < matchRange.lowerBound {
+                result.append(String(self[start..<matchRange.lowerBound]))
             }
 
-            // Safely move the start index to the end of the current match
-            let matchEndIndex = index(startIndex, offsetBy: match.range.upperBound, limitedBy: endIndex) ?? endIndex
-            start = matchEndIndex
+            // Move start to after the match
+            start = matchRange.upperBound
 
             // Append separator, supporting capture groups
             for r in (0..<match.numberOfRanges).reversed() {
-                let matchRange = match.range(at: r)
-                if let sepRange = Range(matchRange, in: self) {
+                let nsRange = match.range(at: r)
+                if let sepRange = Range(nsRange, in: self) {
                     result.append(String(self[sepRange]))
                     break
                 }
