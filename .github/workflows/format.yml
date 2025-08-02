@@ -4,6 +4,10 @@ on:
     paths:
       - '**.swift'
   workflow_dispatch:
+
+env:
+  SWIFTFORMAT_VERSION: "0.54.6"
+
 jobs:
   swift-format:
     name: Check Swift Formatting
@@ -13,7 +17,12 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install SwiftFormat
-        run: brew install swiftformat
+        run: |
+          curl -L https://github.com/nicklockwood/SwiftFormat/releases/download/${{ env.SWIFTFORMAT_VERSION }}/swiftformat.zip -o swiftformat.zip
+          unzip swiftformat.zip
+          sudo mv swiftformat /usr/local/bin/
+          chmod +x /usr/local/bin/swiftformat
+          swiftformat --version
         
       - name: Check formatting
         run: |
