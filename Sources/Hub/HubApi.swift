@@ -31,6 +31,7 @@ public struct XetFileData {
     let refreshRoute: String
 }
 
+// `requests` automatically parses Link headers into `response.links`. Swift does not.
 extension HTTPURLResponse {
     func getLinkURL(for rel: String) -> String? {
         guard let linkHeader = allHeaderFields["Link"] as? String else {
