@@ -10,6 +10,23 @@ import Foundation
 import Network
 import os
 
+enum HFHttpHeaders {
+    static let location = "Location"
+    static let etag = "Etag"
+    static let contentLength = "Content-Length"
+    static let repoCommit = "X-Repo-Commit"
+    static let linkedEtag = "X-Linked-Etag"
+    static let linkedSize = "X-Linked-Size"
+    static let xetHash = "X-Xet-Hash"
+    static let xetRefreshRoute = "X-Xet-Refresh-Route"
+    static let linkXetAuthKey = "xet-auth"
+}
+
+public struct XetFileData {
+    let fileHash: String
+    let refreshRoute: String
+}
+
 public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
@@ -24,7 +41,7 @@ public struct HubApi: Sendable {
     public init(
         downloadBase: URL? = nil,
         hfToken: String? = nil,
-        endpoint: String = "https://huggingface.co",
+        endpoint: String? = nil,
         useBackgroundSession: Bool = false,
         useOfflineMode: Bool? = nil
     ) {
@@ -35,7 +52,7 @@ public struct HubApi: Sendable {
             let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             self.downloadBase = documents.appending(component: "huggingface")
         }
-        self.endpoint = endpoint
+        self.endpoint = endpoint ?? Self.hfEndpointfromEnv()
         self.useBackgroundSession = useBackgroundSession
         self.useOfflineMode = useOfflineMode
         NetworkMonitor.shared.startMonitoring()
@@ -50,6 +67,10 @@ public struct HubApi: Sendable {
 }
 
 private extension HubApi {
+    static func hfEndpointfromEnv() -> String {
+        ProcessInfo.processInfo.environment["HF_ENDPOINT"] ?? "https://huggingface.co"
+    }
+
     static func hfTokenFromEnv() -> String? {
         let possibleTokens = [
             { ProcessInfo.processInfo.environment["HF_TOKEN"] },
@@ -573,6 +594,9 @@ public extension HubApi {
 
         /// Size of the file. In case of an LFS file, contains the size of the actual LFS file, not the pointer.
         public let size: Int?
+
+        /// Xet file data, if available. Contains the file hash and the refresh route.
+        public let xetFileData: XetFileData?
     }
 
     /// Metadata about a file in the local directory related to a download process
@@ -600,13 +624,35 @@ public extension HubApi {
         let (_, response) = try await httpHead(for: url)
         let location = response.statusCode == 302 ? response.value(forHTTPHeaderField: "Location") : response.url?.absoluteString
 
+        print("getFileMetadata: \(url) -> \(response)")
+
         return FileMetadata(
-            commitHash: response.value(forHTTPHeaderField: "X-Repo-Commit"),
+            commitHash: response.value(forHTTPHeaderField: HFHttpHeaders.repoCommit),
             etag: normalizeEtag(
-                (response.value(forHTTPHeaderField: "X-Linked-Etag")) ?? (response.value(forHTTPHeaderField: "Etag"))
+                (response.value(forHTTPHeaderField: HFHttpHeaders.linkedEtag)) ?? (response.value(forHTTPHeaderField: HFHttpHeaders.etag))
             ),
             location: location ?? url.absoluteString,
-            size: Int(response.value(forHTTPHeaderField: "X-Linked-Size") ?? response.value(forHTTPHeaderField: "Content-Length") ?? "")
+            size: Int(response.value(forHTTPHeaderField: HFHttpHeaders.linkedSize) ?? response.value(forHTTPHeaderField: HFHttpHeaders.contentLength) ?? ""),
+            xetFileData: parseXetFileDataFromResponse(response: response, endpoint: endpoint)
+        )
+    }
+
+    //https://github.com/huggingface/huggingface_hub/blob/b698915d6b582c72806ac3e91c43bfd8dde35856/src/huggingface_hub/utils/_xet.py#L29
+    private func parseXetFileDataFromResponse(
+        response: HTTPURLResponse?,
+        endpoint: String? = nil
+    ) -> XetFileData? {
+        guard let response = response else {
+            return nil
+        }
+        
+        guard let fileHash = response.allHeaderFields[HFHttpHeaders.xetHash] as? String else {
+            return nil
+        }
+
+        return XetFileData(
+            fileHash: fileHash,
+            refreshRoute: "" 
         )
     }
 

@@ -103,6 +103,18 @@ class HubApiTests: XCTestCase {
         }
     }
 
+    func testGetXetMetadata() async throws {
+        do {
+            let url = URL(string: "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/main/tokenizer.json")
+            let metadata = try await Hub.getFileMetadata(fileURL: url!)
+
+            print("Metadata: \(metadata)")
+
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+
     func testGetFileMetadataBlobPath() async throws {
         do {
             let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
