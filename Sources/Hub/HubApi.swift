@@ -10,10 +10,10 @@ import Foundation
 import Network
 import os
 
-// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
-// `requests` in Python leaves headers as their original casing,
-// where as Swift strictly adheres to RFC 7540 and can force lower case.
-// This is relevant for Xet
+/// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
+/// `requests` in Python leaves headers as their original casing,
+/// where as Swift strictly adheres to RFC 7540 and can force lower case.
+/// This is relevant for Xet
 enum HFHttpHeaders {
     static let location = "Location"
     static let etag = "Etag"
@@ -31,27 +31,27 @@ public struct XetFileData {
     let refreshRoute: String
 }
 
-// `requests` automatically parses Link headers into `response.links`. Swift does not.
+/// `requests` automatically parses Link headers into `response.links`. Swift does not.
 extension HTTPURLResponse {
     func getLinkURL(for rel: String) -> String? {
         guard let linkHeader = allHeaderFields["Link"] as? String else {
             return nil
         }
 
-        
         for link in linkHeader.split(separator: ",") {
             let trimmed = link.trimmingCharacters(in: .whitespaces)
-            
+
             if trimmed.contains("rel=\"\(rel)\"") || trimmed.contains("rel=\(rel)") {
                 if let start = trimmed.firstIndex(of: "<"),
                    let end = trimmed.firstIndex(of: ">"),
-                   start < end {
+                   start < end
+                {
                     let startIndex = trimmed.index(after: start)
                     return String(trimmed[startIndex..<end])
                 }
             }
         }
-        
+
         return nil
     }
 }
@@ -664,26 +664,27 @@ public extension HubApi {
         )
     }
 
-    //https://github.com/huggingface/huggingface_hub/blob/b698915d6b582c72806ac3e91c43bfd8dde35856/src/huggingface_hub/utils/_xet.py#L29
+    /// https://github.com/huggingface/huggingface_hub/blob/b698915d6b582c72806ac3e91c43bfd8dde35856/src/huggingface_hub/utils/_xet.py#L29
     private func parseXetFileDataFromResponse(
         response: HTTPURLResponse?,
         endpoint: String? = nil
     ) -> XetFileData? {
-        guard let response = response else {
+        guard let response else {
             return nil
         }
-        
+
         guard let fileHash = response.allHeaderFields[HFHttpHeaders.xetHash] as? String else {
             return nil
         }
-        
-        guard let refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey) 
-            ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String else {
+
+        guard let refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey)
+            ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String
+        else {
             return nil
         }
-        
-        let finalEndpoint = endpoint ?? "https://huggingface.co" 
-        let finalRefreshRoute = refreshRoute.hasPrefix("https://huggingface.co") 
+
+        let finalEndpoint = endpoint ?? "https://huggingface.co"
+        let finalRefreshRoute = refreshRoute.hasPrefix("https://huggingface.co")
             ? refreshRoute.replacingOccurrences(
                 of: "https://huggingface.co".trimmingCharacters(in: CharacterSet(charactersIn: "/")),
                 with: finalEndpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
