@@ -10,6 +10,10 @@ import Foundation
 import Network
 import os
 
+// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
+// `requests` in Python leaves headers as their original casing,
+// where as Swift strictly adheres to RFC 7540 and can force lower case.
+// This is relevant for Xet
 enum HFHttpHeaders {
     static let location = "Location"
     static let etag = "Etag"
@@ -17,7 +21,7 @@ enum HFHttpHeaders {
     static let repoCommit = "X-Repo-Commit"
     static let linkedEtag = "X-Linked-Etag"
     static let linkedSize = "X-Linked-Size"
-    static let xetHash = "X-Xet-Hash"
+    static let xetHash = "x-xet-hash"
     static let xetRefreshRoute = "X-Xet-Refresh-Route"
     static let linkXetAuthKey = "xet-auth"
 }
@@ -25,6 +29,30 @@ enum HFHttpHeaders {
 public struct XetFileData {
     let fileHash: String
     let refreshRoute: String
+}
+
+extension HTTPURLResponse {
+    func getLinkURL(for rel: String) -> String? {
+        guard let linkHeader = allHeaderFields["Link"] as? String else {
+            return nil
+        }
+
+        
+        for link in linkHeader.split(separator: ",") {
+            let trimmed = link.trimmingCharacters(in: .whitespaces)
+            
+            if trimmed.contains("rel=\"\(rel)\"") || trimmed.contains("rel=\(rel)") {
+                if let start = trimmed.firstIndex(of: "<"),
+                   let end = trimmed.firstIndex(of: ">"),
+                   start < end {
+                    let startIndex = trimmed.index(after: start)
+                    return String(trimmed[startIndex..<end])
+                }
+            }
+        }
+        
+        return nil
+    }
 }
 
 public struct HubApi: Sendable {
@@ -624,8 +652,6 @@ public extension HubApi {
         let (_, response) = try await httpHead(for: url)
         let location = response.statusCode == 302 ? response.value(forHTTPHeaderField: "Location") : response.url?.absoluteString
 
-        print("getFileMetadata: \(url) -> \(response)")
-
         return FileMetadata(
             commitHash: response.value(forHTTPHeaderField: HFHttpHeaders.repoCommit),
             etag: normalizeEtag(
@@ -649,10 +675,23 @@ public extension HubApi {
         guard let fileHash = response.allHeaderFields[HFHttpHeaders.xetHash] as? String else {
             return nil
         }
+        
+        guard let refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey) 
+            ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String else {
+            return nil
+        }
+        
+        let finalEndpoint = endpoint ?? "https://huggingface.co" 
+        let finalRefreshRoute = refreshRoute.hasPrefix("https://huggingface.co") 
+            ? refreshRoute.replacingOccurrences(
+                of: "https://huggingface.co".trimmingCharacters(in: CharacterSet(charactersIn: "/")),
+                with: finalEndpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            )
+            : refreshRoute
 
         return XetFileData(
             fileHash: fileHash,
-            refreshRoute: "" 
+            refreshRoute: finalRefreshRoute
         )
     }
 

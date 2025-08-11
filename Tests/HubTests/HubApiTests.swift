@@ -107,9 +107,6 @@ class HubApiTests: XCTestCase {
         do {
             let url = URL(string: "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/main/tokenizer.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
-
-            print("Metadata: \(metadata)")
-
         } catch {
             XCTFail("\(error)")
         }
