@@ -20,7 +20,7 @@ struct PreTrainedTokenizerClasses {
 
 extension AutoTokenizer {
     static func tokenizerClass(for tokenizerConfig: Config) -> PreTrainedTokenizer.Type {
-        guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.stringValue else {
+        guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.string() else {
             return PreTrainedTokenizer.self
         }
 
@@ -66,18 +66,19 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
     let isLegacy: Bool
 
     required init(tokenizerConfig: Config, tokenizerData: Config) throws {
-        isLegacy = tokenizerConfig.legacy?.boolValue ?? true
-        var configDictionary = tokenizerData.dictionary
+        isLegacy = tokenizerConfig.legacy?.boolean() ?? true
+        var configDictionary = tokenizerData.dictionary(or: [:])
         if !isLegacy {
             configDictionary.removeValue(forKey: "normalizer")
-            configDictionary["pre_tokenizer"] = ["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"]
+            configDictionary["pre_tokenizer"] = Config(["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"])
         }
 
         if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData.postProcessor) {
-            configDictionary["post_processor"] = postProcessorConfig.dictionary
+            configDictionary["post_processor"] = postProcessorConfig
         }
 
         let updatedData = Config(configDictionary)
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
     }
 }
+
