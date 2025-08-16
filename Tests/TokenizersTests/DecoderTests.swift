@@ -4,18 +4,18 @@
 //  Created by Pedro Cuenca on 20231123.
 //
 
-import XCTest
 import Hub
 @testable import Tokenizers
+import XCTest
 
 class DecoderTests: XCTestCase {
-    // https://github.com/huggingface/tokenizers/pull/1357
+    /// https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspaceDecoder() {
         let decoder = MetaspaceDecoder(config: Config([
             "add_prefix_space": true,
             "replacement": "▁",
         ]))
-        
+
         let tokens = ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         let decoded = decoder.decode(tokens: tokens)
 
@@ -24,7 +24,7 @@ class DecoderTests: XCTestCase {
             ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         )
     }
-    
+
     func testWordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
         let decoder = WordPieceDecoder(config: config)

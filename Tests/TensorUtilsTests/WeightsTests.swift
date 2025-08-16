@@ -1,12 +1,9 @@
-@testable import TensorUtils
 @testable import Hub
+@testable import TensorUtils
 import XCTest
 
 class WeightsTests: XCTestCase {
-
-    let downloadDestination: URL = {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
-    }()
+    let downloadDestination: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
 
     var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 

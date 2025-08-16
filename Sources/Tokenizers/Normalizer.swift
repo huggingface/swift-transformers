@@ -17,7 +17,7 @@ public protocol Normalizer {
 
 extension Normalizer {
     func callAsFunction(text: String) -> String {
-        return normalize(text: text)
+        normalize(text: text)
     }
 }
 
@@ -40,8 +40,8 @@ enum NormalizerType: String {
 
 struct NormalizerFactory {
     static func fromConfig(config: Config?) -> Normalizer? {
-        guard let config = config else { return nil }
-        guard let typeName = config.type?.stringValue else { return nil }
+        guard let config else { return nil }
+        guard let typeName = config.type.string() else { return nil }
         let type = NormalizerType(rawValue: typeName)
         switch type {
         case .Sequence: return NormalizerSequence(config: config)
@@ -64,14 +64,14 @@ struct NormalizerFactory {
 class NormalizerSequence: Normalizer {
     let normalizers: [Normalizer]
 
-    required public init(config: Config) {
-        guard let configs = config.normalizers?.arrayValue else {
+    required init(config: Config) {
+        guard let configs = config.normalizers.array() else {
             fatalError("No normalizers in Sequence")
         }
         normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
     }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         normalizers.reduce(text) { current, normalizer in
             normalizer(text: current)
         }
@@ -81,54 +81,54 @@ class NormalizerSequence: Normalizer {
 class PrependNormalizer: Normalizer {
     let prepend: String
 
-    required public init(config: Config) {
-        prepend = config.prepend?.stringValue ?? ""
+    required init(config: Config) {
+        prepend = config.prepend.string(or: "")
     }
 
-    public func normalize(text: String) -> String {
-        return prepend + text
+    func normalize(text: String) -> String {
+        prepend + text
     }
 }
 
 class ReplaceNormalizer: Normalizer {
     let pattern: StringReplacePattern?
 
-    required public init(config: Config) {
-        self.pattern = StringReplacePattern.from(config: config)
+    required init(config: Config) {
+        pattern = StringReplacePattern.from(config: config)
     }
 
-    public func normalize(text: String) -> String {
-        guard let pattern = pattern else { return text }
+    func normalize(text: String) -> String {
+        guard let pattern else { return text }
         return pattern.replace(text)
     }
 }
 
 class LowercaseNormalizer: Normalizer {
-    required public init(config: Config) {}
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.lowercased()
     }
 }
 
 class NFDNormalizer: Normalizer {
-    required public init(config: Config) {}
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.decomposedStringWithCanonicalMapping
     }
 }
 
 class NFCNormalizer: Normalizer {
-    required public init(config: Config) {}
+    required init(config: Config) { }
 
-    public func normalize(text: String) -> String {
+    func normalize(text: String) -> String {
         text.precomposedStringWithCanonicalMapping
     }
 }
 
 class NFKDNormalizer: Normalizer {
-    required init(config: Config) {}
+    required init(config: Config) { }
 
     func normalize(text: String) -> String {
         text.decomposedStringWithCompatibilityMapping
@@ -136,7 +136,7 @@ class NFKDNormalizer: Normalizer {
 }
 
 class NFKCNormalizer: Normalizer {
-    required init(config: Config) {}
+    required init(config: Config) { }
 
     func normalize(text: String) -> String {
         text.precomposedStringWithCompatibilityMapping
@@ -150,10 +150,10 @@ class BertNormalizer: Normalizer {
     let shouldLowercase: Bool
 
     required init(config: Config) {
-        self.shouldCleanText = config.cleanText?.boolValue ?? true
-        self.shouldHandleChineseChars = config.handleChineseChars?.boolValue ?? true
-        self.shouldLowercase = config.lowercase?.boolValue ?? true
-        self.shouldStripAccents = config.stripAccents?.boolValue ?? shouldLowercase
+        shouldCleanText = config.cleanText.boolean(or: true)
+        shouldHandleChineseChars = config.handleChineseChars.boolean(or: true)
+        shouldLowercase = config.lowercase.boolean(or: true)
+        shouldStripAccents = config.stripAccents.boolean(or: shouldLowercase)
     }
 
     func normalize(text: String) -> String {
@@ -177,9 +177,9 @@ class BertNormalizer: Normalizer {
     private func cleanText(text: String) -> String {
         text.map { c in
             guard let scalar = c.unicodeScalars.first,
-                scalar.value != 0x0,
-                scalar.value != 0xFFFD,
-                !isControl(scalar)
+                  scalar.value != 0x0,
+                  scalar.value != 0xFFFD,
+                  !isControl(scalar)
             else { return "\(c)" }
 
             // Replace whitespace: \t, \n, \r
@@ -195,11 +195,11 @@ class BertNormalizer: Normalizer {
     private func isControl(_ c: UnicodeScalar) -> Bool {
         if c.value == 0x009 || c.value == 0x00A || c.value == 0x000D {
             // Except \t, \n, \r that will be spaces.
-            return false
+            false
         } else {
             // https://unicode.org/reports/tr44/#GC_Values_Table
             // Other Cc | Cf | Cs | Co | Cn
-            return isOther(c.properties.generalCategory)
+            isOther(c.properties.generalCategory)
         }
     }
 
@@ -221,14 +221,14 @@ class BertNormalizer: Normalizer {
     private func stripAccents(text: String) -> String {
         // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
         String(text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
-            !(0x0300 <= scalar.value && scalar.value <= 0x036F)
+            !(scalar.value >= 0x0300 && scalar.value <= 0x036F)
         })
     }
 }
 
 class PrecompiledNormalizer: Normalizer {
     // TODO: use `precompiledCharsmap` (base64-encoded string) from the configuration
-    required init(config: Config) {}
+    required init(config: Config) { }
 
     func normalize(text: String) -> String {
         // TODO: This is a simplified implementation.
@@ -236,7 +236,7 @@ class PrecompiledNormalizer: Normalizer {
         // https://github.com/xenova/transformers.js/blob/main/src/tokenizers.js#L2237-L2247
         // - For a proper implementation, see:
         // https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/normalizers/precompiled.rs#L36
-        var output: String = ""
+        var output = ""
         var hasFullwidthTilde = false
 
         for scalar in text.unicodeScalars {
@@ -245,7 +245,7 @@ class PrecompiledNormalizer: Normalizer {
                 // Non-printing control characters
                 output.append("")
             case 0x0009, 0x000A, 0x000C, 0x000D, 0x1680, 0x200B...0x200F, 0x2028, 0x2029, 0x2581,
-                0xFEFF, 0xFFFD:
+                 0xFEFF, 0xFFFD:
                 // Separators
                 output.append(" ")
             case 0xFF5E:
@@ -259,9 +259,9 @@ class PrecompiledNormalizer: Normalizer {
         if hasFullwidthTilde {
             return
                 output
-                .split(by: "\u{FF5E}")
-                .map({ $0.precomposedStringWithCompatibilityMapping })
-                .joined(separator: "\u{FF5E}")
+                    .split(by: "\u{FF5E}")
+                    .map { $0.precomposedStringWithCompatibilityMapping }
+                    .joined(separator: "\u{FF5E}")
         } else {
             return output.precomposedStringWithCompatibilityMapping
         }
@@ -269,7 +269,7 @@ class PrecompiledNormalizer: Normalizer {
 }
 
 class StripAccentsNormalizer: Normalizer {
-    required init(config: Config) {}
+    required init(config: Config) { }
 
     func normalize(text: String) -> String {
         text.precomposedStringWithCompatibilityMapping
@@ -281,8 +281,8 @@ class StripNormalizer: Normalizer {
     let rightStrip: Bool
 
     required init(config: Config) {
-        self.leftStrip = config.stripLeft?.boolValue ?? true
-        self.rightStrip = config.stripRight?.boolValue ?? true
+        leftStrip = config.stripLeft.boolean(or: true)
+        rightStrip = config.stripRight.boolean(or: true)
     }
 
     func normalize(text: String) -> String {
@@ -308,12 +308,13 @@ enum StringReplacePattern {
 extension StringReplacePattern {
     func replace(_ text: String) -> String {
         switch self {
-        case .regexp(let regexp, let replacement):
+        case let .regexp(regexp, replacement):
             let range = NSRange(text.startIndex..., in: text)
             let replaced = regexp.stringByReplacingMatches(
-                in: text, options: [], range: range, withTemplate: replacement)
+                in: text, options: [], range: range, withTemplate: replacement
+            )
             return replaced
-        case .string(let toReplace, let replacement):
+        case let .string(toReplace, replacement):
             return text.replacingOccurrences(of: toReplace, with: replacement)
         }
     }
@@ -321,11 +322,11 @@ extension StringReplacePattern {
 
 extension StringReplacePattern {
     static func from(config: Config) -> StringReplacePattern? {
-        guard let replacement = config.content?.stringValue else { return nil }
-        if let pattern = config.pattern?.String?.stringValue {
+        guard let replacement = config.content.string() else { return nil }
+        if let pattern = config.pattern.String.string() {
             return StringReplacePattern.string(pattern: pattern, replacement: replacement)
         }
-        if let pattern = config.pattern?.Regex?.stringValue {
+        if let pattern = config.pattern.Regex.string() {
             guard let regexp = try? NSRegularExpression(pattern: pattern, options: []) else {
                 fatalError("Cannot build regexp from \(pattern)")
             }

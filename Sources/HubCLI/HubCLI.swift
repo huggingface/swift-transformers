@@ -15,13 +15,12 @@ struct HubCLI: AsyncParsableCommand {
 }
 
 protocol SubcommandWithToken {
-
     var token: String? { get }
 }
 
 extension SubcommandWithToken {
     var hfToken: String? {
-        if let token = token { return token }
+        if let token { return token }
         return try? String(contentsOfFile: defaultTokenLocation, encoding: .utf8)
     }
 }
@@ -33,32 +32,35 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
         case model
         case dataset
         case space
-        
+
         var asHubApiRepoType: HubApi.RepoType {
             switch self {
-            case .model: return .models
-            case .dataset: return .datasets
-            case .space: return .spaces
+            case .model: .models
+            case .dataset: .datasets
+            case .space: .spaces
             }
         }
     }
-    
+
     @Argument(help: "Repo ID")
     var repo: String
 
     @Option(help: "Repo type")
     var repoType: RepoType = .model
 
+    @Option(help: "Specific revision (e.g. branch, commit hash or tag)")
+    var revision: String = "main"
+
     @Option(help: "Glob patterns for files to include")
     var include: [String] = []
-    
+
     @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
-        
+
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let repo = Hub.Repo(id: repo, type: repoType.asHubApiRepoType)
-        let downloadedTo = try await hubApi.snapshot(from: repo, matching: include) { progress in
+        let downloadedTo = try await hubApi.snapshot(from: repo, revision: revision, matching: include) { progress in
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%", terminator: "\r")
@@ -71,16 +73,16 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
 
 struct Whoami: AsyncParsableCommand, SubcommandWithToken {
     static let configuration = CommandConfiguration(abstract: "whoami")
-         
+
     @Option(help: "Hugging Face token. If empty, will attempt to read from the filesystem at \(defaultTokenLocation)")
     var token: String? = nil
-    
+
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()
-        if let name = userInfo.name?.stringValue,
-           let fullname = userInfo.fullname?.stringValue,
-           let email = userInfo.email?.stringValue
+        if let name = userInfo["name"].string(),
+           let fullname = userInfo["fullname"].string(),
+           let email = userInfo["email"].string()
         {
             print("\(name) (\(fullname) <\(email)>)")
         } else {
@@ -91,6 +93,6 @@ struct Whoami: AsyncParsableCommand, SubcommandWithToken {
 
 extension Double {
     func formatted(_ format: String) -> String {
-        return String(format: "\(format)", self)
+        String(format: "\(format)", self)
     }
 }
