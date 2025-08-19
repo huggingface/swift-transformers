@@ -5,6 +5,7 @@
 //
 
 import Hub
+@testable import Tokenizers
 import XCTest
 
 @testable import TokenizersCore

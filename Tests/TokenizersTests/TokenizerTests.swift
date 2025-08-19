@@ -10,7 +10,8 @@ import Hub
 import XCTest
 
 @testable import Models
-@testable import TokenizersCore
+@testable import Tokenizers
+import XCTest
 
 class GPT2TokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "distilgpt2" }

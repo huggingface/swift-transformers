@@ -1,7 +1,8 @@
 import XCTest
 
 @testable import Hub
-@testable import TokenizersCore
+@testable import Tokenizers
+import XCTest
 
 class PostProcessorTests: XCTestCase {
     func testRobertaProcessing() {

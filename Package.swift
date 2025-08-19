@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -14,14 +14,18 @@ let package = Package(
     products: [
         .library(name: "Hub", targets: ["Hub"]),
         // ^ Hub client library
-        .library(name: "TokenizersCore", targets: ["TokenizersCore"]),
-        // ^ Basic tokenizers without chat template support
         .library(name: "Tokenizers", targets: ["Tokenizers"]),
-        // ^ Full tokenizers with chat template support
+        // ^ Tokenizers with optional chat template support via traits
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         // ^ Everything, including Core ML inference
         .executable(name: "transformers", targets: ["TransformersCLI"]),
         .executable(name: "hub-cli", targets: ["HubCLI"]),
+    ],
+    traits: [
+        .trait(
+            name: "ChatTemplates",
+            description:
+                "Enables chat template support with Jinja templating engine (Swift 6.1+ only)")
     ],
     dependencies: [
         .package(
@@ -43,11 +47,15 @@ let package = Package(
             ]),
         .target(
             name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
-        .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
         .target(
             name: "Tokenizers",
-            dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")],
-            path: "Sources/TokenizersTemplates"),
+            dependencies: [
+                "Hub",
+                .product(
+                    name: "Jinja", package: "Jinja", condition: .when(traits: ["ChatTemplates"])),
+            ],
+            swiftSettings: swiftSettings
+        ),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
@@ -57,11 +65,11 @@ let package = Package(
         .testTarget(
             name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")],
             swiftSettings: swiftSettings),
-        .testTarget(name: "PreTokenizerTests", dependencies: ["TokenizersCore", "Hub"]),
+        .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(
             name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"],
             resources: [.process("Resources")]),
-        .testTarget(name: "NormalizerTests", dependencies: ["TokenizersCore", "Hub"]),
-        .testTarget(name: "PostProcessorTests", dependencies: ["TokenizersCore", "Hub"]),
+        .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
+        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
     ]
 )

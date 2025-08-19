@@ -9,7 +9,8 @@
 import XCTest
 
 @testable import Hub
-@testable import TokenizersCore
+@testable import Tokenizers
+import XCTest
 
 class BertTokenizerTests: XCTestCase {
     override func setUp() {
