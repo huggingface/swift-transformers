@@ -5,8 +5,9 @@
 //  Created by Pedro Cuenca on 12/1/24.
 //
 
-@testable import TokenizersCore
 import XCTest
+
+@testable import TokenizersCore
 
 class TrieTests: XCTestCase {
     func testTrieBuilding() {
@@ -19,11 +20,11 @@ class TrieTests: XCTestCase {
 
         let c = trie.get("c")
         XCTAssertNotNil(c)
-        XCTAssertEqual(c!.children.count, 1) // "a"
+        XCTAssertEqual(c!.children.count, 1)  // "a"
 
         let ca = trie.get("ca")
         XCTAssertNotNil(ca)
-        XCTAssertEqual(ca!.children.count, 2) // "r", "t"
+        XCTAssertEqual(ca!.children.count, 2)  // "r", "t"
 
         let car = trie.get("car")
         XCTAssertNotNil(car)

@@ -6,9 +6,10 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+import XCTest
+
 @testable import Hub
 @testable import TokenizersCore
-import XCTest
 
 class BertTokenizerTests: XCTestCase {
     override func setUp() {
@@ -49,7 +50,8 @@ class BertTokenizerTests: XCTestCase {
 
     /// For each Squad question tokenized by python, check that we get the same output through the `BasicTokenizer`
     func testFullBasicTokenizer() {
-        let url = Bundle.module.url(forResource: "basic_tokenized_questions", withExtension: "json")!
+        let url = Bundle.module.url(
+            forResource: "basic_tokenized_questions", withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let sampleTokens = try! decoder.decode([[String]].self, from: json)
@@ -102,7 +104,9 @@ class BertTokenizerTests: XCTestCase {
     func testChineseWithNumeralsTokenization() {
         let tokenizer = bertTokenizer
         let text = "2020年奥运会在东京举行。"
-        let expectedTokens = ["2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。"]
+        let expectedTokens = [
+            "2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。",
+        ]
         let tokens = tokenizer.tokenize(text: text)
 
         XCTAssertEqual(tokens, expectedTokens)
@@ -111,7 +115,9 @@ class BertTokenizerTests: XCTestCase {
     func testChineseWithSpecialTokens() {
         let tokenizer = bertTokenizer
         let text = "[CLS] 机器学习是未来。 [SEP]"
-        let expectedTokens = ["[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]"]
+        let expectedTokens = [
+            "[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]",
+        ]
         let tokens = tokenizer.tokenize(text: text)
 
         XCTAssertEqual(tokens, expectedTokens)
@@ -141,33 +147,35 @@ class BertTokenizerTests: XCTestCase {
         let tokenizer = bertTokenizer
 
         for question in questionTokens {
-            XCTAssertEqual(question.basic.joined(separator: " "), tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
+            XCTAssertEqual(
+                question.basic.joined(separator: " "),
+                tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
         }
     }
 
     func testEncoderDecoder() {
         let text = """
-        Wake up (Wake up)
-        Grab a brush and put a little makeup
-        Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
-        Why'd you leave the keys upon the table?
-        Here you go, create another fable, you wanted to
-        Grab a brush and put a little makeup, you wanted to
-        Hide the scars to fade away the shakeup, you wanted to
-        Why'd you leave the keys upon the table? You wanted to
-        """
+            Wake up (Wake up)
+            Grab a brush and put a little makeup
+            Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
+            Why'd you leave the keys upon the table?
+            Here you go, create another fable, you wanted to
+            Grab a brush and put a little makeup, you wanted to
+            Hide the scars to fade away the shakeup, you wanted to
+            Why'd you leave the keys upon the table? You wanted to
+            """
 
         // Not sure if there's a way to achieve a non-destructive round-trip
         let decoded = """
-        wake up ( wake up )
-        grab a brush and put a little makeup
-        hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
-        why \' d you leave the keys upon the table ?
-        here you go , create another fable , you wanted to
-        grab a brush and put a little makeup , you wanted to
-        hide the scars to fade away the shakeup , you wanted to
-        why \' d you leave the keys upon the table ? you wanted to
-        """
+            wake up ( wake up )
+            grab a brush and put a little makeup
+            hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
+            why \' d you leave the keys upon the table ?
+            here you go , create another fable , you wanted to
+            grab a brush and put a little makeup , you wanted to
+            hide the scars to fade away the shakeup , you wanted to
+            why \' d you leave the keys upon the table ? you wanted to
+            """
 
         let tokenizer = bertTokenizer
         for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {
@@ -178,10 +186,14 @@ class BertTokenizerTests: XCTestCase {
     }
 
     func testBertTokenizerAddedTokensRecognized() async throws {
-        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appending(component: "huggingface-tests")
         let hubApi = HubApi(downloadBase: base)
-        let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
-        guard let tokenizerConfig = try await configuration.tokenizerConfig else { fatalError("missing tokenizer config") }
+        let configuration = LanguageModelConfigurationFromHub(
+            modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
+        guard let tokenizerConfig = try await configuration.tokenizerConfig else {
+            fatalError("missing tokenizer config")
+        }
         let tokenizerData = try await configuration.tokenizerData
         let addedTokens = [
             "[ROAD]": 60_001,
@@ -192,7 +204,9 @@ class BertTokenizerTests: XCTestCase {
             "[INTERSECT]": 60_006,
             "[UNION]": 60_007,
         ]
-        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        let tokenizer = try BertTokenizer(
+            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens
+        )
         for (token, idx) in addedTokens {
             XCTAssertEqual(tokenizer.convertTokenToId(token), idx)
         }

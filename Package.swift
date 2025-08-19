@@ -5,7 +5,7 @@ import PackageDescription
 
 /// Define the strict concurrency settings to be applied to all targets.
 let swiftSettings: [SwiftSetting] = [
-    .enableExperimentalFeature("StrictConcurrency"),
+    .enableExperimentalFeature("StrictConcurrency")
 ]
 
 let package = Package(
@@ -24,25 +24,43 @@ let package = Package(
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.4.0")),
+        .package(
+            url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.4.0")
+        ),
         .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.2.1")),
     ],
     targets: [
         .executableTarget(
             name: "TransformersCLI",
-            dependencies: ["Models", .product(name: "ArgumentParser", package: "swift-argument-parser")]
+            dependencies: [
+                "Models", .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
         ),
-        .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
+        .executableTarget(
+            name: "HubCLI",
+            dependencies: [
+                "Hub", .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]),
+        .target(
+            name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
         .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
-        .target(name: "Tokenizers", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")], path: "Sources/TokenizersTemplates"),
+        .target(
+            name: "Tokenizers",
+            dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")],
+            path: "Sources/TokenizersTemplates"),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
-        .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
+        .testTarget(
+            name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"],
+            resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(
+            name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")],
+            swiftSettings: swiftSettings),
         .testTarget(name: "PreTokenizerTests", dependencies: ["TokenizersCore", "Hub"]),
-        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(
+            name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"],
+            resources: [.process("Resources")]),
         .testTarget(name: "NormalizerTests", dependencies: ["TokenizersCore", "Hub"]),
         .testTarget(name: "PostProcessorTests", dependencies: ["TokenizersCore", "Hub"]),
     ]
