@@ -222,6 +222,14 @@ public protocol Tokenizer {
         tools: [ToolSpec]?
     ) throws -> [Int]
 
+    #if !canImport(Jinja)
+        @available(
+            *,
+            deprecated,
+            message:
+                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+        )
+    #endif
     func applyChatTemplate(
         messages: [Message],
         // A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
@@ -238,6 +246,14 @@ extension Tokenizer {
     public var hasChatTemplate: Bool { false }
 
     /// Call previous signature for backwards compatibility
+    #if !canImport(Jinja)
+        @available(
+            *,
+            deprecated,
+            message:
+                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+        )
+    #endif
     func applyChatTemplate(
         messages: [Message],
         // A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
@@ -539,6 +555,14 @@ open class PreTrainedTokenizer: Tokenizer {
         )
     }
 
+    #if !canImport(Jinja)
+        @available(
+            *,
+            deprecated,
+            message:
+                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+        )
+    #endif
     open func applyChatTemplate(
         messages: [Message],
         chatTemplate: ChatTemplateArgument? = nil,
@@ -656,7 +680,7 @@ open class PreTrainedTokenizer: Tokenizer {
             return encodedTokens
         #else
             throw TokenizerError.chatTemplate(
-                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait. In Swift <6.1, Jinja is always included."
+                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
             )
         #endif
     }
