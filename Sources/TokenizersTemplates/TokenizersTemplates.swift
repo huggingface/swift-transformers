@@ -1,5 +1,5 @@
 import Hub
-import TokenizersCore
+@_exported import TokenizersCore
 import Jinja
 import Foundation
 
@@ -140,5 +140,77 @@ open class PreTrainedTokenizerWithTemplates : PreTrainedTokenizer {
         }
 
         return encodedTokens
+    }
+}
+
+// Template-enabled tokenizer classes
+class LlamaPreTrainedTokenizerWithTemplates: PreTrainedTokenizerWithTemplates {
+    let isLegacy: Bool
+
+    required init(tokenizerConfig: Config, tokenizerData: Config) throws {
+        isLegacy = tokenizerConfig.legacy?.boolean() ?? true
+        var configDictionary = tokenizerData.dictionary(or: [:])
+        if !isLegacy {
+            configDictionary.removeValue(forKey: "normalizer")
+            configDictionary["pre_tokenizer"] = Config(["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"])
+        }
+
+        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData.postProcessor) {
+            configDictionary["post_processor"] = postProcessorConfig
+        }
+
+        let updatedData = Config(configDictionary)
+        try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
+    }
+}
+
+struct PreTrainedTokenizerTemplateClasses {
+    /// Template-enabled class overrides
+    static let tokenizerClasses: [String: PreTrainedTokenizerWithTemplates.Type] = [
+        "LlamaTokenizer": LlamaPreTrainedTokenizerWithTemplates.self,
+    ]
+}
+
+// Override AutoTokenizer to use template-enabled tokenizers
+extension AutoTokenizer {
+    private static func tokenizerClassWithTemplates(for tokenizerConfig: Config) -> PreTrainedTokenizerWithTemplates.Type {
+        guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.string() else {
+            return PreTrainedTokenizerWithTemplates.self
+        }
+
+        // Some tokenizer_class entries use a Fast suffix
+        let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
+        if let tokenizerClass = PreTrainedTokenizerTemplateClasses.tokenizerClasses[tokenizerName] {
+            return tokenizerClass
+        }
+
+        return PreTrainedTokenizerWithTemplates.self
+    }
+
+    public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> any Tokenizer {
+        let tokenizerClass = tokenizerClassWithTemplates(for: tokenizerConfig)
+        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+    }
+
+    public static func from(
+        pretrained model: String,
+        hubApi: HubApi = .shared
+    ) async throws -> any Tokenizer {
+        let config = LanguageModelConfigurationFromHub(modelName: model, hubApi: hubApi)
+        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
+        let tokenizerData = try await config.tokenizerData
+
+        return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+    }
+
+    public static func from(
+        modelFolder: URL,
+        hubApi: HubApi = .shared
+    ) async throws -> any Tokenizer {
+        let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
+        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
+        let tokenizerData = try await config.tokenizerData
+
+        return try PreTrainedTokenizerWithTemplates(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 }

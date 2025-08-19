@@ -1,7 +1,7 @@
 import XCTest
 
 @testable import Hub
-@testable import Tokenizers
+@testable import TokenizersCore
 
 class NormalizerTests: XCTestCase {
     func testLowercaseNormalizer() {

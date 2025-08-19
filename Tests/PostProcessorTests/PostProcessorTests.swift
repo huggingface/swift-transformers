@@ -1,5 +1,5 @@
 @testable import Hub
-@testable import Tokenizers
+@testable import TokenizersCore
 import XCTest
 
 class PostProcessorTests: XCTestCase {

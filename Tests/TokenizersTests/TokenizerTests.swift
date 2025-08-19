@@ -8,7 +8,7 @@
 
 import Hub
 @testable import Models
-@testable import Tokenizers
+@testable import TokenizersCore
 import XCTest
 
 class GPT2TokenizerTests: TokenizerTests {

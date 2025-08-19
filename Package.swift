@@ -40,7 +40,7 @@ let package = Package(
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "TokenizersTemplates", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),

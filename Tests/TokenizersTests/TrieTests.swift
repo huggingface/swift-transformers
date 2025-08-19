@@ -5,7 +5,7 @@
 //  Created by Pedro Cuenca on 12/1/24.
 //
 
-@testable import Tokenizers
+@testable import TokenizersCore
 import XCTest
 
 class TrieTests: XCTestCase {
