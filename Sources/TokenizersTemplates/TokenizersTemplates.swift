@@ -1,7 +1,7 @@
-import Hub
-@_exported import TokenizersCore
-import Jinja
 import Foundation
+import Hub
+import Jinja
+@_exported import TokenizersCore
 
 let specialTokenAttributes: [String] = [
     "bos_token",
@@ -11,24 +11,24 @@ let specialTokenAttributes: [String] = [
     "pad_token",
     "cls_token",
     "mask_token",
-    "additional_special_tokens"
+    "additional_special_tokens",
 ]
 
-open class PreTrainedTokenizerWithTemplates : PreTrainedTokenizer {
-    // I don't know why these need to be here. They are implemented in the protocol, **and** in the superclass.
-    public override func applyChatTemplate(messages: [Message]) throws -> [Int] {
+open class PreTrainedTokenizerWithTemplates: PreTrainedTokenizer {
+    /// I don't know why these need to be here. They are implemented in the protocol, **and** in the superclass.
+    override public func applyChatTemplate(messages: [Message]) throws -> [Int] {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true)
     }
 
-    public override func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
+    override public func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
     }
 
-    public override func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
+    override public func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
     }
 
-    public override func applyChatTemplate(
+    override public func applyChatTemplate(
         messages: [Message],
         chatTemplate: ChatTemplateArgument? = nil,
         addGenerationPrompt: Bool = false,
@@ -42,18 +42,18 @@ open class PreTrainedTokenizerWithTemplates : PreTrainedTokenizer {
         )
     }
 
-    public override func applyChatTemplate(
+    override public func applyChatTemplate(
         messages: [Message],
         chatTemplate: ChatTemplateArgument? = nil,
         addGenerationPrompt: Bool = false,
         truncation: Bool = false,
         maxLength: Int? = nil,
-        /// A list of tools (callable functions) that will be accessible to the model. If the template does not
-        /// support function calling, this argument will have no effect. Each tool should be passed as a JSON Schema,
-        /// giving the name, description and argument types for the tool. See the
-        /// [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
-        /// for more information.
-        /// Note: tool calling is not supported yet, it will be available in a future update.
+        // A list of tools (callable functions) that will be accessible to the model. If the template does not
+        // support function calling, this argument will have no effect. Each tool should be passed as a JSON Schema,
+        // giving the name, description and argument types for the tool. See the
+        // [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
+        // for more information.
+        // Note: tool calling is not supported yet, it will be available in a future update.
         tools: [[String: Any]]? = nil,
         additionalContext: [String: Any]? = nil
     ) throws -> [Int] {
@@ -143,7 +143,7 @@ open class PreTrainedTokenizerWithTemplates : PreTrainedTokenizer {
     }
 }
 
-// Template-enabled tokenizer classes
+/// Template-enabled tokenizer classes
 /// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
 class LlamaPreTrainedTokenizerWithTemplates: PreTrainedTokenizerWithTemplates {
     let isLegacy: Bool
@@ -174,8 +174,8 @@ struct PreTrainedTokenizerTemplateClasses {
     ]
 }
 
-// Override AutoTokenizer to use template-enabled tokenizers
-// See Sources/Tokenizers/Tokenizer.swift
+/// Override AutoTokenizer to use template-enabled tokenizers
+/// See Sources/Tokenizers/Tokenizer.swift
 public extension AutoTokenizer {
     private static func tokenizerClassWithTemplates(for tokenizerConfig: Config) -> PreTrainedTokenizerWithTemplates.Type {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.string() else {

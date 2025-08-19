@@ -232,16 +232,16 @@ extension Tokenizer {
     }
 }
 
-extension Tokenizer {
-    public func applyChatTemplate(messages: [Message]) throws -> [Int] {
+public extension Tokenizer {
+    func applyChatTemplate(messages: [Message]) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: nil, addGenerationPrompt: true, truncation: false, maxLength: nil, tools: nil)
     }
 
-    public func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
+    func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true, truncation: false, maxLength: nil, tools: nil)
     }
 
-    public func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
+    func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true, truncation: false, maxLength: nil, tools: nil)
     }
 }
@@ -264,7 +264,7 @@ public extension Tokenizer {
     }
 }
 
-// open because we have to subclass from `TokenizersTemplates`
+/// open because we have to subclass from `TokenizersTemplates`
 open class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
 

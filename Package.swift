@@ -17,7 +17,7 @@ let package = Package(
         .library(name: "TokenizersCore", targets: ["TokenizersCore"]),
         // ^ Basic tokenizers without chat template support
         .library(name: "Tokenizers", targets: ["Tokenizers"]),
-        // ^ Full tokenizers with chat template support 
+        // ^ Full tokenizers with chat template support
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         // ^ Everything, including Core ML inference
         .executable(name: "transformers", targets: ["TransformersCLI"]),
@@ -30,7 +30,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "TransformersCLI",
-            dependencies: [ "Models", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+            dependencies: ["Models", .product(name: "ArgumentParser", package: "swift-argument-parser")]
+        ),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
         .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
