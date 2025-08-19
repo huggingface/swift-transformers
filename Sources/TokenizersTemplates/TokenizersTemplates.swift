@@ -144,19 +144,22 @@ open class PreTrainedTokenizerWithTemplates : PreTrainedTokenizer {
 }
 
 // Template-enabled tokenizer classes
+/// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
 class LlamaPreTrainedTokenizerWithTemplates: PreTrainedTokenizerWithTemplates {
     let isLegacy: Bool
 
     required init(tokenizerConfig: Config, tokenizerData: Config) throws {
-        isLegacy = tokenizerConfig.legacy?.boolean() ?? true
+        isLegacy = tokenizerConfig.legacy.boolean(or: true)
         var configDictionary = tokenizerData.dictionary(or: [:])
         if !isLegacy {
-            configDictionary.removeValue(forKey: "normalizer")
-            configDictionary["pre_tokenizer"] = Config(["type": "Metaspace", "replacement": sentencePieceUnderline, "add_prefix_space": true, "prepend_scheme": "first"])
+            _ = configDictionary.removeValue(forKey: "normalizer")
+            configDictionary["pre_tokenizer"] = [
+                "type": "Metaspace", "replacement": .init(sentencePieceUnderline), "add_prefix_space": true, "prepend_scheme": "first",
+            ]
         }
 
-        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData.postProcessor) {
-            configDictionary["post_processor"] = postProcessorConfig
+        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"]) {
+            configDictionary["post_processor"] = .init(postProcessorConfig.dictionary(or: [:]))
         }
 
         let updatedData = Config(configDictionary)
@@ -172,7 +175,8 @@ struct PreTrainedTokenizerTemplateClasses {
 }
 
 // Override AutoTokenizer to use template-enabled tokenizers
-extension AutoTokenizer {
+// See Sources/Tokenizers/Tokenizer.swift
+public extension AutoTokenizer {
     private static func tokenizerClassWithTemplates(for tokenizerConfig: Config) -> PreTrainedTokenizerWithTemplates.Type {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass?.string() else {
             return PreTrainedTokenizerWithTemplates.self
@@ -187,12 +191,12 @@ extension AutoTokenizer {
         return PreTrainedTokenizerWithTemplates.self
     }
 
-    public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> any Tokenizer {
+    static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> any Tokenizer {
         let tokenizerClass = tokenizerClassWithTemplates(for: tokenizerConfig)
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 
-    public static func from(
+    static func from(
         pretrained model: String,
         hubApi: HubApi = .shared
     ) async throws -> any Tokenizer {
@@ -203,7 +207,7 @@ extension AutoTokenizer {
         return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
     }
 
-    public static func from(
+    static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) async throws -> any Tokenizer {
