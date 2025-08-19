@@ -5,7 +5,7 @@
 //  Created by Anthony DePasquale on 2/10/24.
 //
 
-import TokenizersTemplates
+import Tokenizers
 import XCTest
 
 class ChatTemplateTests: XCTestCase {

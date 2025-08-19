@@ -14,10 +14,10 @@ let package = Package(
     products: [
         .library(name: "Hub", targets: ["Hub"]),
         // ^ Hub client library
+        .library(name: "TokenizersCore", targets: ["TokenizersCore"]),
+        // ^ Basic tokenizers without chat template support
         .library(name: "Tokenizers", targets: ["Tokenizers"]),
-        // ^ Tokenizers. Includes `Hub` to download config files
-        .library(name: "TokenizersTemplates", targets: ["TokenizersTemplates"]),
-        // ^ Optionally depend on this to add chat template support to Tokenizers
+        // ^ Full tokenizers with chat template support 
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
         // ^ Everything, including Core ML inference
         .executable(name: "transformers", targets: ["TransformersCLI"]),
@@ -34,17 +34,15 @@ let package = Package(
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
         .target(name: "TokenizersCore", dependencies: ["Hub"], path: "Sources/Tokenizers"),
-        .target(name: "TokenizersTemplates", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")]),
-        .target(name: "Tokenizers", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")], path: "Sources/TokenizersWrapper"),
-        // ^ This is just a wrapper or façade against TokenizersCore, but adds templates if available
+        .target(name: "Tokenizers", dependencies: ["TokenizersCore", .product(name: "Jinja", package: "Jinja")], path: "Sources/TokenizersTemplates"),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "TokenizersTemplates", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
-        .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
+        .testTarget(name: "PreTokenizerTests", dependencies: ["TokenizersCore", "Hub"]),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
-        .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
-        .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
+        .testTarget(name: "NormalizerTests", dependencies: ["TokenizersCore", "Hub"]),
+        .testTarget(name: "PostProcessorTests", dependencies: ["TokenizersCore", "Hub"]),
     ]
 )
