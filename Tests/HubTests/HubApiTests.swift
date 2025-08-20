@@ -103,6 +103,18 @@ class HubApiTests: XCTestCase {
         }
     }
 
+    func testGetXetMetadata() async throws {
+        do {
+            let url = URL(string: "https://huggingface.co/FL33TW00D-HF/xet-test/resolve/main/tokenizer.json")
+            let metadata = try await Hub.getFileMetadata(fileURL: url!)
+
+            XCTAssertNotNil(metadata.xetFileData)
+            XCTAssertEqual(metadata.xetFileData?.fileHash, "6aec39639a0a2d1ca966356b8c2b8426a484f80ff80731f44fa8482040713bdf")
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+
     func testGetFileMetadataBlobPath() async throws {
         do {
             let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
