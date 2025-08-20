@@ -31,7 +31,8 @@ public struct XetFileData {
     let refreshRoute: String
 }
 
-/// `requests` automatically parses Link headers into `response.links`. Swift does not.
+/// `requests` automatically parses Link headers into `response.links`,
+///  we implement similar functionality here.
 extension HTTPURLResponse {
     func getLinkURL(for rel: String) -> String? {
         guard let linkHeader = allHeaderFields["Link"] as? String else {
@@ -677,23 +678,26 @@ public extension HubApi {
             return nil
         }
 
-        guard let refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey)
+        guard var refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey)
             ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String
         else {
             return nil
         }
 
-        let finalEndpoint = endpoint ?? "https://huggingface.co"
-        let finalRefreshRoute = refreshRoute.hasPrefix("https://huggingface.co")
-            ? refreshRoute.replacingOccurrences(
-                of: "https://huggingface.co".trimmingCharacters(in: CharacterSet(charactersIn: "/")),
-                with: finalEndpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let endpoint = endpoint ?? "https://huggingface.co"
+
+        let defaultEndpoint = "https://huggingface.co"
+
+        if refreshRoute.hasPrefix(defaultEndpoint) {
+            refreshRoute = refreshRoute.replacingOccurrences(
+                of: defaultEndpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/")),
+                with: endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             )
-            : refreshRoute
+        }
 
         return XetFileData(
             fileHash: fileHash,
-            refreshRoute: finalRefreshRoute
+            refreshRoute: refreshRoute
         )
     }
 
