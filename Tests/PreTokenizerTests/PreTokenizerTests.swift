@@ -147,7 +147,7 @@ class PreTokenizerTests: XCTestCase {
             config: Config([
                 "pattern": [
                     "Regex":
-                        "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
+                        "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
                 ], "invert": true,
             ]))
         XCTAssertEqual(
@@ -179,8 +179,8 @@ class PreTokenizerTests: XCTestCase {
         let text = "Hey my friend <s>how▁are you"
         let tokens =
             text
-            .split(by: "<s>", includeSeparators: true)
-            .flatMap { preTokenizer.preTokenize(text: $0) }
+                .split(by: "<s>", includeSeparators: true)
+                .flatMap { preTokenizer.preTokenize(text: $0) }
 
         XCTAssertEqual(
             tokens,
