@@ -52,7 +52,8 @@ class BertTokenizerTests: XCTestCase {
     /// For each Squad question tokenized by python, check that we get the same output through the `BasicTokenizer`
     func testFullBasicTokenizer() {
         let url = Bundle.module.url(
-            forResource: "basic_tokenized_questions", withExtension: "json")!
+            forResource: "basic_tokenized_questions", withExtension: "json"
+        )!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let sampleTokens = try! decoder.decode([[String]].self, from: json)
@@ -150,33 +151,34 @@ class BertTokenizerTests: XCTestCase {
         for question in questionTokens {
             XCTAssertEqual(
                 question.basic.joined(separator: " "),
-                tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
+                tokenizer.convertWordpieceToBasicTokenList(question.wordpiece)
+            )
         }
     }
 
     func testEncoderDecoder() {
         let text = """
-            Wake up (Wake up)
-            Grab a brush and put a little makeup
-            Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
-            Why'd you leave the keys upon the table?
-            Here you go, create another fable, you wanted to
-            Grab a brush and put a little makeup, you wanted to
-            Hide the scars to fade away the shakeup, you wanted to
-            Why'd you leave the keys upon the table? You wanted to
-            """
+        Wake up (Wake up)
+        Grab a brush and put a little makeup
+        Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
+        Why'd you leave the keys upon the table?
+        Here you go, create another fable, you wanted to
+        Grab a brush and put a little makeup, you wanted to
+        Hide the scars to fade away the shakeup, you wanted to
+        Why'd you leave the keys upon the table? You wanted to
+        """
 
         // Not sure if there's a way to achieve a non-destructive round-trip
         let decoded = """
-            wake up ( wake up )
-            grab a brush and put a little makeup
-            hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
-            why \' d you leave the keys upon the table ?
-            here you go , create another fable , you wanted to
-            grab a brush and put a little makeup , you wanted to
-            hide the scars to fade away the shakeup , you wanted to
-            why \' d you leave the keys upon the table ? you wanted to
-            """
+        wake up ( wake up )
+        grab a brush and put a little makeup
+        hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
+        why \' d you leave the keys upon the table ?
+        here you go , create another fable , you wanted to
+        grab a brush and put a little makeup , you wanted to
+        hide the scars to fade away the shakeup , you wanted to
+        why \' d you leave the keys upon the table ? you wanted to
+        """
 
         let tokenizer = bertTokenizer
         for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {
@@ -191,7 +193,8 @@ class BertTokenizerTests: XCTestCase {
             .appending(component: "huggingface-tests")
         let hubApi = HubApi(downloadBase: base)
         let configuration = LanguageModelConfigurationFromHub(
-            modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
+            modelName: "google-bert/bert-base-uncased", hubApi: hubApi
+        )
         guard let tokenizerConfig = try await configuration.tokenizerConfig else {
             fatalError("missing tokenizer config")
         }

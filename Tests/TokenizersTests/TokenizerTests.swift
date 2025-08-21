@@ -86,7 +86,7 @@ class GemmaTokenizerTests: TokenizerTests {
         }
 
         // These are two different characters
-        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
+        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
         let expected = [217138, 1305]
 
         // These are different characters
@@ -101,7 +101,7 @@ class GemmaUnicodeTests: XCTestCase {
     func testGemmaVocab() async throws {
         guard
             let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer")
-                as? PreTrainedTokenizer
+            as? PreTrainedTokenizer
         else {
             XCTFail()
             return
@@ -116,7 +116,7 @@ class PhiSimpleTests: XCTestCase {
     func testPhi4() async throws {
         guard
             let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/phi-4")
-                as? PreTrainedTokenizer
+            as? PreTrainedTokenizer
         else {
             XCTFail()
             return
@@ -127,8 +127,9 @@ class PhiSimpleTests: XCTestCase {
         XCTAssertEqual(
             tokenizer.encode(
                 text:
-                    "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"
-            ), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
+                "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"
+            ), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266]
+        )
     }
 }
 
@@ -194,7 +195,7 @@ class BertDiacriticsTests: XCTestCase {
         guard
             let tokenizer = try await AutoTokenizer.from(
                 pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer")
-                as? PreTrainedTokenizer
+            as? PreTrainedTokenizer
         else {
             XCTFail()
             return
@@ -224,7 +225,8 @@ class BertDiacriticsTests: XCTestCase {
             [
                 "test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹",
                 "##8", "₱", "##9", "test",
-            ])
+            ]
+        )
     }
 }
 
@@ -253,7 +255,7 @@ class RobertaTests: XCTestCase {
     func testEncodeDecode() async throws {
         guard
             let tokenizer = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base")
-                as? PreTrainedTokenizer
+            as? PreTrainedTokenizer
         else {
             XCTFail()
             return
@@ -263,7 +265,8 @@ class RobertaTests: XCTestCase {
         XCTAssertEqual(tokenizer.encode(text: "l'eure"), [0, 462, 108, 242, 2407, 2])
         XCTAssertEqual(
             tokenizer.decode(tokens: tokenizer.encode(text: "l'eure"), skipSpecialTokens: true),
-            "l'eure")
+            "l'eure"
+        )
 
         XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["m", "Ä", "ħ", "ka"])
         XCTAssertEqual(tokenizer.encode(text: "mąka"), [0, 119, 649, 5782, 2348, 2])
@@ -275,14 +278,17 @@ class RobertaTests: XCTestCase {
         XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [0, 12375, 32, 47, 116, 2])
 
         XCTAssertEqual(
-            tokenizer.tokenize(text: " Who are you? "), ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"])
+            tokenizer.tokenize(text: " Who are you? "), ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"]
+        )
         XCTAssertEqual(tokenizer.encode(text: " Who are you? "), [0, 3394, 32, 47, 116, 1437, 2])
 
         XCTAssertEqual(
             tokenizer.tokenize(text: "<s>Who are you?</s>"),
-            ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
+            ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"]
+        )
         XCTAssertEqual(
-            tokenizer.encode(text: "<s>Who are you?</s>"), [0, 0, 12375, 32, 47, 116, 2, 2])
+            tokenizer.encode(text: "<s>Who are you?</s>"), [0, 0, 12375, 32, 47, 116, 2, 2]
+        )
     }
 }
 
@@ -318,8 +324,7 @@ class TokenizerTester {
     private var edgeCases: [EdgeCase]?
     private var _tokenizer: Tokenizer?
 
-    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi)
-    {
+    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi) {
         configuration = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
         self.encodedSamplesFilename = encodedSamplesFilename
         self.unknownTokenId = unknownTokenId
@@ -352,7 +357,8 @@ class TokenizerTester {
                 }
                 let tokenizerData = try await configuration!.tokenizerData
                 _tokenizer = try AutoTokenizer.from(
-                    tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+                    tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData
+                )
             } catch {
                 XCTFail("Cannot load tokenizer: \(error)")
             }

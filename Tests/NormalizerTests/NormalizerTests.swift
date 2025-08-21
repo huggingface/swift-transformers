@@ -120,8 +120,8 @@ class NormalizerTests: XCTestCase {
     }
 
     func testStripAccents() {
-        let testCases: [(String, String)] = [
-            ("département", "departement")
+        let testCases = [
+            ("département", "departement"),
         ]
 
         // TODO: test combinations with/without lowercase

@@ -5,7 +5,7 @@ import PackageDescription
 
 /// Define the strict concurrency settings to be applied to all targets.
 let swiftSettings: [SwiftSetting] = [
-    .enableExperimentalFeature("StrictConcurrency")
+    .enableExperimentalFeature("StrictConcurrency"),
 ]
 
 let package = Package(
@@ -25,7 +25,8 @@ let package = Package(
         .trait(
             name: "ChatTemplates",
             description:
-                "Enables chat template support with Jinja templating engine (Swift 6.1+ only)")
+            "Enables chat template support with Jinja templating engine (Swift 6.1+ only)"
+        ),
     ],
     dependencies: [
         .package(
@@ -44,15 +45,18 @@ let package = Package(
             name: "HubCLI",
             dependencies: [
                 "Hub", .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]),
+            ]
+        ),
         .target(
-            name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
+            name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings
+        ),
         .target(
             name: "Tokenizers",
             dependencies: [
                 "Hub",
                 .product(
-                    name: "Jinja", package: "Jinja", condition: .when(traits: ["ChatTemplates"])),
+                    name: "Jinja", package: "Jinja", condition: .when(traits: ["ChatTemplates"])
+                ),
             ],
             swiftSettings: swiftSettings
         ),
@@ -61,14 +65,17 @@ let package = Package(
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
         .testTarget(
             name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"],
-            resources: [.process("Resources"), .process("Vocabs")]),
+            resources: [.process("Resources"), .process("Vocabs")]
+        ),
         .testTarget(
             name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")],
-            swiftSettings: swiftSettings),
+            swiftSettings: swiftSettings
+        ),
         .testTarget(name: "PreTokenizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(
             name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"],
-            resources: [.process("Resources")]),
+            resources: [.process("Resources")]
+        ),
         .testTarget(name: "NormalizerTests", dependencies: ["Tokenizers", "Hub"]),
         .testTarget(name: "PostProcessorTests", dependencies: ["Tokenizers", "Hub"]),
     ]

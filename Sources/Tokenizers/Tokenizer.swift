@@ -9,7 +9,7 @@ import Foundation
 import Hub
 
 #if canImport(Jinja)
-    import Jinja
+import Jinja
 #endif
 
 public typealias Message = [String: Any]
@@ -31,38 +31,46 @@ public enum TokenizerError: LocalizedError {
         case .missingConfig:
             String(
                 localized: "Tokenizer configuration is missing.",
-                comment: "Error when tokenizer config cannot be found")
+                comment: "Error when tokenizer config cannot be found"
+            )
         case .missingTokenizerClassInConfig:
             String(
                 localized: "The tokenizer class is not specified in the configuration.",
-                comment: "Error when tokenizer_class is missing in config")
+                comment: "Error when tokenizer_class is missing in config"
+            )
         case let .unsupportedTokenizer(name):
             String(
                 localized: "The tokenizer type '\(name)' is not supported.",
-                comment: "Error when tokenizer type is not supported")
+                comment: "Error when tokenizer type is not supported"
+            )
         case .missingVocab:
             String(
                 localized: "Vocabulary file is missing from the tokenizer configuration.",
-                comment: "Error when vocab file is missing")
+                comment: "Error when vocab file is missing"
+            )
         case .malformedVocab:
             String(
                 localized: "The vocabulary file is malformed or corrupted.",
-                comment: "Error when vocab file is malformed")
+                comment: "Error when vocab file is malformed"
+            )
         case let .chatTemplate(message):
             String(
-                localized: "Chat template error: \(message)", comment: "Error with chat template")
+                localized: "Chat template error: \(message)", comment: "Error with chat template"
+            )
         case .missingChatTemplate:
             String(
                 localized:
-                    "This tokenizer does not have a chat template, and no template was passed.")
+                "This tokenizer does not have a chat template, and no template was passed.")
         case let .tooLong(message):
             String(
                 localized: "Input is too long: \(message)",
-                comment: "Error when input exceeds maximum length")
+                comment: "Error when input exceeds maximum length"
+            )
         case let .mismatchedConfig(message):
             String(
                 localized: "Tokenizer configuration mismatch: \(message)",
-                comment: "Error when tokenizer configuration is inconsistent")
+                comment: "Error when tokenizer configuration is inconsistent"
+            )
         }
     }
 }
@@ -100,16 +108,16 @@ public func addedTokenAsString(_ addedToken: Config?) -> String? {
     return addedToken.content.string()
 }
 
-extension TokenizingModel {
-    public func callAsFunction(_ text: String) -> [String] {
+public extension TokenizingModel {
+    func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
     }
 
-    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         tokens.map { convertTokenToId($0) }
     }
 
-    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         ids.map { convertIdToToken($0) }
     }
 }
@@ -223,12 +231,12 @@ public protocol Tokenizer {
     ) throws -> [Int]
 
     #if !canImport(Jinja)
-        @available(
-            *,
-            deprecated,
-            message:
-                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
-        )
+    @available(
+        *,
+        deprecated,
+        message:
+        "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+    )
     #endif
     func applyChatTemplate(
         messages: [Message],
@@ -245,14 +253,14 @@ public protocol Tokenizer {
 extension Tokenizer {
     public var hasChatTemplate: Bool { false }
 
-    /// Call previous signature for backwards compatibility
+    // Call previous signature for backwards compatibility
     #if !canImport(Jinja)
-        @available(
-            *,
-            deprecated,
-            message:
-                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
-        )
+    @available(
+        *,
+        deprecated,
+        message:
+        "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+    )
     #endif
     func applyChatTemplate(
         messages: [Message],
@@ -277,42 +285,45 @@ extension Tokenizer {
     }
 }
 
-extension Tokenizer {
-    public func applyChatTemplate(messages: [Message]) throws -> [Int] {
+public extension Tokenizer {
+    func applyChatTemplate(messages: [Message]) throws -> [Int] {
         try applyChatTemplate(
             messages: messages, chatTemplate: nil, addGenerationPrompt: true, truncation: false,
-            maxLength: nil, tools: nil)
+            maxLength: nil, tools: nil
+        )
     }
 
-    public func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws
+    func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws
         -> [Int]
     {
         try applyChatTemplate(
             messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true,
-            truncation: false, maxLength: nil, tools: nil)
+            truncation: false, maxLength: nil, tools: nil
+        )
     }
 
-    public func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
+    func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(
             messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true,
-            truncation: false, maxLength: nil, tools: nil)
+            truncation: false, maxLength: nil, tools: nil
+        )
     }
 }
 
-extension Tokenizer {
-    public func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
+public extension Tokenizer {
+    func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
     }
 
-    public func decode(tokens: [Int]) -> String {
+    func decode(tokens: [Int]) -> String {
         decode(tokens: tokens, skipSpecialTokens: false)
     }
 
-    public func convertTokensToIds(_ tokens: [String]) -> [Int?] {
+    func convertTokensToIds(_ tokens: [String]) -> [Int?] {
         tokens.map { convertTokenToId($0) }
     }
 
-    public func convertIdsToTokens(_ ids: [Int]) -> [String?] {
+    func convertIdsToTokens(_ ids: [Int]) -> [String?] {
         ids.map { convertIdToToken($0) }
     }
 }
@@ -388,7 +399,8 @@ open class PreTrainedTokenizer: Tokenizer {
         normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
         decoder = DecoderFactory.fromConfig(
-            config: tokenizerData["decoder"], addedTokens: self.addedTokens)
+            config: tokenizerData["decoder"], addedTokens: self.addedTokens
+        )
         cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
         self.tokenizerConfig = tokenizerConfig
 
@@ -423,16 +435,16 @@ open class PreTrainedTokenizer: Tokenizer {
 
         return
             text
-            .replacingOccurrences(of: " .", with: ".")
-            .replacingOccurrences(of: " ?", with: "?")
-            .replacingOccurrences(of: " !", with: "!")
-            .replacingOccurrences(of: " ,", with: ",")
-            .replacingOccurrences(of: " ' ", with: "'")
-            .replacingOccurrences(of: " n't", with: "n't")
-            .replacingOccurrences(of: " 'm", with: "'m")
-            .replacingOccurrences(of: " 's", with: "'s")
-            .replacingOccurrences(of: " 've", with: "'ve")
-            .replacingOccurrences(of: " 're", with: "'re")
+                .replacingOccurrences(of: " .", with: ".")
+                .replacingOccurrences(of: " ?", with: "?")
+                .replacingOccurrences(of: " !", with: "!")
+                .replacingOccurrences(of: " ,", with: ",")
+                .replacingOccurrences(of: " ' ", with: "'")
+                .replacingOccurrences(of: " n't", with: "n't")
+                .replacingOccurrences(of: " 'm", with: "'m")
+                .replacingOccurrences(of: " 's", with: "'s")
+                .replacingOccurrences(of: " 've", with: "'ve")
+                .replacingOccurrences(of: " 're", with: "'re")
     }
 
     func fuseUnknown(_ tokens: [String]) -> [String] {
@@ -485,8 +497,8 @@ open class PreTrainedTokenizer: Tokenizer {
             let specialTokenIDs = Set(specialTokens.values)
             tokenStrings =
                 tokens
-                .filter { !specialTokenIDs.contains($0) }
-                .compactMap { model.convertIdToToken($0) }
+                    .filter { !specialTokenIDs.contains($0) }
+                    .compactMap { model.convertIdToToken($0) }
         } else {
             tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
         }
@@ -532,12 +544,14 @@ open class PreTrainedTokenizer: Tokenizer {
         -> [Int]
     {
         try applyChatTemplate(
-            messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true)
+            messages: messages, chatTemplate: chatTemplate, addGenerationPrompt: true
+        )
     }
 
     open func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int] {
         try applyChatTemplate(
-            messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true)
+            messages: messages, chatTemplate: .literal(chatTemplate), addGenerationPrompt: true
+        )
     }
 
     open func applyChatTemplate(
@@ -556,12 +570,12 @@ open class PreTrainedTokenizer: Tokenizer {
     }
 
     #if !canImport(Jinja)
-        @available(
-            *,
-            deprecated,
-            message:
-                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
-        )
+    @available(
+        *,
+        deprecated,
+        message:
+        "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+    )
     #endif
     open func applyChatTemplate(
         messages: [Message],
@@ -578,127 +592,127 @@ open class PreTrainedTokenizer: Tokenizer {
         additionalContext: [String: Any]? = nil
     ) throws -> [Int] {
         #if canImport(Jinja)
-            var selectedChatTemplate: String?
-            if let chatTemplate, case let .literal(template) = chatTemplate {
-                // Use chat template from argument
-                selectedChatTemplate = template
-            } else if !tokenizerConfig.chatTemplate.isNull() {
-                let valueFromConfig: Config = tokenizerConfig.chatTemplate
-                if let arrayValue = valueFromConfig.array() {
-                    // If the config specifies a list of chat templates, convert them to a dictionary
-                    let templateDict = [String: String](
-                        uniqueKeysWithValues: arrayValue.compactMap { item in
-                            guard let name = item["name"].string(),
-                                let template = item["template"].string()
-                            else {
-                                return nil
-                            }
-                            return (name, template)
-                        })
-                    if let chatTemplate, case let .name(name) = chatTemplate {
-                        // Select chat template from config by name
-                        if let matchingDictEntry = templateDict[name] {
-                            selectedChatTemplate = matchingDictEntry
-                        } else {
-                            throw TokenizerError.chatTemplate(
-                                "No chat template named \"\(name)\" was found in the tokenizer config"
-                            )
+        var selectedChatTemplate: String?
+        if let chatTemplate, case let .literal(template) = chatTemplate {
+            // Use chat template from argument
+            selectedChatTemplate = template
+        } else if !tokenizerConfig.chatTemplate.isNull() {
+            let valueFromConfig: Config = tokenizerConfig.chatTemplate
+            if let arrayValue = valueFromConfig.array() {
+                // If the config specifies a list of chat templates, convert them to a dictionary
+                let templateDict = [String: String](
+                    uniqueKeysWithValues: arrayValue.compactMap { item in
+                        guard let name = item["name"].string(),
+                              let template = item["template"].string()
+                        else {
+                            return nil
                         }
-                    } else if let tools, !tools.isEmpty,
-                        let toolUseTemplate = templateDict["tool_use"]
-                    {
-                        // Use tool use chat template from config
-                        selectedChatTemplate = toolUseTemplate
-                    } else if let defaultChatTemplate = templateDict["default"] {
-                        // Use default chat template from config
-                        selectedChatTemplate = defaultChatTemplate
-                    }
-                } else if let stringValue = valueFromConfig.string() {
-                    // Use chat template from config
-                    selectedChatTemplate = stringValue
-                }
-            }
-
-            guard let selectedChatTemplate else {
-                throw TokenizerError.missingChatTemplate
-            }
-
-            let template = try Template(selectedChatTemplate)
-            var context: [String: Any] = [
-                "messages": messages,
-                "add_generation_prompt": addGenerationPrompt,
-            ]
-            if let tools {
-                context["tools"] = tools
-            }
-            if let additionalContext {
-                /*
-                 Additional keys and values to be added to the context provided to the prompt templating engine.
-                 For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
-                 The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
-                 */
-                for (key, value) in additionalContext {
-                    context[key] = value
-                }
-            }
-
-            let specialTokenAttributes: [String] = [
-                "bos_token",
-                "eos_token",
-                "unk_token",
-                "sep_token",
-                "pad_token",
-                "cls_token",
-                "mask_token",
-                "additional_special_tokens",
-            ]
-
-            for (key, value) in tokenizerConfig.dictionary(or: [:]) {
-                if specialTokenAttributes.contains(key.string), !value.isNull() {
-                    if let stringValue = value.string() {
-                        context[key.string] = stringValue
-                    } else if let dictionary = value.dictionary() {
-                        context[key.string] = addedTokenAsString(Config(dictionary))
-                    } else if let array: [String] = value.get() {
-                        context[key.string] = array
+                        return (name, template)
+                    })
+                if let chatTemplate, case let .name(name) = chatTemplate {
+                    // Select chat template from config by name
+                    if let matchingDictEntry = templateDict[name] {
+                        selectedChatTemplate = matchingDictEntry
                     } else {
-                        context[key.string] = value
+                        throw TokenizerError.chatTemplate(
+                            "No chat template named \"\(name)\" was found in the tokenizer config"
+                        )
                     }
+                } else if let tools, !tools.isEmpty,
+                          let toolUseTemplate = templateDict["tool_use"]
+                {
+                    // Use tool use chat template from config
+                    selectedChatTemplate = toolUseTemplate
+                } else if let defaultChatTemplate = templateDict["default"] {
+                    // Use default chat template from config
+                    selectedChatTemplate = defaultChatTemplate
+                }
+            } else if let stringValue = valueFromConfig.string() {
+                // Use chat template from config
+                selectedChatTemplate = stringValue
+            }
+        }
+
+        guard let selectedChatTemplate else {
+            throw TokenizerError.missingChatTemplate
+        }
+
+        let template = try Template(selectedChatTemplate)
+        var context: [String: Any] = [
+            "messages": messages,
+            "add_generation_prompt": addGenerationPrompt,
+        ]
+        if let tools {
+            context["tools"] = tools
+        }
+        if let additionalContext {
+            /*
+             Additional keys and values to be added to the context provided to the prompt templating engine.
+             For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
+             The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
+             */
+            for (key, value) in additionalContext {
+                context[key] = value
+            }
+        }
+
+        let specialTokenAttributes: [String] = [
+            "bos_token",
+            "eos_token",
+            "unk_token",
+            "sep_token",
+            "pad_token",
+            "cls_token",
+            "mask_token",
+            "additional_special_tokens",
+        ]
+
+        for (key, value) in tokenizerConfig.dictionary(or: [:]) {
+            if specialTokenAttributes.contains(key.string), !value.isNull() {
+                if let stringValue = value.string() {
+                    context[key.string] = stringValue
+                } else if let dictionary = value.dictionary() {
+                    context[key.string] = addedTokenAsString(Config(dictionary))
+                } else if let array: [String] = value.get() {
+                    context[key.string] = array
+                } else {
+                    context[key.string] = value
                 }
             }
+        }
 
-            let rendered = try template.render(context)
-            var encodedTokens = encode(text: rendered, addSpecialTokens: false)
-            var maxLength = maxLength ?? encodedTokens.count
-            maxLength = min(maxLength, tokenizerConfig.modelMaxLength.integer() ?? maxLength)
-            if encodedTokens.count > maxLength {
-                if truncation {
-                    encodedTokens = Array(encodedTokens.prefix(maxLength))
-                }
+        let rendered = try template.render(context)
+        var encodedTokens = encode(text: rendered, addSpecialTokens: false)
+        var maxLength = maxLength ?? encodedTokens.count
+        maxLength = min(maxLength, tokenizerConfig.modelMaxLength.integer() ?? maxLength)
+        if encodedTokens.count > maxLength {
+            if truncation {
+                encodedTokens = Array(encodedTokens.prefix(maxLength))
             }
+        }
 
-            return encodedTokens
+        return encodedTokens
         #else
-            throw TokenizerError.chatTemplate(
-                "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
-            )
+        throw TokenizerError.chatTemplate(
+            "Chat template support requires Jinja dependency. In Swift 6.1+, enable the ChatTemplates trait in Package.swift. In Swift <6.1, Jinja is always included."
+        )
         #endif
     }
 }
 
 // MARK: - Building
 
-public struct AutoTokenizer {}
+public struct AutoTokenizer { }
 
 struct PreTrainedTokenizerClasses {
     /// Class overrides for custom behaviour
     /// Not to be confused with the TokenizerModel classes defined in TokenizerModel
     static let tokenizerClasses: [String: PreTrainedTokenizer.Type] = [
-        "LlamaTokenizer": LlamaPreTrainedTokenizer.self
+        "LlamaTokenizer": LlamaPreTrainedTokenizer.self,
     ]
 }
 
-extension AutoTokenizer {
+public extension AutoTokenizer {
     internal static func tokenizerClass(for tokenizerConfig: Config) -> PreTrainedTokenizer.Type {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass.string() else {
             return PreTrainedTokenizer.self
@@ -708,12 +722,12 @@ extension AutoTokenizer {
         let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
 
         #if canImport(Jinja)
-            // Check for template-enabled classes first
-            if let tokenizerClass = PreTrainedTokenizerTemplateClasses.tokenizerClasses[
-                tokenizerName]
-            {
-                return tokenizerClass
-            }
+        // Check for template-enabled classes first
+        if let tokenizerClass = PreTrainedTokenizerTemplateClasses.tokenizerClasses[
+            tokenizerName
+        ] {
+            return tokenizerClass
+        }
         #endif
 
         if let tokenizerClass = PreTrainedTokenizerClasses.tokenizerClasses[tokenizerName] {
@@ -723,13 +737,14 @@ extension AutoTokenizer {
         return PreTrainedTokenizer.self
     }
 
-    public static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
+    static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
         let tokenizerClass = tokenizerClass(for: tokenizerConfig)
         return try tokenizerClass.init(
-            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData
+        )
     }
 
-    public static func from(
+    static func from(
         pretrained model: String,
         hubApi: HubApi = .shared
     ) async throws -> Tokenizer {
@@ -740,10 +755,11 @@ extension AutoTokenizer {
         let tokenizerData = try await config.tokenizerData
 
         return try AutoTokenizer.from(
-            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData
+        )
     }
 
-    public static func from(
+    static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared
     ) async throws -> Tokenizer {
@@ -754,23 +770,24 @@ extension AutoTokenizer {
         let tokenizerData = try await config.tokenizerData
 
         return try PreTrainedTokenizer(
-            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData
+        )
     }
 }
 
 // MARK: - Tokenizer model classes
 
-class GPT2Tokenizer: BPETokenizer {}
-class FalconTokenizer: BPETokenizer {}
-class LlamaTokenizer: BPETokenizer {}
-class CodeGenTokenizer: BPETokenizer {}
-class WhisperTokenizer: BPETokenizer {}
-class GemmaTokenizer: BPETokenizer {}
-class CodeLlamaTokenizer: BPETokenizer {}
-class CohereTokenizer: BPETokenizer {}
-class Qwen2Tokenizer: BPETokenizer {}
+class GPT2Tokenizer: BPETokenizer { }
+class FalconTokenizer: BPETokenizer { }
+class LlamaTokenizer: BPETokenizer { }
+class CodeGenTokenizer: BPETokenizer { }
+class WhisperTokenizer: BPETokenizer { }
+class GemmaTokenizer: BPETokenizer { }
+class CodeLlamaTokenizer: BPETokenizer { }
+class CohereTokenizer: BPETokenizer { }
+class Qwen2Tokenizer: BPETokenizer { }
 
-class T5Tokenizer: UnigramTokenizer {}
+class T5Tokenizer: UnigramTokenizer { }
 
 // MARK: - PreTrainedTokenizer classes
 
@@ -840,8 +857,8 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
         }
 
         if let postProcessorConfig = try maybeUpdatePostProcessor(
-            tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"])
-        {
+            tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"]
+        ) {
             configDictionary["post_processor"] = .init(postProcessorConfig.dictionary(or: [:]))
         }
 
@@ -851,37 +868,37 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
 }
 
 #if canImport(Jinja)
-    /// Template-enabled tokenizer classes
-    /// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
-    class LlamaPreTrainedTokenizerWithTemplates: PreTrainedTokenizer {
-        let isLegacy: Bool
+/// Template-enabled tokenizer classes
+/// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
+class LlamaPreTrainedTokenizerWithTemplates: PreTrainedTokenizer {
+    let isLegacy: Bool
 
-        required init(tokenizerConfig: Config, tokenizerData: Config) throws {
-            isLegacy = tokenizerConfig.legacy.boolean(or: true)
-            var configDictionary = tokenizerData.dictionary(or: [:])
-            if !isLegacy {
-                _ = configDictionary.removeValue(forKey: "normalizer")
-                configDictionary["pre_tokenizer"] = [
-                    "type": "Metaspace", "replacement": .init(sentencePieceUnderline),
-                    "add_prefix_space": true, "prepend_scheme": "first",
-                ]
-            }
-
-            if let postProcessorConfig = try maybeUpdatePostProcessor(
-                tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"])
-            {
-                configDictionary["post_processor"] = .init(postProcessorConfig.dictionary(or: [:]))
-            }
-
-            let updatedData = Config(configDictionary)
-            try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
+    required init(tokenizerConfig: Config, tokenizerData: Config) throws {
+        isLegacy = tokenizerConfig.legacy.boolean(or: true)
+        var configDictionary = tokenizerData.dictionary(or: [:])
+        if !isLegacy {
+            _ = configDictionary.removeValue(forKey: "normalizer")
+            configDictionary["pre_tokenizer"] = [
+                "type": "Metaspace", "replacement": .init(sentencePieceUnderline),
+                "add_prefix_space": true, "prepend_scheme": "first",
+            ]
         }
-    }
 
-    struct PreTrainedTokenizerTemplateClasses {
-        /// Template-enabled class overrides
-        static let tokenizerClasses: [String: PreTrainedTokenizer.Type] = [
-            "LlamaTokenizer": LlamaPreTrainedTokenizerWithTemplates.self
-        ]
+        if let postProcessorConfig = try maybeUpdatePostProcessor(
+            tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"]
+        ) {
+            configDictionary["post_processor"] = .init(postProcessorConfig.dictionary(or: [:]))
+        }
+
+        let updatedData = Config(configDictionary)
+        try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
     }
+}
+
+struct PreTrainedTokenizerTemplateClasses {
+    /// Template-enabled class overrides
+    static let tokenizerClasses: [String: PreTrainedTokenizer.Type] = [
+        "LlamaTokenizer": LlamaPreTrainedTokenizerWithTemplates.self,
+    ]
+}
 #endif
