@@ -8,7 +8,7 @@ import Hub
 @testable import Tokenizers
 import XCTest
 
-@testable import TokenizersCore
+@testable import Tokenizers
 
 class DecoderTests: XCTestCase {
     /// https://github.com/huggingface/tokenizers/pull/1357

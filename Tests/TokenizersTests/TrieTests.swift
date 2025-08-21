@@ -8,7 +8,7 @@
 @testable import Tokenizers
 import XCTest
 
-@testable import TokenizersCore
+@testable import Tokenizers
 
 class TrieTests: XCTestCase {
     func testTrieBuilding() {
