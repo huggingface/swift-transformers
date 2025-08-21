@@ -1,0 +1,38 @@
+{
+    // SwiftFormat configuration to match CI
+    "swiftformat.configSearchPaths": [
+        ".swiftformat"
+    ],
+    // Swift language settings
+    "swift.path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "swift.buildPath": ".build",
+    // Editor settings for Swift development
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "editor.rulers": [],
+    "editor.wordWrap": "off",
+    "editor.trimAutoWhitespace": true,
+    // File associations
+    "files.associations": {
+        "*.swift": "swift"
+    },
+    // Format on save for Swift files
+    "[swift]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "vknabel.vscode-swiftformat"
+    },
+    // Exclude build artifacts from search
+    "search.exclude": {
+        "**/.build": true,
+        "**/Package.resolved": true
+    },
+    // Files to exclude from file watching
+    "files.watcherExclude": {
+        "**/.build/**": true,
+        "**/Package.resolved": true
+    },
+    "swift.swiftEnvironmentVariables": {
+        "DEVELOPER_DIR": "/Applications/Xcode.app"
+    }
+}
