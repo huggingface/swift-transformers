@@ -8,8 +8,6 @@
 @testable import Tokenizers
 import XCTest
 
-@testable import Tokenizers
-
 class TrieTests: XCTestCase {
     func testTrieBuilding() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
