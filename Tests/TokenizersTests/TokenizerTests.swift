@@ -442,7 +442,7 @@ class TokenizerTester {
 
 class TokenizerTests: XCTestCase {
     /// Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
-    static var _tester: TokenizerTester?
+    nonisolated(unsafe) static var _tester: TokenizerTester?
 
     class var hubModelName: String? { nil }
     class var encodedSamplesFilename: String? { nil }
@@ -450,7 +450,7 @@ class TokenizerTests: XCTestCase {
     /// Known id retrieved from Python, to verify it was parsed correctly
     class var unknownTokenId: Int? { nil }
 
-    static var downloadDestination: URL = {
+    nonisolated(unsafe) static var downloadDestination: URL = {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return base.appending(component: "huggingface-tests")
     }()

@@ -10,7 +10,7 @@ let swiftSettings: [SwiftSetting] = [
 
 let package = Package(
     name: "swift-transformers",
-    platforms: [.iOS(.v16), .macOS(.v13)],
+    platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
         .library(name: "Hub", targets: ["Hub"]),
         // ^ Hub client library
