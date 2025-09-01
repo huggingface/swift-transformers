@@ -17,6 +17,7 @@ class ChatTemplateTests: XCTestCase {
     static let phiTokenizerTask = Task {
         try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
     }
+
     static func sharedPhiTokenizer() async throws -> Tokenizer {
         try await phiTokenizerTask.value
     }
@@ -24,6 +25,7 @@ class ChatTemplateTests: XCTestCase {
     static let tokenizerWithTemplateArrayTask = Task {
         try await AutoTokenizer.from(pretrained: "mlx-community/Mistral-7B-Instruct-v0.3-4bit")
     }
+
     static func sharedTokenizerWithTemplateArray() async throws -> Tokenizer {
         try await tokenizerWithTemplateArrayTask.value
     }
@@ -276,4 +278,3 @@ class ChatTemplateTests: XCTestCase {
         }
     }
 }
-
