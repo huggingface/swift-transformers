@@ -284,8 +284,8 @@ public class PreTrainedTokenizer: Tokenizer {
     private let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
-    
-    // Cache for compiled Jinja templates keyed by their literal template string
+
+    /// Cache for compiled Jinja templates keyed by their literal template string
     private var compiledChatTemplateCache: [String: Template] = [:]
 
     public required init(tokenizerConfig: Config, tokenizerData: Config) throws {
