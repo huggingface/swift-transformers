@@ -281,7 +281,7 @@ class ChatTemplateTests: XCTestCase {
 
     /// Performance: cached vs uncached template application
     func testApplyChatTemplatePerformanceCached() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
+        let tokenizer = try await Self.sharedPhiTokenizer()
 
         // Purposely reuse the same template literal to hit the memoized compiled template
         let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
@@ -296,7 +296,7 @@ class ChatTemplateTests: XCTestCase {
 
     /// Performance: simulate uncached runs by varying the template to bypass memoization
     func testApplyChatTemplatePerformanceUncached() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
+        let tokenizer = try await Self.sharedPhiTokenizer()
 
         let baseTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
 
