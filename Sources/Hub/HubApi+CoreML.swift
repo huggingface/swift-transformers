@@ -67,7 +67,7 @@ public extension HubApi {
     }
 
     /// Validate CoreML model structure and essential files
-    private func validateCoreMLModel(at modelPath: URL, modelName: String) throws {
+    func validateCoreMLModel(at modelPath: URL, modelName: String) throws {
         // Check for essential CoreML files
         let coremlDataPath = modelPath.appendingPathComponent("coremldata.bin")
         guard FileManager.default.fileExists(atPath: coremlDataPath.path) else {

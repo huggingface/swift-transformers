@@ -172,7 +172,7 @@ private extension HubApi {
     }
 
     /// Parse proxy URL and return configuration dictionary
-    static func parseProxyURL(_ proxyURLString: String, type: String) -> [String: Any]? {
+    public static func parseProxyURL(_ proxyURLString: String, type: String) -> [String: Any]? {
         #if os(macOS)
         guard let proxyURL = URL(string: proxyURLString),
               let host = proxyURL.host,
