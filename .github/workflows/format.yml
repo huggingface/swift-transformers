@@ -5,9 +5,6 @@ on:
       - '**.swift'
   workflow_dispatch:
 
-env:
-  SWIFTFORMAT_VERSION: "0.54.6"
-
 jobs:
   swift-format:
     name: Check Swift Formatting
@@ -15,44 +12,15 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install SwiftFormat
-        run: |
-          curl -L https://github.com/nicklockwood/SwiftFormat/releases/download/${{ env.SWIFTFORMAT_VERSION }}/swiftformat.zip -o swiftformat.zip
-          unzip swiftformat.zip
-          sudo mv swiftformat /usr/local/bin/
-          chmod +x /usr/local/bin/swiftformat
-          swiftformat --version
         
       - name: Check formatting
-        run: |
-          found_issues=false
-          files_with_issues=()
-          
-          while IFS= read -r file; do
-            if ! swiftformat --config .swiftformat --lint "$file"; then
-              found_issues=true
-              files_with_issues+=("$file")
-              echo "❌ Formatting issues found in: $file"
-            fi
-          done < <(find . -name "*.swift" -type f)
-          
-          if [ "$found_issues" = true ]; then
-            echo "❌ The following files need formatting:"
-            printf '%s\n' "${files_with_issues[@]}"
-            exit 1
-          else
-            echo "✅ All Swift files are properly formatted!"
-          fi
+        run: swift package plugin --allow-writing-to-package-directory swiftformat --lint --config .swiftformat .
 
       - name: Suggest fixes (if check fails)
         if: failure()
         run: |
           echo "### Here's how to fix the formatting locally:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# Install SwiftFormat version ${{ env.SWIFTFORMAT_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "brew install swiftformat@${{ env.SWIFTFORMAT_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Format all Swift files" >> $GITHUB_STEP_SUMMARY
-          echo 'swiftformat --config .swiftformat .' >> $GITHUB_STEP_SUMMARY
+          echo "# Format all Swift files using SPM plugin" >> $GITHUB_STEP_SUMMARY
+          echo 'swift package plugin --allow-writing-to-package-directory swiftformat --config .swiftformat .' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
