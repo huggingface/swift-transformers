@@ -5,6 +5,7 @@
 //  Created by Anthony DePasquale on 2/10/24.
 //
 
+import Foundation
 import Tokenizers
 import XCTest
 
@@ -275,6 +276,34 @@ class ChatTemplateTests: XCTestCase {
             } else {
                 XCTFail("Expected .missingChatTemplate, but got \(tokenizerError)")
             }
+        }
+    }
+
+    /// Performance: cached vs uncached template application
+    func testApplyChatTemplatePerformanceCached() async throws {
+        let tokenizer = try await Self.sharedPhiTokenizer()
+
+        // Purposely reuse the same template literal to hit the memoized compiled template
+        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+
+        // Prime cache once
+        _ = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
+
+        measure(metrics: [XCTClockMetric()]) {
+            _ = try! tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
+        }
+    }
+
+    /// Performance: simulate uncached runs by varying the template to bypass memoization
+    func testApplyChatTemplatePerformanceUncached() async throws {
+        let tokenizer = try await Self.sharedPhiTokenizer()
+
+        let baseTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+
+        measure(metrics: [XCTClockMetric()]) {
+            // Make the template string unique each iteration to force a fresh compilation
+            let uniqueTemplate = baseTemplate + "{# perf \(UUID().uuidString) #}"
+            _ = try! tokenizer.applyChatTemplate(messages: messages, chatTemplate: uniqueTemplate)
         }
     }
 }

@@ -285,6 +285,9 @@ public class PreTrainedTokenizer: Tokenizer {
 
     private let cleanUpTokenizationSpaces: Bool
 
+    /// Cache for compiled Jinja templates keyed by their literal template string
+    private var compiledChatTemplateCache: [String: Template] = [:]
+
     public required init(tokenizerConfig: Config, tokenizerData: Config) throws {
         var addedTokens: [String: Int] = [:]
         var specialTokens: [String: Int] = [:]
@@ -330,6 +333,15 @@ public class PreTrainedTokenizer: Tokenizer {
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+    }
+
+    private func compiledTemplate(for templateString: String) throws -> Template {
+        if let cached = compiledChatTemplateCache[templateString] {
+            return cached
+        }
+        let compiled = try Template(templateString)
+        compiledChatTemplateCache[templateString] = compiled
+        return compiled
     }
 
     func preTokenize(_ text: String, options: PreTokenizerOptions) -> [String] {
@@ -530,7 +542,7 @@ public class PreTrainedTokenizer: Tokenizer {
             throw TokenizerError.missingChatTemplate
         }
 
-        let template = try Template(selectedChatTemplate)
+        let template = try compiledTemplate(for: selectedChatTemplate)
         var context: [String: Any] = [
             "messages": messages,
             "add_generation_prompt": addGenerationPrompt,
