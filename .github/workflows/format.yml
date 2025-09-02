@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  SWIFTFORMAT_VERSION: "0.54.6"
+  SWIFTFORMAT_VERSION: "0.57.2"
 
 jobs:
   swift-format:
