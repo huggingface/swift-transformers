@@ -19,6 +19,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.4.0")),
         .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.2.1")),
+        .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.54.0"),
     ],
     targets: [
         .executableTarget(
