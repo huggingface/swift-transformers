@@ -120,7 +120,7 @@ class NormalizerTests: XCTestCase {
     }
 
     func testStripAccents() {
-        let testCases: [(String, String)] = [
+        let testCases = [
             ("département", "departement"),
         ]
 

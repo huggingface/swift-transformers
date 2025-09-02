@@ -6,6 +6,8 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+import XCTest
+
 @testable import Hub
 @testable import Tokenizers
 import XCTest
@@ -49,7 +51,9 @@ class BertTokenizerTests: XCTestCase {
 
     /// For each Squad question tokenized by python, check that we get the same output through the `BasicTokenizer`
     func testFullBasicTokenizer() {
-        let url = Bundle.module.url(forResource: "basic_tokenized_questions", withExtension: "json")!
+        let url = Bundle.module.url(
+            forResource: "basic_tokenized_questions", withExtension: "json"
+        )!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
         let sampleTokens = try! decoder.decode([[String]].self, from: json)
@@ -102,7 +106,9 @@ class BertTokenizerTests: XCTestCase {
     func testChineseWithNumeralsTokenization() {
         let tokenizer = bertTokenizer
         let text = "2020年奥运会在东京举行。"
-        let expectedTokens = ["2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。"]
+        let expectedTokens = [
+            "2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。",
+        ]
         let tokens = tokenizer.tokenize(text: text)
 
         XCTAssertEqual(tokens, expectedTokens)
@@ -111,7 +117,9 @@ class BertTokenizerTests: XCTestCase {
     func testChineseWithSpecialTokens() {
         let tokenizer = bertTokenizer
         let text = "[CLS] 机器学习是未来。 [SEP]"
-        let expectedTokens = ["[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]"]
+        let expectedTokens = [
+            "[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]",
+        ]
         let tokens = tokenizer.tokenize(text: text)
 
         XCTAssertEqual(tokens, expectedTokens)
@@ -141,7 +149,10 @@ class BertTokenizerTests: XCTestCase {
         let tokenizer = bertTokenizer
 
         for question in questionTokens {
-            XCTAssertEqual(question.basic.joined(separator: " "), tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
+            XCTAssertEqual(
+                question.basic.joined(separator: " "),
+                tokenizer.convertWordpieceToBasicTokenList(question.wordpiece)
+            )
         }
     }
 
@@ -178,10 +189,15 @@ class BertTokenizerTests: XCTestCase {
     }
 
     func testBertTokenizerAddedTokensRecognized() async throws {
-        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
+        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appending(component: "huggingface-tests")
         let hubApi = HubApi(downloadBase: base)
-        let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
-        guard let tokenizerConfig = try await configuration.tokenizerConfig else { fatalError("missing tokenizer config") }
+        let configuration = LanguageModelConfigurationFromHub(
+            modelName: "google-bert/bert-base-uncased", hubApi: hubApi
+        )
+        guard let tokenizerConfig = try await configuration.tokenizerConfig else {
+            fatalError("missing tokenizer config")
+        }
         let tokenizerData = try await configuration.tokenizerData
         let addedTokens = [
             "[ROAD]": 60_001,
@@ -192,7 +208,9 @@ class BertTokenizerTests: XCTestCase {
             "[INTERSECT]": 60_006,
             "[UNION]": 60_007,
         ]
-        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        let tokenizer = try BertTokenizer(
+            tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens
+        )
         for (token, idx) in addedTokens {
             XCTAssertEqual(tokenizer.convertTokenToId(token), idx)
         }
