@@ -17,7 +17,7 @@ final class Downloader: NSObject, Sendable, ObservableObject {
 
     enum DownloadState {
         case notStarted
-        case downloading(Double)
+        case downloading(Double, Double?)
         case completed(URL)
         case failed(Error)
     }
@@ -149,12 +149,12 @@ final class Downloader: NSObject, Sendable, ObservableObject {
                         // Calculate and show initial progress
                         if let expectedSize = await self.downloadResumeState.expectedSize, expectedSize > 0 {
                             let initialProgress = Double(resumeSize) / Double(expectedSize)
-                            await self.broadcaster.broadcast(state: .downloading(initialProgress))
+                            await self.broadcaster.broadcast(state: .downloading(initialProgress, nil))
                         } else {
-                            await self.broadcaster.broadcast(state: .downloading(0))
+                            await self.broadcaster.broadcast(state: .downloading(0, nil))
                         }
                     } else {
-                        await self.broadcaster.broadcast(state: .downloading(0))
+                        await self.broadcaster.broadcast(state: .downloading(0, nil))
                     }
 
                     request.timeoutInterval = timeout
@@ -227,6 +227,11 @@ final class Downloader: NSObject, Sendable, ObservableObject {
         // Create a buffer to collect bytes before writing to disk
         var buffer = Data(capacity: chunkSize)
 
+        // Track speed (bytes per second) using sampling between broadcasts
+        var lastSampleTime = Date()
+        var totalDownloadedLocal = await downloadResumeState.downloadedSize
+        var lastSampleBytes = totalDownloadedLocal
+
         var newNumRetries = numRetries
         do {
             for try await byte in asyncBytes {
@@ -237,17 +242,28 @@ final class Downloader: NSObject, Sendable, ObservableObject {
                         try tempFile.write(contentsOf: buffer)
                         buffer.removeAll(keepingCapacity: true)
 
+                        totalDownloadedLocal += chunkSize
                         await downloadResumeState.incDownloadedSize(chunkSize)
                         newNumRetries = 5
                         guard let expectedSize = await downloadResumeState.expectedSize else { continue }
-                        let progress = await expectedSize != 0 ? Double(downloadResumeState.downloadedSize) / Double(expectedSize) : 0
-                        await broadcaster.broadcast(state: .downloading(progress))
+                        let progress = expectedSize != 0 ? Double(totalDownloadedLocal) / Double(expectedSize) : 0
+
+                        // Compute instantaneous speed based on bytes since last broadcast
+                        let now = Date()
+                        let elapsed = now.timeIntervalSince(lastSampleTime)
+                        let deltaBytes = totalDownloadedLocal - lastSampleBytes
+                        let speed = elapsed > 0 ? Double(deltaBytes) / elapsed : nil
+                        lastSampleTime = now
+                        lastSampleBytes = totalDownloadedLocal
+
+                        await broadcaster.broadcast(state: .downloading(progress, speed))
                     }
                 }
             }
 
             if !buffer.isEmpty {
                 try tempFile.write(contentsOf: buffer)
+                totalDownloadedLocal += buffer.count
                 await downloadResumeState.incDownloadedSize(buffer.count)
                 buffer.removeAll(keepingCapacity: true)
                 newNumRetries = 5
@@ -298,7 +314,7 @@ final class Downloader: NSObject, Sendable, ObservableObject {
 extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         Task {
-            await self.broadcaster.broadcast(state: .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)))
+            await self.broadcaster.broadcast(state: .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite), nil))
         }
     }
 
