@@ -63,7 +63,21 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
         let downloadedTo = try await hubApi.snapshot(from: repo, revision: revision, matching: include) { progress in
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
-                print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%", terminator: "\r")
+                let speedBps = progress.userInfo[.throughputKey] as? Double
+                let speedString: String
+                if let s = speedBps {
+                    // Human-readable speed
+                    if s >= 1024 * 1024 {
+                        speedString = String(format: " - %.2f MB/s", s / (1024 * 1024))
+                    } else if s >= 1024 {
+                        speedString = String(format: " - %.2f KB/s", s / 1024)
+                    } else {
+                        speedString = String(format: " - %.0f B/s", s)
+                    }
+                } else {
+                    speedString = ""
+                }
+                print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%\(speedString)", terminator: "\r")
                 fflush(stdout)
             }
         }
