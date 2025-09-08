@@ -29,10 +29,10 @@ public struct HubApi: Sendable {
         useOfflineMode: Bool? = nil
     ) {
         self.hfToken = hfToken ?? Self.hfTokenFromEnv()
-        if self.hfToken == nil {
-            print("🔴 NO TOKEN **")
-        } else {
-            print("✅ got token")
+
+        let debugPrint = ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1"
+        if debugPrint {
+            print(self.hfToken == nil ? "🔴 NO TOKEN **" : "✅ got token")
         }
         if let downloadBase {
             self.downloadBase = downloadBase
