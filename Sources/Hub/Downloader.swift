@@ -40,7 +40,8 @@ final class Downloader: NSObject, Sendable, ObservableObject {
         to destination: URL,
         incompleteDestination: URL,
         inBackground: Bool = false,
-        chunkSize: Int = 10 * 1024 * 1024 // 10MB
+        chunkSize: Int = 10 * 1024 * 1024, // 10MB
+        proxyConfig: [String: Any]? = nil
     ) {
         self.destination = destination
         // Create incomplete file path based on destination
@@ -55,6 +56,12 @@ final class Downloader: NSObject, Sendable, ObservableObject {
             config.isDiscretionary = false
             config.sessionSendsLaunchEvents = true
         }
+
+        // Apply proxy configuration if provided
+        if let proxyConfig {
+            config.connectionProxyDictionary = proxyConfig
+        }
+
         sessionConfig = config
     }
 
