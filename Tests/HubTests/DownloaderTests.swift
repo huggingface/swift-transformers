@@ -160,7 +160,7 @@ final class DownloaderTests: XCTestCase {
                 switch state {
                 case .notStarted:
                     continue
-                case let .downloading(progress):
+                case let .downloading(progress, _):
                     if threshold != 1.0, progress >= threshold {
                         // Move to next threshold and interrupt
                         threshold = threshold == 0.5 ? 0.75 : 1.0

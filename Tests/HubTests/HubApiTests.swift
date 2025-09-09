@@ -1111,6 +1111,43 @@ class SnapshotDownloadTests: XCTestCase {
         )
     }
 
+    func testRealDownloadWithSpeed() async throws {
+        // Use the DepthPro model weights file
+        let targetFile = "SAM 2 Studio 1.1.zip"
+        let repo = "coreml-projects/sam-2-studio"
+        let hubApi = HubApi(downloadBase: downloadDestination)
+
+        var lastSpeed: Double? = nil
+
+        // Add debug prints
+        print("Download destination before: \(downloadDestination.path)")
+
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
+            if let speed {
+                print("Current speed: \(speed)")
+            }
+
+            lastSpeed = speed
+        }
+
+        // Add more debug prints
+        print("Downloaded to: \(downloadedTo.path)")
+
+        XCTAssertNotNil(lastSpeed)
+
+        let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
+        print("Downloaded filenames: \(downloadedFilenames)")
+        print("Prefix used in getRelativeFiles: \(downloadDestination.appending(path: "models/\(repo)").path)")
+
+        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+
+        let filePath = downloadedTo.appendingPathComponent(targetFile)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: filePath.path),
+            "Downloaded file should exist at \(filePath.path)"
+        )
+    }
+
     func testDownloadWithRevision() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil

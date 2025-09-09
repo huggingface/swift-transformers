@@ -443,7 +443,7 @@ public extension HubApi {
         /// We'll probably need to support Combine as well to play well with Swift UI
         /// (See for example PipelineLoader in swift-coreml-diffusers)
         @discardableResult
-        func download(progressHandler: @escaping (Double) -> Void) async throws -> URL {
+        func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
             let remoteMetadata = try await hub.getFileMetadata(url: source)
 
@@ -499,8 +499,8 @@ public extension HubApi {
                     switch state {
                     case .notStarted:
                         continue
-                    case let .downloading(progress):
-                        progressHandler(progress)
+                    case let .downloading(progress, speed):
+                        progressHandler(progress, speed)
                     case let .failed(error):
                         throw error
                     case .completed:
@@ -583,8 +583,12 @@ public extension HubApi {
                 backgroundSession: useBackgroundSession
             )
 
-            try await downloader.download { fractionDownloaded in
+            try await downloader.download { fractionDownloaded, speed in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
+                if let speed {
+                    fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
+                    progress.setUserInfoObject(speed, forKey: .throughputKey)
+                }
                 progressHandler(progress)
             }
             if Task.isCancelled {
@@ -596,6 +600,14 @@ public extension HubApi {
 
         progressHandler(progress)
         return repoDestination
+    }
+
+    /// New overloads exposing speed directly in the snapshot progress handler
+    @discardableResult func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await snapshot(from: repo, revision: revision, matching: globs) { progress in
+            let speed = progress.userInfo[.throughputKey] as? Double
+            progressHandler(progress, speed)
+        }
     }
 
     @discardableResult
@@ -610,6 +622,22 @@ public extension HubApi {
 
     @discardableResult
     func snapshot(from repoId: String, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
+    }
+
+    /// Convenience overloads for other snapshot entry points with speed
+    @discardableResult
+    func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, progressHandler: progressHandler)
+    }
+
+    @discardableResult
+    func snapshot(from repo: Repo, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await snapshot(from: repo, revision: revision, matching: [glob], progressHandler: progressHandler)
+    }
+
+    @discardableResult
+    func snapshot(from repoId: String, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
     }
 }
@@ -819,6 +847,23 @@ public extension Hub {
     }
 
     static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
+    }
+
+    /// Overloads exposing speed via (Progress, Double?) where Double is bytes/sec
+    static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
+    }
+
+    static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
+    }
+
+    static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
+        try await HubApi.shared.snapshot(from: repo, matching: glob, progressHandler: progressHandler)
+    }
+
+    static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
 
