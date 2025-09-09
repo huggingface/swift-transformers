@@ -64,18 +64,17 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 let speedBps = progress.userInfo[.throughputKey] as? Double
-                let speedString: String
-                if let s = speedBps {
+                let speedString = if let s = speedBps {
                     // Human-readable speed
                     if s >= 1024 * 1024 {
-                        speedString = String(format: " - %.2f MB/s", s / (1024 * 1024))
+                        String(format: " - %.2f MB/s", s / (1024 * 1024))
                     } else if s >= 1024 {
-                        speedString = String(format: " - %.2f KB/s", s / 1024)
+                        String(format: " - %.2f KB/s", s / 1024)
                     } else {
-                        speedString = String(format: " - %.0f B/s", s)
+                        String(format: " - %.0f B/s", s)
                     }
                 } else {
-                    speedString = ""
+                    ""
                 }
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%\(speedString)", terminator: "\r")
                 fflush(stdout)

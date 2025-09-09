@@ -597,7 +597,7 @@ public extension HubApi {
         return repoDestination
     }
 
-    // New overloads exposing speed directly in the snapshot progress handler
+    /// New overloads exposing speed directly in the snapshot progress handler
     @discardableResult func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await snapshot(from: repo, revision: revision, matching: globs) { progress in
             let speed = progress.userInfo[.throughputKey] as? Double
@@ -620,7 +620,7 @@ public extension HubApi {
         try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
     }
 
-    // Convenience overloads for other snapshot entry points with speed
+    /// Convenience overloads for other snapshot entry points with speed
     @discardableResult
     func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, progressHandler: progressHandler)
@@ -845,7 +845,7 @@ public extension Hub {
         try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
 
-    // Overloads exposing speed via (Progress, Double?) where Double is bytes/sec
+    /// Overloads exposing speed via (Progress, Double?) where Double is bytes/sec
     static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
     }
@@ -861,6 +861,7 @@ public extension Hub {
     static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
+
     static func whoami(token: String) async throws -> Config {
         try await HubApi(hfToken: token).whoami()
     }
