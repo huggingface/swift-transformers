@@ -95,6 +95,7 @@ public struct HubApi: Sendable {
         self.endpoint = endpoint ?? Self.hfEndpointfromEnv()
         self.useBackgroundSession = useBackgroundSession
         self.useOfflineMode = useOfflineMode
+
         NetworkMonitor.shared.startMonitoring()
     }
 
@@ -476,6 +477,7 @@ public extension HubApi {
         let hfToken: String?
         let endpoint: String?
         let backgroundSession: Bool
+        let proxyConfig: [String: Any]?
 
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
@@ -562,7 +564,7 @@ public extension HubApi {
             let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
             try prepareCacheDestination(incompleteDestination)
 
-            let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination, inBackground: backgroundSession)
+            let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination, inBackground: backgroundSession, proxyConfig: proxyConfig)
 
             try await withTaskCancellationHandler {
                 let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
@@ -584,6 +586,9 @@ public extension HubApi {
                 }
             }
 
+            // Validate file size after download completion
+            try HubApi.validateFileSize(at: destination, expectedSize: remoteSize)
+
             try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
 
             return destination
@@ -591,7 +596,7 @@ public extension HubApi {
     }
 
     @discardableResult
-    func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in })
+    func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in })
         async throws -> URL
     {
         let repoDestination = localRepoLocation(repo)
@@ -638,7 +643,27 @@ public extension HubApi {
             return repoDestination
         }
 
-        let filenames = try await getFilenames(from: repo, revision: revision, matching: globs)
+        // Check for upstream changes if requested and repository already exists
+        if checkForUpdates, FileManager.default.fileExists(atPath: repoDestination.path) {
+            HubApi.logger.info("Checking for upstream changes in \(repo.id)...")
+            let changedFiles = try await redownloadChangedFiles(
+                repo: repo,
+                revision: revision,
+                localDirectory: repoDestination,
+                progressHandler: progressHandler
+            )
+
+            if !changedFiles.isEmpty {
+                HubApi.logger.info("Updated \(changedFiles.count) files for \(repo.id)")
+            }
+        }
+
+        var filenames = try await getFilenames(from: repo, revision: revision, matching: globs)
+
+        // Filter to essential files if no specific globs provided
+        if globs.isEmpty {
+            filenames = filenames.filter { HubApi.isEssentialFile($0) }
+        }
         let progress = Progress(totalUnitCount: Int64(filenames.count))
         for filename in filenames {
             let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
@@ -651,17 +676,48 @@ public extension HubApi {
                 relativeFilename: filename,
                 hfToken: hfToken,
                 endpoint: endpoint,
-                backgroundSession: useBackgroundSession
+                backgroundSession: useBackgroundSession,
+                proxyConfig: proxyConfig
             )
 
-            try await downloader.download { fractionDownloaded, speed in
-                fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
-                if let speed {
-                    fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
-                    progress.setUserInfoObject(speed, forKey: .throughputKey)
+            // Retry download with exponential backoff
+            var lastError: Error?
+            let retryConfig = RetryConfig.default
+
+            for attempt in 1...retryConfig.maxRetries {
+                do {
+                    try await downloader.download { fractionDownloaded, speed in
+                        fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
+                        if let speed {
+                            fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
+                            progress.setUserInfoObject(speed, forKey: .throughputKey)
+                        }
+                        progressHandler(progress)
+                    }
+                    lastError = nil
+                    break
+                } catch {
+                    lastError = error
+                    HubApi.logger.warning("Download attempt \(attempt)/\(retryConfig.maxRetries) failed for \(filename): \(error.localizedDescription)")
+
+                    if attempt < retryConfig.maxRetries {
+                        let delay = retryConfig.delay(for: attempt)
+                        HubApi.logger.info("Retrying download for \(filename) in \(String(format: "%.1f", delay)) seconds...")
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    }
                 }
-                progressHandler(progress)
+
+                if Task.isCancelled {
+                    return repoDestination
+                }
             }
+
+            // If all retries failed, throw the last error
+            if let error = lastError {
+                HubApi.logger.error("Failed to download \(filename) after \(retryConfig.maxRetries) attempts: \(error.localizedDescription)")
+                throw error
+            }
+
             if Task.isCancelled {
                 return repoDestination
             }
@@ -682,18 +738,18 @@ public extension HubApi {
     }
 
     @discardableResult
-    func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, progressHandler: progressHandler)
+    func snapshot(from repoId: String, revision: String = "main", matching globs: [String] = [], checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: globs, checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
     @discardableResult
-    func snapshot(from repo: Repo, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: repo, revision: revision, matching: [glob], progressHandler: progressHandler)
+    func snapshot(from repo: Repo, revision: String = "main", matching glob: String, checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: repo, revision: revision, matching: [glob], checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
     @discardableResult
-    func snapshot(from repoId: String, revision: String = "main", matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], progressHandler: progressHandler)
+    func snapshot(from repoId: String, revision: String = "main", matching glob: String, checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await snapshot(from: Repo(id: repoId), revision: revision, matching: [glob], checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
     /// Convenience overloads for other snapshot entry points with speed
@@ -903,22 +959,22 @@ public extension Hub {
         try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: glob)
     }
 
-    static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
+    static func snapshot(from repo: Repo, matching globs: [String] = [], checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await HubApi.shared.snapshot(from: repo, matching: globs, checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repoId: String, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws
+    static func snapshot(from repoId: String, matching globs: [String] = [], checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws
         -> URL
     {
-        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, progressHandler: progressHandler)
+        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: globs, checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repo: Repo, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: repo, matching: glob, progressHandler: progressHandler)
+    static func snapshot(from repo: Repo, matching glob: String, checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await HubApi.shared.snapshot(from: repo, matching: glob, checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
-    static func snapshot(from repoId: String, matching glob: String, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
-        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
+    static func snapshot(from repoId: String, matching glob: String, checkForUpdates: Bool = false, progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
+        try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, checkForUpdates: checkForUpdates, progressHandler: progressHandler)
     }
 
     /// Overloads exposing speed via (Progress, Double?) where Double is bytes/sec
@@ -1043,5 +1099,544 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
 
         // For all other cases (non-redirects or absolute redirects), prevent redirect
         completionHandler(nil)
+    }
+}
+
+/// Advanced filtering capabilities
+public extension HubApi {
+    /// Model filter for advanced repository searching
+    struct ModelFilter {
+        public var author: String?
+        public var library: [String]?
+        public var language: [String]?
+        public var modelName: String?
+        public var task: [String]?
+        public var tags: [String]?
+        public var trainedDataset: [String]?
+
+        public init(
+            author: String? = nil,
+            library: [String]? = nil,
+            language: [String]? = nil,
+            modelName: String? = nil,
+            task: [String]? = nil,
+            tags: [String]? = nil,
+            trainedDataset: [String]? = nil
+        ) {
+            self.author = author
+            self.library = library
+            self.language = language
+            self.modelName = modelName
+            self.task = task
+            self.tags = tags
+            self.trainedDataset = trainedDataset
+        }
+
+        /// Convert filter to query parameters
+        var queryParameters: [String: String] {
+            var params: [String: String] = [:]
+
+            if let author { params["author"] = author }
+            if let library { params["library"] = library.joined(separator: ",") }
+            if let language { params["language"] = language.joined(separator: ",") }
+            if let modelName { params["model_name"] = modelName }
+            if let task { params["task"] = task.joined(separator: ",") }
+            if let tags { params["tags"] = tags.joined(separator: ",") }
+            if let trainedDataset { params["dataset"] = trainedDataset.joined(separator: ",") }
+
+            return params
+        }
+    }
+
+    /// Dataset filter for advanced repository searching
+    struct DatasetFilter {
+        public var author: String?
+        public var benchmark: [String]?
+        public var datasetName: String?
+        public var languageCreators: [String]?
+        public var languages: [String]?
+        public var multilinguality: [String]?
+        public var sizeCategories: [String]?
+        public var taskCategories: [String]?
+        public var taskIds: [String]?
+
+        public init(
+            author: String? = nil,
+            benchmark: [String]? = nil,
+            datasetName: String? = nil,
+            languageCreators: [String]? = nil,
+            languages: [String]? = nil,
+            multilinguality: [String]? = nil,
+            sizeCategories: [String]? = nil,
+            taskCategories: [String]? = nil,
+            taskIds: [String]? = nil
+        ) {
+            self.author = author
+            self.benchmark = benchmark
+            self.datasetName = datasetName
+            self.languageCreators = languageCreators
+            self.languages = languages
+            self.multilinguality = multilinguality
+            self.sizeCategories = sizeCategories
+            self.taskCategories = taskCategories
+            self.taskIds = taskIds
+        }
+
+        /// Convert filter to query parameters
+        var queryParameters: [String: String] {
+            var params: [String: String] = [:]
+
+            if let author { params["author"] = author }
+            if let benchmark { params["benchmark"] = benchmark.joined(separator: ",") }
+            if let datasetName { params["dataset_name"] = datasetName }
+            if let languageCreators { params["language_creators"] = languageCreators.joined(separator: ",") }
+            if let languages { params["languages"] = languages.joined(separator: ",") }
+            if let multilinguality { params["multilinguality"] = multilinguality.joined(separator: ",") }
+            if let sizeCategories { params["size_categories"] = sizeCategories.joined(separator: ",") }
+            if let taskCategories { params["task_categories"] = taskCategories.joined(separator: ",") }
+            if let taskIds { params["task_ids"] = taskIds.joined(separator: ",") }
+
+            return params
+        }
+    }
+
+    /// Search models with advanced filtering
+    func searchModels(filter: ModelFilter, limit: Int = 10) async throws -> [Config] {
+        let url = URL(string: "\(endpoint)/api/models")!
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+
+        var queryItems = [URLQueryItem]()
+        for (key, value) in filter.queryParameters {
+            queryItems.append(URLQueryItem(name: key, value: value))
+        }
+        queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+        components.queryItems = queryItems
+
+        let (data, _) = try await httpGet(for: components.url!)
+        let models = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] ?? []
+
+        return models.map { Config($0 as [NSString: Any]) }
+    }
+
+    /// Search datasets with advanced filtering
+    func searchDatasets(filter: DatasetFilter, limit: Int = 10) async throws -> [Config] {
+        let url = URL(string: "\(endpoint)/api/datasets")!
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+
+        var queryItems = [URLQueryItem]()
+        for (key, value) in filter.queryParameters {
+            queryItems.append(URLQueryItem(name: key, value: value))
+        }
+        queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+        components.queryItems = queryItems
+
+        let (data, _) = try await httpGet(for: components.url!)
+        let datasets = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] ?? []
+
+        return datasets.map { Config($0 as [NSString: Any]) }
+    }
+
+    /// Get model tags for filtering
+    func getModelTags() async throws -> Config {
+        let url = URL(string: "\(endpoint)/api/models-tags-by-type")!
+        let (data, _) = try await httpGet(for: url)
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
+    }
+
+    /// Get dataset tags for filtering
+    func getDatasetTags() async throws -> Config {
+        let url = URL(string: "\(endpoint)/api/datasets-tags-by-type")!
+        let (data, _) = try await httpGet(for: url)
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
+    }
+}
+
+/// File validation utilities
+public extension HubApi {
+    /// Check if a file is essential for model operation
+    static func isEssentialFile(_ path: String) -> Bool {
+        path.hasSuffix(".json") || path.hasSuffix(".txt") || path == "config.json"
+    }
+
+    /// Validate downloaded file size matches expected size
+    static func validateFileSize(at fileURL: URL, expectedSize: Int?) throws {
+        guard let expectedSize else { return }
+
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            if let fileSize = attributes[.size] as? Int64 {
+                if fileSize != expectedSize {
+                    throw EnvironmentError.fileIntegrityError(
+                        String(localized: "File size mismatch for \(fileURL.lastPathComponent): got \(fileSize), expected \(expectedSize)")
+                    )
+                }
+            }
+        } catch let error as EnvironmentError {
+            throw error
+        } catch {
+            throw EnvironmentError.fileIntegrityError(
+                String(localized: "Failed to validate file size for \(fileURL.lastPathComponent): \(error.localizedDescription)")
+            )
+        }
+    }
+
+    /// Format bytes for display
+    static func formatBytes(_ bytes: Int) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary
+        return formatter.string(fromByteCount: Int64(bytes))
+    }
+
+    /// Check if upstream files have changed and need re-downloading
+    func checkForUpstreamChanges(repo: Repo, revision: String = "main", localDirectory: URL) async throws -> [String] {
+        var changedFiles: [String] = []
+
+        // Get list of local files
+        guard FileManager.default.fileExists(atPath: localDirectory.path) else {
+            return changedFiles
+        }
+
+        let localFileUrls = try FileManager.default.getFileUrls(at: localDirectory)
+
+        // Check each local file against upstream
+        for localFileUrl in localFileUrls {
+            let relativePath = localFileUrl.path.replacingOccurrences(of: localDirectory.path + "/", with: "")
+
+            // Skip metadata files and directories
+            if relativePath.hasSuffix(".metadata") || localFileUrl.hasDirectoryPath {
+                continue
+            }
+
+            // Get local metadata
+            let metadataPath = URL(
+                fileURLWithPath: localFileUrl.path.replacingOccurrences(
+                    of: localDirectory.path,
+                    with: localDirectory.appendingPathComponent(".cache/huggingface/download").path
+                ) + ".metadata"
+            )
+
+            let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
+
+            // Get remote metadata
+            let remoteUrl = URL(string: "\(endpoint)/\(repo.id)/resolve/\(revision)/\(relativePath)")!
+            let remoteMetadata = try await getFileMetadata(url: remoteUrl)
+
+            // Check if file has changed
+            if let localEtag = localMetadata?.etag,
+               let remoteEtag = remoteMetadata.etag,
+               localEtag != remoteEtag
+            {
+                changedFiles.append(relativePath)
+                HubApi.logger.info("Upstream change detected for \(relativePath): local etag \(localEtag) != remote etag \(remoteEtag)")
+            } else if localMetadata == nil {
+                // No local metadata - file needs to be downloaded
+                changedFiles.append(relativePath)
+                HubApi.logger.info("No metadata found for \(relativePath), marking for download")
+            }
+        }
+
+        return changedFiles
+    }
+
+    /// Retry configuration for network operations
+    struct RetryConfig: Sendable {
+        let maxRetries: Int
+        let baseDelay: TimeInterval
+        let maxDelay: TimeInterval
+
+        static let `default` = RetryConfig(maxRetries: 3, baseDelay: 1.0, maxDelay: 30.0)
+
+        func delay(for attempt: Int) -> TimeInterval {
+            let exponentialDelay = baseDelay * pow(2.0, Double(attempt - 1))
+            return min(exponentialDelay, maxDelay)
+        }
+    }
+
+    /// Force re-download of files that have changed upstream
+    @discardableResult
+    func redownloadChangedFiles(
+        repo: Repo,
+        revision: String = "main",
+        localDirectory: URL,
+        retryConfig: RetryConfig? = nil,
+        progressHandler: @escaping (Progress) -> Void = { _ in }
+    ) async throws -> [String] {
+        let changedFiles = try await checkForUpstreamChanges(repo: repo, revision: revision, localDirectory: localDirectory)
+
+        guard !changedFiles.isEmpty else {
+            HubApi.logger.info("No upstream changes detected for \(repo.id)")
+            return []
+        }
+
+        HubApi.logger.info("Re-downloading \(changedFiles.count) changed files for \(repo.id)")
+
+        let config = retryConfig ?? RetryConfig.default
+        let progress = Progress(totalUnitCount: Int64(changedFiles.count))
+        var downloadedFiles: [String] = []
+
+        for filename in changedFiles {
+            let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
+
+            let downloader = HubFileDownloader(
+                hub: self,
+                repo: repo,
+                revision: revision,
+                repoDestination: localDirectory,
+                repoMetadataDestination: localDirectory.appendingPathComponent(".cache/huggingface/download"),
+                relativeFilename: filename,
+                hfToken: hfToken,
+                endpoint: endpoint,
+                backgroundSession: useBackgroundSession,
+                proxyConfig: proxyConfig
+            )
+
+            // Retry download with exponential backoff
+            var lastError: Error?
+            for attempt in 1...config.maxRetries {
+                do {
+                    try await downloader.download { fractionDownloaded, speed in
+                        fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
+                        if let speed {
+                            fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
+                            progress.setUserInfoObject(speed, forKey: .throughputKey)
+                        }
+                        progressHandler(progress)
+                    }
+                    downloadedFiles.append(filename)
+                    fileProgress.completedUnitCount = 100
+                    lastError = nil
+                    break
+                } catch {
+                    lastError = error
+                    HubApi.logger.warning("Download attempt \(attempt)/\(config.maxRetries) failed for \(filename): \(error.localizedDescription)")
+
+                    if attempt < config.maxRetries {
+                        let delay = config.delay(for: attempt)
+                        HubApi.logger.info("Retrying download for \(filename) in \(String(format: "%.1f", delay)) seconds...")
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    }
+                }
+
+                if Task.isCancelled {
+                    break
+                }
+            }
+
+            // If all retries failed, throw the last error
+            if let error = lastError {
+                HubApi.logger.error("Failed to download \(filename) after \(config.maxRetries) attempts: \(error.localizedDescription)")
+                throw error
+            }
+
+            if Task.isCancelled {
+                break
+            }
+        }
+
+        progressHandler(progress)
+        HubApi.logger.info("Re-downloaded \(downloadedFiles.count) files for \(repo.id)")
+        return downloadedFiles
+    }
+
+    /// Clean up corrupted or incomplete downloads
+    func cleanupCorruptedDownloads(repo: Repo, localDirectory: URL) throws {
+        let metadataDir = localDirectory.appendingPathComponent(".cache/huggingface/download")
+
+        guard FileManager.default.fileExists(atPath: metadataDir.path) else {
+            return
+        }
+
+        let localFileUrls = try FileManager.default.getFileUrls(at: localDirectory)
+        var corruptedFiles: [String] = []
+
+        for localFileUrl in localFileUrls {
+            let relativePath = localFileUrl.path.replacingOccurrences(of: localDirectory.path + "/", with: "")
+
+            // Skip directories and metadata files
+            if localFileUrl.hasDirectoryPath || relativePath.hasSuffix(".metadata") {
+                continue
+            }
+
+            // Check if metadata exists for this file
+            let metadataPath = metadataDir.appendingPathComponent(relativePath + ".metadata")
+
+            if !FileManager.default.fileExists(atPath: metadataPath.path) {
+                corruptedFiles.append(relativePath)
+                HubApi.logger.info("Found file without metadata: \(relativePath)")
+                continue
+            }
+
+            // Validate file integrity if possible
+            let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
+            if let localEtag = localMetadata?.etag, isValidHash(hash: localEtag, pattern: sha256Pattern) {
+                // This is an LFS file, check hash
+                let fileHash = try computeFileHash(file: localFileUrl)
+                if fileHash != localEtag {
+                    corruptedFiles.append(relativePath)
+                    HubApi.logger.info("Hash mismatch for \(relativePath): expected \(localEtag), got \(fileHash)")
+                }
+            }
+        }
+
+        // Remove corrupted files and their metadata
+        for corruptedFile in corruptedFiles {
+            let filePath = localDirectory.appendingPathComponent(corruptedFile)
+            let metadataPath = metadataDir.appendingPathComponent(corruptedFile + ".metadata")
+
+            try? FileManager.default.removeItem(at: filePath)
+            try? FileManager.default.removeItem(at: metadataPath)
+
+            HubApi.logger.info("Cleaned up corrupted file: \(corruptedFile)")
+        }
+
+        if !corruptedFiles.isEmpty {
+            HubApi.logger.info("Cleaned up \(corruptedFiles.count) corrupted files for \(repo.id)")
+        }
+    }
+
+    /// Get repository information for different repo types
+    func getRepositoryInfo(repo: Repo, revision: String = "main") async throws -> Config {
+        let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)/revision/\(revision)")!
+        let (data, _) = try await httpGet(for: url)
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
+    }
+
+    /// List repositories of a specific type with filtering
+    func listRepositories(
+        type: RepoType,
+        filter: ModelFilter? = nil,
+        limit: Int = 10
+    ) async throws -> [Config] {
+        let url = URL(string: "\(endpoint)/api/\(type.rawValue)")!
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+
+        var queryItems = [URLQueryItem]()
+        if let filter {
+            for (key, value) in filter.queryParameters {
+                queryItems.append(URLQueryItem(name: key, value: value))
+            }
+        }
+        queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+        components.queryItems = queryItems
+
+        let (data, _) = try await httpGet(for: components.url!)
+        let repos = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] ?? []
+
+        return repos.map { Config($0 as [NSString: Any]) }
+    }
+
+    /// Check if repository exists and is accessible
+    func repositoryExists(repo: Repo, revision: String = "main") async throws -> Bool {
+        do {
+            _ = try await getRepositoryInfo(repo: repo, revision: revision)
+            return true
+        } catch Hub.HubClientError.fileNotFound {
+            return false
+        } catch {
+            throw error
+        }
+    }
+
+    /// Get repository size information
+    func getRepositorySize(repo: Repo, revision: String = "main") async throws -> Int64 {
+        let files = try await getFilenames(from: repo, revision: revision)
+        var totalSize: Int64 = 0
+
+        for filename in files {
+            let metadata = try await getFileMetadata(from: repo, revision: revision, matching: [filename])
+            if let size = metadata.first?.size {
+                totalSize += Int64(size)
+            }
+        }
+
+        return totalSize
+    }
+
+    /// Create a repository (if supported by API)
+    func createRepository(
+        repo: Repo,
+        private: Bool = false,
+        description: String? = nil
+    ) async throws -> Config {
+        let url = URL(string: "\(endpoint)/api/repos/create")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let hfToken {
+            request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        var body: [String: Any] = [
+            "name": repo.id,
+            "type": repo.type.rawValue,
+            "private": `private`,
+        ]
+
+        if let description {
+            body["description"] = description
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw Hub.HubClientError.unexpectedError
+        }
+
+        switch httpResponse.statusCode {
+        case 200..<300:
+            break // Success
+        case 401, 403:
+            throw Hub.HubClientError.authorizationRequired
+        case 404:
+            throw Hub.HubClientError.fileNotFound("Repository creation endpoint")
+        default:
+            throw Hub.HubClientError.httpStatusCode(httpResponse.statusCode)
+        }
+        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
+        return Config(dictionary)
+    }
+
+    /// Recover from a failed download state
+    func recoverFromFailedDownload(repo: Repo, localDirectory: URL) async throws {
+        HubApi.logger.info("Attempting to recover from failed download state for \(repo.id)")
+
+        // Clean up corrupted files first
+        try cleanupCorruptedDownloads(repo: repo, localDirectory: localDirectory)
+
+        // Re-download any missing essential files
+        let essentialFiles = try await getFilenames(from: repo).filter { HubApi.isEssentialFile($0) }
+
+        for filename in essentialFiles {
+            let filePath = localDirectory.appendingPathComponent(filename)
+            if !FileManager.default.fileExists(atPath: filePath.path) {
+                HubApi.logger.info("Re-downloading missing essential file: \(filename)")
+
+                let downloader = HubFileDownloader(
+                    hub: self,
+                    repo: repo,
+                    revision: "main",
+                    repoDestination: localDirectory,
+                    repoMetadataDestination: localDirectory.appendingPathComponent(".cache/huggingface/download"),
+                    relativeFilename: filename,
+                    hfToken: hfToken,
+                    endpoint: endpoint,
+                    backgroundSession: useBackgroundSession,
+                    proxyConfig: proxyConfig
+                )
+
+                try await downloader.download { _, _ in }
+            }
+        }
+
+        HubApi.logger.info("Recovery completed for \(repo.id)")
     }
 }
