@@ -68,6 +68,11 @@ public struct HubApi: Sendable {
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
+    /// Proxy configuration dictionary - computed property for Sendable compliance
+    private var proxyConfig: [String: Any]? {
+        Self.configureProxySettings()
+    }
+
     public init(
         downloadBase: URL? = nil,
         hfToken: String? = nil,
@@ -134,6 +139,72 @@ private extension HubApi {
             .compactMap { $0() }
             .filter { !$0.isEmpty }
             .first
+    }
+
+    /// Configure proxy settings from environment variables
+    static func configureProxySettings() -> [String: Any]? {
+        #if os(macOS)
+        var proxyConfig: [String: Any] = [:]
+        var hasProxyConfig = false
+
+        // Configure HTTPS proxy
+        if let httpsProxy = ProcessInfo.processInfo.environment["https_proxy"],
+           let proxySettings = parseProxyURL(httpsProxy, type: "HTTPS")
+        {
+            proxyConfig.merge(proxySettings) { _, new in new }
+            hasProxyConfig = true
+        }
+
+        // Configure HTTP proxy
+        if let httpProxy = ProcessInfo.processInfo.environment["http_proxy"],
+           let proxySettings = parseProxyURL(httpProxy, type: "HTTP")
+        {
+            proxyConfig.merge(proxySettings) { _, new in new }
+            hasProxyConfig = true
+        }
+
+        return hasProxyConfig ? proxyConfig : nil
+        #else
+        // Proxy configuration not available on iOS
+        return nil
+        #endif
+    }
+
+    /// Parse proxy URL and return configuration dictionary
+    static func parseProxyURL(_ proxyURLString: String, type: String) -> [String: Any]? {
+        #if os(macOS)
+        guard let proxyURL = URL(string: proxyURLString),
+              let host = proxyURL.host,
+              let port = proxyURL.port
+        else {
+            HubApi.logger.warning("Invalid \(type) proxy URL: \(proxyURLString)")
+            return nil
+        }
+
+        let config: [String: Any]
+        switch type {
+        case "HTTPS":
+            config = [
+                kCFNetworkProxiesHTTPSEnable as String: true,
+                kCFNetworkProxiesHTTPSProxy as String: host,
+                kCFNetworkProxiesHTTPSPort as String: port,
+            ]
+        case "HTTP":
+            config = [
+                kCFNetworkProxiesHTTPEnable as String: true,
+                kCFNetworkProxiesHTTPProxy as String: host,
+                kCFNetworkProxiesHTTPPort as String: port,
+            ]
+        default:
+            return nil
+        }
+
+        HubApi.logger.info("Configured \(type) proxy: \(host):\(port)")
+        return config
+        #else
+        // Proxy configuration not available on iOS
+        return nil
+        #endif
     }
 }
 
