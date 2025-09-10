@@ -17,7 +17,7 @@
     // Format on save for Swift files
     "[swift]": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "vknabel.vscode-swiftformat"
+        "editor.defaultFormatter": "swiftlang.swift-vscode"
     },
     // Exclude build artifacts from search
     "search.exclude": {
