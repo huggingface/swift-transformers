@@ -26,7 +26,7 @@ struct TransformersCLI: ParsableCommand {
 
     func generate(model: LanguageModel, config: GenerationConfig, prompt: String, printOutput: Bool = true) {
         let semaphore = DispatchSemaphore(value: 0)
-        Task.init { [config] in
+        Task { [config] in
             defer { semaphore.signal() }
             var tokensReceived = 0
             var previousIndex: String.Index? = nil

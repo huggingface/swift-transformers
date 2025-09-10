@@ -8,7 +8,7 @@
 import Foundation
 
 /// Essentials taken from https://github.com/huggingface/transformers/blob/main/src/transformers/generation/configuration_utils.py
-public struct GenerationConfig {
+public struct GenerationConfig: Sendable {
     public var maxLength = 20
     public var maxNewTokens: Int
     public var doSample = false

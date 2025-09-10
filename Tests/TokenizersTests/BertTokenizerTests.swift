@@ -11,9 +11,10 @@ import Foundation
 import Testing
 @testable import Tokenizers
 
-@Suite struct BertTokenizerTests {
+@Suite
+final class BertTokenizerTests {
 
-    lazy var bertTokenizer: BertTokenizer = {
+    let bertTokenizer: BertTokenizer = {
         let vocab = {
             let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
             let vocabTxt = try! String(contentsOf: url)
@@ -111,15 +112,15 @@ import Testing
         #expect(tokens == expectedTokens)
     }
 
-    func testPerformanceExample() {
-        let tokenizer = bertTokenizer
-
-        // This is an example of a performance test case.
-        measure {
-            // Put the code you want to measure the time of here.
-            _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
-        }
-    }
+//    func testPerformanceExample() {
+//        let tokenizer = bertTokenizer
+//
+//        // This is an example of a performance test case.
+//        measure {
+//            // Put the code you want to measure the time of here.
+//            _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
+//        }
+//    }
 
     func testWordpieceDetokenizer() {
         struct QuestionTokens: Codable {

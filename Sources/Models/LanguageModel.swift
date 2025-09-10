@@ -10,7 +10,7 @@ import Generation
 import Hub
 import Tokenizers
 
-public class LanguageModel {
+public class LanguageModel: @unchecked Sendable {
     public let model: MLModel
 
     public let minContextLength: Int

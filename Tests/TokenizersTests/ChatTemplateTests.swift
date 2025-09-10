@@ -10,7 +10,8 @@ import Tokenizers
 import Testing
 
 @Suite
-class ChatTemplateTests {
+@MainActor
+final class ChatTemplateTests {
     let messages = [[
         "role": "user",
         "content": "Describe the Swift programming language.",

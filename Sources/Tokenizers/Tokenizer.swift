@@ -144,7 +144,7 @@ public enum ChatTemplateArgument {
     case name(String)
 }
 
-public protocol Tokenizer {
+public protocol Tokenizer: Sendable {
     func tokenize(text: String) -> [String]
 
     /// Main entry point
@@ -262,7 +262,7 @@ let specialTokenAttributes: [String] = [
     "additional_special_tokens",
 ]
 
-public class PreTrainedTokenizer: Tokenizer {
+public class PreTrainedTokenizer: Tokenizer, @unchecked Sendable {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }

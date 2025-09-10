@@ -10,7 +10,8 @@ import Hub
 import Testing
 import Tokenizers
 
-@Suite struct TestWithCustomHubDownloadLocation {
+@Suite
+final class TestWithCustomHubDownloadLocation {
     let downloadDestination: URL = {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return base.appending(component: "huggingface-tests")
