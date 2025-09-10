@@ -321,7 +321,6 @@ public class PreTrainedTokenizer: Tokenizer {
         }.joined(separator: "|")
         addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
 
-        // TODO: specialTokens are stored but never used
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
 
