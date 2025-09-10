@@ -111,6 +111,7 @@ actor TokenizerTestFixture {
     private let hubApi: HubApi
     private let configuration: LanguageModelConfigurationFromHub
     private let edgeCases: [EdgeCase]?
+    private let downloadDestination: URL
 
     private var _tokenizer: Tokenizer?
     private var _dataset: EncodedTokenizerSamplesDataset?
@@ -118,11 +119,12 @@ actor TokenizerTestFixture {
     init(config: TokenizerConfig) {
         self.config = config
 
-        let downloadDestination: URL = {
-            let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            return base.appending(component: "huggingface-tests")
-        }()
+        // Create unique cache directory for this test instance to avoid conflicts
+        let testId = UUID().uuidString
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        downloadDestination = base.appending(component: "huggingface-tests-\(testId)")
 
+        // Create isolated HubApi instance (don't use shared)
         hubApi = HubApi(downloadBase: downloadDestination)
         configuration = LanguageModelConfigurationFromHub(
             modelName: config.hubModelName,
@@ -184,11 +186,16 @@ actor TokenizerTestFixture {
     func getEdgeCases() async -> [EdgeCase]? {
         edgeCases
     }
+
+    deinit {
+        // Clean up the unique cache directory
+        try? FileManager.default.removeItem(at: downloadDestination)
+    }
 }
 
 // MARK: - Parameterized Tokenizer Tests
 
-@Suite("Tokenizer Tests", .serialized)
+@Suite("Tokenizer Tests")
 struct TokenizerTests {
     @Test("Tokenize", arguments: [
         TokenizerConfig.gpt2,
@@ -357,7 +364,7 @@ struct TokenizerTests {
 
 // MARK: - Specialized Tests
 
-@Suite("Llama Specific Tests", .serialized)
+@Suite("Llama Specific Tests")
 struct LlamaSpecificTests {
     @Test
     func hexaEncode() async throws {
@@ -369,7 +376,7 @@ struct LlamaSpecificTests {
     }
 }
 
-@Suite("Gemma Specific Tests", .serialized)
+@Suite("Gemma Specific Tests")
 struct GemmaSpecificTests {
     @Test
     func unicodeEdgeCase() async throws {
