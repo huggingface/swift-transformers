@@ -1,8 +1,4 @@
 {
-    // SwiftFormat configuration to match CI
-    "swiftformat.configSearchPaths": [
-        ".swiftformat"
-    ],
     // Swift language settings
     "swift.path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
     "swift.buildPath": ".build",
