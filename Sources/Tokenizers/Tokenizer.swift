@@ -105,16 +105,7 @@ struct TokenizerModel {
         "DistilbertTokenizer": BertTokenizer.self,
         "DistilBertTokenizer": BertTokenizer.self,
         "RobertaTokenizer": BPETokenizer.self,
-        "CodeGenTokenizer": CodeGenTokenizer.self,
-        "CodeLlamaTokenizer": CodeLlamaTokenizer.self,
-        "FalconTokenizer": FalconTokenizer.self,
-        "GemmaTokenizer": GemmaTokenizer.self,
-        "GPT2Tokenizer": GPT2Tokenizer.self,
-        "LlamaTokenizer": LlamaTokenizer.self,
         "T5Tokenizer": T5Tokenizer.self,
-        "WhisperTokenizer": WhisperTokenizer.self,
-        "CohereTokenizer": CohereTokenizer.self,
-        "Qwen2Tokenizer": Qwen2Tokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self,
     ]
 
@@ -129,10 +120,8 @@ struct TokenizerModel {
 
         // Some tokenizer_class entries use a Fast suffix
         let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
-        guard let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] else {
-            throw TokenizerError.unsupportedTokenizer(tokenizerName)
-        }
-
+        // Fallback to BPETokenizer if class is not explicitly registered
+        let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] ?? BPETokenizer.self
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 }
@@ -644,16 +633,6 @@ public extension AutoTokenizer {
 }
 
 // MARK: - Tokenizer model classes
-
-class GPT2Tokenizer: BPETokenizer { }
-class FalconTokenizer: BPETokenizer { }
-class LlamaTokenizer: BPETokenizer { }
-class CodeGenTokenizer: BPETokenizer { }
-class WhisperTokenizer: BPETokenizer { }
-class GemmaTokenizer: BPETokenizer { }
-class CodeLlamaTokenizer: BPETokenizer { }
-class CohereTokenizer: BPETokenizer { }
-class Qwen2Tokenizer: BPETokenizer { }
 
 class T5Tokenizer: UnigramTokenizer { }
 
