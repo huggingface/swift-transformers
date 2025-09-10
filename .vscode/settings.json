@@ -34,5 +34,7 @@
     },
     "swift.swiftEnvironmentVariables": {
         "DEVELOPER_DIR": "/Applications/Xcode.app"
-    }
+    },
+    // Disable VSCode automatic generation of launch configuration
+    "swift.autoGenerateLaunchConfigurations": false
 }
