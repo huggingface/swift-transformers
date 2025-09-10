@@ -4,36 +4,33 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-import XCTest
+import Testing
+import Foundation
 
 @testable import Hub
 
-class HubApiTests: XCTestCase {
-    override func setUp() {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-    }
-
-    override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
+@Suite
+struct HubApiTests {
 
     // MARK: use a specific revision for these tests
 
+    @Test
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
-            XCTAssertEqual(filenames.count, 13)
+            #expect(filenames.count == 13)
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testFilenameRetrievalWithGlob() async {
         do {
             try await {
                 let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.json")
-                XCTAssertEqual(
-                    Set(filenames),
+                #expect(
+                    Set(filenames) ==
                     Set([
                         "config.json", "tokenizer.json", "tokenizer_config.json",
                         "llama-2-7b-chat.mlpackage/Manifest.json",
@@ -46,22 +43,20 @@ class HubApiTests: XCTestCase {
             // Glob patterns are case sensitive
             try await {
                 let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.JSON")
-                XCTAssertEqual(
-                    filenames,
-                    []
-                )
+                #expect(filenames == [])
             }()
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testFilenameRetrievalFromDirectories() async {
         do {
             // Contents of all directories matching a pattern
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.mlpackage/*")
-            XCTAssertEqual(
-                Set(filenames),
+            #expect(
+                Set(filenames) ==
                 Set([
                     "llama-2-7b-chat.mlpackage/Manifest.json",
                     "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
@@ -72,91 +67,98 @@ class HubApiTests: XCTestCase {
                 ])
             )
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testFilenameRetrievalWithMultiplePatterns() async {
         do {
             let patterns = ["config.json", "tokenizer.json", "tokenizer_*.json"]
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: patterns)
-            XCTAssertEqual(
-                Set(filenames),
+            #expect(
+                Set(filenames) ==
                 Set(["config.json", "tokenizer.json", "tokenizer_config.json"])
             )
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testGetFileMetadata() async throws {
         do {
             let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
-            XCTAssertNotNil(metadata.commitHash)
-            XCTAssertNotNil(metadata.etag)
-            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
-            XCTAssertEqual(metadata.size, 163)
+            #expect(metadata.commitHash != nil)
+            #expect(metadata.etag != nil)
+            #expect(URL(string: metadata.location)?.path == "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
+            #expect(metadata.size == 163)
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testGetXetMetadata() async throws {
         do {
             let url = URL(string: "https://huggingface.co/FL33TW00D-HF/xet-test/resolve/main/tokenizer.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
-            XCTAssertNotNil(metadata.xetFileData)
-            XCTAssertEqual(metadata.xetFileData?.fileHash, "6aec39639a0a2d1ca966356b8c2b8426a484f80ff80731f44fa8482040713bdf")
+            #expect(metadata.xetFileData != nil)
+            #expect(metadata.xetFileData?.fileHash == "6aec39639a0a2d1ca966356b8c2b8426a484f80ff80731f44fa8482040713bdf")
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testGetFileMetadataBlobPath() async throws {
         do {
             let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
-            XCTAssertNotNil(metadata.commitHash)
-            XCTAssertTrue(metadata.etag != nil && metadata.etag!.hasPrefix("d6ceb9"))
-            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
-            XCTAssertEqual(metadata.size, 163)
+            #expect(metadata.commitHash != nil)
+            #expect(metadata.etag != nil && metadata.etag!.hasPrefix("d6ceb9"))
+            #expect(URL(string: metadata.location)?.path == "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/main", with: metadata.commitHash!))")
+            #expect(metadata.size == 163)
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testGetFileMetadataWithRevision() async throws {
         do {
             let revision = "f2c752cfc5c0ab6f4bdec59acea69eefbee381c2"
             let url = URL(string: "https://huggingface.co/julien-c/dummy-unknown/resolve/\(revision)/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
-            XCTAssertEqual(metadata.commitHash, revision)
-            XCTAssertNotNil(metadata.etag)
-            XCTAssertGreaterThan(metadata.etag!.count, 0)
-            XCTAssertEqual(URL(string: metadata.location)?.path, "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/\(revision)", with: metadata.commitHash!))")
-            XCTAssertEqual(metadata.size, 851)
+            #expect(metadata.commitHash == revision)
+            #expect(metadata.etag != nil)
+            #expect(metadata.etag!.count > 0)
+            #expect(URL(string: metadata.location)?.path == "/api/resolve-cache/models\(url!.path.replacingOccurrences(of: "resolve/\(revision)", with: metadata.commitHash!))")
+            #expect(metadata.size == 851)
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 
+    @Test
     func testGetFileMetadataWithBlobSearch() async throws {
         let repo = "coreml-projects/Llama-2-7b-chat-coreml"
         let metadataFromBlob = try await Hub.getFileMetadata(from: repo, matching: "*.json")
         for metadata in metadataFromBlob {
-            XCTAssertNotNil(metadata.commitHash)
-            XCTAssertNotNil(metadata.etag)
-            XCTAssertGreaterThan(metadata.etag!.count, 0)
-            XCTAssertGreaterThan(metadata.size!, 0)
+            #expect(metadata.commitHash != nil)
+            #expect(metadata.etag != nil)
+            #expect(metadata.etag!.count > 0)
+            #expect(metadata.size! > 0)
         }
     }
 
     /// Verify with `curl -I https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel`
+    @Test
     func testGetLargeFileMetadata() async throws {
         do {
             let revision = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
@@ -171,17 +173,18 @@ class HubApiTests: XCTestCase {
             )
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
-            XCTAssertEqual(metadata.commitHash, revision)
-            XCTAssertNotNil(metadata.etag, etag)
-            XCTAssertTrue(metadata.location.contains(location))
-            XCTAssertEqual(metadata.size, size)
+            #expect(metadata.commitHash == revision)
+            #expect(metadata.etag != nil)
+            #expect(metadata.location.contains(location))
+            #expect(metadata.size == size)
         } catch {
-            XCTFail("\(error)")
+            Issue.record("\(error)")
         }
     }
 }
 
-class SnapshotDownloadTests: XCTestCase {
+@Suite
+final class SnapshotDownloadTests {
     let repo = "coreml-projects/Llama-2-7b-chat-coreml"
     let lfsRepo = "pcuenq/smol-lfs"
     let downloadDestination: URL = {
@@ -189,9 +192,9 @@ class SnapshotDownloadTests: XCTestCase {
         return base.appending(component: "huggingface-tests")
     }()
 
-    override func setUp() { }
+    init() { }
 
-    override func tearDown() {
+    deinit {
         do {
             try FileManager.default.removeItem(at: downloadDestination)
         } catch {
@@ -223,6 +226,7 @@ class SnapshotDownloadTests: XCTestCase {
         return filenames
     }
 
+    @Test
     func testDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -243,12 +247,12 @@ class SnapshotDownloadTests: XCTestCase {
         print("Downloaded filenames: \(downloadedFilenames)")
         print("Prefix used in getRelativeFiles: \(downloadDestination.appending(path: "models/\(repo)").path)")
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
-        XCTAssertEqual(
-            Set(downloadedFilenames),
+        #expect(
+            Set(downloadedFilenames) ==
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
                 "llama-2-7b-chat.mlpackage/Manifest.json",
@@ -260,6 +264,7 @@ class SnapshotDownloadTests: XCTestCase {
 
     /// Background sessions get rate limited by the OS, see discussion here: https://github.com/huggingface/swift-transformers/issues/61
     /// Test only one file at a time
+    @Test
     func testDownloadInBackground() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useBackgroundSession: true)
         var lastProgress: Progress? = nil
@@ -268,12 +273,12 @@ class SnapshotDownloadTests: XCTestCase {
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
@@ -281,6 +286,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
     }
 
+    @Test
     func testCustomEndpointDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, endpoint: "https://hf-mirror.com")
         var lastProgress: Progress? = nil
@@ -289,12 +295,12 @@ class SnapshotDownloadTests: XCTestCase {
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
@@ -305,6 +311,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
     }
 
+    @Test
     func testDownloadFileMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -313,12 +320,12 @@ class SnapshotDownloadTests: XCTestCase {
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
@@ -330,7 +337,7 @@ class SnapshotDownloadTests: XCTestCase {
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([
                 ".cache/huggingface/download/config.json.metadata",
@@ -343,6 +350,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
     }
 
+    @Test
     func testDownloadFileMetadataExists() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -353,12 +361,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
@@ -375,7 +383,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([
                 ".cache/huggingface/download/config.json.metadata",
@@ -397,9 +405,10 @@ class SnapshotDownloadTests: XCTestCase {
         let secondDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will not be downloaded again thus last modified date will remain unchanged
-        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
+        #expect(originalTimestamp == secondDownloadTimestamp)
     }
 
+    @Test
     func testDownloadFileMetadataSame() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -410,19 +419,19 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["tokenizer.json"]))
+        #expect(Set(downloadedFilenames) == Set(["tokenizer.json"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
         let metadataPath = metadataDestination.appending(path: "tokenizer.json.metadata")
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([
                 ".cache/huggingface/download/tokenizer.json.metadata",
@@ -443,10 +452,11 @@ class SnapshotDownloadTests: XCTestCase {
         let originalArr = originalMetadata.components(separatedBy: .newlines)
         let secondDownloadArr = secondDownloadMetadata.components(separatedBy: .newlines)
 
-        XCTAssertTrue(originalArr[0] == secondDownloadArr[0])
-        XCTAssertTrue(originalArr[1] == secondDownloadArr[1])
+        #expect(originalArr[0] == secondDownloadArr[0])
+        #expect(originalArr[1] == secondDownloadArr[1])
     }
 
+    @Test
     func testDownloadFileMetadataCorrupted() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -457,12 +467,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
@@ -479,7 +489,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([
                 ".cache/huggingface/download/config.json.metadata",
@@ -505,7 +515,7 @@ class SnapshotDownloadTests: XCTestCase {
         let secondDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will be downloaded again thus last modified date will change
-        XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
+        #expect(originalTimestamp != secondDownloadTimestamp)
 
         // Corrupt config.metadata again
         print("Testing corrupted timestamp.")
@@ -521,9 +531,10 @@ class SnapshotDownloadTests: XCTestCase {
         let thirdDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will be downloaded again thus last modified date will change
-        XCTAssertTrue(originalTimestamp != thirdDownloadTimestamp)
+        #expect(originalTimestamp != thirdDownloadTimestamp)
     }
 
+    @Test
     func testDownloadLargeFileMetadataCorrupted() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -534,12 +545,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedFilenames),
             Set(["llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"])
         )
@@ -551,7 +562,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([
                 ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata",
@@ -576,15 +587,16 @@ class SnapshotDownloadTests: XCTestCase {
         // File will not be downloaded again because this is an LFS file.
         // While downloading LFS files, we first check if local file ETag is the same as remote ETag.
         // If that's the case we just update the metadata and keep the local file.
-        XCTAssertEqual(originalTimestamp, thirdDownloadTimestamp)
+        #expect(originalTimestamp == thirdDownloadTimestamp)
 
         let metadataString = try String(contentsOfFile: metadataFile.path)
 
         // Updated metadata file needs to have the correct commit hash, etag and timestamp.
         // This is being updated because the local etag (SHA256 checksum) matches the remote etag
-        XCTAssertNotEqual(metadataString, corruptedMetadataString)
+        #expect(metadataString != corruptedMetadataString)
     }
 
+    @Test
     func testDownloadLargeFile() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -594,16 +606,16 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"]))
+        #expect(Set(downloadedFilenames) == Set(["llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata"])
         )
@@ -612,9 +624,10 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataString = try String(contentsOfFile: metadataFile.path)
 
         let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nfc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107"
-        XCTAssertTrue(metadataString.contains(expected))
+        #expect(metadataString.contains(expected))
     }
 
+    @Test
     func testDownloadSmolLargeFile() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -624,16 +637,16 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
+        #expect(Set(downloadedFilenames) == Set(["x.bin"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/x.bin.metadata"])
         )
@@ -642,9 +655,10 @@ class SnapshotDownloadTests: XCTestCase {
         let metadataString = try String(contentsOfFile: metadataFile.path)
 
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
-        XCTAssertTrue(metadataString.contains(expected))
+        #expect(metadataString.contains(expected))
     }
 
+    @Test
     func testRegexValidation() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -654,16 +668,16 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
+        #expect(Set(downloadedFilenames) == Set(["x.bin"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/x.bin.metadata"])
         )
@@ -675,13 +689,14 @@ class SnapshotDownloadTests: XCTestCase {
         let commitHash = metadataArr[0]
         let etag = metadataArr[1]
 
-        XCTAssertTrue(hubApi.isValidHash(hash: commitHash, pattern: hubApi.commitHashPattern))
-        XCTAssertTrue(hubApi.isValidHash(hash: etag, pattern: hubApi.sha256Pattern))
+        #expect(hubApi.isValidHash(hash: commitHash == pattern: hubApi.commitHashPattern))
+        #expect(hubApi.isValidHash(hash: etag == pattern: hubApi.sha256Pattern))
 
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(commitHash)a", pattern: hubApi.commitHashPattern))
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(etag)a", pattern: hubApi.sha256Pattern))
+        #expect(!hubApi.isValidHash(hash: "\(commitHash)a", pattern: hubApi.commitHashPattern))
+        #expect(!hubApi.isValidHash(hash: "\(etag)a", pattern: hubApi.sha256Pattern))
     }
 
+    @Test
     func testLFSFileNoMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -692,12 +707,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
+        #expect(Set(downloadedFilenames) == Set(["x.bin"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
@@ -706,7 +721,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/x.bin.metadata"])
         )
@@ -724,15 +739,16 @@ class SnapshotDownloadTests: XCTestCase {
         let secondDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will not be downloaded again thus last modified date will remain unchanged
-        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
+        #expect(originalTimestamp == secondDownloadTimestamp)
+        #expect(FileManager.default.fileExists(atPath: metadataDestination.path))
 
         let metadataString = try String(contentsOfFile: metadataFile.path)
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
 
-        XCTAssertTrue(metadataString.contains(expected))
+        #expect(metadataString.contains(expected))
     }
 
+    @Test
     func testLFSFileCorruptedMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -743,12 +759,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["x.bin"]))
+        #expect(Set(downloadedFilenames) == Set(["x.bin"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
@@ -757,7 +773,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/x.bin.metadata"])
         )
@@ -775,15 +791,16 @@ class SnapshotDownloadTests: XCTestCase {
         let secondDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will not be downloaded again thus last modified date will remain unchanged
-        XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
+        #expect(originalTimestamp == secondDownloadTimestamp)
+        #expect(FileManager.default.fileExists(atPath: metadataDestination.path))
 
         let metadataString = try String(contentsOfFile: metadataFile.path)
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
 
-        XCTAssertTrue(metadataString.contains(expected))
+        #expect(metadataString.contains(expected))
     }
 
+    @Test
     func testNonLFSFileRedownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -794,12 +811,12 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(Set(downloadedFilenames), Set(["config.json"]))
+        #expect(Set(downloadedFilenames) == Set(["config.json"]))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
@@ -808,7 +825,7 @@ class SnapshotDownloadTests: XCTestCase {
         let originalTimestamp = attributes[.modificationDate] as! Date
 
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
-        XCTAssertEqual(
+        #expect(
             Set(downloadedMetadataFilenames),
             Set([".cache/huggingface/download/config.json.metadata"])
         )
@@ -826,15 +843,16 @@ class SnapshotDownloadTests: XCTestCase {
         let secondDownloadTimestamp = attributes[.modificationDate] as! Date
 
         // File will be downloaded again thus last modified date will change
-        XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
+        #expect(originalTimestamp != secondDownloadTimestamp)
+        #expect(FileManager.default.fileExists(atPath: metadataDestination.path))
 
         let metadataString = try String(contentsOfFile: metadataFile.path)
         let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nd6ceb92ce9e3c83ab146dc8e92a93517ac1cc66f"
 
-        XCTAssertTrue(metadataString.contains(expected))
+        #expect(metadataString.contains(expected))
     }
 
+    @Test
     func testOfflineModeReturnsDestination() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -846,9 +864,9 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
 
@@ -858,29 +876,31 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
     }
 
+    @Test
     func testOfflineModeThrowsError() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
 
         do {
             try await hubApi.snapshot(from: repo, matching: "*.json")
-            XCTFail("Expected an error to be thrown")
+            Issue.record("Expected an error to be thrown")
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case let .offlineModeError(message):
-                XCTAssertEqual(message, "Repository not available locally")
+                #expect(message == "Repository not available locally")
             default:
-                XCTFail("Wrong error type: \(error)")
+                Issue.record("Wrong error type: \(error)")
             }
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
+    @Test
     func testOfflineModeWithoutMetadata() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -892,9 +912,9 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 2)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
 
@@ -905,19 +925,20 @@ class SnapshotDownloadTests: XCTestCase {
 
         do {
             try await hubApi.snapshot(from: lfsRepo, matching: "*")
-            XCTFail("Expected an error to be thrown")
+            Issue.record("Expected an error to be thrown")
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case let .offlineModeError(message):
-                XCTAssertEqual(message, "Metadata not available for x.bin")
+                #expect(message == "Metadata not available for x.bin")
             default:
-                XCTFail("Wrong error type: \(error)")
+                Issue.record("Wrong error type: \(error)")
             }
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
+    @Test
     func testOfflineModeWithCorruptedLFSMetadata() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -929,9 +950,9 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 2)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let metadataDestination = downloadedTo.appendingPathComponent(".cache/huggingface/download").appendingPathComponent("x.bin.metadata")
 
@@ -945,19 +966,20 @@ class SnapshotDownloadTests: XCTestCase {
 
         do {
             try await hubApi.snapshot(from: lfsRepo, matching: "*")
-            XCTFail("Expected an error to be thrown")
+            Issue.record("Expected an error to be thrown")
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case let .fileIntegrityError(message):
-                XCTAssertEqual(message, "Hash mismatch for x.bin")
+                #expect(message == "Hash mismatch for x.bin")
             default:
-                XCTFail("Wrong error type: \(error)")
+                Issue.record("Wrong error type: \(error)")
             }
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
+    @Test
     func testOfflineModeWithNoFiles() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -969,9 +991,9 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
 
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let fileDestination = downloadedTo.appendingPathComponent("x.bin")
         try FileManager.default.removeItem(at: fileDestination)
@@ -980,19 +1002,20 @@ class SnapshotDownloadTests: XCTestCase {
 
         do {
             try await hubApi.snapshot(from: lfsRepo, matching: "x.bin")
-            XCTFail("Expected an error to be thrown")
+            Issue.record("Expected an error to be thrown")
         } catch let error as HubApi.EnvironmentError {
             switch error {
             case let .offlineModeError(message):
-                XCTAssertEqual(message, "No files available locally for this repository")
+                #expect(message == "No files available locally for this repository")
             default:
-                XCTFail("Wrong error type: \(error)")
+                Issue.record("Wrong error type: \(error)")
             }
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
     }
 
+    @Test
     func testResumeDownloadFromEmptyIncomplete() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -1012,9 +1035,9 @@ class SnapshotDownloadTests: XCTestCase {
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
@@ -1030,9 +1053,10 @@ class SnapshotDownloadTests: XCTestCase {
           "vocab_size": 32000
         }
         """
-        XCTAssertTrue(fileContents.contains(expected))
+        #expect(fileContents.contains(expected))
     }
 
+    @Test
     func testResumeDownloadFromNonEmptyIncomplete() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -1051,9 +1075,9 @@ class SnapshotDownloadTests: XCTestCase {
             print("Files Completed: \(progress.completedUnitCount) of \(progress.totalUnitCount)")
             lastProgress = progress
         }
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 1)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
@@ -1069,9 +1093,10 @@ class SnapshotDownloadTests: XCTestCase {
           "vocab_size": 32000
         }
         """
-        XCTAssertTrue(fileContents.contains(expected))
+        #expect(fileContents.contains(expected))
     }
 
+    @Test
     func testRealDownloadInterruptionAndResumption() async throws {
         // Use the DepthPro model weights file
         let targetFile = "SAM 2 Studio 1.1.zip"
@@ -1105,12 +1130,13 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         let filePath = downloadedTo.appendingPathComponent(targetFile)
-        XCTAssertTrue(
+        #expect(
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
     }
 
+    @Test
     func testRealDownloadWithSpeed() async throws {
         // Use the DepthPro model weights file
         let targetFile = "SAM 2 Studio 1.1.zip"
@@ -1133,21 +1159,22 @@ class SnapshotDownloadTests: XCTestCase {
         // Add more debug prints
         print("Downloaded to: \(downloadedTo.path)")
 
-        XCTAssertNotNil(lastSpeed)
+        #expect(lastSpeed != nil)
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         print("Downloaded filenames: \(downloadedFilenames)")
         print("Prefix used in getRelativeFiles: \(downloadDestination.appending(path: "models/\(repo)").path)")
 
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
 
         let filePath = downloadedTo.appendingPathComponent(targetFile)
-        XCTAssertTrue(
+        #expect(
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
     }
 
+    @Test
     func testDownloadWithRevision() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -1160,10 +1187,10 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
-        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
-        XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
-        XCTAssertEqual(
+        #expect(lastProgress?.fractionCompleted == 1)
+        #expect(lastProgress?.completedUnitCount == 6)
+        #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
+        #expect(
             Set(downloadedFilenames),
             Set([
                 "config.json", "tokenizer.json", "tokenizer_config.json",
@@ -1176,16 +1203,16 @@ class SnapshotDownloadTests: XCTestCase {
         do {
             let revision = "nonexistent-revision"
             try await hubApi.snapshot(from: repo, revision: revision, matching: "*.json")
-            XCTFail("Expected an error to be thrown")
+            Issue.record("Expected an error to be thrown")
         } catch let error as Hub.HubClientError {
             switch error {
             case .fileNotFound:
                 break // Error type is correct
             default:
-                XCTFail("Wrong error type: \(error)")
+                Issue.record("Wrong error type: \(error)")
             }
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            Issue.record("Unexpected error: \(error)")
         }
     }
 }

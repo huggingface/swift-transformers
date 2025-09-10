@@ -1,14 +1,16 @@
-import XCTest
+import Testing
 
 @testable import Hub
 @testable import Tokenizers
 
-class NormalizerTests: XCTestCase {
+@Suite
+struct NormalizerTests {
+    @Test
     func testLowercaseNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),
             ("François", "françois"),
-            ("Ωmega", "ωmega"),
+            ("Ωmega", "ωmega"),
             ("über", "über"),
             ("háček", "háček"),
             ("Häagen-Dazs", "häagen-dazs"),
@@ -20,21 +22,22 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = LowercaseNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.Lowercase.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? LowercaseNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? LowercaseNormalizer != nil)
     }
 
+    @Test
     func testNFDNormalizer() {
         let testCases: [(String, String)] = [
             ("caf\u{65}\u{301}", "cafe\u{301}"),
-            ("François", "François"),
-            ("Ωmega", "Ωmega"),
-            ("über", "über"),
-            ("háček", "háček"),
-            ("Häagen-Dazs", "Häagen-Dazs"),
+            ("François", "François"),
+            ("Ωmega", "Ωmega"),
+            ("über", "über"),
+            ("háček", "háček"),
+            ("Häagen-Dazs", "Häagen-Dazs"),
             ("你好!", "你好!"),
             ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼"),
             ("\u{00C5}", "\u{0041}\u{030A}"),
@@ -43,18 +46,19 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = NFDNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.NFD.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFDNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? NFDNormalizer != nil)
     }
 
+    @Test
     func testNFCNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
-            ("Ωmega", "Ωmega"),
+            ("Ωmega", "Ωmega"),
             ("über", "über"),
             ("háček", "háček"),
             ("Häagen-Dazs", "Häagen-Dazs"),
@@ -66,41 +70,43 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = NFCNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.NFC.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFCNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? NFCNormalizer != nil)
     }
 
+    @Test
     func testNFKDNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "cafe\u{301}"),
-            ("François", "François"),
-            ("Ωmega", "Ωmega"),
-            ("über", "über"),
-            ("háček", "háček"),
-            ("Häagen-Dazs", "Häagen-Dazs"),
+            ("François", "François"),
+            ("Ωmega", "Ωmega"),
+            ("über", "über"),
+            ("háček", "háček"),
+            ("Häagen-Dazs", "Häagen-Dazs"),
             ("你好!", "你好!"),
-            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
-            ("\u{00C5}", "Å"),
+            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
+            ("\u{00C5}", "Å"),
         ]
 
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = NFKDNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.NFKD.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKDNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? NFKDNormalizer != nil)
     }
 
+    @Test
     func testNFKCINormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
-            ("François", "François"),
-            ("Ωmega", "Ωmega"),
+            ("François", "françois"),
+            ("Ωmega", "Ωmega"),
             ("über", "über"),
             ("háček", "háček"),
             ("Häagen-Dazs", "Häagen-Dazs"),
@@ -112,13 +118,14 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = NFKCNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.NFKC.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKCNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? NFKCNormalizer != nil)
     }
 
+    @Test
     func testStripAccents() {
         let testCases: [(String, String)] = [
             ("département", "departement"),
@@ -128,15 +135,16 @@ class NormalizerTests: XCTestCase {
         let config = Config(["stripAccents": true])
         let normalizer = BertNormalizer(config: config)
         for (arg, expect) in testCases {
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
     }
 
+    @Test
     func testBertNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),
             ("François", "françois"),
-            ("Ωmega", "ωmega"),
+            ("Ωmega", "ωmega"),
             ("über", "über"),
             ("háček", "háček"),
             ("Häagen\tDazs", "häagen dazs"),
@@ -148,19 +156,20 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config(["stripAccents": false])
             let normalizer = BertNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.Bert.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? BertNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? BertNormalizer != nil)
     }
 
+    @Test
     func testBertNormalizerDefaults() {
         // Python verification: t._tokenizer.normalizer.normalize_str("Café")
         let testCases: [(String, String)] = [
             ("Café", "cafe"),
             ("François", "francois"),
-            ("Ωmega", "ωmega"),
+            ("Ωmega", "ωmega"),
             ("über", "uber"),
             ("háček", "hacek"),
             ("Häagen\tDazs", "haagen dazs"),
@@ -172,20 +181,21 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = BertNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.Bert.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? BertNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? BertNormalizer != nil)
     }
 
+    @Test
     func testPrecompiledNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
-            ("François", "François"),
-            ("Ωmega", "Ωmega"),
-            ("über", "über"),
-            ("háček", "háček"),
+            ("François", "François"),
+            ("Ωmega", "Ωmega"),
+            ("über", "über"),
+            ("háček", "háček"),
             ("Häagen-Dazs", "Häagen-Dazs"),
             ("你好!", "你好!"),
             ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
@@ -197,18 +207,19 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = PrecompiledNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.Precompiled.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? PrecompiledNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? PrecompiledNormalizer != nil)
     }
 
+    @Test
     func testStripAccentsINormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
-            ("Ωmega", "Ωmega"),
+            ("Ωmega", "Ωmega"),
             ("über", "über"),
             ("háček", "háček"),
             ("Häagen-Dazs", "Häagen-Dazs"),
@@ -220,13 +231,14 @@ class NormalizerTests: XCTestCase {
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = StripAccentsNormalizer(config: config)
-            XCTAssertEqual(normalizer.normalize(text: arg), expect)
+            #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.StripAccents.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? StripAccentsNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? StripAccentsNormalizer != nil)
     }
 
+    @Test
     func testStripNormalizer() {
         let testCases: [(String, String, Bool, Bool)] = [
             ("  hello  ", "hello", true, true),
@@ -245,13 +257,13 @@ class NormalizerTests: XCTestCase {
                 "stripRight": rightStrip,
             ])
             let normalizer = StripNormalizer(config: config)
-            XCTAssertEqual(
-                normalizer.normalize(text: input), expected,
+            #expect(
+                normalizer.normalize(text: input) == expected,
                 "Failed for input: '\(input)', leftStrip: \(leftStrip), rightStrip: \(rightStrip)"
             )
         }
 
         let config = Config(["type": NormalizerType.Strip.rawValue])
-        XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? StripNormalizer)
+        #expect(NormalizerFactory.fromConfig(config: config) as? StripNormalizer != nil)
     }
 }

@@ -4,13 +4,15 @@
 //  Created by Pedro Cuenca on 20231123.
 //
 
+import Foundation
 import Hub
 @testable import Tokenizers
-import XCTest
+import Testing
 
-class DecoderTests: XCTestCase {
+@Suite
+class DecoderTests {
     /// https://github.com/huggingface/tokenizers/pull/1357
-    func testMetaspaceDecoder() {
+    @Test func testMetaspaceDecoder() {
         let decoder = MetaspaceDecoder(config: Config([
             "add_prefix_space": true,
             "replacement": "▁",
@@ -19,13 +21,13 @@ class DecoderTests: XCTestCase {
         let tokens = ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         let decoded = decoder.decode(tokens: tokens)
 
-        XCTAssertEqual(
-            decoded,
+        #expect(
+            decoded ==
             ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         )
     }
 
-    func testWordPieceDecoder() {
+    @Test func testWordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
         let decoder = WordPieceDecoder(config: config)
 
@@ -40,7 +42,7 @@ class DecoderTests: XCTestCase {
 
         for (tokens, expected) in testCases {
             let output = decoder.decode(tokens: tokens)
-            XCTAssertEqual(output.joined(), expected)
+            #expect(output.joined() == expected)
         }
     }
 }
