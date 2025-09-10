@@ -1,9 +1,11 @@
 @testable import Hub
+import Testing
 @testable import Tokenizers
-import XCTest
 
-class PostProcessorTests: XCTestCase {
-    func testRobertaProcessing() {
+@Suite
+struct PostProcessorTests {
+    @Test
+    func robertaProcessing() {
         let testCases: [(Config, [String], [String]?, [String])] = [
             // Should keep spaces; uneven spaces; ignore `addPrefixSpace`.
             (
@@ -71,7 +73,7 @@ class PostProcessorTests: XCTestCase {
         for (config, tokens, tokensPair, expect) in testCases {
             let processor = RobertaProcessing(config: config)
             let output = processor.postProcess(tokens: tokens, tokensPair: tokensPair)
-            XCTAssertEqual(output, expect)
+            #expect(output == expect)
         }
     }
 }

@@ -5,68 +5,69 @@
 //  Created by Pedro Cuenca on 20240120.
 //
 
+import Foundation
+import Testing
 import Tokenizers
-import XCTest
 
-class SplitTests: XCTestCase {
-    func testSplitBehaviorMergedWithPrevious() {
-        XCTAssertEqual(
-            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
-            ["the-", "final-", "-", "countdown"]
+@Suite struct SplitTests {
+    @Test func splitBehaviorMergedWithPrevious() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) ==
+                ["the-", "final-", "-", "countdown"]
         )
 
-        XCTAssertEqual(
-            "the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
-            ["the-", "final-", "-", "countdown-"]
+        #expect(
+            "the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) ==
+                ["the-", "final-", "-", "countdown-"]
         )
 
-        XCTAssertEqual(
-            "the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
-            ["the-", "final-", "-", "countdown-", "-"]
+        #expect(
+            "the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) ==
+                ["the-", "final-", "-", "countdown-", "-"]
         )
 
-        XCTAssertEqual(
-            "-the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
-            ["-", "the-", "final-", "-", "countdown-", "-"]
+        #expect(
+            "-the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) ==
+                ["-", "the-", "final-", "-", "countdown-", "-"]
         )
 
-        XCTAssertEqual(
-            "--the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious),
-            ["-", "-", "the-", "final-", "-", "countdown-", "-"]
-        )
-    }
-
-    func testSplitBehaviorMergedWithNext() {
-        XCTAssertEqual(
-            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
-            ["the", "-final", "-", "-countdown"]
-        )
-
-        XCTAssertEqual(
-            "-the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
-            ["-the", "-final", "-", "-countdown"]
-        )
-
-        XCTAssertEqual(
-            "--the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
-            ["-", "-the", "-final", "-", "-countdown"]
-        )
-
-        XCTAssertEqual(
-            "--the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext),
-            ["-", "-the", "-final", "-", "-countdown", "-"]
+        #expect(
+            "--the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) ==
+                ["-", "-", "the-", "final-", "-", "countdown-", "-"]
         )
     }
 
-    func testSplitBehaviorOther() {
-        XCTAssertEqual(
-            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .isolated),
-            ["the", "-", "final", "-", "-", "countdown"]
+    @Test func splitBehaviorMergedWithNext() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) ==
+                ["the", "-final", "-", "-countdown"]
         )
 
-        XCTAssertEqual(
-            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .removed),
-            ["the", "final", "countdown"]
+        #expect(
+            "-the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) ==
+                ["-the", "-final", "-", "-countdown"]
+        )
+
+        #expect(
+            "--the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) ==
+                ["-", "-the", "-final", "-", "-countdown"]
+        )
+
+        #expect(
+            "--the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) ==
+                ["-", "-the", "-final", "-", "-countdown", "-"]
+        )
+    }
+
+    @Test func splitBehaviorOther() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .isolated) ==
+                ["the", "-", "final", "-", "-", "countdown"]
+        )
+
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .removed) ==
+                ["the", "final", "countdown"]
         )
     }
 }

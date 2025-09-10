@@ -6,10 +6,10 @@
 //
 
 import Combine
-import XCTest
+import Foundation
+import Testing
 
 @testable import Hub
-import XCTest
 
 /// Errors that can occur during the download process
 enum DownloadError: LocalizedError {
@@ -32,24 +32,22 @@ private extension Downloader {
     }
 }
 
-final class DownloaderTests: XCTestCase {
+@Suite final class DownloaderTests {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
+    init() async throws {
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }
 
-    override func tearDown() {
+    deinit {
         if let tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
             try? FileManager.default.removeItem(at: tempDir)
         }
-        super.tearDown()
     }
 
     /// This test downloads a known config file, verifies the download completes, checks the content matches expected value
-    func testSuccessfulDownload() async throws {
+    @Test func successfulDownload() async throws {
         // Create a test file
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
@@ -91,12 +89,12 @@ final class DownloaderTests: XCTestCase {
         }
 
         // Verify download completed successfully
-        XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path))
-        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), fileContent)
+        #expect(FileManager.default.fileExists(atPath: destination.path))
+        #expect(try String(contentsOf: destination, encoding: .utf8) == fileContent)
     }
 
     /// This test attempts to download with incorrect expected file, verifies the download fails, ensures no partial file is left behind
-    func testDownloadFailsWithIncorrectSize() async throws {
+    @Test func downloadFailsWithIncorrectSize() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
@@ -119,18 +117,18 @@ final class DownloaderTests: XCTestCase {
             case .failed:
                 break listen
             case .completed:
-                XCTFail("Download should have failed due to size mismatch")
+                Issue.record("Download should have failed due to size mismatch")
                 break listen
             }
         }
 
         // Verify no file was created at destination
-        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+        #expect(!FileManager.default.fileExists(atPath: destination.path))
     }
 
     /// This test downloads an LFS file, interrupts the download at 50% and 75% progress,
     /// verifies the download can resume and complete successfully, checks the final file exists and has content
-    func testSuccessfulInterruptedDownload() async throws {
+    @Test func successfulInterruptedDownload() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
@@ -177,9 +175,9 @@ final class DownloaderTests: XCTestCase {
             if FileManager.default.fileExists(atPath: destination.path) {
                 let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
                 let finalSize = attributes[.size] as! Int64
-                XCTAssertGreaterThan(finalSize, 0, "File should not be empty")
+                #expect(finalSize > 0, "File should not be empty")
             } else {
-                XCTFail("File was not created at destination")
+                Issue.record("File was not created at destination")
             }
         } catch {
             throw error
