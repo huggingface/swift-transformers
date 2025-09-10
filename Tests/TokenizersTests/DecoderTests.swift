@@ -6,13 +6,13 @@
 
 import Foundation
 import Hub
-@testable import Tokenizers
 import Testing
+@testable import Tokenizers
 
 @Suite
 class DecoderTests {
     /// https://github.com/huggingface/tokenizers/pull/1357
-    @Test func testMetaspaceDecoder() {
+    @Test func metaspaceDecoder() {
         let decoder = MetaspaceDecoder(config: Config([
             "add_prefix_space": true,
             "replacement": "▁",
@@ -23,11 +23,11 @@ class DecoderTests {
 
         #expect(
             decoded ==
-            ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
+                ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         )
     }
 
-    @Test func testWordPieceDecoder() {
+    @Test func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
         let decoder = WordPieceDecoder(config: config)
 

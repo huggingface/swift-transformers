@@ -13,7 +13,6 @@ import Testing
 
 @Suite
 final class BertTokenizerTests {
-
     let bertTokenizer: BertTokenizer = {
         let vocab = {
             let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
@@ -43,7 +42,7 @@ final class BertTokenizerTests {
     }
 
     /// For each Squad question tokenized by python, check that we get the same output through the `BasicTokenizer`
-    @Test func testFullBasicTokenizer() {
+    @Test func fullBasicTokenizer() {
         let url = Bundle.module.url(forResource: "basic_tokenized_questions", withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
@@ -60,7 +59,7 @@ final class BertTokenizerTests {
     }
 
     /// For each Squad question tokenized by python, check that we get the same output through the whole `BertTokenizer`
-    @Test func testFullBertTokenizer() {
+    @Test func fullBertTokenizer() {
         let url = Bundle.module.url(forResource: "tokenized_questions", withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
@@ -76,7 +75,7 @@ final class BertTokenizerTests {
         }
     }
 
-    @Test func testMixedChineseEnglishTokenization() {
+    @Test func mixedChineseEnglishTokenization() {
         let tokenizer = bertTokenizer
         let text = "你好，世界！Hello, world!"
         let expectedTokens = ["[UNK]", "[UNK]", "，", "世", "[UNK]", "！", "hello", ",", "world", "!"]

@@ -12,7 +12,7 @@ import Testing
 @testable import Hub
 
 @Suite struct ConfigGeneralTests {
-    @Test func testHashable() throws {
+    @Test func hashable() throws {
         let testCases: [(Config.Data, Config.Data)] = [
             (Config.Data.integer(1), Config.Data.integer(2)),
             (Config.Data.string("a"), Config.Data.string("2")),
@@ -41,32 +41,32 @@ import Testing
 }
 
 @Suite struct ConfigAsLiteralTests {
-    @Test func testStringLiteral() throws {
+    @Test func stringLiteral() throws {
         let cfg: Config = "test"
         #expect(cfg == "test")
     }
 
-    @Test func testIntegerLiteral() throws {
+    @Test func integerLiteral() throws {
         let cfg: Config = 678
         #expect(cfg == 678)
     }
 
-    @Test func testBooleanLiteral() throws {
+    @Test func booleanLiteral() throws {
         let cfg: Config = true
         #expect(cfg == true)
     }
 
-    @Test func testFloatLiteral() throws {
+    @Test func floatLiteral() throws {
         let cfg: Config = 1.1
         #expect(cfg == 1.1)
     }
 
-    @Test func testDictionaryLiteral() throws {
+    @Test func dictionaryLiteral() throws {
         let cfg: Config = ["key": 1.1]
         #expect(cfg["key"].floating(or: 0) == 1.1)
     }
 
-    @Test func testArrayLiteral() throws {
+    @Test func arrayLiteral() throws {
         let cfg: Config = [1.1, 1.2]
         #expect(cfg[0] == 1.1)
         #expect(cfg[1] == 1.2)
@@ -74,7 +74,7 @@ import Testing
 }
 
 @Suite struct ConfigAccessorsTests {
-    @Test func testKeySubscript() throws {
+    @Test func keySubscript() throws {
         let cfg: Config = ["key": 1.1]
 
         #expect(cfg["key"] == 1.1)
@@ -82,7 +82,7 @@ import Testing
         #expect(cfg[1].isNull())
     }
 
-    @Test func testIndexSubscript() throws {
+    @Test func indexSubscript() throws {
         let cfg: Config = [1, 2, 3, 4]
 
         #expect(cfg[1] == 2)
@@ -90,7 +90,7 @@ import Testing
         #expect(cfg[-1].isNull())
     }
 
-    @Test func testDynamicLookup() throws {
+    @Test func dynamicLookup() throws {
         let cfg: Config = ["model_type": "bert"]
 
         #expect(cfg["model_type"] == "bert")
@@ -110,7 +110,7 @@ import Testing
         #expect(cfg.dictionary(or: ["a": 1]) == ["a": 1])
     }
 
-    @Test func testArrayOfStrings() throws {
+    @Test func arrayOfStrings() throws {
         let cfg: Config = ["a", "b", "c"]
 
         #expect(cfg.array() == ["a", "b", "c"])
@@ -128,7 +128,7 @@ import Testing
         #expect(cfg.dictionary(or: ["a": 1]) == ["a": 1])
     }
 
-    @Test func testArrayOfConfigs() throws {
+    @Test func arrayOfConfigs() throws {
         let cfg: Config = [Config("a"), Config("b")]
 
         #expect(cfg.array() == ["a", "b"])
@@ -151,7 +151,7 @@ import Testing
         #expect(cfg.array(or: ["a"]) == ["a"])
     }
 
-    @Test func testDictionaryOfConfigs() throws {
+    @Test func dictionaryOfConfigs() throws {
         let cfg: Config = ["a": .init([1, 2]), "b": .init([3, 4])]
         let exp = [
             BinaryDistinctString("a"): Config([1, 2]), BinaryDistinctString("b"): Config([3, 4]),
@@ -167,7 +167,7 @@ import Testing
 }
 
 @Suite struct ConfigCodableTests {
-    @Test func testCompleteHappyExample() throws {
+    @Test func completeHappyExample() throws {
         let cfg: Config = [
             "dict_of_floats": ["key1": 1.1],
             "dict_of_ints": ["key2": 100],
@@ -320,32 +320,35 @@ import Testing
         guard let data = content.data(using: encoding) else {
             throw NSError(
                 domain: "EncodingError", code: 0,
-                userInfo: [NSLocalizedDescriptionKey: "Could not encode string with \(encoding)"])
+                userInfo: [NSLocalizedDescriptionKey: "Could not encode string with \(encoding)"]
+            )
         }
         try data.write(to: fileURL)
         return fileURL
     }
 
-    @Test func testUtf16() throws {
+    @Test func utf16() throws {
         let json = """
-                {
-                  "a": ["val_1", "val_2"],
-                  "b": 2,
-                  "c": [[10, "tkn_1"], [12, "tkn_2"], [4, "tkn_3"]],
-                  "d": false,
-                  "e": {
-                    "e_1": 1.1,
-                    "e_2": [1, 2, 3]
-                  },
-                  "f": null
-                }
-            """
+            {
+              "a": ["val_1", "val_2"],
+              "b": 2,
+              "c": [[10, "tkn_1"], [12, "tkn_2"], [4, "tkn_3"]],
+              "d": false,
+              "e": {
+                "e_1": 1.1,
+                "e_2": [1, 2, 3]
+              },
+              "f": null
+            }
+        """
 
         let urlUTF8 = try createFile(with: json, encoding: .utf8, fileName: "config_utf8.json")
         let urlUTF16LE = try createFile(
-            with: json, encoding: .utf16LittleEndian, fileName: "config_utf16_le.json")
+            with: json, encoding: .utf16LittleEndian, fileName: "config_utf16_le.json"
+        )
         let urlUTF16BE = try createFile(
-            with: json, encoding: .utf16BigEndian, fileName: "config_utf16_be.json")
+            with: json, encoding: .utf16BigEndian, fileName: "config_utf16_be.json"
+        )
 
         let dataUTF8 = try Data(contentsOf: urlUTF8)
         let dataUTF16LE = try Data(contentsOf: urlUTF16LE)
@@ -367,7 +370,7 @@ import Testing
         try FileManager.default.removeItem(at: urlUTF16BE)
     }
 
-    @Test func testUnicode() {
+    @Test func unicode() {
         // These are two different characters
         let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
         let data = json.data(using: .utf8)
@@ -400,52 +403,52 @@ import Testing
             "null": Config(),
         ])
         let template = """
-            {{ config["dict_of_floats"]["key1"] }}
-            {{ config["dict_of_tokens"]["key6"]["12"] }}
-            {{ config["arr_of_ints"][0] }}
-            {{ config["arr_of_ints"][1] }}
-            {{ config["arr_of_ints"][2] }}
-            {{ config["arr_of_floats"][0] }}
-            {{ config["arr_of_floats"][1] }}
-            {{ config["arr_of_strings"][0] }}
-            {{ config["arr_of_strings"][1] }}
-            {{ config["arr_of_bools"][0] }}
-            {{ config["arr_of_bools"][1] }}
-            {{ config["arr_of_dicts"][0]["key7"] }}
-            {{ config["arr_of_dicts"][1]["key8"] }}
-            {{ config["arr_of_tokens"][0]["1"] }}
-            {{ config["arr_of_tokens"][1]["2"] }}
-            {{ config["int"] }}
-            {{ config["float"] }}
-            {{ config["string"] }}
-            {{ config["bool"] }}
-            {{ config["token"]["1"] }}
-            """
+        {{ config["dict_of_floats"]["key1"] }}
+        {{ config["dict_of_tokens"]["key6"]["12"] }}
+        {{ config["arr_of_ints"][0] }}
+        {{ config["arr_of_ints"][1] }}
+        {{ config["arr_of_ints"][2] }}
+        {{ config["arr_of_floats"][0] }}
+        {{ config["arr_of_floats"][1] }}
+        {{ config["arr_of_strings"][0] }}
+        {{ config["arr_of_strings"][1] }}
+        {{ config["arr_of_bools"][0] }}
+        {{ config["arr_of_bools"][1] }}
+        {{ config["arr_of_dicts"][0]["key7"] }}
+        {{ config["arr_of_dicts"][1]["key8"] }}
+        {{ config["arr_of_tokens"][0]["1"] }}
+        {{ config["arr_of_tokens"][1]["2"] }}
+        {{ config["int"] }}
+        {{ config["float"] }}
+        {{ config["string"] }}
+        {{ config["bool"] }}
+        {{ config["token"]["1"] }}
+        """
         let exp = """
-            1.1
-            dfe
-            1
-            2
-            3
-            1.1
-            1.2
-            tre
-            jeq
-            true
-            false
-            1.1
-            1.2
-            ghz
-            pkr
-            678
-            1.1
-            hha
-            true
-            iop
-            """
+        1.1
+        dfe
+        1
+        2
+        3
+        1.1
+        1.2
+        tre
+        jeq
+        true
+        false
+        1.1
+        1.2
+        ghz
+        pkr
+        678
+        1.1
+        hha
+        true
+        iop
+        """
 
         let got = try Template(template).render([
-            "config": cfg.toJinjaCompatible()
+            "config": cfg.toJinjaCompatible(),
         ])
 
         #expect(got == exp)

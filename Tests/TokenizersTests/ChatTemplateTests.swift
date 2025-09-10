@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import Tokenizers
 import Testing
+import Tokenizers
 
 @Suite
 @MainActor
@@ -33,7 +33,7 @@ final class ChatTemplateTests {
         try await tokenizerWithTemplateArrayTask.value
     }
 
-    @Test func testTemplateFromConfig() async throws {
+    @Test func templateFromConfig() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [32010, 4002, 29581, 278, 14156, 8720, 4086, 29889, 32007, 32001]
@@ -43,7 +43,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testDeepSeekQwenChatTemplate() async throws {
+    @Test func deepSeekQwenChatTemplate() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [151646, 151644, 74785, 279, 23670, 15473, 4128, 13, 151645, 151648, 198]
@@ -54,7 +54,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testDefaultTemplateFromArrayInConfig() async throws {
+    @Test func defaultTemplateFromArrayInConfig() async throws {
         let tokenizer = try await Self.sharedTokenizerWithTemplateArray()
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [1, 29473, 3, 28752, 1040, 4672, 2563, 17060, 4610, 29491, 29473, 4]
@@ -64,7 +64,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testTemplateFromArgumentWithEnum() async throws {
+    @Test func templateFromArgumentWithEnum() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
         let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
@@ -76,7 +76,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testTemplateFromArgumentWithString() async throws {
+    @Test func templateFromArgumentWithString() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
         let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
@@ -88,7 +88,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testNamedTemplateFromArgument() async throws {
+    @Test func namedTemplateFromArgument() async throws {
         let tokenizer = try await Self.sharedTokenizerWithTemplateArray()
         // Normally it is not necessary to specify the name `default`, but I'm not aware of models with lists of templates in the config that are not `default` or `tool_use`
         let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: .name("default"))
@@ -100,7 +100,7 @@ final class ChatTemplateTests {
     }
 
     /// https://github.com/huggingface/swift-transformers/issues/210
-    @Test func testRepeatedEmojis() async throws {
+    @Test func repeatedEmojis() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "Qwen/Qwen3-0.6B")
 
         let testMessages: [[String: String]] = [
@@ -117,7 +117,7 @@ final class ChatTemplateTests {
 
     /// https://github.com/huggingface/transformers/pull/33957
     /// .jinja files have been introduced!
-    @Test func testJinjaOnlyTemplate() async throws {
+    @Test func jinjaOnlyTemplate() async throws {
         // Repo only contains .jinja file, no chat_template.json
         let tokenizer = try await AutoTokenizer.from(pretrained: "FL33TW00D-HF/jinja-test")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
@@ -128,7 +128,7 @@ final class ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test func testQwen2_5WithTools() async throws {
+    @Test func qwen2_5WithTools() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
 
         let weatherQueryMessages: [[String: String]] = [
@@ -228,7 +228,7 @@ final class ChatTemplateTests {
     }
 
     /// Test for vision models with a vision chat template in chat_template.json
-    @Test func testChatTemplateFromChatTemplateJson() async throws {
+    @Test func chatTemplateFromChatTemplateJson() async throws {
         let visionMessages = [
             [
                 "role": "user",
@@ -265,7 +265,7 @@ final class ChatTemplateTests {
         #expect(qwen2_5VLDecoded == expectedOutput, "Decoded sequence should match expected output")
     }
 
-    @Test func testApplyTemplateError() async throws {
+    @Test func applyTemplateError() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
         #expect(!tokenizer.hasChatTemplate)
         do {
@@ -283,7 +283,7 @@ final class ChatTemplateTests {
     }
 
     /// Performance: cached vs uncached template application
-    @Test func testApplyChatTemplatePerformanceCached() async throws {
+    @Test func applyChatTemplatePerformanceCached() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
 
         // Purposely reuse the same template literal to hit the memoized compiled template
@@ -300,7 +300,7 @@ final class ChatTemplateTests {
     }
 
     /// Performance: simulate uncached runs by varying the template to bypass memoization
-    @Test func testApplyChatTemplatePerformanceUncached() async throws {
+    @Test func applyChatTemplatePerformanceUncached() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
 
         let baseTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"

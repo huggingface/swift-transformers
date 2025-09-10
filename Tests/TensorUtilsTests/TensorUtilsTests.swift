@@ -20,7 +20,7 @@ final class TensorUtilsTests {
     }
 
     @Test
-    func testArgMax() throws {
+    func argMax() throws {
         let result1 = Math.argmax([3.0, 4.0, 1.0, 2.0] as [Float], count: 4)
         #expect(result1.0 == 1)
         #expect(result1.1 == 4.0)

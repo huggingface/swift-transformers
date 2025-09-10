@@ -4,18 +4,17 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-import Testing
 import Foundation
+import Testing
 
 @testable import Hub
 
 @Suite
 struct HubApiTests {
-
     // MARK: use a specific revision for these tests
 
     @Test
-    func testFilenameRetrieval() async {
+    func filenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
             #expect(filenames.count == 13)
@@ -25,18 +24,18 @@ struct HubApiTests {
     }
 
     @Test
-    func testFilenameRetrievalWithGlob() async {
+    func filenameRetrievalWithGlob() async {
         do {
             try await {
                 let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.json")
                 #expect(
                     Set(filenames) ==
-                    Set([
-                        "config.json", "tokenizer.json", "tokenizer_config.json",
-                        "llama-2-7b-chat.mlpackage/Manifest.json",
-                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-                    ])
+                        Set([
+                            "config.json", "tokenizer.json", "tokenizer_config.json",
+                            "llama-2-7b-chat.mlpackage/Manifest.json",
+                            "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                            "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                        ])
                 )
             }()
 
@@ -51,20 +50,20 @@ struct HubApiTests {
     }
 
     @Test
-    func testFilenameRetrievalFromDirectories() async {
+    func filenameRetrievalFromDirectories() async {
         do {
             // Contents of all directories matching a pattern
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: "*.mlpackage/*")
             #expect(
                 Set(filenames) ==
-                Set([
-                    "llama-2-7b-chat.mlpackage/Manifest.json",
-                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel",
-                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+                    Set([
+                        "llama-2-7b-chat.mlpackage/Manifest.json",
+                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+                        "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
 
-                ])
+                    ])
             )
         } catch {
             Issue.record("\(error)")
@@ -72,13 +71,13 @@ struct HubApiTests {
     }
 
     @Test
-    func testFilenameRetrievalWithMultiplePatterns() async {
+    func filenameRetrievalWithMultiplePatterns() async {
         do {
             let patterns = ["config.json", "tokenizer.json", "tokenizer_*.json"]
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml", matching: patterns)
             #expect(
                 Set(filenames) ==
-                Set(["config.json", "tokenizer.json", "tokenizer_config.json"])
+                    Set(["config.json", "tokenizer.json", "tokenizer_config.json"])
             )
         } catch {
             Issue.record("\(error)")
@@ -101,7 +100,7 @@ struct HubApiTests {
     }
 
     @Test
-    func testGetXetMetadata() async throws {
+    func getXetMetadata() async throws {
         do {
             let url = URL(string: "https://huggingface.co/FL33TW00D-HF/xet-test/resolve/main/tokenizer.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
@@ -114,7 +113,7 @@ struct HubApiTests {
     }
 
     @Test
-    func testGetFileMetadataBlobPath() async throws {
+    func getFileMetadataBlobPath() async throws {
         do {
             let url = URL(string: "https://huggingface.co/enterprise-explorers/Llama-2-7b-chat-coreml/resolve/main/config.json")
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
@@ -129,7 +128,7 @@ struct HubApiTests {
     }
 
     @Test
-    func testGetFileMetadataWithRevision() async throws {
+    func getFileMetadataWithRevision() async throws {
         do {
             let revision = "f2c752cfc5c0ab6f4bdec59acea69eefbee381c2"
             let url = URL(string: "https://huggingface.co/julien-c/dummy-unknown/resolve/\(revision)/config.json")
@@ -146,7 +145,7 @@ struct HubApiTests {
     }
 
     @Test
-    func testGetFileMetadataWithBlobSearch() async throws {
+    func getFileMetadataWithBlobSearch() async throws {
         let repo = "coreml-projects/Llama-2-7b-chat-coreml"
         let metadataFromBlob = try await Hub.getFileMetadata(from: repo, matching: "*.json")
         for metadata in metadataFromBlob {
@@ -159,7 +158,7 @@ struct HubApiTests {
 
     /// Verify with `curl -I https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel`
     @Test
-    func testGetLargeFileMetadata() async throws {
+    func getLargeFileMetadata() async throws {
         do {
             let revision = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
             let etag = "fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107"
@@ -227,7 +226,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownload() async throws {
+    func download() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -253,19 +252,19 @@ final class SnapshotDownloadTests {
 
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
     }
 
     /// Background sessions get rate limited by the OS, see discussion here: https://github.com/huggingface/swift-transformers/issues/61
     /// Test only one file at a time
     @Test
-    func testDownloadInBackground() async throws {
+    func downloadInBackground() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useBackgroundSession: true)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json") { progress in
@@ -280,14 +279,14 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
     }
 
     @Test
-    func testCustomEndpointDownload() async throws {
+    func customEndpointDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, endpoint: "https://hf-mirror.com")
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
@@ -302,17 +301,17 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
     }
 
     @Test
-    func testDownloadFileMetadata() async throws {
+    func downloadFileMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
@@ -327,31 +326,31 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([
-                ".cache/huggingface/download/config.json.metadata",
-                ".cache/huggingface/download/tokenizer.json.metadata",
-                ".cache/huggingface/download/tokenizer_config.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
-            ])
+                Set([
+                    ".cache/huggingface/download/config.json.metadata",
+                    ".cache/huggingface/download/tokenizer.json.metadata",
+                    ".cache/huggingface/download/tokenizer_config.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
+                ])
         )
     }
 
     @Test
-    func testDownloadFileMetadataExists() async throws {
+    func downloadFileMetadataExists() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -368,12 +367,12 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
@@ -385,14 +384,14 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([
-                ".cache/huggingface/download/config.json.metadata",
-                ".cache/huggingface/download/tokenizer.json.metadata",
-                ".cache/huggingface/download/tokenizer_config.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
-            ])
+                Set([
+                    ".cache/huggingface/download/config.json.metadata",
+                    ".cache/huggingface/download/tokenizer.json.metadata",
+                    ".cache/huggingface/download/tokenizer_config.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
+                ])
         )
 
         _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
@@ -409,7 +408,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadFileMetadataSame() async throws {
+    func downloadFileMetadataSame() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -433,9 +432,9 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([
-                ".cache/huggingface/download/tokenizer.json.metadata",
-            ])
+                Set([
+                    ".cache/huggingface/download/tokenizer.json.metadata",
+                ])
         )
 
         let originalMetadata = try String(contentsOf: metadataPath, encoding: .utf8)
@@ -457,7 +456,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadFileMetadataCorrupted() async throws {
+    func downloadFileMetadataCorrupted() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -474,12 +473,12 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
@@ -491,14 +490,14 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([
-                ".cache/huggingface/download/config.json.metadata",
-                ".cache/huggingface/download/tokenizer.json.metadata",
-                ".cache/huggingface/download/tokenizer_config.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
-            ])
+                Set([
+                    ".cache/huggingface/download/config.json.metadata",
+                    ".cache/huggingface/download/tokenizer.json.metadata",
+                    ".cache/huggingface/download/tokenizer_config.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Manifest.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json.metadata",
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json.metadata",
+                ])
         )
 
         // Corrupt config.json.metadata
@@ -535,7 +534,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadLargeFileMetadataCorrupted() async throws {
+    func downloadLargeFileMetadataCorrupted() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -552,7 +551,7 @@ final class SnapshotDownloadTests {
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         #expect(
             Set(downloadedFilenames) ==
-            Set(["llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"])
+                Set(["llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"])
         )
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
@@ -564,9 +563,9 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata",
-            ])
+                Set([
+                    ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata",
+                ])
         )
 
         // Corrupt model.metadata etag
@@ -597,7 +596,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadLargeFile() async throws {
+    func downloadLargeFile() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.mlmodel") { progress in
@@ -617,7 +616,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata"])
+                Set([".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata")
@@ -628,7 +627,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadSmolLargeFile() async throws {
+    func downloadSmolLargeFile() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
@@ -648,7 +647,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/x.bin.metadata"])
+                Set([".cache/huggingface/download/x.bin.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
@@ -659,7 +658,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testRegexValidation() async throws {
+    func regexValidation() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
@@ -679,7 +678,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/x.bin.metadata"])
+                Set([".cache/huggingface/download/x.bin.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
@@ -697,7 +696,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testLFSFileNoMetadata() async throws {
+    func lFSFileNoMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -723,7 +722,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/x.bin.metadata"])
+                Set([".cache/huggingface/download/x.bin.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
@@ -749,7 +748,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testLFSFileCorruptedMetadata() async throws {
+    func lFSFileCorruptedMetadata() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -775,7 +774,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: lfsRepo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/x.bin.metadata"])
+                Set([".cache/huggingface/download/x.bin.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
@@ -801,7 +800,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testNonLFSFileRedownload() async throws {
+    func nonLFSFileRedownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -827,7 +826,7 @@ final class SnapshotDownloadTests {
         let downloadedMetadataFilenames = getRelativeFiles(url: metadataDestination, repo: repo)
         #expect(
             Set(downloadedMetadataFilenames) ==
-            Set([".cache/huggingface/download/config.json.metadata"])
+                Set([".cache/huggingface/download/config.json.metadata"])
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("config.json.metadata")
@@ -853,7 +852,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testOfflineModeReturnsDestination() async throws {
+    func offlineModeReturnsDestination() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -882,7 +881,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testOfflineModeThrowsError() async throws {
+    func offlineModeThrowsError() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
 
         do {
@@ -901,7 +900,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testOfflineModeWithoutMetadata() async throws {
+    func offlineModeWithoutMetadata() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -939,7 +938,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testOfflineModeWithCorruptedLFSMetadata() async throws {
+    func offlineModeWithCorruptedLFSMetadata() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -980,7 +979,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testOfflineModeWithNoFiles() async throws {
+    func offlineModeWithNoFiles() async throws {
         var hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -1016,7 +1015,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testResumeDownloadFromEmptyIncomplete() async throws {
+    func resumeDownloadFromEmptyIncomplete() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         var downloadedTo = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
@@ -1057,7 +1056,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testResumeDownloadFromNonEmptyIncomplete() async throws {
+    func resumeDownloadFromNonEmptyIncomplete() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         var downloadedTo = FileManager.default.homeDirectoryForCurrentUser
@@ -1097,7 +1096,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testRealDownloadInterruptionAndResumption() async throws {
+    func realDownloadInterruptionAndResumption() async throws {
         // Use the DepthPro model weights file
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
@@ -1138,7 +1137,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testRealDownloadWithSpeed() async throws {
+    func realDownloadWithSpeed() async throws {
         // Use the DepthPro model weights file
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
@@ -1176,7 +1175,7 @@ final class SnapshotDownloadTests {
     }
 
     @Test
-    func testDownloadWithRevision() async throws {
+    func downloadWithRevision() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -1193,12 +1192,12 @@ final class SnapshotDownloadTests {
         #expect(downloadedTo == downloadDestination.appending(path: "models/\(repo)"))
         #expect(
             Set(downloadedFilenames) ==
-            Set([
-                "config.json", "tokenizer.json", "tokenizer_config.json",
-                "llama-2-7b-chat.mlpackage/Manifest.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
-            ])
+                Set([
+                    "config.json", "tokenizer.json", "tokenizer_config.json",
+                    "llama-2-7b-chat.mlpackage/Manifest.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/FeatureDescriptions.json",
+                    "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                ])
         )
 
         do {

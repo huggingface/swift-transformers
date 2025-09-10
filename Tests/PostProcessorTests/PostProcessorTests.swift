@@ -1,11 +1,11 @@
 @testable import Hub
-@testable import Tokenizers
 import Testing
+@testable import Tokenizers
 
 @Suite
 struct PostProcessorTests {
     @Test
-    func testRobertaProcessing() {
+    func robertaProcessing() {
         let testCases: [(Config, [String], [String]?, [String])] = [
             // Should keep spaces; uneven spaces; ignore `addPrefixSpace`.
             (

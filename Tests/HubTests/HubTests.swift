@@ -4,9 +4,9 @@
 //  Created by Pedro Cuenca on 18/05/2023.
 //
 
+import Foundation
 @testable import Hub
 import Testing
-import Foundation
 
 @Suite
 class HubTests {
@@ -28,7 +28,7 @@ class HubTests {
     var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 
     @Test
-    func testConfigDownload() async {
+    func configDownload() async {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
             let config = try await configLoader.modelConfig
@@ -71,7 +71,7 @@ class HubTests {
     }
 
     @Test
-    func testConfigCamelCase() async {
+    func configCamelCase() async {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
             let config = try await configLoader.modelConfig
@@ -101,7 +101,7 @@ class HubTests {
     }
 
     @Test
-    func testConfigUnicode() {
+    func configUnicode() {
         // These are two different characters
         let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
         let data = json.data(using: .utf8)
@@ -114,7 +114,7 @@ class HubTests {
     }
 
     @Test
-    func testConfigTokenValue() throws {
+    func configTokenValue() throws {
         let config1 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
         let tokenValue1 = config1.cls?.token()
         #expect(tokenValue1?.0 == 100)

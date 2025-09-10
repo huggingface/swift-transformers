@@ -1,7 +1,7 @@
+import Foundation
 @testable import Hub
 @testable import TensorUtils
 import Testing
-import Foundation
 
 @Suite
 class WeightsTests {
@@ -10,7 +10,7 @@ class WeightsTests {
     var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
 
     @Test
-    func testLoadWeightsFromFileURL() async throws {
+    func loadWeightsFromFileURL() async throws {
         let repo = "google/bert_uncased_L-2_H-128_A-2"
         let modelDir = try await hubApi.snapshot(from: repo, matching: ["config.json", "model.safetensors"])
 
@@ -36,7 +36,7 @@ class WeightsTests {
     }
 
     @Test
-    func testSafetensorReadTensor1D() throws {
+    func safetensorReadTensor1D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-1d-int32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
@@ -47,7 +47,7 @@ class WeightsTests {
     }
 
     @Test
-    func testSafetensorReadTensor2D() throws {
+    func safetensorReadTensor2D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-2d-float64", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
@@ -61,7 +61,7 @@ class WeightsTests {
     }
 
     @Test
-    func testSafetensorReadTensor3D() throws {
+    func safetensorReadTensor3D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-3d-float32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!
@@ -81,7 +81,7 @@ class WeightsTests {
     }
 
     @Test
-    func testSafetensorReadTensor4D() throws {
+    func safetensorReadTensor4D() throws {
         let modelFile = Bundle.module.url(forResource: "tensor-4d-float32", withExtension: "safetensors")!
         let weights: Weights = try Weights.from(fileURL: modelFile)
         let tensor = weights["embedding"]!

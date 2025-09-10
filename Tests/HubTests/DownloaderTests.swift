@@ -47,7 +47,7 @@ private extension Downloader {
     }
 
     /// This test downloads a known config file, verifies the download completes, checks the content matches expected value
-    @Test func testSuccessfulDownload() async throws {
+    @Test func successfulDownload() async throws {
         // Create a test file
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
@@ -94,7 +94,7 @@ private extension Downloader {
     }
 
     /// This test attempts to download with incorrect expected file, verifies the download fails, ensures no partial file is left behind
-    @Test func testDownloadFailsWithIncorrectSize() async throws {
+    @Test func downloadFailsWithIncorrectSize() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
@@ -128,7 +128,7 @@ private extension Downloader {
 
     /// This test downloads an LFS file, interrupts the download at 50% and 75% progress,
     /// verifies the download can resume and complete successfully, checks the final file exists and has content
-    @Test func testSuccessfulInterruptedDownload() async throws {
+    @Test func successfulInterruptedDownload() async throws {
         let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")

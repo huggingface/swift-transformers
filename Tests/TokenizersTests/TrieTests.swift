@@ -6,12 +6,12 @@
 //
 
 import Foundation
-@testable import Tokenizers
 import Testing
+@testable import Tokenizers
 
 @Suite
 class TrieTests {
-    @Test func testTrieBuilding() {
+    @Test func trieBuilding() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")
@@ -35,7 +35,7 @@ class TrieTests {
         #expect(trie.get("card") == nil)
     }
 
-    @Test func testTrieCommonPrefixSearch() {
+    @Test func trieCommonPrefixSearch() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")
@@ -47,7 +47,7 @@ class TrieTests {
         #expect(leaves == ["car", "carp"])
     }
 
-    @Test func testTrieCommonPrefixSearchIterator() {
+    @Test func trieCommonPrefixSearchIterator() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")

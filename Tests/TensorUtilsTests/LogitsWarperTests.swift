@@ -13,7 +13,7 @@ final class LogitsWarperTests {
     private let accuracy: Float = 0.00001
 
     @Test
-    func testTemperatureLogitsWarper() {
+    func temperatureLogitsWarper() {
         let result1 = TemperatureLogitsWarper(temperature: 0.0)([], [])
         #expect(result1.indices.isEmpty)
         #expect(result1.logits.isEmpty)
@@ -40,7 +40,7 @@ final class LogitsWarperTests {
     }
 
     @Test
-    func testTopKLogitsWarper() {
+    func topKLogitsWarper() {
         let result1 = TopKLogitsWarper(k: 0)([], [])
         #expect(result1.indices.isEmpty)
         #expect(result1.logits.isEmpty)
@@ -67,7 +67,7 @@ final class LogitsWarperTests {
     }
 
     @Test
-    func testTopPLogitsWarper() {
+    func topPLogitsWarper() {
         let result1 = TopPLogitsWarper(p: 0.99)([], [])
         #expect(result1.indices.isEmpty)
         #expect(result1.logits.isEmpty)
@@ -92,7 +92,7 @@ final class LogitsWarperTests {
     }
 
     @Test
-    func testRepetitionPenaltyWarper() {
+    func repetitionPenaltyWarper() {
         let indices = Array(0..<10)
         let logits = indices.map { Float($0) }
 
@@ -123,7 +123,7 @@ final class LogitsWarperTests {
     }
 
     @Test
-    func testLogitsProcessor() {
+    func logitsProcessor() {
         let processor1 = LogitsProcessor(logitsWarpers: [])
         let result1 = processor1([])
         #expect(result1.indices.isEmpty)

@@ -6,7 +6,7 @@ import Testing
 @Suite
 struct NormalizerTests {
     @Test
-    func testLowercaseNormalizer() {
+    func lowercaseNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),
             ("François", "françois"),
@@ -30,7 +30,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testNFDNormalizer() {
+    func nFDNormalizer() {
         let testCases: [(String, String)] = [
             ("caf\u{65}\u{301}", "cafe\u{301}"),
             ("François", "François"),
@@ -54,7 +54,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testNFCNormalizer() {
+    func nFCNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
@@ -78,7 +78,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testNFKDNormalizer() {
+    func nFKDNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "cafe\u{301}"),
             ("François", "François"),
@@ -102,7 +102,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testNFKCINormalizer() {
+    func nFKCINormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "françois"),
@@ -126,7 +126,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testStripAccents() {
+    func stripAccents() {
         let testCases: [(String, String)] = [
             ("département", "departement"),
         ]
@@ -140,7 +140,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testBertNormalizer() {
+    func bertNormalizer() {
         let testCases: [(String, String)] = [
             ("Café", "café"),
             ("François", "françois"),
@@ -164,7 +164,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testBertNormalizerDefaults() {
+    func bertNormalizerDefaults() {
         // Python verification: t._tokenizer.normalizer.normalize_str("Café")
         let testCases: [(String, String)] = [
             ("Café", "cafe"),
@@ -189,7 +189,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testPrecompiledNormalizer() {
+    func precompiledNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
@@ -215,7 +215,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testStripAccentsINormalizer() {
+    func stripAccentsINormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
@@ -239,7 +239,7 @@ struct NormalizerTests {
     }
 
     @Test
-    func testStripNormalizer() {
+    func stripNormalizer() {
         let testCases: [(String, String, Bool, Bool)] = [
             ("  hello  ", "hello", true, true),
             ("  hello  ", "hello  ", true, false),
