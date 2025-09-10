@@ -1,6 +1,5 @@
 import ArgumentParser
 import Foundation
-
 import Hub
 
 let defaultTokenLocation = NSString("~/.cache/huggingface/token").expandingTildeInPath
@@ -64,18 +63,19 @@ struct Download: AsyncParsableCommand, SubcommandWithToken {
             DispatchQueue.main.async {
                 let totalPercent = 100 * progress.fractionCompleted
                 let speedBps = progress.userInfo[.throughputKey] as? Double
-                let speedString = if let s = speedBps {
-                    // Human-readable speed
-                    if s >= 1024 * 1024 {
-                        String(format: " - %.2f MB/s", s / (1024 * 1024))
-                    } else if s >= 1024 {
-                        String(format: " - %.2f KB/s", s / 1024)
+                let speedString =
+                    if let s = speedBps {
+                        // Human-readable speed
+                        if s >= 1024 * 1024 {
+                            String(format: " - %.2f MB/s", s / (1024 * 1024))
+                        } else if s >= 1024 {
+                            String(format: " - %.2f KB/s", s / 1024)
+                        } else {
+                            String(format: " - %.0f B/s", s)
+                        }
                     } else {
-                        String(format: " - %.0f B/s", s)
+                        ""
                     }
-                } else {
-                    ""
-                }
                 print("\(progress.completedUnitCount)/\(progress.totalUnitCount) \(totalPercent.formatted("%.02f"))%\(speedString)", terminator: "\r")
                 fflush(stdout)
             }
@@ -94,8 +94,8 @@ struct Whoami: AsyncParsableCommand, SubcommandWithToken {
         let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()
         if let name = userInfo["name"].string(),
-           let fullname = userInfo["fullname"].string(),
-           let email = userInfo["email"].string()
+            let fullname = userInfo["fullname"].string(),
+            let email = userInfo["email"].string()
         {
             print("\(name) (\(fullname) <\(email)>)")
         } else {

@@ -1,6 +1,7 @@
+import XCTest
+
 @testable import Hub
 @testable import TensorUtils
-import XCTest
 
 class WeightsTests: XCTestCase {
     let downloadDestination: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
@@ -22,7 +23,7 @@ class WeightsTests: XCTestCase {
         XCTAssertEqual(weights["bert.embeddings.LayerNorm.bias"]!.shape.count, 1)
 
         XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.dataType, .float32)
-        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.count, 3906816)
+        XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.count, 3_906_816)
         XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]!.shape.count, 2)
 
         XCTAssertEqual(weights["bert.embeddings.word_embeddings.weight"]![[0, 0]].floatValue, -0.0041, accuracy: 1e-3)

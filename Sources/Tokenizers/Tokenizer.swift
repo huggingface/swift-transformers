@@ -370,16 +370,16 @@ public class PreTrainedTokenizer: Tokenizer {
 
         return
             text
-                .replacingOccurrences(of: " .", with: ".")
-                .replacingOccurrences(of: " ?", with: "?")
-                .replacingOccurrences(of: " !", with: "!")
-                .replacingOccurrences(of: " ,", with: ",")
-                .replacingOccurrences(of: " ' ", with: "'")
-                .replacingOccurrences(of: " n't", with: "n't")
-                .replacingOccurrences(of: " 'm", with: "'m")
-                .replacingOccurrences(of: " 's", with: "'s")
-                .replacingOccurrences(of: " 've", with: "'ve")
-                .replacingOccurrences(of: " 're", with: "'re")
+            .replacingOccurrences(of: " .", with: ".")
+            .replacingOccurrences(of: " ?", with: "?")
+            .replacingOccurrences(of: " !", with: "!")
+            .replacingOccurrences(of: " ,", with: ",")
+            .replacingOccurrences(of: " ' ", with: "'")
+            .replacingOccurrences(of: " n't", with: "n't")
+            .replacingOccurrences(of: " 'm", with: "'m")
+            .replacingOccurrences(of: " 's", with: "'s")
+            .replacingOccurrences(of: " 've", with: "'ve")
+            .replacingOccurrences(of: " 're", with: "'re")
     }
 
     func fuseUnknown(_ tokens: [String]) -> [String] {
@@ -399,11 +399,12 @@ public class PreTrainedTokenizer: Tokenizer {
 
     public func tokenize(text: String) -> [String] {
         // Take care of special tokens first
-        let sections: [String] = if let regex = addedTokensRegex {
-            text.split(by: regex)
-        } else {
-            [text]
-        }
+        let sections: [String] =
+            if let regex = addedTokensRegex {
+                text.split(by: regex)
+            } else {
+                [text]
+            }
         return sections.enumerated().map { section, x in
             if addedTokens.contains(x) { return [x] }
             return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
@@ -426,8 +427,8 @@ public class PreTrainedTokenizer: Tokenizer {
             let specialTokenIDs = Set(specialTokens.values)
             tokenStrings =
                 tokens
-                    .filter { !specialTokenIDs.contains($0) }
-                    .compactMap { model.convertIdToToken($0) }
+                .filter { !specialTokenIDs.contains($0) }
+                .compactMap { model.convertIdToToken($0) }
         } else {
             tokenStrings = tokens.compactMap { model.convertIdToToken($0) }
         }
@@ -591,13 +592,13 @@ public class PreTrainedTokenizer: Tokenizer {
 
 // MARK: - Building
 
-public struct AutoTokenizer { }
+public struct AutoTokenizer {}
 
 struct PreTrainedTokenizerClasses {
     /// Class overrides for custom behaviour
     /// Not to be confused with the TokenizerModel classes defined in TokenizerModel
     static let tokenizerClasses: [String: PreTrainedTokenizer.Type] = [
-        "LlamaTokenizer": LlamaPreTrainedTokenizer.self,
+        "LlamaTokenizer": LlamaPreTrainedTokenizer.self
     ]
 }
 
@@ -646,17 +647,17 @@ public extension AutoTokenizer {
 
 // MARK: - Tokenizer model classes
 
-class GPT2Tokenizer: BPETokenizer { }
-class FalconTokenizer: BPETokenizer { }
-class LlamaTokenizer: BPETokenizer { }
-class CodeGenTokenizer: BPETokenizer { }
-class WhisperTokenizer: BPETokenizer { }
-class GemmaTokenizer: BPETokenizer { }
-class CodeLlamaTokenizer: BPETokenizer { }
-class CohereTokenizer: BPETokenizer { }
-class Qwen2Tokenizer: BPETokenizer { }
+class GPT2Tokenizer: BPETokenizer {}
+class FalconTokenizer: BPETokenizer {}
+class LlamaTokenizer: BPETokenizer {}
+class CodeGenTokenizer: BPETokenizer {}
+class WhisperTokenizer: BPETokenizer {}
+class GemmaTokenizer: BPETokenizer {}
+class CodeLlamaTokenizer: BPETokenizer {}
+class CohereTokenizer: BPETokenizer {}
+class Qwen2Tokenizer: BPETokenizer {}
 
-class T5Tokenizer: UnigramTokenizer { }
+class T5Tokenizer: UnigramTokenizer {}
 
 // MARK: - PreTrainedTokenizer classes
 

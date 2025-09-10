@@ -5,8 +5,9 @@
 //
 
 import CoreML
-@testable import TensorUtils
 import XCTest
+
+@testable import TensorUtils
 
 final class TensorUtilsTests: XCTestCase {
     private let accuracy: Float = 0.00001

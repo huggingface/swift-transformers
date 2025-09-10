@@ -7,9 +7,10 @@
 //
 
 import Hub
+import XCTest
+
 @testable import Models
 @testable import Tokenizers
-import XCTest
 
 class GPT2TokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "distilgpt2" }
@@ -84,7 +85,7 @@ class GemmaTokenizerTests: TokenizerTests {
         }
 
         // These are two different characters
-        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
+        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
         let expected = [217138, 1305]
 
         // These are different characters

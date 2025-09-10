@@ -9,7 +9,6 @@ import Combine
 import XCTest
 
 @testable import Hub
-import XCTest
 
 /// Errors that can occur during the download process
 enum DownloadError: LocalizedError {
@@ -55,18 +54,18 @@ final class DownloaderTests: XCTestCase {
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
         let fileContent = """
-        {
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
+            {
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
 
-        """
+            """
 
         let cacheDir = tempDir.appendingPathComponent("cache")
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)

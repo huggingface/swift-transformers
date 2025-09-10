@@ -5,8 +5,9 @@
 //  Created by Pedro Cuenca on 12/1/24.
 //
 
-@testable import Tokenizers
 import XCTest
+
+@testable import Tokenizers
 
 class TrieTests: XCTestCase {
     func testTrieBuilding() {

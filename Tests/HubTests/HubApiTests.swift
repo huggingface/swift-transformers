@@ -167,7 +167,7 @@ class HubApiTests: XCTestCase {
 
             let url = URL(
                 string:
-                "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+                    "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel"
             )
             let metadata = try await Hub.getFileMetadata(fileURL: url!)
 
@@ -189,7 +189,7 @@ class SnapshotDownloadTests: XCTestCase {
         return base.appending(component: "huggingface-tests")
     }()
 
-    override func setUp() { }
+    override func setUp() {}
 
     override func tearDown() {
         do {
@@ -276,7 +276,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedFilenames),
             Set([
-                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json",
+                "llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/Metadata.json"
             ])
         )
     }
@@ -425,7 +425,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedMetadataFilenames),
             Set([
-                ".cache/huggingface/download/tokenizer.json.metadata",
+                ".cache/huggingface/download/tokenizer.json.metadata"
             ])
         )
 
@@ -554,7 +554,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(
             Set(downloadedMetadataFilenames),
             Set([
-                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata",
+                ".cache/huggingface/download/llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata"
             ])
         )
 
@@ -1019,17 +1019,17 @@ class SnapshotDownloadTests: XCTestCase {
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
         let expected = """
-        {
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
-        """
+            {
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
+            """
         XCTAssertTrue(fileContents.contains(expected))
     }
 
@@ -1058,17 +1058,17 @@ class SnapshotDownloadTests: XCTestCase {
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
 
         let expected = """
-        X
-          "architectures": [
-            "LlamaForCausalLM"
-          ],
-          "bos_token_id": 1,
-          "eos_token_id": 2,
-          "model_type": "llama",
-          "pad_token_id": 0,
-          "vocab_size": 32000
-        }
-        """
+            X
+              "architectures": [
+                "LlamaForCausalLM"
+              ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
+            """
         XCTAssertTrue(fileContents.contains(expected))
     }
 
