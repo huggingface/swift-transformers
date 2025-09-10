@@ -11,6 +11,7 @@
     "editor.trimAutoWhitespace": true,
     // File associations
     "files.associations": {
+        ".swift-format": "json",
         "*.swift": "swift"
     },
     // Format on save for Swift files
