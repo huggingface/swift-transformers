@@ -120,6 +120,27 @@ class PhiSimpleTests: XCTestCase {
     }
 }
 
+class UnregisteredTokenizerTests: XCTestCase {
+    func testNllbTokenizer() async throws {
+        do {
+            _ = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M")
+            XCTFail("Expected AutoTokenizer.from to throw for strict mode")
+        } catch {
+            // Expected to throw in normal (strict) mode
+        }
+
+        // no strict mode proceeds
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", strict: false) as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        let ids = tokenizer.encode(text: "Why did the chicken cross the road?")
+        let expected = [256047, 24185, 4077, 349, 1001, 22690, 83580, 349, 82801, 248130, 2]
+        XCTAssertEqual(ids, expected)
+    }
+}
+
 class LlamaPostProcessorOverrideTests: XCTestCase {
     /// Deepseek needs a post-processor override to add a bos token as in the reference implementation
     func testDeepSeek() async throws {
