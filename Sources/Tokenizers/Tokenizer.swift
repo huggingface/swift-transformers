@@ -721,5 +721,4 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
         let updatedData = Config(configDictionary)
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData, strict: strict)
     }
-    }
 }
