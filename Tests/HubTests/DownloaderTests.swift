@@ -11,21 +11,6 @@ import XCTest
 @testable import Hub
 import XCTest
 
-/// Errors that can occur during the download process
-enum DownloadError: LocalizedError {
-    case invalidDownloadLocation
-    case unexpectedError
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidDownloadLocation:
-            String(localized: "The download location is invalid or inaccessible.", comment: "Error when download destination is invalid")
-        case .unexpectedError:
-            String(localized: "An unexpected error occurred during the download process.", comment: "Generic download error message")
-        }
-    }
-}
-
 private extension Downloader {
     func interruptDownload() async {
         await session.get()?.invalidateAndCancel()
