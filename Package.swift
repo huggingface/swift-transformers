@@ -13,22 +13,11 @@ let package = Package(
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
-        .executable(name: "transformers", targets: ["TransformersCLI"]),
-        .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.4.0")),
         .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.3.0")),
     ],
     targets: [
-        .executableTarget(
-            name: "TransformersCLI",
-            dependencies: [
-                "Models", "Generation", "Tokenizers",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
-        ),
-        .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Generation", dependencies: ["Tokenizers"]),
         .target(name: "Hub", resources: [.process("Resources")], swiftSettings: swiftSettings),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
