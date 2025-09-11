@@ -102,11 +102,20 @@ public protocol PreTrainedTokenizerModel: TokenizingModel {
 struct TokenizerModel {
     static let knownTokenizers: [String: PreTrainedTokenizerModel.Type] = [
         "BertTokenizer": BertTokenizer.self,
+        "CodeGenTokenizer": BPETokenizer.self,
+        "CodeLlamaTokenizer": BPETokenizer.self,
+        "CohereTokenizer": BPETokenizer.self,
         "DistilbertTokenizer": BertTokenizer.self,
         "DistilBertTokenizer": BertTokenizer.self,
+        "FalconTokenizer": BPETokenizer.self,
+        "GemmaTokenizer": BPETokenizer.self,
+        "GPT2Tokenizer": BPETokenizer.self,
+        "LlamaTokenizer": BPETokenizer.self,
         "RobertaTokenizer": BPETokenizer.self,
         "T5Tokenizer": T5Tokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self,
+        "Qwen2Tokenizer": BPETokenizer.self,
+        "WhisperTokenizer": BPETokenizer.self,
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {
@@ -122,6 +131,9 @@ struct TokenizerModel {
         let tokenizerName = tokenizerClassName.replacingOccurrences(of: "Fast", with: "")
         // Fallback to BPETokenizer if class is not explicitly registered
         let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] ?? BPETokenizer.self
+        if TokenizerModel.knownTokenizers[tokenizerName] == nil {
+            print("Warning: Tokenizer model class \(tokenizerName) is not registered, falling back to a standard BPE implementation.")
+        }
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
 }
