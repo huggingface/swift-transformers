@@ -34,5 +34,7 @@
     },
     "swift.swiftEnvironmentVariables": {
         "DEVELOPER_DIR": "/Applications/Xcode.app"
-    }
+    },
+    // Disable automatic generation of launch `launch.json`
+    "swift.autoGenerateLaunchConfigurations": false
 }
