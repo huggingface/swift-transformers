@@ -122,7 +122,7 @@ struct TokenizerModel {
         tokenizerConfig.unkToken.content.string() ?? tokenizerConfig.unkToken.string()
     }
 
-    static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws -> TokenizingModel {
+    static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int], strict: Bool = true) throws -> TokenizingModel {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass.string() else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
@@ -132,7 +132,11 @@ struct TokenizerModel {
         // Fallback to BPETokenizer if class is not explicitly registered
         let tokenizerClass = TokenizerModel.knownTokenizers[tokenizerName] ?? BPETokenizer.self
         if TokenizerModel.knownTokenizers[tokenizerName] == nil {
-            print("Warning: Tokenizer model class \(tokenizerName) is not registered, falling back to a standard BPE implementation.")
+            if strict {
+                throw TokenizerError.unsupportedTokenizer(tokenizerName)
+            } else {
+                print("Warning: Tokenizer model class \(tokenizerName) is not registered, falling back to a standard BPE implementation.")
+            }
         }
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
     }
@@ -289,7 +293,7 @@ public class PreTrainedTokenizer: Tokenizer {
     /// Cache for compiled Jinja templates keyed by their literal template string
     private var compiledChatTemplateCache: [String: Template] = [:]
 
-    public required init(tokenizerConfig: Config, tokenizerData: Config) throws {
+    public required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {
         var addedTokens: [String: Int] = [:]
         var specialTokens: [String: Int] = [:]
         for addedToken in tokenizerData["addedTokens"].array(or: []) {
@@ -332,7 +336,7 @@ public class PreTrainedTokenizer: Tokenizer {
         cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
         self.tokenizerConfig = tokenizerConfig
 
-        model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
+        model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
     }
 
     private func compiledTemplate(for templateString: String) throws -> Template {
@@ -616,31 +620,33 @@ public extension AutoTokenizer {
         return PreTrainedTokenizer.self
     }
 
-    static func from(tokenizerConfig: Config, tokenizerData: Config) throws -> Tokenizer {
+    static func from(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws -> Tokenizer {
         let tokenizerClass = tokenizerClass(for: tokenizerConfig)
-        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 
     static func from(
         pretrained model: String,
-        hubApi: HubApi = .shared
+        hubApi: HubApi = .shared,
+        strict: Bool = true
     ) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelName: model, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
 
-        return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 
     static func from(
         modelFolder: URL,
-        hubApi: HubApi = .shared
+        hubApi: HubApi = .shared,
+        strict: Bool = true
     ) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
 
-        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 }
 
@@ -698,7 +704,7 @@ func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?)
 class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
     let isLegacy: Bool
 
-    required init(tokenizerConfig: Config, tokenizerData: Config) throws {
+    required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {
         isLegacy = tokenizerConfig.legacy.boolean(or: true)
         var configDictionary = tokenizerData.dictionary(or: [:])
         if !isLegacy {
@@ -713,6 +719,7 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
         }
 
         let updatedData = Config(configDictionary)
-        try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData)
+        try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData, strict: strict)
+    }
     }
 }
