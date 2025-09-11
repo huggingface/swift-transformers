@@ -11,12 +11,6 @@ import XCTest
 @testable import Hub
 import XCTest
 
-private extension Downloader {
-    func interruptDownload() async {
-        await session.get()?.invalidateAndCancel()
-    }
-}
-
 final class DownloaderTests: XCTestCase {
     var tempDir: URL!
 
@@ -149,7 +143,8 @@ final class DownloaderTests: XCTestCase {
                     if threshold != 1.0, progress >= threshold {
                         // Move to next threshold and interrupt
                         threshold = threshold == 0.5 ? 0.75 : 1.0
-                        await downloader.interruptDownload()
+                        // Interrupt download
+                        await downloader.session.get()?.invalidateAndCancel()
                     }
                 case let .failed(error):
                     throw error
