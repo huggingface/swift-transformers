@@ -120,6 +120,20 @@ class PhiSimpleTests: XCTestCase {
     }
 }
 
+class RobertaTokenizerTests: XCTestCase {
+    /// https://github.com/huggingface/swift-transformers/issues/99
+    func testRobertaXLMTokenizer() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "intfloat/multilingual-e5-small") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        let ids = tokenizer.encode(text: "query: how much protein should a female eat")
+        let expected = [0, 41, 1294, 12, 3642, 5045, 21308, 5608, 10, 117776, 73203, 2]
+        XCTAssertEqual(ids, expected)
+    }
+}
+
 class UnregisteredTokenizerTests: XCTestCase {
     func testNllbTokenizer() async throws {
         do {

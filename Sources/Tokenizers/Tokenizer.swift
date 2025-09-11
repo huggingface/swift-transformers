@@ -116,6 +116,7 @@ struct TokenizerModel {
         "PreTrainedTokenizer": BPETokenizer.self,
         "Qwen2Tokenizer": BPETokenizer.self,
         "WhisperTokenizer": BPETokenizer.self,
+        "XLMRobertaTokenizer": UnigramTokenizer.self,
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {
