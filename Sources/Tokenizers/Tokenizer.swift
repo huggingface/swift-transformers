@@ -730,9 +730,7 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
         }
 
         let tokens = super.tokenize(text: sentencePieceUnderline + text.replacingOccurrences(of: sentencePieceUnderline, with: " "))
-
-        let second = tokens.dropFirst().first
-        if tokens.first == sentencePieceUnderline, second != nil, specialTokens[second!] != nil {
+        if tokens.first == sentencePieceUnderline, let second = tokens.dropFirst().first, specialTokens[second] != nil {
             return Array(tokens[1...])
         }
         return tokens
