@@ -268,7 +268,7 @@ public extension HubApi {
     /// `fileURL` is a complete local file path for the given model
     func configuration(fileURL: URL) throws -> Config {
         let data = try Data(contentsOf: fileURL)
-        let parsed = try JSONSerialization.jsonObject(with: data, options: [])
+        let parsed = try JSONSerialization.bomPreservingJsonObject(with: data)
         guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
         return Config(dictionary)
     }

@@ -76,9 +76,11 @@ class GemmaTokenizerTests: TokenizerTests {
     override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
     override class var encodedSamplesFilename: String? { "gemma_encoded" }
     override class var unknownTokenId: Int? { 3 }
+}
 
-    func testUnicodeEdgeCase() async {
-        guard let tester = Self._tester else {
+class GemmaUnicodeTests: XCTestCase {
+    func testGemmaUnicode() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer else {
             XCTFail()
             return
         }
@@ -86,24 +88,19 @@ class GemmaTokenizerTests: TokenizerTests {
         // These are two different characters
         let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
         let expected = [217138, 1305]
-
-        // These are different characters
         for (s, expected) in zip(cases, expected) {
-            let encoded = await tester.tokenizer?.encode(text: " " + s)
+            let encoded = tokenizer.encode(text: " " + s)
             XCTAssertEqual(encoded, [2, expected])
         }
-    }
-}
 
-class GemmaUnicodeTests: XCTestCase {
-    func testGemmaVocab() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
+        // Keys that start with BOM sequence
+        // https://github.com/huggingface/swift-transformers/issues/88
+        // https://github.com/ml-explore/mlx-swift-examples/issues/50#issuecomment-2046592213
+        XCTAssertEqual(tokenizer.convertIdToToken(122661), "\u{feff}#")
+        XCTAssertEqual(tokenizer.convertIdToToken(235345), "#")
 
-        // FIXME: This should be 256_000, I believe
-        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.vocabCount, 255994)
+        // Verifies all expected entries are parsed
+        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.vocabCount, 256_000)
     }
 }
 
