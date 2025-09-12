@@ -118,6 +118,17 @@ class PhiSimpleTests: XCTestCase {
         XCTAssertEqual(tokenizer.encode(text: "hello world"), [15339, 1917])
         XCTAssertEqual(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
     }
+
+    /// https://github.com/huggingface/swift-transformers/issues/96
+    func testLegacyLlamaBehaviour() async throws {
+        guard let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-4k-instruct-4bit-no-q-embed") as? PreTrainedTokenizer else {
+            XCTFail()
+            return
+        }
+
+        let inputIds = tokenizer(" Hi")
+        XCTAssertEqual(inputIds, [1, 29871, 6324])
+    }
 }
 
 class RobertaTokenizerTests: XCTestCase {

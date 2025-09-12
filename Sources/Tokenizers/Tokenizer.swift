@@ -279,9 +279,9 @@ public class PreTrainedTokenizer: Tokenizer {
     public var unknownTokenId: Int? { model.unknownTokenId }
     public var fuseUnknownTokens: Bool { model.fuseUnknownTokens }
 
-    private let addedTokens: Set<String>
-    private let specialTokens: [String: Int]
-    private let addedTokensRegex: NSRegularExpression?
+    let addedTokens: Set<String>
+    let specialTokens: [String: Int]
+    let addedTokensRegex: NSRegularExpression?
 
     private let preTokenizer: PreTokenizer?
     private let normalizer: Normalizer?
@@ -721,5 +721,19 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
 
         let updatedData = Config(configDictionary)
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData, strict: strict)
+    }
+
+    /// If `isLegacy` is `False`, a prefix token is added unless the first token is special.
+    /// https://github.com/huggingface/transformers/blob/e6dcf8abd6f65bb4b6dfc1831b20d9ba49ce00e2/src/transformers/models/t5/tokenization_t5.py#L374-L387
+    override func tokenize(text: String) -> [String] {
+        if isLegacy || text.isEmpty {
+            return super.tokenize(text: text)
+        }
+
+        let tokens = super.tokenize(text: sentencePieceUnderline + text.replacingOccurrences(of: sentencePieceUnderline, with: " "))
+        if tokens.first == sentencePieceUnderline, let second = tokens.dropFirst().first, specialTokens[second] != nil {
+            return Array(tokens[1...])
+        }
+        return tokens
     }
 }
