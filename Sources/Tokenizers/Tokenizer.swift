@@ -722,7 +722,7 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
         try super.init(tokenizerConfig: tokenizerConfig, tokenizerData: updatedData, strict: strict)
     }
 
-    /// If `self.legacy` is set to `False`, a prefix token is added unless the first token is special.
+    /// If `isLegacy` is `False`, a prefix token is added unless the first token is special.
     /// https://github.com/huggingface/transformers/blob/e6dcf8abd6f65bb4b6dfc1831b20d9ba49ce00e2/src/transformers/models/t5/tokenization_t5.py#L374-L387
     override func tokenize(text: String) -> [String] {
         if isLegacy || text.isEmpty {
