@@ -346,8 +346,8 @@ extension Downloader: URLSessionDownloadDelegate {
 }
 
 extension FileManager {
-    func moveDownloadedFile(from srcURL: URL, to dstURL: URL) throws {
-        if fileExists(atPath: dstURL.path(percentEncoded: false)) {
+    func moveDownloadedFile(from srcURL: URL, to dstURL: URL, percentEncoded: Bool = false) throws {
+        if fileExists(atPath: dstURL.path(percentEncoded: percentEncoded)) {
             try removeItem(at: dstURL)
         }
 

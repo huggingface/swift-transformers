@@ -165,4 +165,28 @@ final class DownloaderTests: XCTestCase {
             throw error
         }
     }
+
+    func testMoveDownloadedFilePercentEncodedFlag() throws {
+        let appSupport = tempDir.appendingPathComponent("Application Support")
+        let destination = appSupport.appendingPathComponent("config.json")
+        let source1 = tempDir.appendingPathComponent("v1.incomplete")
+        let source2 = tempDir.appendingPathComponent("v2.incomplete")
+        
+        try FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        try "existing".write(to: destination, atomically: true, encoding: .utf8)
+        try "v1".write(to: source1, atomically: true, encoding: .utf8)
+        try "v2".write(to: source2, atomically: true, encoding: .utf8)
+        
+        XCTAssertThrowsError(
+            try FileManager.default.moveDownloadedFile(from: source1, to: destination, percentEncoded: true)
+        ) { error in
+            XCTAssertEqual((error as NSError).code, 516)
+        }
+        XCTAssertEqual(try String(contentsOf: destination), "existing")
+        
+        XCTAssertNoThrow(
+            try FileManager.default.moveDownloadedFile(from: source2, to: destination, percentEncoded: false)
+        )
+        XCTAssertEqual(try String(contentsOf: destination), "v2")
+    }
 }
