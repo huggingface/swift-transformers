@@ -1,13 +1,19 @@
 name: Unit Tests
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    # This runs in the context of the base of the pull request,
+    # rather than in the context of the merge commit.
+    # Maintainers must approve and we tighten permissions below.
+    pull_request_target:
+        types: [opened, synchronize, reopened]
+
+permissions:
+    contents: read
 
 jobs:
-  build-and-test:
-    uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
-    secrets: inherit
+    build-and-test:
+        uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
+        with:
+            # Use the PR merge ref, not the head.
+            pr_number: ${{ github.event.pull_request.number }}
+        secrets: inherit
