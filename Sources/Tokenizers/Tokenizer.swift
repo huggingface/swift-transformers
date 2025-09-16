@@ -184,7 +184,7 @@ public protocol Tokenizer {
     func applyChatTemplate(messages: [Message], tools: [ToolSpec]?) throws -> [Int]
 
     /// The appropriate chat template is selected from the tokenizer config
-    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: Any]?) throws -> [Int]
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: Value]?) throws -> [Int]
 
     /// The chat template is provided as a string literal or specified by name
     func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int]
@@ -210,7 +210,7 @@ public protocol Tokenizer {
         truncation: Bool,
         maxLength: Int?,
         tools: [ToolSpec]?,
-        additionalContext: [String: Any]?
+        additionalContext: [String: Value]?
     ) throws -> [Int]
 }
 
@@ -226,7 +226,7 @@ extension Tokenizer {
         truncation: Bool,
         maxLength: Int?,
         tools: [ToolSpec]?,
-        additionalContext: [String: Any]?
+        additionalContext: [String: Value]?
     ) throws -> [Int] {
         if additionalContext == nil {
             try applyChatTemplate(
@@ -461,7 +461,7 @@ public class PreTrainedTokenizer: Tokenizer {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true, tools: tools)
     }
 
-    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil, additionalContext: [String: Any]? = nil) throws
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil, additionalContext: [String: Value]? = nil) throws
         -> [Int]
     {
         try applyChatTemplate(
@@ -506,7 +506,7 @@ public class PreTrainedTokenizer: Tokenizer {
         // [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
         // for more information.
         tools: [ToolSpec]? = nil,
-        additionalContext: [String: Any]? = nil
+        additionalContext: [String: Value]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
         if let chatTemplate, case let .literal(template) = chatTemplate {
@@ -548,12 +548,12 @@ public class PreTrainedTokenizer: Tokenizer {
         }
 
         let template = try compiledTemplate(for: selectedChatTemplate)
-        var context: [String: Any] = [
-            "messages": messages,
-            "add_generation_prompt": addGenerationPrompt,
+        var context: [String: Value] = try [
+            "messages": Value(any: messages),
+            "add_generation_prompt": Value(any: addGenerationPrompt),
         ]
         if let tools {
-            context["tools"] = tools
+            context["tools"] = try Value(any: tools)
         }
         if let additionalContext {
             /*
@@ -569,13 +569,15 @@ public class PreTrainedTokenizer: Tokenizer {
         for (key, value) in tokenizerConfig.dictionary(or: [:]) {
             if specialTokenAttributes.contains(key.string), !value.isNull() {
                 if let stringValue = value.string() {
-                    context[key.string] = stringValue
+                    context[key.string] = .string(stringValue)
                 } else if let dictionary = value.dictionary() {
-                    context[key.string] = addedTokenAsString(Config(dictionary))
+                    if let stringValue = addedTokenAsString(Config(dictionary)) {
+                        context[key.string] = .string(stringValue)
+                    }
                 } else if let array: [String] = value.get() {
-                    context[key.string] = array
+                    context[key.string] = .array(array.map { .string($0) })
                 } else {
-                    context[key.string] = value
+                    context[key.string] = try Value(any: value)
                 }
             }
         }

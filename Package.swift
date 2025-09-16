@@ -13,12 +13,13 @@ let package = Package(
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
+        .library(name: "Jinja", targets: ["Jinja"]),
         .executable(name: "transformers", targets: ["TransformersCLI"]),
         .executable(name: "hub-cli", targets: ["HubCLI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.4.0")),
-        .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.3.0")),
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
     ],
     targets: [
         .executableTarget(
@@ -29,13 +30,17 @@ let package = Package(
             ]
         ),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
-        .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
-        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
+        .target(name: "Hub", dependencies: ["Jinja"], resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
+        .target(name: "Jinja", dependencies: [
+            .product(name: "OrderedCollections", package: "swift-collections"),
+        ]),
+        .target(name: "Tokenizers", dependencies: ["Hub", "Jinja"]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
-        .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
+        .testTarget(name: "HubTests", dependencies: ["Hub", "Jinja"], swiftSettings: swiftSettings),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "JinjaTests", dependencies: ["Jinja"]),
     ]
 )

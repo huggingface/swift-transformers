@@ -5,6 +5,7 @@
 //  Created by Piotr Kowalczuk on 06.03.25.
 
 import Foundation
+import Jinja
 
 // MARK: - Configuration files with dynamic lookup
 
@@ -413,28 +414,32 @@ public struct Config: Hashable, Sendable,
         self.dictionary(or: or)
     }
 
-    public func toJinjaCompatible() -> Any? {
+    public func toJinjaCompatible() -> Jinja.Value {
         switch self.value {
         case let .array(val):
-            return val.map { $0.toJinjaCompatible() }
+            let converted: [Jinja.Value] = val.map { $0.toJinjaCompatible() }
+            return Jinja.Value.array(converted)
         case let .dictionary(val):
-            var result: [String: Any?] = [:]
+            var result: OrderedDictionary<String, Jinja.Value> = [:]
             for (key, config) in val {
                 result[key.string] = config.toJinjaCompatible()
             }
-            return result
+            return Jinja.Value.object(result)
         case let .boolean(val):
-            return val
+            return Jinja.Value.boolean(val)
         case let .floating(val):
-            return val
+            return Jinja.Value.double(Double(val))
         case let .integer(val):
-            return val
+            return Jinja.Value.int(val)
         case let .string(val):
-            return val.string
+            return Jinja.Value.string(val.string)
         case let .token(val):
-            return [String(val.0): val.1.string] as [String: String]
+            // Represent token as an object mapping id -> token string
+            var obj: OrderedDictionary<String, Jinja.Value> = [:]
+            obj[String(val.0)] = Jinja.Value.string(val.1.string)
+            return Jinja.Value.object(obj)
         case .null:
-            return nil
+            return Jinja.Value.null
         }
     }
 
