@@ -5,7 +5,7 @@
 //
 
 import CoreML
-@testable import TensorUtils
+@testable import Generation
 import XCTest
 
 final class LogitsWarperTests: XCTestCase {

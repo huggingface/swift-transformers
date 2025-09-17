@@ -29,13 +29,13 @@ let package = Package(
             ]
         ),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+        .target(name: "Generation", dependencies: ["Tokenizers"]),
         .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
+        .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
         .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
-        .target(name: "TensorUtils"),
-        .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
-        .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
+        .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
-        .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
     ]
 )
