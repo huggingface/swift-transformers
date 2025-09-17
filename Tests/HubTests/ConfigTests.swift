@@ -355,6 +355,21 @@ struct ConfigTests {
         #expect(vocab.count == 2)
     }
 
+    @Test("Token tuple extraction from array and JSON")
+    func tokenValueExtraction() throws {
+        let config1 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
+        let tokenValue1 = config1.cls?.token()
+        #expect(tokenValue1?.0 == 100)
+        #expect(tokenValue1?.1 == "str")
+
+        let data = #"{"cls": ["str", 100]}"#.data(using: .utf8)!
+        let dict = try JSONSerialization.jsonObject(with: data, options: []) as! [NSString: Any]
+        let config2 = Config(dict)
+        let tokenValue2 = config2.cls?.token()
+        #expect(tokenValue2?.0 == 100)
+        #expect(tokenValue2?.1 == "str")
+    }
+
     @Test("Jinja templating renders expected values from Config")
     func templating_completeExample() throws {
         let cfg = Config([

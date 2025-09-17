@@ -95,30 +95,4 @@ class HubTests: XCTestCase {
             XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
-
-    func testConfigUnicode() {
-        // These are two different characters
-        let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
-        let data = json.data(using: .utf8)
-        let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
-        let config = Config(dict)
-
-        let vocab = config["vocab"].dictionary(or: [:])
-
-        XCTAssertEqual(vocab.count, 2)
-    }
-
-    func testConfigTokenValue() throws {
-        let config1 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
-        let tokenValue1 = config1.cls?.token()
-        XCTAssertEqual(tokenValue1?.0, 100)
-        XCTAssertEqual(tokenValue1?.1, "str")
-
-        let data = #"{"cls": ["str", 100]}"#.data(using: .utf8)!
-        let dict = try JSONSerialization.jsonObject(with: data, options: []) as! [NSString: Any]
-        let config2 = Config(dict)
-        let tokenValue2 = config2.cls?.token()
-        XCTAssertEqual(tokenValue2?.0, 100)
-        XCTAssertEqual(tokenValue2?.1, "str")
-    }
 }
