@@ -11,6 +11,77 @@ import Foundation
 import Testing
 @testable import Tokenizers
 
+/// Stanford Question Answering Dataset (SQuAD)
+private enum Squad {
+    struct Example {
+        let qaId: String
+        let context: String
+        let question: String
+        let answerText: String
+        let startPos: Int
+        let endPos: Int
+    }
+
+    private struct Dataset: Decodable {
+        let data: [Datum]
+        let version: String
+    }
+
+    private struct Datum: Decodable {
+        let paragraphs: [Paragraph]
+        let title: String
+    }
+
+    private struct Paragraph: Decodable {
+        let context: String
+        let qas: [QA]
+    }
+
+    private struct QA: Decodable {
+        let answers: [Answer]
+        let id: String
+        let question: String
+    }
+
+    private struct Answer: Decodable {
+        let answerStart: Int
+        let text: String
+
+        private enum CodingKeys: String, CodingKey {
+            case answerStart = "answer_start"
+            case text
+        }
+    }
+
+    static let examples: [Example] = {
+        let url = Bundle.module.url(forResource: "dev-v1.1", withExtension: "json")!
+        let json = try! Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        let dataset = try! decoder.decode(Dataset.self, from: json)
+
+        var result: [Example] = []
+        for datum in dataset.data {
+            for paragraph in datum.paragraphs {
+                for qa in paragraph.qas {
+                    let firstAnswer = qa.answers.first
+                    let example = Example(
+                        qaId: qa.id,
+                        context: paragraph.context,
+                        question: qa.question,
+                        answerText: firstAnswer?.text ?? "",
+                        startPos: firstAnswer?.answerStart ?? -1,
+                        endPos: -1
+                    )
+                    result.append(example)
+                }
+            }
+        }
+        return result
+    }()
+}
+
+// MARK: -
+
 private let bertTokenizer: BertTokenizer = {
     let vocab = {
         let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
@@ -25,6 +96,8 @@ private let bertTokenizer: BertTokenizer = {
 
     return BertTokenizer(vocab: vocab, merges: nil)
 }()
+
+// MARK: -
 
 @Suite("BERT Tokenizer Tests")
 struct BertTokenizerTests {
