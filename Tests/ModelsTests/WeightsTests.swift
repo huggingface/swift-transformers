@@ -1,5 +1,5 @@
 @testable import Hub
-@testable import TensorUtils
+@testable import Models
 import XCTest
 
 class WeightsTests: XCTestCase {

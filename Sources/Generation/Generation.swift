@@ -6,7 +6,6 @@
 //
 
 import CoreML
-import TensorUtils
 import Tokenizers
 
 public enum GenerationMode {

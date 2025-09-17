@@ -1,14 +1,14 @@
 //
-//  TensorUtilsTests.swift
+//  MathTests.swift
 //
 //  Created by Jan Krukowski on 25/11/2023.
 //
 
 import CoreML
-@testable import TensorUtils
+@testable import Generation
 import XCTest
 
-final class TensorUtilsTests: XCTestCase {
+final class MathTests: XCTestCase {
     private let accuracy: Float = 0.00001
 
     func testCumsum() {
