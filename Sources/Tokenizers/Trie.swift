@@ -8,17 +8,17 @@
 
 import Foundation
 
-public struct Trie<T: Hashable> {
-    public typealias Node = TrieNode<T>
+struct Trie<T: Hashable> {
+    typealias Node = TrieNode<T>
 
     var root: Node
 
-    public init(root: Node? = nil) {
+    init(root: Node? = nil) {
         self.root = root ?? Node()
     }
 }
 
-public extension Trie {
+extension Trie {
     func insert(_ element: any Sequence<T>) {
         var node = root
         for item in element {
@@ -63,7 +63,7 @@ public extension Trie {
     }
 }
 
-public extension Trie {
+extension Trie {
     /// Only used for testing, could migrate to collection
     func get(_ element: any Sequence<T>) -> Node? {
         var node = root
@@ -76,18 +76,18 @@ public extension Trie {
 }
 
 // TODO: maybe store the scores here if it's helpful?
-public class TrieNode<T: Hashable> {
+class TrieNode<T: Hashable> {
     var isLeaf: Bool = false
     var children: [T: TrieNode] = [:]
 }
 
-public struct LeavesWithCommonPrefixIterator<T: Hashable>: Sequence, IteratorProtocol {
+struct LeavesWithCommonPrefixIterator<T: Hashable>: Sequence, IteratorProtocol {
     var node: TrieNode<T>
     var text: any Sequence<T>
     var seq: [T] = []
     lazy var iterator = text.makeIterator() as any IteratorProtocol<T>
 
-    public mutating func next() -> [T]? {
+    mutating func next() -> [T]? {
         while true {
             guard let item = iterator.next() else { return nil }
             seq.append(item)
