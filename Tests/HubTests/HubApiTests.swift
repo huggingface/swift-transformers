@@ -9,6 +9,11 @@ import XCTest
 @testable import Hub
 
 class HubApiTests: XCTestCase {
+    override func setUpWithError() throws {
+        let runNetwork = ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] == "1"
+        try XCTSkipUnless(runNetwork, "Set HUB_NETWORK_TESTS=1 to run network tests")
+    }
+
     // TODO: use a specific revision for these tests
 
     func testFilenameRetrieval() async {
