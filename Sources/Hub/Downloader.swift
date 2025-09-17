@@ -353,8 +353,19 @@ extension FileManager {
 
         let directoryURL = dstURL.deletingLastPathComponent()
         try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-
-        try moveItem(at: srcURL, to: dstURL)
+        do {
+            try moveItem(at: srcURL, to: dstURL)
+        } catch {
+            // If a concurrent download already moved the file, accept success if destination exists
+            let nsError = error as NSError
+            let destinationExists = fileExists(atPath: dstURL.path(percentEncoded: percentEncoded))
+            if (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError && destinationExists)
+                || (nsError.domain == NSPOSIXErrorDomain && nsError.code == ENOENT && destinationExists)
+            {
+                return
+            }
+            throw error
+        }
     }
 }
 
