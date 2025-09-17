@@ -4,191 +4,221 @@
 //  Created by Jan Krukowski on 23/11/2023.
 //
 
+import Foundation
 import Hub
-@testable import Tokenizers
-import XCTest
+import Testing
 
-class PreTokenizerTests: XCTestCase {
-    func testWhitespacePreTokenizer() {
+@testable import Tokenizers
+
+@Suite("Pre-Tokenizer Tests")
+struct PreTokenizerTests {
+    @Test("Whitespace pre-tokenizer splits text by whitespace")
+    func whitespacePreTokenizer() {
         let preTokenizer = WhitespacePreTokenizer(config: Config([String: Config]()))
 
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "Hey friend!"),
-            ["Hey", "friend!"]
+        #expect(
+            preTokenizer.preTokenize(text: "Hey friend!") == ["Hey", "friend!"]
         )
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", "friend!", "How", "are", "you?!?"]
+        #expect(
+            preTokenizer.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", "friend!", "How", "are", "you?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["Hey,", "friend,", "what's", "up?"]
+        #expect(
+            preTokenizer.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                "Hey,", "friend,", "what's", "up?",
+            ]
         )
     }
 
-    func testPunctuationPreTokenizer() {
+    @Test("Punctuation pre-tokenizer separates punctuation")
+    func punctuationPreTokenizer() {
         let preTokenizer = PunctuationPreTokenizer(config: Config([String: Config]()))
 
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "Hey friend!"),
-            ["Hey friend", "!"]
+        #expect(
+            preTokenizer.preTokenize(text: "Hey friend!") == ["Hey friend", "!"]
         )
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey friend", "!", "     How are you", "?!?"]
+        #expect(
+            preTokenizer.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey friend", "!", "     How are you", "?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["   Hey", ",", "    friend", ",", "    what", "'", "s up", "?", "  "]
+        #expect(
+            preTokenizer.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                "   Hey", ",", "    friend", ",", "    what", "'", "s up", "?", "  ",
+            ]
         )
     }
 
-    func testByteLevelPreTokenizer() {
+    @Test("Byte-level pre-tokenizer with various configurations")
+    func byteLevelPreTokenizer() {
         let preTokenizer1 = ByteLevelPreTokenizer(config: Config([String: Config]()))
 
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!"),
-            ["Hey", "Ġfriend", "!"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!") == ["Hey", "Ġfriend", "!"]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", "Ġfriend", "!", "ĠĠĠĠ", "ĠHow", "Ġare", "Ġyou", "?!?"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", "Ġfriend", "!", "ĠĠĠĠ", "ĠHow", "Ġare", "Ġyou", "?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["ĠĠ", "ĠHey", ",", "ĠĠĠ", "Ġfriend", ",", "ĠĠĠ", "Ġwhat", "'s", "Ġup", "?", "ĠĠ"]
+        #expect(
+            preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                "ĠĠ", "ĠHey", ",", "ĠĠĠ", "Ġfriend", ",", "ĠĠĠ", "Ġwhat", "'s", "Ġup", "?", "ĠĠ",
+            ]
         )
 
         let preTokenizer2 = ByteLevelPreTokenizer(config: Config(["addPrefixSpace": true]))
 
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "Hey friend!"),
-            ["ĠHey", "Ġfriend", "Ġ!"]
+        #expect(
+            preTokenizer2.preTokenize(text: "Hey friend!") == ["ĠHey", "Ġfriend", "Ġ!"]
         )
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["ĠHey", "Ġfriend", "Ġ!", "ĠĠĠĠ", "ĠHow", "Ġare", "Ġyou", "Ġ?!?"]
+        #expect(
+            preTokenizer2.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "ĠHey", "Ġfriend", "Ġ!", "ĠĠĠĠ", "ĠHow", "Ġare", "Ġyou", "Ġ?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["ĠĠ", "ĠHey", "Ġ,", "ĠĠĠ", "Ġfriend", "Ġ,", "ĠĠĠ", "Ġwhat", "Ġ's", "Ġup", "Ġ?", "ĠĠ"]
+        #expect(
+            preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                "ĠĠ", "ĠHey", "Ġ,", "ĠĠĠ", "Ġfriend", "Ġ,", "ĠĠĠ", "Ġwhat", "Ġ's", "Ġup", "Ġ?",
+                "ĠĠ",
+            ]
         )
 
         let preTokenizer3 = ByteLevelPreTokenizer(config: Config(["useRegex": false]))
 
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "Hey friend!"),
-            ["HeyĠfriend!"]
+        #expect(
+            preTokenizer3.preTokenize(text: "Hey friend!") == ["HeyĠfriend!"]
         )
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["HeyĠfriend!ĠĠĠĠĠHowĠareĠyou?!?"]
+        #expect(
+            preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "HeyĠfriend!ĠĠĠĠĠHowĠareĠyou?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            ["ĠĠĠHey,ĠĠĠĠfriend,ĠĠĠĠwhat'sĠup?ĠĠ"]
+        #expect(
+            preTokenizer3.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                "ĠĠĠHey,ĠĠĠĠfriend,ĠĠĠĠwhat'sĠup?ĠĠ",
+            ]
         )
     }
 
-    func testDigitsPreTokenizer() {
+    @Test("Digits pre-tokenizer handles numeric content")
+    func digitsPreTokenizer() {
         let preTokenizer1 = DigitsPreTokenizer(config: Config([String: Config]()))
 
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "1 12 123! 1234abc"),
-            ["1", " ", "12", " ", "123", "! ", "1234", "abc"]
+        #expect(
+            preTokenizer1.preTokenize(text: "1 12 123! 1234abc") == [
+                "1", " ", "12", " ", "123", "! ", "1234", "abc",
+            ]
         )
 
         let preTokenizer2 = DigitsPreTokenizer(config: Config(["individualDigits": true]))
 
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "1 12 123! 1234abc"),
-            ["1", " ", "1", "2", " ", "1", "2", "3", "! ", "1", "2", "3", "4", "abc"]
+        #expect(
+            preTokenizer2.preTokenize(text: "1 12 123! 1234abc") == [
+                "1", " ", "1", "2", " ", "1", "2", "3", "! ", "1", "2", "3", "4", "abc",
+            ]
         )
     }
 
-    func testSplitPreTokenizer() {
+    @Test("Split pre-tokenizer with string and regex patterns")
+    func splitPreTokenizer() {
         let preTokenizer1 = SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!"),
-            ["Hey", " ", "friend!"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", " ", "friend!", " ", " ", " ", " ", " ", "How", " ", "are", " ", "you?!?"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", " ", "friend!", " ", " ", " ", " ", " ", "How", " ", "are", " ", "you?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
+        #expect(
+            preTokenizer1.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                " ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's",
+                " ", "up?", " ", " ",
+            ]
         )
 
         let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "Hey friend!"),
-            ["Hey", " ", "friend!"]
+        #expect(
+            preTokenizer2.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", " ", "friend!", " ", " ", " ", " ", " ", "How", " ", "are", " ", "you?!?"]
+        #expect(
+            preTokenizer2.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", " ", "friend!", " ", " ", " ", " ", " ", "How", " ", "are", " ", "you?!?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  "),
-            [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
-        )
-
-        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"], "invert": true]))
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "Hello"),
-            ["Hello"]
+        #expect(
+            preTokenizer2.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
+                " ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's",
+                " ", "up?", " ", " ",
+            ]
         )
 
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "Hey friend!"),
-            ["Hey", " friend", "!"]
+        let preTokenizer3 = SplitPreTokenizer(
+            config: Config([
+                "pattern": [
+                    "Regex":
+                        "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+                ], "invert": true,
+            ]))
+        #expect(
+            preTokenizer3.preTokenize(text: "Hello") == ["Hello"]
         )
-        XCTAssertEqual(
-            preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", " friend", "!", "    ", " How", " are", " you", "?!?"]
+
+        #expect(
+            preTokenizer3.preTokenize(text: "Hey friend!") == ["Hey", " friend", "!"]
+        )
+        #expect(
+            preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", " friend", "!", "    ", " How", " are", " you", "?!?",
+            ]
         )
     }
 
     /// https://github.com/huggingface/tokenizers/pull/1357
-    func testMetaspacePreTokenizer() {
+    @Test("Metaspace pre-tokenizer with prefix space handling")
+    func metaspacePreTokenizer() {
         // Prepend "always"
-        let preTokenizer = MetaspacePreTokenizer(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
-            "prepend_scheme": "always",
-        ]))
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "add_prefix_space": true,
+                "replacement": "▁",
+                "prepend_scheme": "always",
+            ]))
 
         // TODO: different sections on <s>
         let text = "Hey my friend <s>how▁are you"
-        let tokens = text
-            .split(by: "<s>", includeSeparators: true)
-            .flatMap { preTokenizer.preTokenize(text: $0) }
+        let tokens =
+            text
+                .split(by: "<s>", includeSeparators: true)
+                .flatMap { preTokenizer.preTokenize(text: $0) }
 
-        XCTAssertEqual(
-            tokens,
-            ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
+        #expect(
+            tokens == ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         )
     }
 
-    func testBertPreTokenizer() {
+    @Test("BERT pre-tokenizer performs basic splitting")
+    func bertPreTokenizer() {
         let preTokenizer1 = BertPreTokenizer(config: Config([String: Config]()))
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!"),
-            ["Hey", "friend", "!"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!") == ["Hey", "friend", "!"]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?"),
-            ["Hey", "friend", "!", "How", "are", "you", "?", "!", "?"]
+        #expect(
+            preTokenizer1.preTokenize(text: "Hey friend!     How are you?!?") == [
+                "Hey", "friend", "!", "How", "are", "you", "?", "!", "?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "   Hey,    friend ,    what's up?  "),
-            ["Hey", ",", "friend", ",", "what", "\'", "s", "up", "?"]
+        #expect(
+            preTokenizer1.preTokenize(text: "   Hey,    friend ,    what's up?  ") == [
+                "Hey", ",", "friend", ",", "what", "\'", "s", "up", "?",
+            ]
         )
-        XCTAssertEqual(
-            preTokenizer1.preTokenize(text: "   Hey,    friend ,  0 99  what's up?  "),
-            ["Hey", ",", "friend", ",", "0", "99", "what", "\'", "s", "up", "?"]
+        #expect(
+            preTokenizer1.preTokenize(text: "   Hey,    friend ,  0 99  what's up?  ") == [
+                "Hey", ",", "friend", ",", "0", "99", "what", "\'", "s", "up", "?",
+            ]
         )
     }
 }

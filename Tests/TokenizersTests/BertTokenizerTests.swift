@@ -6,41 +6,43 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+import Foundation
 @testable import Hub
+import Testing
 @testable import Tokenizers
-import XCTest
 
-class BertTokenizerTests: XCTestCase {
-    lazy var bertTokenizer: BertTokenizer = {
-        let vocab = {
-            let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
-            let vocabTxt = try! String(contentsOf: url)
-            let tokens = vocabTxt.split(separator: "\n").map { String($0) }
-            var vocab: [String: Int] = [:]
-            for (i, token) in tokens.enumerated() {
-                vocab[token] = i
-            }
-            return vocab
-        }()
-
-        return BertTokenizer(vocab: vocab, merges: nil)
+private let bertTokenizer: BertTokenizer = {
+    let vocab = {
+        let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
+        let vocabTxt = try! String(contentsOf: url)
+        let tokens = vocabTxt.split(separator: "\n").map { String($0) }
+        var vocab: [String: Int] = [:]
+        for (i, token) in tokens.enumerated() {
+            vocab[token] = i
+        }
+        return vocab
     }()
 
+    return BertTokenizer(vocab: vocab, merges: nil)
+}()
+
+@Suite("BERT Tokenizer Tests")
+struct BertTokenizerTests {
+    @Test("Basic tokenizer correctly tokenizes text")
     func testBasicTokenizer() {
         let basicTokenizer = BasicTokenizer()
 
         let text = "Brave gaillard, d'où [UNK] êtes vous?"
         let tokens = ["brave", "gaillard", ",", "d", "\'", "ou", "[UNK]", "etes", "vous", "?"]
 
-        XCTAssertEqual(
-            basicTokenizer.tokenize(text: text), tokens
-        )
-        // Verify that `XCTAssertEqual` does what deep equality checks on arrays of strings.
-        XCTAssertEqual(["foo", "bar"], ["foo", "bar"])
+        #expect(basicTokenizer.tokenize(text: text) == tokens)
+        // Verify that `#expect` does what deep equality checks on arrays of strings.
+        #expect(["foo", "bar"] == ["foo", "bar"])
     }
 
     /// For each Squad question tokenized by python, check that we get the same output through the `BasicTokenizer`
-    func testFullBasicTokenizer() {
+    @Test("Full basic tokenizer matches Python output on Squad questions")
+    func fullBasicTokenizer() {
         let url = Bundle.module.url(forResource: "basic_tokenized_questions", withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
@@ -48,16 +50,17 @@ class BertTokenizerTests: XCTestCase {
 
         let basicTokenizer = BasicTokenizer()
 
-        XCTAssertEqual(sampleTokens.count, Squad.examples.count)
+        #expect(sampleTokens.count == Squad.examples.count)
 
         for (i, example) in Squad.examples.enumerated() {
             let output = basicTokenizer.tokenize(text: example.question)
-            XCTAssertEqual(output, sampleTokens[i])
+            #expect(output == sampleTokens[i])
         }
     }
 
     /// For each Squad question tokenized by python, check that we get the same output through the whole `BertTokenizer`
-    func testFullBertTokenizer() {
+    @Test("Full BERT tokenizer matches Python output on Squad questions")
+    func fullBertTokenizer() {
         let url = Bundle.module.url(forResource: "tokenized_questions", withExtension: "json")!
         let json = try! Data(contentsOf: url)
         let decoder = JSONDecoder()
@@ -65,61 +68,64 @@ class BertTokenizerTests: XCTestCase {
 
         let tokenizer = bertTokenizer
 
-        XCTAssertEqual(sampleTokens.count, Squad.examples.count)
+        #expect(sampleTokens.count == Squad.examples.count)
 
         for (i, example) in Squad.examples.enumerated() {
             let output = tokenizer.tokenizeToIds(text: example.question)
-            XCTAssertEqual(output, sampleTokens[i])
+            #expect(output == sampleTokens[i])
         }
     }
 
-    func testMixedChineseEnglishTokenization() {
+    @Test("Mixed Chinese and English text tokenization")
+    func mixedChineseEnglishTokenization() {
         let tokenizer = bertTokenizer
         let text = "你好，世界！Hello, world!"
         let expectedTokens = ["[UNK]", "[UNK]", "，", "世", "[UNK]", "！", "hello", ",", "world", "!"]
         let tokens = tokenizer.tokenize(text: text)
 
-        XCTAssertEqual(tokens, expectedTokens)
+        #expect(tokens == expectedTokens)
     }
 
-    func testPureChineseTokenization() {
+    @Test("Pure Chinese text tokenization")
+    func pureChineseTokenization() {
         let tokenizer = bertTokenizer
         let text = "明日，大家上山看日出。"
         let expectedTokens = ["明", "日", "，", "大", "家", "上", "山", "[UNK]", "日", "出", "。"]
         let tokens = tokenizer.tokenize(text: text)
 
-        XCTAssertEqual(tokens, expectedTokens)
+        #expect(tokens == expectedTokens)
     }
 
-    func testChineseWithNumeralsTokenization() {
+    @Test("Chinese text with numerals tokenization")
+    func chineseWithNumeralsTokenization() {
         let tokenizer = bertTokenizer
         let text = "2020年奥运会在东京举行。"
         let expectedTokens = ["2020", "年", "[UNK]", "[UNK]", "会", "[UNK]", "[UNK]", "京", "[UNK]", "行", "。"]
         let tokens = tokenizer.tokenize(text: text)
 
-        XCTAssertEqual(tokens, expectedTokens)
+        #expect(tokens == expectedTokens)
     }
 
-    func testChineseWithSpecialTokens() {
+    @Test("Chinese text with BERT special tokens")
+    func chineseWithSpecialTokens() {
         let tokenizer = bertTokenizer
         let text = "[CLS] 机器学习是未来。 [SEP]"
         let expectedTokens = ["[CLS]", "[UNK]", "[UNK]", "学", "[UNK]", "[UNK]", "[UNK]", "[UNK]", "。", "[SEP]"]
         let tokens = tokenizer.tokenize(text: text)
 
-        XCTAssertEqual(tokens, expectedTokens)
+        #expect(tokens == expectedTokens)
     }
 
-    func testPerformanceExample() {
-        let tokenizer = bertTokenizer
+    // @Test("Tokenization performance", .timeLimit(.seconds(5)))
+    // func testPerformanceExample() {
+    //     let tokenizer = bertTokenizer
 
-        // This is an example of a performance test case.
-        measure {
-            // Put the code you want to measure the time of here.
-            _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
-        }
-    }
+    //     // This is an example of a performance test case.
+    //     _ = tokenizer.tokenizeToIds(text: "Brave gaillard, d'où [UNK] êtes vous?")
+    // }
 
-    func testWordpieceDetokenizer() {
+    @Test("Wordpiece detokenizer converts wordpiece tokens back to basic tokens")
+    func wordpieceDetokenizer() {
         struct QuestionTokens: Codable {
             let original: String
             let basic: [String]
@@ -133,11 +139,12 @@ class BertTokenizerTests: XCTestCase {
         let tokenizer = bertTokenizer
 
         for question in questionTokens {
-            XCTAssertEqual(question.basic.joined(separator: " "), tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
+            #expect(question.basic.joined(separator: " ") == tokenizer.convertWordpieceToBasicTokenList(question.wordpiece))
         }
     }
 
-    func testEncoderDecoder() {
+    @Test("BERT encoder/decoder round-trip")
+    func encoderDecoder() {
         let text = """
         Wake up (Wake up)
         Grab a brush and put a little makeup
@@ -165,11 +172,12 @@ class BertTokenizerTests: XCTestCase {
         for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {
             let encoded = tokenizer.encode(text: String(line))
             let decoded = tokenizer.decode(tokens: encoded)
-            XCTAssertEqual(decoded, String(expected))
+            #expect(decoded == String(expected))
         }
     }
 
-    func testBertTokenizerAddedTokensRecognized() async throws {
+    @Test("BERT tokenizer recognizes added tokens")
+    func bertTokenizerAddedTokensRecognized() async throws {
         let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
         let hubApi = HubApi(downloadBase: base)
         let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
@@ -186,17 +194,17 @@ class BertTokenizerTests: XCTestCase {
         ]
         let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
         for (token, idx) in addedTokens {
-            XCTAssertEqual(tokenizer.convertTokenToId(token), idx)
+            #expect(tokenizer.convertTokenToId(token) == idx)
         }
         for (token, idx) in addedTokens {
-            XCTAssertEqual(tokenizer.convertIdToToken(idx), token)
+            #expect(tokenizer.convertIdToToken(idx) == token)
         }
 
         // Reading added_tokens from tokenizer.json
-        XCTAssertEqual(tokenizer.convertTokenToId("[PAD]"), 0)
-        XCTAssertEqual(tokenizer.convertTokenToId("[UNK]"), 100)
-        XCTAssertEqual(tokenizer.convertTokenToId("[CLS]"), 101)
-        XCTAssertEqual(tokenizer.convertTokenToId("[SEP]"), 102)
-        XCTAssertEqual(tokenizer.convertTokenToId("[MASK]"), 103)
+        #expect(tokenizer.convertTokenToId("[PAD]") == 0)
+        #expect(tokenizer.convertTokenToId("[UNK]") == 100)
+        #expect(tokenizer.convertTokenToId("[CLS]") == 101)
+        #expect(tokenizer.convertTokenToId("[SEP]") == 102)
+        #expect(tokenizer.convertTokenToId("[MASK]") == 103)
     }
 }

@@ -6,14 +6,17 @@
 //
 
 import Foundation
+import Testing
 import Tokenizers
-import XCTest
 
-class ChatTemplateTests: XCTestCase {
-    let messages = [[
-        "role": "user",
-        "content": "Describe the Swift programming language.",
-    ]]
+@Suite("Chat Template Tests")
+struct ChatTemplateTests {
+    let messages = [
+        [
+            "role": "user",
+            "content": "Describe the Swift programming language.",
+        ],
+    ]
 
     static let phiTokenizerTask = Task {
         try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
@@ -31,74 +34,99 @@ class ChatTemplateTests: XCTestCase {
         try await tokenizerWithTemplateArrayTask.value
     }
 
-    func testTemplateFromConfig() async throws {
+    @Test("Loading template from tokenizer config")
+    func templateFromConfig() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [32010, 4002, 29581, 278, 14156, 8720, 4086, 29889, 32007, 32001]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<|user|>Describe the Swift programming language.<|end|><|assistant|>"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
-    func testDeepSeekQwenChatTemplate() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+    @Test("DeepSeek Qwen chat template formatting")
+    func deepSeekQwenChatTemplate() async throws {
+        let tokenizer = try await AutoTokenizer.from(
+            pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
-        let encodedTarget = [151646, 151644, 74785, 279, 23670, 15473, 4128, 13, 151645, 151648, 198]
-        XCTAssertEqual(encoded, encodedTarget)
+        let encodedTarget = [
+            151646, 151644, 74785, 279, 23670, 15473, 4128, 13, 151645, 151648, 198,
+        ]
+        #expect(encoded == encodedTarget)
 
         let decoded = tokenizer.decode(tokens: encoded)
-        let decodedTarget = "<｜begin▁of▁sentence｜><｜User｜>Describe the Swift programming language.<｜Assistant｜><think>\n"
-        XCTAssertEqual(decoded, decodedTarget)
+        let decodedTarget =
+            "<｜begin▁of▁sentence｜><｜User｜>Describe the Swift programming language.<｜Assistant｜><think>\n"
+        #expect(decoded == decodedTarget)
     }
 
-    func testDefaultTemplateFromArrayInConfig() async throws {
+    @Test("Default template from array in config")
+    func defaultTemplateFromArrayInConfig() async throws {
         let tokenizer = try await Self.sharedTokenizerWithTemplateArray()
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [1, 29473, 3, 28752, 1040, 4672, 2563, 17060, 4610, 29491, 29473, 4]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<s> [INST] Describe the Swift programming language. [/INST]"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
-    func testTemplateFromArgumentWithEnum() async throws {
+    @Test("Template from argument with enum")
+    func templateFromArgumentWithEnum() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
-        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
-        let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: .literal(mistral7BDefaultTemplate))
-        let encodedTarget = [1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580, 29962]
+        let mistral7BDefaultTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: .literal(mistral7BDefaultTemplate)
+        )
+        let encodedTarget = [
+            1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580,
+            29962,
+        ]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<s> [INST] Describe the Swift programming language. [/INST]"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
-    func testTemplateFromArgumentWithString() async throws {
+    @Test("Template from argument with string")
+    func templateFromArgumentWithString() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
         // Purposely not using the correct template for this model to verify that the template from the config is not being used
-        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
-        let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
-        let encodedTarget = [1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580, 29962]
+        let mistral7BDefaultTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: mistral7BDefaultTemplate
+        )
+        let encodedTarget = [
+            1, 518, 25580, 29962, 20355, 915, 278, 14156, 8720, 4086, 29889, 518, 29914, 25580,
+            29962,
+        ]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<s> [INST] Describe the Swift programming language. [/INST]"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
-    func testNamedTemplateFromArgument() async throws {
+    @Test("Named template from argument")
+    func namedTemplateFromArgument() async throws {
         let tokenizer = try await Self.sharedTokenizerWithTemplateArray()
         // Normally it is not necessary to specify the name `default`, but I'm not aware of models with lists of templates in the config that are not `default` or `tool_use`
-        let encoded = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: .name("default"))
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: .name("default")
+        )
         let encodedTarget = [1, 29473, 3, 28752, 1040, 4672, 2563, 17060, 4610, 29491, 29473, 4]
         let decoded = tokenizer.decode(tokens: encoded)
         let decodedTarget = "<s> [INST] Describe the Swift programming language. [/INST]"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
     /// https://github.com/huggingface/swift-transformers/issues/210
-    func testRepeatedEmojis() async throws {
+    @Test("Repeated emojis handling")
+    func repeatedEmojis() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "Qwen/Qwen3-0.6B")
 
         let testMessages: [[String: String]] = [
@@ -109,25 +137,31 @@ class ChatTemplateTests: XCTestCase {
         ]
 
         let encoded = try tokenizer.applyChatTemplate(messages: testMessages)
-        let encodedTarget = [151644, 872, 198, 145863, 145863, 145863, 151645, 198, 151644, 77091, 198]
-        XCTAssertEqual(encoded, encodedTarget)
+        let encodedTarget = [
+            151644, 872, 198, 145863, 145863, 145863, 151645, 198, 151644, 77091, 198,
+        ]
+        #expect(encoded == encodedTarget)
     }
 
     /// https://github.com/huggingface/transformers/pull/33957
     /// .jinja files have been introduced!
-    func testJinjaOnlyTemplate() async throws {
+    @Test("Jinja-only template files")
+    func jinjaOnlyTemplate() async throws {
         // Repo only contains .jinja file, no chat_template.json
         let tokenizer = try await AutoTokenizer.from(pretrained: "FL33TW00D-HF/jinja-test")
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [151643, 151669, 74785, 279, 23670, 15473, 4128, 13, 151670]
         let decoded = tokenizer.decode(tokens: encoded)
-        let decodedTarget = "<｜begin▁of▁sentence｜><｜User｜>Describe the Swift programming language.<｜Assistant｜>"
-        XCTAssertEqual(encoded, encodedTarget)
-        XCTAssertEqual(decoded, decodedTarget)
+        let decodedTarget =
+            "<｜begin▁of▁sentence｜><｜User｜>Describe the Swift programming language.<｜Assistant｜>"
+        #expect(encoded == encodedTarget)
+        #expect(decoded == decodedTarget)
     }
 
-    func testQwen2_5WithTools() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
+    @Test("Qwen 2.5 with tools functionality")
+    func qwen2_5WithTools() async throws {
+        let tokenizer = try await AutoTokenizer.from(
+            pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
 
         let weatherQueryMessages: [[String: String]] = [
             [
@@ -158,34 +192,42 @@ class ChatTemplateTests: XCTestCase {
             ],
         ]
 
-        let encoded = try tokenizer.applyChatTemplate(messages: weatherQueryMessages, tools: [getCurrentWeatherToolSpec])
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: weatherQueryMessages, tools: [getCurrentWeatherToolSpec]
+        )
         let decoded = tokenizer.decode(tokens: encoded)
 
         func assertDictsAreEqual(_ actual: [String: Any], _ expected: [String: Any]) {
             for (key, value) in actual {
-                if let nestedDict = value as? [String: Any], let nestedDict2 = expected[key] as? [String: Any] {
+                if let nestedDict = value as? [String: Any],
+                   let nestedDict2 = expected[key] as? [String: Any]
+                {
                     assertDictsAreEqual(nestedDict, nestedDict2)
                 } else if let arrayValue = value as? [String] {
                     let expectedArrayValue = expected[key] as? [String]
-                    XCTAssertNotNil(expectedArrayValue)
-                    XCTAssertEqual(Set(arrayValue), Set(expectedArrayValue!))
+                    #expect(expectedArrayValue != nil)
+                    #expect(Set(arrayValue) == Set(expectedArrayValue!))
                 } else {
-                    XCTAssertEqual(value as? String, expected[key] as? String)
+                    #expect(value as? String == expected[key] as? String)
                 }
             }
         }
 
         if let startRange = decoded.range(of: "<tools>\n"),
-           let endRange = decoded.range(of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex)
+           let endRange = decoded.range(
+               of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex
+           )
         {
             let toolsSection = String(decoded[startRange.upperBound..<endRange.lowerBound])
-            if let toolsDict = try? JSONSerialization.jsonObject(with: toolsSection.data(using: .utf8)!) as? [String: Any] {
+            if let toolsDict = try? JSONSerialization.jsonObject(
+                with: toolsSection.data(using: .utf8)!) as? [String: Any]
+            {
                 assertDictsAreEqual(toolsDict, getCurrentWeatherToolSpec)
             } else {
-                XCTFail("Failed to decode tools section")
+                Issue.record("Failed to decode tools section")
             }
         } else {
-            XCTFail("Failed to find tools section")
+            Issue.record("Failed to find tools section")
         }
 
         let expectedPromptStart = """
@@ -213,39 +255,48 @@ class ChatTemplateTests: XCTestCase {
 
         """
 
-        XCTAssertTrue(decoded.hasPrefix(expectedPromptStart), "Prompt should start with expected system message")
-        XCTAssertTrue(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
+        #expect(
+            decoded.hasPrefix(expectedPromptStart),
+            "Prompt should start with expected system message"
+        )
+        #expect(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
     }
 
-    func testHasChatTemplate() async throws {
+    @Test("Checking chat template availability")
+    func hasChatTemplate() async throws {
         var tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
-        XCTAssertFalse(tokenizer.hasChatTemplate)
+        #expect(!tokenizer.hasChatTemplate)
 
-        tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
-        XCTAssertTrue(tokenizer.hasChatTemplate)
+        tokenizer = try await AutoTokenizer.from(
+            pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+        #expect(tokenizer.hasChatTemplate)
     }
 
     /// Test for vision models with a vision chat template in chat_template.json
-    func testChatTemplateFromChatTemplateJson() async throws {
-        let visionMessages = [
+    @Test("Chat template from chat template JSON")
+    func chatTemplateFromChatTemplateJson() async throws {
+        let visionMessages =
             [
-                "role": "user",
-                "content": [
-                    [
-                        "type": "text",
-                        "text": "What's in this image?",
-                    ] as [String: String],
-                    [
-                        "type": "image",
-                        "image_url": "example.jpg",
-                    ] as [String: String],
-                ] as [[String: String]],
-            ] as [String: Any],
-        ] as [[String: Any]]
+                [
+                    "role": "user",
+                    "content": [
+                        [
+                            "type": "text",
+                            "text": "What's in this image?",
+                        ] as [String: String],
+                        [
+                            "type": "image",
+                            "image_url": "example.jpg",
+                        ] as [String: String],
+                    ] as [[String: String]],
+                ] as [String: Any],
+            ] as [[String: Any]]
         // Qwen 2 VL does not have a chat_template.json file. The chat template is in tokenizer_config.json.
-        let qwen2VLTokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2-VL-7B-Instruct-4bit")
+        let qwen2VLTokenizer = try await AutoTokenizer.from(
+            pretrained: "mlx-community/Qwen2-VL-7B-Instruct-4bit")
         // Qwen 2.5 VL has a chat_template.json file with a different chat template than the one in tokenizer_config.json.
-        let qwen2_5VLTokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2.5-VL-7B-Instruct-4bit")
+        let qwen2_5VLTokenizer = try await AutoTokenizer.from(
+            pretrained: "mlx-community/Qwen2.5-VL-7B-Instruct-4bit")
         let qwen2VLEncoded = try qwen2VLTokenizer.applyChatTemplate(messages: visionMessages)
         let qwen2VLDecoded = qwen2VLTokenizer.decode(tokens: qwen2VLEncoded)
         let qwen2_5VLEncoded = try qwen2_5VLTokenizer.applyChatTemplate(messages: visionMessages)
@@ -258,52 +309,70 @@ class ChatTemplateTests: XCTestCase {
         <|im_start|>assistant
 
         """
-        XCTAssertEqual(qwen2VLEncoded, qwen2_5VLEncoded, "Encoded sequences should be equal")
-        XCTAssertEqual(qwen2VLDecoded, qwen2_5VLDecoded, "Decoded sequences should be equal")
-        XCTAssertEqual(qwen2_5VLDecoded, expectedOutput, "Decoded sequence should match expected output")
+        #expect(qwen2VLEncoded == qwen2_5VLEncoded, "Encoded sequences should be equal")
+        #expect(qwen2VLDecoded == qwen2_5VLDecoded, "Decoded sequences should be equal")
+        #expect(qwen2_5VLDecoded == expectedOutput, "Decoded sequence should match expected output")
     }
 
-    func testApplyTemplateError() async throws {
+    @Test("Apply template error handling")
+    func applyTemplateError() async throws {
         let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
-        XCTAssertFalse(tokenizer.hasChatTemplate)
-        XCTAssertThrowsError(try tokenizer.applyChatTemplate(messages: [])) { error in
-            guard let tokenizerError = error as? TokenizerError else {
-                XCTFail("Expected error of type TokenizerError, but got \(type(of: error))")
-                return
-            }
+        #expect(!tokenizer.hasChatTemplate)
+
+        #expect(throws: TokenizerError.self) {
+            try tokenizer.applyChatTemplate(messages: [])
+        }
+
+        do {
+            _ = try tokenizer.applyChatTemplate(messages: [])
+            Issue.record("Expected error was not thrown")
+        } catch let tokenizerError as TokenizerError {
             if case .missingChatTemplate = tokenizerError {
                 // Correct error caught, test passes
             } else {
-                XCTFail("Expected .missingChatTemplate, but got \(tokenizerError)")
+                Issue.record("Expected .missingChatTemplate, but got \(tokenizerError)")
             }
+        } catch {
+            Issue.record("Expected error of type TokenizerError, but got \(type(of: error))")
         }
     }
 
     /// Performance: cached vs uncached template application
-    func testApplyChatTemplatePerformanceCached() async throws {
+    @Test("Apply chat template performance with caching")
+    func applyChatTemplatePerformanceCached() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
 
         // Purposely reuse the same template literal to hit the memoized compiled template
-        let mistral7BDefaultTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let mistral7BDefaultTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
 
         // Prime cache once
-        _ = try tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
+        _ = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: mistral7BDefaultTemplate
+        )
 
-        measure(metrics: [XCTClockMetric()]) {
-            _ = try! tokenizer.applyChatTemplate(messages: messages, chatTemplate: mistral7BDefaultTemplate)
-        }
+        // Note: Performance measurement would need to be adapted for Swift Testing
+        // For now, we'll just verify the cached call works
+        let result = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: mistral7BDefaultTemplate
+        )
+        #expect(result.count > 0)
     }
 
     /// Performance: simulate uncached runs by varying the template to bypass memoization
-    func testApplyChatTemplatePerformanceUncached() async throws {
+    @Test("Apply chat template performance without caching")
+    func applyChatTemplatePerformanceUncached() async throws {
         let tokenizer = try await Self.sharedPhiTokenizer()
 
-        let baseTemplate = "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
+        let baseTemplate =
+            "{{bos_token}}{% for message in messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if message['role'] == 'user' %}{{ ' [INST] ' + message['content'] + ' [/INST]' }}{% elif message['role'] == 'assistant' %}{{ ' ' + message['content'] + ' ' + eos_token}}{% else %}{{ raise_exception('Only user and assistant roles are supported!') }}{% endif %}{% endfor %}"
 
-        measure(metrics: [XCTClockMetric()]) {
-            // Make the template string unique each iteration to force a fresh compilation
-            let uniqueTemplate = baseTemplate + "{# perf \(UUID().uuidString) #}"
-            _ = try! tokenizer.applyChatTemplate(messages: messages, chatTemplate: uniqueTemplate)
-        }
+        // Note: Performance measurement would need to be adapted for Swift Testing
+        // For now, we'll just verify the uncached call works
+        let uniqueTemplate = baseTemplate + "{# perf \(UUID().uuidString) #}"
+        let result = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: uniqueTemplate
+        )
+        #expect(result.count > 0)
     }
 }
