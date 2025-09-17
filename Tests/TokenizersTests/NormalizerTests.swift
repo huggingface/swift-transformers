@@ -31,7 +31,7 @@ struct NormalizerTests {
     }
 
     @Test("NFD normalizer functionality")
-    func nFDNormalizer() {
+    func nfdNormalizer() {
         let testCases: [(String, String)] = [
             ("caf\u{65}\u{301}", "cafe\u{301}"),
             ("François", "François"),
@@ -55,7 +55,7 @@ struct NormalizerTests {
     }
 
     @Test("NFC normalizer functionality")
-    func nFCNormalizer() {
+    func nfcNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
@@ -79,7 +79,7 @@ struct NormalizerTests {
     }
 
     @Test("NFKD normalizer functionality")
-    func nFKDNormalizer() {
+    func nfkdNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "cafe\u{301}"),
             ("François", "François"),
@@ -103,7 +103,7 @@ struct NormalizerTests {
     }
 
     @Test("NFKC normalizer functionality")
-    func nFKCINormalizer() {
+    func nfkcNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
@@ -216,7 +216,7 @@ struct NormalizerTests {
     }
 
     @Test("Strip accents normalizer functionality")
-    func stripAccentsINormalizer() {
+    func stripAccentsNormalizer() {
         let testCases: [(String, String)] = [
             ("café", "café"),
             ("François", "François"),
