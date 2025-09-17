@@ -33,7 +33,7 @@ let package = Package(
         .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
         .target(name: "TensorUtils"),
         .target(name: "Generation", dependencies: ["Tokenizers", "TensorUtils"]),
-        .target(name: "Models", dependencies: ["Tokenizers", "Generation", "TensorUtils"]),
+        .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources"), .process("Vocabs")]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "TensorUtilsTests", dependencies: ["TensorUtils", "Models", "Hub"], resources: [.process("Resources")]),
