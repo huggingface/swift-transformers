@@ -6,19 +6,13 @@
 
 import Foundation
 
-// MARK: - Configuration files with dynamic lookup
+public enum ConfigError: Error {
+    case typeMismatch(expected: Config.Data, actual: Config.Data)
+    case typeConversionFailed(value: Sendable, targetType: Sendable.Type)
+}
 
 @dynamicMemberLookup
-public struct Config: Hashable, Sendable,
-    ExpressibleByStringLiteral,
-    ExpressibleByIntegerLiteral,
-    ExpressibleByBooleanLiteral,
-    ExpressibleByFloatLiteral,
-    ExpressibleByDictionaryLiteral,
-    ExpressibleByArrayLiteral,
-    ExpressibleByExtendedGraphemeClusterLiteral,
-    CustomStringConvertible
-{
+public struct Config: Hashable, Sendable, CustomStringConvertible {
     public typealias Key = BinaryDistinctString
     public typealias Value = Config
 
@@ -245,38 +239,6 @@ public struct Config: Hashable, Sendable,
     }
 
     // MARK: constructors
-
-    /// Conformance to ExpressibleByStringLiteral
-    public init(stringLiteral value: String) {
-        self.value = .string(.init(value))
-    }
-
-    /// Conformance to ExpressibleByIntegerLiteral
-    public init(integerLiteral value: Int) {
-        self.value = .integer(value)
-    }
-
-    /// Conformance to ExpressibleByBooleanLiteral
-    public init(booleanLiteral value: Bool) {
-        self.value = .boolean(value)
-    }
-
-    /// Conformance to ExpressibleByFloatLiteral
-    public init(floatLiteral value: Float) {
-        self.value = .floating(value)
-    }
-
-    public init(dictionaryLiteral elements: (BinaryDistinctString, Config)...) {
-        let dict = elements.reduce(into: [BinaryDistinctString: Config]()) { result, element in
-            result[element.0] = element.1
-        }
-
-        self.value = .dictionary(dict)
-    }
-
-    public init(arrayLiteral elements: Config...) {
-        self.value = .array(elements)
-    }
 
     public func isNull() -> Bool {
         if case .null = self.value {
@@ -616,6 +578,57 @@ public struct Config: Hashable, Sendable,
     }
 }
 
+// MARK: - ExpressibleByBooleanLiteral
+
+extension Config: ExpressibleByBooleanLiteral {
+    public init(booleanLiteral value: Bool) {
+        self.value = .boolean(value)
+    }
+}
+
+// MARK: - ExpressibleByIntegerLiteral
+
+extension Config: ExpressibleByIntegerLiteral {
+    public init(integerLiteral value: Int) {
+        self.value = .integer(value)
+    }
+}
+
+// MARK: - ExpressibleByFloatLiteral
+
+extension Config: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Float) {
+        self.value = .floating(value)
+    }
+}
+
+// MARK: - ExpressibleByStringLiteral
+
+extension Config: ExpressibleByStringLiteral {
+    public init(stringLiteral value: String) {
+        self.value = .string(.init(value))
+    }
+}
+
+// MARK: - ExpressibleByArrayLiteral
+
+extension Config: ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: Config...) {
+        self.value = .array(elements)
+    }
+}
+
+// MARK: - ExpressibleByDictionaryLiteral
+
+extension Config: ExpressibleByDictionaryLiteral {
+    public init(dictionaryLiteral elements: (BinaryDistinctString, Config)...) {
+        let dict = elements.reduce(into: [BinaryDistinctString: Config]()) { result, element in
+            result[element.0] = element.1
+        }
+        self.value = .dictionary(dict)
+    }
+}
+
 /// Old style, deprecated getters
 public extension Config {
     @available(*, deprecated, message: "Use string() instead")
@@ -633,6 +646,8 @@ public extension Config {
     @available(*, deprecated, message: "Use token() instead")
     var tokenValue: (UInt, String)? { token() }
 }
+
+// MARK: - Codable
 
 extension Config: Codable {
     public init(from decoder: any Decoder) throws {
@@ -768,6 +783,8 @@ extension Config: Codable {
     }
 }
 
+// MARK: - Equatable
+
 extension Config: Equatable {
     public static func == (lhs: Config, rhs: Config) -> Bool {
         lhs.value == rhs.value
@@ -805,9 +822,4 @@ extension Config.Data: Hashable {
             a.1.hash(into: &hasher)
         }
     }
-}
-
-public enum ConfigError: Error {
-    case typeMismatch(expected: Config.Data, actual: Config.Data)
-    case typeConversionFailed(value: Sendable, targetType: Sendable.Type)
 }
