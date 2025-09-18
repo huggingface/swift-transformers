@@ -13,19 +13,19 @@ import XCTest
 
 class ConfigGeneralTests: XCTestCase {
     func testHashable() throws {
-        let testCases: [(Config.Data, Config.Data)] = [
-            (Config.Data.integer(1), Config.Data.integer(2)),
-            (Config.Data.string("a"), Config.Data.string("2")),
-            (Config.Data.boolean(true), Config.Data.string("T")),
-            (Config.Data.boolean(true), Config.Data.boolean(false)),
-            (Config.Data.floating(1.1), Config.Data.floating(1.1000001)),
-            (Config.Data.token((1, "a")), Config.Data.token((1, "b"))),
-            (Config.Data.token((1, "a")), Config.Data.token((2, "a"))),
-            (Config.Data.dictionary(["1": Config()]), Config.Data.dictionary(["1": 1])),
-            (Config.Data.dictionary(["1": 10]), Config.Data.dictionary(["2": 10])),
-            (Config.Data.array(["1", "2"]), Config.Data.array(["1", "3"])),
-            (Config.Data.array([1, 2]), Config.Data.array([2, 1])),
-            (Config.Data.array([true, false]), Config.Data.array([true, true])),
+        let testCases: [(Config.Value, Config.Value)] = [
+            (.integer(1), .integer(2)),
+            (.string("a"), .string("2")),
+            (.boolean(true), .string("T")),
+            (.boolean(true), .boolean(false)),
+            (.floating(1.1), .floating(1.1000001)),
+            (.token(1, "a"), .token(1, "b")),
+            (.token(1, "a"), .token(2, "a")),
+            (.dictionary(["1": .null]), .dictionary(["1": .integer(1)])),
+            (.dictionary(["1": .integer(10)]), .dictionary(["2": .integer(10)])),
+            (.array([.string("1"), .string("2")]), .array([.string("1"), .string("3")])),
+            (.array([.integer(1), .integer(2)]), .array([.integer(2), .integer(1)])),
+            (.array([.boolean(true), .boolean(false)]), .array([.boolean(true), .boolean(true)])),
         ]
 
         for (lhs, rhs) in testCases {
@@ -42,52 +42,51 @@ class ConfigGeneralTests: XCTestCase {
 
 class ConfigAsLiteralTests: XCTestCase {
     func testStringLiteral() throws {
-        let cfg: Config = "test"
-        XCTAssertEqual(cfg, "test")
+        let val: Config.Value = "test"
+        XCTAssertEqual(val, .string("test"))
     }
 
     func testIntegerLiteral() throws {
-        let cfg: Config = 678
-        XCTAssertEqual(cfg, 678)
+        let val: Config.Value = 678
+        XCTAssertEqual(val, .integer(678))
     }
 
     func testBooleanLiteral() throws {
-        let cfg: Config = true
-        XCTAssertEqual(cfg, true)
+        let val: Config.Value = true
+        XCTAssertEqual(val, .boolean(true))
     }
 
     func testFloatLiteral() throws {
-        let cfg: Config = 1.1
-        XCTAssertEqual(cfg, 1.1)
+        let val: Config.Value = 1.1
+        XCTAssertEqual(val, .floating(1.1))
     }
 
     func testDictionaryLiteral() throws {
-        let cfg: Config = ["key": 1.1]
-        XCTAssertEqual(cfg["key"].floating(or: 0), 1.1)
+        let cfg: Config = ["key": .floating(1.1)]
+        XCTAssertEqual(Double(cfg.properties["key"]?.floating ?? 0), 1.1, accuracy: 1e-6)
     }
 
     func testArrayLiteral() throws {
-        let cfg: Config = [1.1, 1.2]
-        XCTAssertEqual(cfg[0], 1.1)
-        XCTAssertEqual(cfg[1], 1.2)
+        let val: Config.Value = [.floating(1.1), .floating(1.2)]
+        XCTAssertEqual(val.array?[0], .floating(1.1))
+        XCTAssertEqual(val.array?[1], .floating(1.2))
     }
 }
 
 class ConfigAccessorsTests: XCTestCase {
     func testKeySubscript() throws {
-        let cfg: Config = ["key": 1.1]
+        let cfg: Config = ["key": .floating(1.1)]
 
-        XCTAssertEqual(cfg["key"], 1.1)
-        XCTAssertTrue(cfg["non_existent"].isNull())
-        XCTAssertTrue(cfg[1].isNull())
+        XCTAssertEqual(cfg["key"], .floating(1.1))
+        XCTAssertNil(cfg["non_existent"])
     }
 
     func testIndexSubscript() throws {
-        let cfg: Config = [1, 2, 3, 4]
+        let val: Config.Value = [.integer(1), .integer(2), .integer(3), .integer(4)]
 
-        XCTAssertEqual(cfg[1], 2)
-        XCTAssertTrue(cfg[99].isNull())
-        XCTAssertTrue(cfg[-1].isNull())
+        XCTAssertEqual(val[1], .integer(2))
+        XCTAssertNil(val[99])
+        XCTAssertNil(val[-1])
     }
 
     func testDynamicLookup() throws {
@@ -96,210 +95,162 @@ class ConfigAccessorsTests: XCTestCase {
         XCTAssertEqual(cfg["model_type"], "bert")
         XCTAssertEqual(cfg.modelType, "bert")
         XCTAssertEqual(cfg.model_type, "bert")
-        XCTAssertTrue(cfg.unknown_key.isNull())
+        XCTAssertNil(cfg.unknown_key)
     }
 
     func testArray() throws {
-        let cfg: Config = [1, 2, 3, 4]
+        let val: Config.Value = [.integer(1), .integer(2), .integer(3), .integer(4)]
 
-        XCTAssertEqual(cfg.array(), [1, 2, 3, 4])
-        XCTAssertEqual(cfg.get(), [1, 2, 3, 4])
-        XCTAssertEqual(cfg.get(or: []), [1, 2, 3, 4])
-        XCTAssertTrue(cfg["fake_key"].isNull())
-        XCTAssertNil(cfg.dictionary())
-        XCTAssertEqual(cfg.dictionary(or: ["a": 1]), ["a": 1])
+        XCTAssertEqual(val.array, [.integer(1), .integer(2), .integer(3), .integer(4)])
+        XCTAssertNil(val.dictionary)
     }
 
     func testArrayOfStrings() throws {
-        let cfg: Config = ["a", "b", "c"]
+        let val: Config.Value = ["a", "b", "c"]
+        let expected: [Config.Value] = [.string("a"), .string("b"), .string("c")]
+        XCTAssertEqual(val.array, expected)
 
-        XCTAssertEqual(cfg.array(), ["a", "b", "c"])
-        XCTAssertEqual(cfg.get(), ["a", "b", "c"])
-        XCTAssertEqual(cfg.get(), [BinaryDistinctString("a"), BinaryDistinctString("b"), BinaryDistinctString("c")])
-        XCTAssertEqual(cfg.get(or: []), [BinaryDistinctString("a"), BinaryDistinctString("b"), BinaryDistinctString("c")])
-        XCTAssertEqual(cfg.get(or: []), ["a", "b", "c"])
-        XCTAssertNil(cfg.dictionary())
-        XCTAssertEqual(cfg.dictionary(or: ["a": 1]), ["a": 1])
-    }
+        let strings = val.array?.compactMap(\.string)
+        XCTAssertEqual(strings, ["a", "b", "c"])
 
-    func testArrayOfConfigs() throws {
-        let cfg: Config = [Config("a"), Config("b")]
-
-        XCTAssertEqual(cfg.array(), ["a", "b"])
-        XCTAssertEqual(cfg.get(), ["a", "b"])
-        XCTAssertEqual(cfg.get(), [BinaryDistinctString("a"), BinaryDistinctString("b")])
-        XCTAssertEqual(cfg.get(or: []), [BinaryDistinctString("a"), BinaryDistinctString("b")])
-        XCTAssertEqual(cfg.get(or: []), ["a", "b"])
-        XCTAssertNil(cfg.dictionary())
-        XCTAssertEqual(cfg.dictionary(or: ["a": 1]), ["a": 1])
+        let bds = val.array?.compactMap(\.string)
+        XCTAssertEqual(bds, ["a", "b", "c"])
     }
 
     func testDictionary() throws {
         let cfg: Config = ["a": 1, "b": 2, "c": 3, "d": 4]
 
-        XCTAssertEqual(cfg.dictionary(), ["a": 1, "b": 2, "c": 3, "d": 4])
-        XCTAssertEqual(cfg.get(), ["a": 1, "b": 2, "c": 3, "d": 4])
-        XCTAssertEqual(cfg.get(or: [:]), ["a": 1, "b": 2, "c": 3, "d": 4])
-        XCTAssertTrue(cfg[666].isNull())
-        XCTAssertNil(cfg.array())
-        XCTAssertEqual(cfg.array(or: ["a"]), ["a"])
+        XCTAssertEqual(cfg.properties.count, 4)
+        XCTAssertEqual(cfg["a"], .integer(1))
+        XCTAssertNil(cfg["a"]?.array)
     }
 
     func testDictionaryOfConfigs() throws {
-        let cfg: Config = ["a": .init([1, 2]), "b": .init([3, 4])]
-        let exp = [BinaryDistinctString("a"): Config([1, 2]), BinaryDistinctString("b"): Config([3, 4])]
-
-        XCTAssertEqual(cfg.dictionary(), exp)
-        XCTAssertEqual(cfg.get(), exp)
-        XCTAssertEqual(cfg.get(or: [:]), exp)
-        XCTAssertTrue(cfg[666].isNull())
-        XCTAssertNil(cfg.array())
-        XCTAssertEqual(cfg.array(or: ["a"]), ["a"])
+        let cfg: Config = ["a": .dictionary(["child": 1]), "b": .dictionary(["child": 2])]
+        XCTAssertEqual(cfg["a"]?.dictionary?["child"], .integer(1))
+        XCTAssertEqual(cfg["b"]?.dictionary?["child"], .integer(2))
     }
 }
 
 class ConfigCodableTests: XCTestCase {
     func testCompleteHappyExample() throws {
         let cfg: Config = [
-            "dict_of_floats": ["key1": 1.1],
-            "dict_of_ints": ["key2": 100],
-            "dict_of_strings": ["key3": "abc"],
-            "dict_of_bools": ["key4": false],
-            "dict_of_dicts": ["key5": ["key_inside": 99]],
-            "dict_of_tokens": ["key6": .init((12, "dfe"))],
+            "dict_of_floats": .dictionary(Config(["key1": .floating(1.1)])),
+            "dict_of_ints": .dictionary(Config(["key2": .integer(100)])),
+            "dict_of_strings": .dictionary(Config(["key3": .string("abc")])),
+            "dict_of_bools": .dictionary(Config(["key4": .boolean(false)])),
+            "dict_of_dicts": .dictionary(Config(["key5": .dictionary(Config(["key_inside": .integer(99)]))])),
+            "dict_of_tokens": .dictionary(Config(["key6": .token(12, "dfe")])),
             "arr_empty": [],
             "arr_of_ints": [1, 2, 3],
             "arr_of_floats": [1.1, 1.2],
             "arr_of_strings": ["a", "b"],
             "arr_of_bools": [true, false],
-            "arr_of_dicts": [["key7": 1.1], ["key8": 1.2]],
-            "arr_of_tokens": [.init((1, "a")), .init((2, "b"))],
+            "arr_of_dicts": [.dictionary(Config(["key7": .floating(1.1)])), .dictionary(Config(["key8": .floating(1.2)]))],
+            "arr_of_tokens": [.token(1, "a"), .token(2, "b")],
             "int": 678,
             "float": 1.1,
             "string": "test",
             "bool": true,
-            "token": .init((1, "test")),
-            "null": Config(),
+            "token": .token(1, "test"),
+            "null": .null,
         ]
 
         let data = try JSONEncoder().encode(cfg)
         let got = try JSONDecoder().decode(Config.self, from: data)
 
         XCTAssertEqual(got, cfg)
-        XCTAssertEqual(got["dict_of_floats"]["key1"], 1.1)
-        XCTAssertEqual(got["dict_of_ints"]["key2"], 100)
-        XCTAssertEqual(got["dict_of_strings"]["key3"], "abc")
-        XCTAssertEqual(got["dict_of_bools"]["key4"], false)
-        XCTAssertEqual(got["dict_of_dicts"]["key5"]["key_inside"], 99)
-        XCTAssertEqual(got["dict_of_tokens"]["key6"].token()?.0, 12)
-        XCTAssertEqual(got["dict_of_tokens"]["key6"].token()?.1, "dfe")
-        XCTAssertEqual(got["arr_empty"].array()?.count, 0)
-        XCTAssertEqual(got["arr_of_ints"], [1, 2, 3])
-        XCTAssertEqual(got["arr_of_floats"], [1.1, 1.2])
-        XCTAssertEqual(got["arr_of_strings"], ["a", "b"])
-        XCTAssertEqual(got["arr_of_bools"], [true, false])
-        XCTAssertEqual(got["arr_of_dicts"][1]["key8"], 1.2)
-        XCTAssert(got["arr_of_tokens"][1].token(or: (0, "")) == (2, "b"))
-        XCTAssertNil(got["arr_of_tokens"][2].token())
-        XCTAssertEqual(got["int"], 678)
-        XCTAssertEqual(got["float"], 1.1)
-        XCTAssertEqual(got["string"], "test")
-        XCTAssertEqual(got["bool"], true)
-        XCTAssert(got["token"].token(or: (0, "")) == (1, "test"))
-        XCTAssertTrue(got["null"].isNull())
+        XCTAssertEqual(got["dict_of_floats"]?.dictionary?["key1"], .floating(1.1))
+        XCTAssertEqual(got["dict_of_ints"]?.dictionary?["key2"], .integer(100))
+        XCTAssertEqual(got["dict_of_strings"]?.dictionary?["key3"], .string("abc"))
+        XCTAssertEqual(got["dict_of_bools"]?.dictionary?["key4"], .boolean(false))
+        XCTAssertEqual(got["dict_of_dicts"]?.dictionary?["key5"]?.dictionary?["key_inside"], .integer(99))
+        XCTAssertEqual(got["dict_of_tokens"]?.dictionary?["key6"]?.token?.0, 12)
+        XCTAssertEqual(got["dict_of_tokens"]?.dictionary?["key6"]?.token?.1, "dfe")
+        XCTAssertEqual(got["arr_empty"]?.array?.count, 0)
+        XCTAssertEqual(got["arr_of_ints"], .array([.integer(1), .integer(2), .integer(3)]))
+        XCTAssertEqual(got["arr_of_floats"], .array([.floating(1.1), .floating(1.2)]))
+        XCTAssertEqual(got["arr_of_strings"], .array([.string("a"), .string("b")]))
+        XCTAssertEqual(got["arr_of_bools"], .array([.boolean(true), .boolean(false)]))
+        XCTAssertEqual(got["arr_of_dicts"]?[1]?.dictionary?["key8"], .floating(1.2))
+        let token1 = got["arr_of_tokens"]?[1]?.token
+        XCTAssertEqual(token1?.0, 2)
+        XCTAssertEqual(token1?.1, "b")
+        XCTAssertNil(got["arr_of_tokens"]?[2]?.token)
+        XCTAssertEqual(got["int"], .integer(678))
+        XCTAssertEqual(got["float"], .floating(1.1))
+        XCTAssertEqual(got["string"], .string("test"))
+        XCTAssertEqual(got["bool"], .boolean(true))
+        let mainToken = got["token"]?.token
+        XCTAssertEqual(mainToken?.0, 1)
+        XCTAssertEqual(mainToken?.1, "test")
+        XCTAssertEqual(got["null"], .null)
     }
 }
 
 class ConfigEquatableTests: XCTestCase {
     func testString() throws {
-        let cfg = Config("a")
+        let val: Config.Value = "a"
 
-        XCTAssertEqual(cfg, "a")
-        XCTAssertEqual(cfg.get(), "a")
-        XCTAssertEqual(cfg.get(or: "b"), "a")
-        XCTAssertEqual(cfg.string(), "a")
-        XCTAssertEqual(cfg.string(or: "b"), "a")
-        XCTAssertEqual(cfg.get(), BinaryDistinctString("a"))
-        XCTAssertEqual(cfg.get(or: "b"), BinaryDistinctString("a"))
-        XCTAssertEqual(cfg.binaryDistinctString(), "a")
-        XCTAssertEqual(cfg.binaryDistinctString(or: "b"), "a")
+        XCTAssertEqual(val, "a")
+        XCTAssertEqual(val.string, "a")
+        XCTAssertEqual(val.string(or: "b"), "a")
+        XCTAssertEqual(val.string, "a")
+        XCTAssertEqual(val.string(or: "b"), "a")
     }
 
     func testInteger() throws {
-        let cfg = Config(1)
-
-        XCTAssertEqual(cfg, 1)
-        XCTAssertEqual(cfg.get(), 1)
-        XCTAssertEqual(cfg.get(or: 2), 1)
-        XCTAssertEqual(cfg.integer(), 1)
-        XCTAssertEqual(cfg.integer(or: 2), 1)
+        let val: Config.Value = 1
+        XCTAssertEqual(val, 1)
+        XCTAssertEqual(val.integer, 1)
+        XCTAssertEqual(val.integer(or: 2), 1)
     }
 
     func testFloating() throws {
-        let testCases: [(Config, Float)] = [
-            (Config(1.1), 1.1),
-            (Config(1), 1.0),
+        let testCases: [(Config.Value, Float)] = [
+            (1.1, 1.1),
+            (1, 1.0),
         ]
 
-        for (cfg, exp) in testCases {
-            XCTAssertEqual(cfg, .init(exp))
-            XCTAssertEqual(cfg.get(), exp)
-            XCTAssertEqual(cfg.get(or: 2.2), exp)
-            XCTAssertEqual(cfg.floating(), exp)
-            XCTAssertEqual(cfg.floating(or: 2.2), exp)
+        for (val, exp) in testCases {
+            XCTAssertEqual(val.floating, exp)
+            XCTAssertEqual(val.floating(or: 2.2), exp)
         }
     }
 
     func testBoolean() throws {
-        let testCases: [(Config, Bool)] = [
-            (Config(true), true),
-            (Config(1), true),
-            (Config("T"), true),
-            (Config("t"), true),
-            (Config("TRUE"), true),
-            (Config("True"), true),
-            (Config("true"), true),
-            (Config("F"), false),
-            (Config("f"), false),
-            (Config("FALSE"), false),
-            (Config("False"), false),
-            (Config("false"), false),
+        let testCases: [(Config.Value, Bool)] = [
+            (true, true),
+            (1, true),
+            ("T", true),
+            ("t", true),
+            ("TRUE", true),
+            ("True", true),
+            ("true", true),
+            ("F", false),
+            ("f", false),
+            ("FALSE", false),
+            ("False", false),
+            ("false", false),
         ]
 
-        for (cfg, exp) in testCases {
-            XCTAssertEqual(cfg.get(), exp)
-            XCTAssertEqual(cfg.get(or: !exp), exp)
-            XCTAssertEqual(cfg.boolean(), exp)
-            XCTAssertEqual(cfg.boolean(or: !exp), exp)
+        for (val, exp) in testCases {
+            XCTAssertEqual(val.boolean, exp)
+            XCTAssertEqual(val.boolean(or: !exp), exp)
         }
     }
 
     func testToken() throws {
-        let cfg = Config((1, "a"))
+        let val = Config.Value.token(1, "a")
         let exp: (UInt, String) = (1, "a")
 
-        XCTAssertEqual(cfg, .init((1, "a")))
-        XCTAssert(cfg.get()! == exp)
-        XCTAssert(cfg.get(or: (2, "b")) == exp)
-        XCTAssert(cfg.token()! == exp)
-        XCTAssert(cfg.token(or: (2, "b")) == exp)
+        XCTAssert(val.token! == exp)
+        XCTAssert(val.token(or: (2, "b")) == exp)
     }
 
     func testDictionary() throws {
-        let testCases: [(Config, Int)] = [
-            (Config(["a": 1]), 1),
-            (Config(["a": 2] as [NSString: Any]), 2),
-            (Config(["a": 3] as [NSString: Config]), 3),
-            (Config([BinaryDistinctString("a"): 4] as [BinaryDistinctString: Config]), 4),
-            (Config(["a": Config(5)]), 5),
-            (Config(["a": 6]), 6),
-            (Config((BinaryDistinctString("a"), 7)), 7),
-        ]
-
-        for (cfg, exp) in testCases {
-            XCTAssertEqual(cfg["a"], Config(exp))
-            XCTAssertEqual(cfg.get(or: [:])["a"], Config(exp))
-        }
+        let cfg: Config = ["a": 1]
+        XCTAssertEqual(cfg["a"], .integer(1))
     }
 }
 
@@ -356,34 +307,33 @@ class ConfigTextEncodingTests: XCTestCase {
     func testUnicode() {
         // These are two different characters
         let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
-        let data = json.data(using: .utf8)
-        let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
+        let data = json.data(using: .utf8)!
+        let dict = try! JSONSerialization.jsonObject(with: data, options: []) as! [String: Any]
         let config = Config(dict)
 
-        let vocab = config["vocab"].dictionary(or: [:])
-
-        XCTAssertEqual(vocab.count, 2)
+        let vocab = config["vocab"]?.dictionary?.properties
+        XCTAssertEqual(vocab?.count, 2)
     }
 }
 
 class ConfigTemplatingTests: XCTestCase {
     func testCompleteHappyExample() throws {
         let cfg = Config([
-            "dict_of_floats": ["key1": 1.1],
-            "dict_of_tokens": ["key6": .init((12, "dfe"))],
-            "arr_empty": [],
-            "arr_of_ints": [1, 2, 3],
-            "arr_of_floats": [1.1, 1.2],
-            "arr_of_strings": ["tre", "jeq"],
-            "arr_of_bools": [true, false],
-            "arr_of_dicts": [["key7": 1.1], ["key8": 1.2]],
-            "arr_of_tokens": [.init((1, "ghz")), .init((2, "pkr"))],
-            "int": 678,
-            "float": 1.1,
-            "string": "hha",
-            "bool": true,
-            "token": .init((1, "iop")),
-            "null": Config(),
+            "dict_of_floats": .dictionary(["key1": .floating(1.1)]),
+            "dict_of_tokens": .dictionary(["key6": .token(12, "dfe")]),
+            "arr_empty": .array([]),
+            "arr_of_ints": .array([.integer(1), .integer(2), .integer(3)]),
+            "arr_of_floats": .array([.floating(1.1), .floating(1.2)]),
+            "arr_of_strings": .array([.string("tre"), .string("jeq")]),
+            "arr_of_bools": .array([.boolean(true), .boolean(false)]),
+            "arr_of_dicts": .array([.dictionary(["key7": .floating(1.1)]), .dictionary(["key8": .floating(1.2)])]),
+            "arr_of_tokens": .array([.token(1, "ghz"), .token(2, "pkr")]),
+            "int": .integer(678),
+            "float": .floating(1.1),
+            "string": .string("hha"),
+            "bool": .boolean(true),
+            "token": .token(1, "iop"),
+            "null": .null,
         ])
         let template = """
         {{ config["dict_of_floats"]["key1"] }}
@@ -431,7 +381,7 @@ class ConfigTemplatingTests: XCTestCase {
         """
 
         let got = try Template(template).render([
-            "config": cfg.toJinjaCompatible(),
+            "config": cfg.properties.mapValues { $0.toJinjaCompatible() },
         ])
 
         XCTAssertEqual(got, exp)

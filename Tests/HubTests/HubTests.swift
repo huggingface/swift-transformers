@@ -31,33 +31,33 @@ class HubTests: XCTestCase {
             let config = try await configLoader.modelConfig
 
             // Test leaf value (Int)
-            guard let eos = config["eos_token_id"].integer() else {
+            guard let eos = config["eos_token_id"]?.integer else {
                 XCTFail("nil leaf value (Int)")
                 return
             }
             XCTAssertEqual(eos, 1)
 
             // Test leaf value (String)
-            guard let modelType = config["model_type"].string() else {
+            guard let modelType = config["model_type"]?.string else {
                 XCTFail("nil leaf value (String)")
                 return
             }
             XCTAssertEqual(modelType, "t5")
 
             // Test leaf value (Array)
-            guard let architectures: [String] = config["architectures"].get() else {
+            guard let architectures = config["architectures"]?.array?.compactMap(\.string) else {
                 XCTFail("nil array")
                 return
             }
             XCTAssertEqual(architectures, ["T5ForConditionalGeneration"])
 
             // Test nested wrapper
-            guard !config["task_specific_params"].isNull() else {
+            guard config["task_specific_params"] != nil else {
                 XCTFail("nil nested wrapper")
                 return
             }
 
-            guard let summarizationMaxLength = config["task_specific_params"]["summarization"]["max_length"].integer() else {
+            guard let summarizationMaxLength = config["task_specific_params"]?.dictionary?["summarization"]?.dictionary?["max_length"]?.integer else {
                 XCTFail("cannot traverse nested containers")
                 return
             }
@@ -73,20 +73,20 @@ class HubTests: XCTestCase {
             let config = try await configLoader.modelConfig
 
             // Test leaf value (Int)
-            guard let eos = config["eosTokenId"].integer() else {
+            guard let eos = config["eosTokenId"]?.integer else {
                 XCTFail("nil leaf value (Int)")
                 return
             }
             XCTAssertEqual(eos, 1)
 
             // Test leaf value (String)
-            guard let modelType = config["modelType"].string() else {
+            guard let modelType = config["modelType"]?.string else {
                 XCTFail("nil leaf value (String)")
                 return
             }
             XCTAssertEqual(modelType, "t5")
 
-            guard let summarizationMaxLength = config["taskSpecificParams"]["summarization"]["maxLength"].integer() else {
+            guard let summarizationMaxLength = config["taskSpecificParams"]?.dictionary?["summarization"]?.dictionary?["maxLength"]?.integer else {
                 XCTFail("cannot traverse nested containers")
                 return
             }
@@ -103,21 +103,20 @@ class HubTests: XCTestCase {
         let dict = try! JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
         let config = Config(dict)
 
-        let vocab = config["vocab"].dictionary(or: [:])
-
-        XCTAssertEqual(vocab.count, 2)
+        let vocab = config["vocab"]?.dictionary?.properties
+        XCTAssertEqual(vocab?.count, 2)
     }
 
     func testConfigTokenValue() throws {
-        let config1 = Config(["cls": ["str" as String, 100 as UInt] as [Any]])
-        let tokenValue1 = config1.cls?.token()
+        let config1 = Config(["cls": .array([.string("str"), .integer(100)])])
+        let tokenValue1 = config1.cls?.token
         XCTAssertEqual(tokenValue1?.0, 100)
         XCTAssertEqual(tokenValue1?.1, "str")
 
         let data = #"{"cls": ["str", 100]}"#.data(using: .utf8)!
-        let dict = try JSONSerialization.jsonObject(with: data, options: []) as! [NSString: Any]
+        let dict = try JSONSerialization.jsonObject(with: data, options: []) as! [String: Any]
         let config2 = Config(dict)
-        let tokenValue2 = config2.cls?.token()
+        let tokenValue2 = config2.cls?.token
         XCTAssertEqual(tokenValue2?.0, 100)
         XCTAssertEqual(tokenValue2?.1, "str")
     }

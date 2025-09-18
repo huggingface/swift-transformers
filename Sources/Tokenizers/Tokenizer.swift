@@ -72,12 +72,15 @@ public protocol TokenizingModel {
 /// Helper - possibly to be moved somewhere else
 func addedTokenAsString(_ addedToken: Config?) -> String? {
     guard let addedToken else { return nil }
-    if let stringValue = addedToken.string() {
-        return stringValue
+    // Check if the config has a single string value
+    if addedToken.properties.count == 1, let firstValue = addedToken.properties.values.first {
+        if let stringValue = firstValue.string {
+            return stringValue
+        }
     }
     // This is possibly a serialization of the AddedToken class
     // TODO: support lstrip, rstrip, normalized, etc.
-    return addedToken.content.string()
+    return addedToken.content?.string
 }
 
 public extension TokenizingModel {
@@ -120,11 +123,11 @@ struct TokenizerModel {
     ]
 
     static func unknownToken(from tokenizerConfig: Config) -> String? {
-        tokenizerConfig.unkToken.content.string() ?? tokenizerConfig.unkToken.string()
+        tokenizerConfig["unk_token"]?.dictionary?["content"]?.string ?? tokenizerConfig["unk_token"]?.string
     }
 
     static func from(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int], strict: Bool = true) throws -> TokenizingModel {
-        guard let tokenizerClassName = tokenizerConfig.tokenizerClass.string() else {
+        guard let tokenizerClassName = tokenizerConfig["tokenizer_class"]?.string else {
             throw TokenizerError.missingTokenizerClassInConfig
         }
 
@@ -297,22 +300,22 @@ public class PreTrainedTokenizer: Tokenizer {
     public required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {
         var addedTokens: [String: Int] = [:]
         var specialTokens: [String: Int] = [:]
-        for addedToken in tokenizerData["addedTokens"].array(or: []) {
-            guard let id = addedToken["id"].integer() else { continue /* malformed: token with no id */ }
-            guard let content = addedToken.content.string() else { continue /* malformed: token with no content */ }
+        for addedToken in tokenizerData["added_tokens"]?.array ?? [] {
+            guard let id = addedToken.dictionary?["id"]?.integer else { continue /* malformed: token with no id */ }
+            guard let content = addedToken.dictionary?["content"]?.string else { continue /* malformed: token with no content */ }
             addedTokens[content] = id
 
-            if addedToken["special"].boolean(or: false) {
+            if addedToken.dictionary?["special"]?.boolean(or: false) ?? false {
                 specialTokens[content] = id
             }
         }
 
         // Convert to tuples for easier access, then sort by length (descending) to avoid early partial matches
         // (https://github.com/xenova/transformers.js/commit/c305c3824f628f1f02806a6310bd3b18b0f7f8f5)
-        let unwrappedAddedTokens: [(content: String, prefix: Bool, suffix: Bool)] = (tokenizerData["addedTokens"].array(or: [])).compactMap { addedToken -> (String, Bool, Bool)? in
-            guard let content = addedToken.content.string() else { return nil }
-            let prefix = addedToken["lstrip"].boolean(or: false)
-            let suffix = addedToken["rstrip"].boolean(or: false)
+        let unwrappedAddedTokens: [(content: String, prefix: Bool, suffix: Bool)] = (tokenizerData["added_tokens"]?.array ?? []).compactMap { addedToken -> (String, Bool, Bool)? in
+            guard let content = addedToken.dictionary?["content"]?.string else { return nil }
+            let prefix = addedToken.dictionary?["lstrip"]?.boolean(or: false) ?? false
+            let suffix = addedToken.dictionary?["rstrip"]?.boolean(or: false) ?? false
             return (content: content, prefix: prefix, suffix: suffix)
         }.sorted {
             $0.content.count > $1.content.count
@@ -330,11 +333,11 @@ public class PreTrainedTokenizer: Tokenizer {
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
 
-        preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
-        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
-        postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
-        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
-        cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
+        preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["pre_tokenizer"]?.dictionary)
+        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"]?.dictionary)
+        postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["post_processor"]?.dictionary)
+        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"]?.dictionary, addedTokens: self.addedTokens)
+        cleanUpTokenizationSpaces = tokenizerConfig["clean_up_tokenization_spaces"]?.boolean(or: true) ?? true
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
@@ -450,7 +453,7 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     public var hasChatTemplate: Bool {
-        !tokenizerConfig.chatTemplate.isNull()
+        tokenizerConfig["chat_template"] != .null
     }
 
     public func applyChatTemplate(messages: [Message]) throws -> [Int] {
@@ -512,13 +515,13 @@ public class PreTrainedTokenizer: Tokenizer {
         if let chatTemplate, case let .literal(template) = chatTemplate {
             // Use chat template from argument
             selectedChatTemplate = template
-        } else if !tokenizerConfig.chatTemplate.isNull() {
-            let valueFromConfig: Config = tokenizerConfig.chatTemplate
-            if let arrayValue = valueFromConfig.array() {
+        } else if tokenizerConfig["chat_template"] != nil, tokenizerConfig["chat_template"] != .null {
+            let valueFromConfig = tokenizerConfig["chat_template"]
+            if let arrayValue = valueFromConfig?.array {
                 // If the config specifies a list of chat templates, convert them to a dictionary
                 let templateDict = [String: String](
                     uniqueKeysWithValues: arrayValue.compactMap { item in
-                        guard let name = item["name"].string(), let template = item["template"].string() else {
+                        guard let name = item.dictionary?["name"]?.string, let template = item.dictionary?["template"]?.string else {
                             return nil
                         }
                         return (name, template)
@@ -537,7 +540,7 @@ public class PreTrainedTokenizer: Tokenizer {
                     // Use default chat template from config
                     selectedChatTemplate = defaultChatTemplate
                 }
-            } else if let stringValue = valueFromConfig.string() {
+            } else if let stringValue = valueFromConfig?.string {
                 // Use chat template from config
                 selectedChatTemplate = stringValue
             }
@@ -566,16 +569,16 @@ public class PreTrainedTokenizer: Tokenizer {
             }
         }
 
-        for (key, value) in tokenizerConfig.dictionary(or: [:]) {
-            if specialTokenAttributes.contains(key.string), !value.isNull() {
-                if let stringValue = value.string() {
-                    context[key.string] = stringValue
-                } else if let dictionary = value.dictionary() {
-                    context[key.string] = addedTokenAsString(Config(dictionary))
-                } else if let array: [String] = value.get() {
-                    context[key.string] = array
+        for (key, value) in tokenizerConfig.properties {
+            if specialTokenAttributes.contains(key.value), value != .null {
+                if let stringValue = value.string {
+                    context[key.value] = stringValue
+                } else if let dictionary = value.dictionary {
+                    context[key.value] = addedTokenAsString(dictionary)
+                } else if let array = value.array?.compactMap(\.string) {
+                    context[key.value] = array
                 } else {
-                    context[key.string] = value
+                    context[key.value] = value.toJinjaCompatible()
                 }
             }
         }
@@ -583,7 +586,7 @@ public class PreTrainedTokenizer: Tokenizer {
         let rendered = try template.render(context)
         var encodedTokens = encode(text: rendered, addSpecialTokens: false)
         var maxLength = maxLength ?? encodedTokens.count
-        maxLength = min(maxLength, tokenizerConfig.modelMaxLength.integer() ?? maxLength)
+        maxLength = min(maxLength, tokenizerConfig["model_max_length"]?.integer ?? maxLength)
         if encodedTokens.count > maxLength {
             if truncation {
                 encodedTokens = Array(encodedTokens.prefix(maxLength))
@@ -608,7 +611,7 @@ struct PreTrainedTokenizerClasses {
 
 public extension AutoTokenizer {
     internal static func tokenizerClass(for tokenizerConfig: Config) -> PreTrainedTokenizer.Type {
-        guard let tokenizerClassName = tokenizerConfig.tokenizerClass.string() else {
+        guard let tokenizerClassName = tokenizerConfig["tokenizer_class"]?.string else {
             return PreTrainedTokenizer.self
         }
 
@@ -666,14 +669,14 @@ func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?)
     let postProcessor = PostProcessorFactory.fromConfig(config: processorConfig)
     guard !(postProcessor is TemplateProcessing) else { return nil }
 
-    let addBosToken = tokenizerConfig.addBosToken.boolean(or: false)
-    let bosToken = addedTokenAsString(tokenizerConfig.bosToken)
+    let addBosToken = tokenizerConfig["add_bos_token"]?.boolean(or: false) ?? false
+    let bosToken = addedTokenAsString(tokenizerConfig.properties["bos_token"]?.dictionary)
     if addBosToken, bosToken == nil {
         throw TokenizerError.mismatchedConfig("add_bos_token is True but bos_token is nil")
     }
 
-    let addEosToken = tokenizerConfig.addEosToken.boolean(or: false)
-    let eosToken = addedTokenAsString(tokenizerConfig.eosToken)
+    let addEosToken = tokenizerConfig["add_eos_token"]?.boolean(or: false) ?? false
+    let eosToken = addedTokenAsString(tokenizerConfig.properties["eos_token"]?.dictionary)
     if addEosToken, eosToken == nil {
         throw TokenizerError.mismatchedConfig("add_eos_token is True but eos_token is nil")
     }
@@ -706,17 +709,17 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
     let isLegacy: Bool
 
     required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {
-        isLegacy = tokenizerConfig.legacy.boolean(or: true)
-        var configDictionary = tokenizerData.dictionary(or: [:])
+        isLegacy = tokenizerConfig["legacy"]?.boolean(or: true) ?? true
+        var configDictionary = tokenizerData.properties
         if !isLegacy {
             _ = configDictionary.removeValue(forKey: "normalizer")
-            configDictionary["pre_tokenizer"] = [
-                "type": "Metaspace", "replacement": .init(sentencePieceUnderline), "add_prefix_space": true, "prepend_scheme": "first",
-            ]
+            configDictionary["pre_tokenizer"] = .dictionary(Config([
+                "type": .string("Metaspace"), "replacement": .string(.init(sentencePieceUnderline)), "add_prefix_space": .boolean(true), "prepend_scheme": .string("first"),
+            ]))
         }
 
-        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["postProcessor"]) {
-            configDictionary["post_processor"] = .init(postProcessorConfig.dictionary(or: [:]))
+        if let postProcessorConfig = try maybeUpdatePostProcessor(tokenizerConfig: tokenizerConfig, processorConfig: tokenizerData["post_processor"]?.dictionary) {
+            configDictionary["post_processor"] = .dictionary(postProcessorConfig)
         }
 
         let updatedData = Config(configDictionary)

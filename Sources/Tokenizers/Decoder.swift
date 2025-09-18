@@ -37,7 +37,7 @@ struct DecoderFactory {
     static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
         // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
         guard let config else { return nil }
-        guard let typeName = config.type.string() else { return nil }
+        guard let typeName = config.type?.string else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
         case .Sequence: return DecoderSequence(config: config)
@@ -61,9 +61,9 @@ class WordPieceDecoder: Decoder {
     private let re = try! NSRegularExpression(pattern: "\\s(\\.|\\?|\\!|\\,|'\\s|n't|'m|'s|'ve|'re)", options: [])
 
     required init(config: Config) {
-        guard let prefix = config.prefix.string() else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
+        guard let prefix = config.prefix?.string else { fatalError("Missing `prefix` configuration for WordPieceDecoder.") }
         self.prefix = prefix
-        cleanup = config.cleanup.boolean(or: false)
+        cleanup = config.cleanup?.boolean ?? false
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -86,8 +86,8 @@ class DecoderSequence: Decoder {
     let decoders: [Decoder]
 
     required init(config: Config) {
-        guard let configs = config.decoders.array() else { fatalError("No decoders in Sequence") }
-        decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
+        guard let configs = config.decoders?.array else { fatalError("No decoders in Sequence") }
+        decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0.dictionary) }
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -199,9 +199,9 @@ class StripDecoder: Decoder {
     let stop: Int
 
     required init(config: Config) {
-        guard let content = config.content.string() else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
-        guard let start = config.start.integer() else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }
-        guard let stop = config.stop.integer() else { fatalError("Incorrect StripDecoder configuration: can't parse `stop`.") }
+        guard let content = config.content?.string else { fatalError("Incorrect StripDecoder configuration: can't parse `content`.") }
+        guard let start = config.start?.integer else { fatalError("Incorrect StripDecoder configuration: can't parse `start`.") }
+        guard let stop = config.stop?.integer else { fatalError("Incorrect StripDecoder configuration: can't parse `stop`.") }
         self.content = content
         self.start = start
         self.stop = stop
@@ -219,8 +219,8 @@ class MetaspaceDecoder: Decoder {
     let replacement: String
 
     required init(config: Config) {
-        addPrefixSpace = config.addPrefixSpace.boolean(or: false)
-        replacement = config.replacement.string(or: "_")
+        addPrefixSpace = config.addPrefixSpace?.boolean ?? false
+        replacement = config.replacement?.string ?? "_"
     }
 
     func decode(tokens: [String]) -> [String] {

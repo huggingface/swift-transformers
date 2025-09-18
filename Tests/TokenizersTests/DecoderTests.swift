@@ -12,11 +12,11 @@ class DecoderTests: XCTestCase {
     /// https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspaceDecoder() {
         let decoder = MetaspaceDecoder(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
+            "add_prefix_space": .boolean(true),
+            "replacement": .string(" "),
         ]))
 
-        let tokens = ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
+        let tokens = [" Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         let decoded = decoder.decode(tokens: tokens)
 
         XCTAssertEqual(
@@ -26,7 +26,7 @@ class DecoderTests: XCTestCase {
     }
 
     func testWordPieceDecoder() {
-        let config = Config(["prefix": "##", "cleanup": true])
+        let config = Config(["prefix": .string("##"), "cleanup": .boolean(true)])
         let decoder = WordPieceDecoder(config: config)
 
         let testCases: [([String], String)] = [

@@ -47,25 +47,25 @@ public class BertTokenizer {
     }
 
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard let vocab = tokenizerData.model.vocab.dictionary() else {
+        guard let vocab = tokenizerData.model?.vocab?.dictionary else {
             throw TokenizerError.missingVocab
         }
 
-        let merges: [String]? = tokenizerData.model.merges.get()
-        let tokenizeChineseChars = tokenizerConfig.handleChineseChars.boolean(or: true)
-        let eosToken = tokenizerConfig.eosToken.string()
-        let bosToken = tokenizerConfig.bosToken.string()
-        let fuseUnknown = tokenizerConfig.fuseUnk.boolean(or: false)
-        let doLowerCase = tokenizerConfig.doLowerCase.boolean(or: true)
+        let merges: [String]? = tokenizerData.model?.merges?.array?.compactMap { $0.string }
+        let tokenizeChineseChars = tokenizerConfig.handleChineseChars?.boolean ?? true
+        let eosToken = tokenizerConfig.eosToken?.string
+        let bosToken = tokenizerConfig.bosToken?.string
+        let fuseUnknown = tokenizerConfig.fuseUnk?.boolean ?? false
+        let doLowerCase = tokenizerConfig.doLowerCase?.boolean ?? true
 
-        var vocabulary = vocab.reduce(into: [String: Int]()) { result, element in
-            if let val = element.value.integer() {
-                result[element.key.string] = val
+        var vocabulary = vocab.properties.reduce(into: [String: Int]()) { result, element in
+            if let val = element.value.integer {
+                result[element.key.value] = val
             }
         }
-        if let pairs = tokenizerData.addedTokens.array()?.reduce(into: [String: Int](), { result, element in
-            guard let val = element["id"].integer() else { return }
-            guard let key = element["content"].string() else { return }
+        if let pairs = tokenizerData.addedTokens?.array?.reduce(into: [String: Int](), { result, element in
+            guard let val = element[dynamicMember: "id"]?.integer else { return }
+            guard let key = element[dynamicMember: "content"]?.string else { return }
 
             result[key] = val
         }) {
