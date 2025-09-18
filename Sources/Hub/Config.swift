@@ -158,19 +158,19 @@ public struct Config: Hashable, Sendable, CustomStringConvertible {
     }
 
     public init(_ value: String) {
-        self.init(stringLiteral: value)
+        self.value = .string(.init(value))
     }
 
     public init(_ value: Int) {
-        self.init(integerLiteral: value)
+        self.value = .integer(value)
     }
 
     public init(_ value: Bool) {
-        self.init(booleanLiteral: value)
+        self.value = .boolean(value)
     }
 
     public init(_ value: Float) {
-        self.init(floatLiteral: value)
+        self.value = .floating(value)
     }
 
     public init(_ value: [Config]) {
@@ -582,7 +582,7 @@ public struct Config: Hashable, Sendable, CustomStringConvertible {
 
 extension Config: ExpressibleByBooleanLiteral {
     public init(booleanLiteral value: Bool) {
-        self.value = .boolean(value)
+        self.init(value)
     }
 }
 
@@ -590,7 +590,7 @@ extension Config: ExpressibleByBooleanLiteral {
 
 extension Config: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: Int) {
-        self.value = .integer(value)
+        self.init(value)
     }
 }
 
@@ -598,7 +598,7 @@ extension Config: ExpressibleByIntegerLiteral {
 
 extension Config: ExpressibleByFloatLiteral {
     public init(floatLiteral value: Float) {
-        self.value = .floating(value)
+        self.init(value)
     }
 }
 
@@ -606,7 +606,7 @@ extension Config: ExpressibleByFloatLiteral {
 
 extension Config: ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
-        self.value = .string(.init(value))
+        self.init(value)
     }
 }
 
@@ -614,7 +614,7 @@ extension Config: ExpressibleByStringLiteral {
 
 extension Config: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: Config...) {
-        self.value = .array(elements)
+        self.init(elements)
     }
 }
 
@@ -625,7 +625,7 @@ extension Config: ExpressibleByDictionaryLiteral {
         let dict = elements.reduce(into: [BinaryDistinctString: Config]()) { result, element in
             result[element.0] = element.1
         }
-        self.value = .dictionary(dict)
+        self.init(dict)
     }
 }
 
