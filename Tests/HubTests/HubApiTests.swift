@@ -11,7 +11,7 @@ import Testing
 
 @Suite(
     "Hub API (filenames and metadata)",
-    .disabled(if: ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] != "1", "Set HUB_NETWORK_TESTS=1 to run network tests")
+    .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests")
 )
 struct HubApiFilenamesAndMetadataTests {
     // TODO: use a specific revision for these tests
@@ -110,7 +110,7 @@ struct HubApiFilenamesAndMetadataTests {
 
 @Suite(
     "Snapshot download",
-    .disabled(if: ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] != "1", "Set HUB_NETWORK_TESTS=1 to run network tests")
+    .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests")
 )
 struct SnapshotDownloadTests {
     let repo = "coreml-projects/Llama-2-7b-chat-coreml"

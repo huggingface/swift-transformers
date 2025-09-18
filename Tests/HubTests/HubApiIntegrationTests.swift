@@ -1,7 +1,7 @@
 //
 //  HubApiIntegrationTests.swift
 //
-//  Networked tests gated by HUB_NETWORK_TESTS=1
+//  Networked tests gated by HF_TOKEN=1
 //
 
 import Foundation
@@ -10,7 +10,7 @@ import Testing
 @testable import Hub
 
 @Suite("Hub API (integration)",
-       .disabled(if: ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] != "1", "Set HUB_NETWORK_TESTS=1 to run network tests"))
+       .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests"))
 struct HubApiIntegrationTests {
     @Test(
         "config download (snake_case)",
@@ -53,7 +53,7 @@ struct HubApiIntegrationTests {
 }
 
 @Suite("Snapshot download (integration)",
-       .disabled(if: ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] != "1", "Set HUB_NETWORK_TESTS=1 to run network tests"))
+       .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests"))
 struct SnapshotDownloadIntegrationTests {
     let repo = "coreml-projects/Llama-2-7b-chat-coreml"
     let lfsRepo = "pcuenq/smol-lfs"

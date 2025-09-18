@@ -53,7 +53,7 @@ struct DownloaderUnitTests {
 }
 
 @Suite("Downloader (integration)",
-       .disabled(if: ProcessInfo.processInfo.environment["HUB_NETWORK_TESTS"] != "1", "Set HUB_NETWORK_TESTS=1 to run network tests"))
+       .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests"))
 struct DownloaderIntegrationTests {
     @Test("successful download and content matches", .timeLimit(.minutes(2)))
     func successfulDownload() async throws {
