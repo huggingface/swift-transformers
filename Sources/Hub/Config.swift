@@ -651,135 +651,58 @@ public extension Config {
 
 extension Config: Codable {
     public init(from decoder: any Decoder) throws {
-        // Try decoding as a single value first (for scalars and null)
-        let singleValueContainer = try? decoder.singleValueContainer()
-        if let container = singleValueContainer {
-            if container.decodeNil() {
-                self.value = .null
-                return
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self.value = .null
+        } else if let intValue = try? container.decode(Int.self) {
+            self.value = .integer(intValue)
+        } else if let floatValue = try? container.decode(Float.self) {
+            self.value = .floating(floatValue)
+        } else if let boolValue = try? container.decode(Bool.self) {
+            self.value = .boolean(boolValue)
+        } else if let stringValue = try? container.decode(String.self) {
+            self.value = .string(.init(stringValue))
+        } else if let arrayValue = try? container.decode([Config].self) {
+            if arrayValue.count == 2,
+               case let .integer(id) = arrayValue[0].value,
+               case let .string(token) = arrayValue[1].value
+            {
+                self.value = .token((UInt(id), token))
+            } else {
+                self.value = .array(arrayValue)
             }
-            do {
-                let intValue = try container.decode(Int.self)
-                self.value = .integer(intValue)
-                return
-            } catch { }
-            do {
-                let floatValue = try container.decode(Float.self)
-                self.value = .floating(floatValue)
-                return
-            } catch { }
-            do {
-                let boolValue = try container.decode(Bool.self)
-                self.value = .boolean(boolValue)
-                return
-            } catch { }
-            do {
-                let stringValue = try container.decode(String.self)
-                self.value = .string(.init(stringValue))
-                return
-            } catch { }
-        }
-
-        if let tupple = Self.decodeTuple(decoder) {
-            self.value = tupple
-            return
-        }
-        if let array = Self.decodeArray(decoder) {
-            self.value = array
-            return
-        }
-
-        if let dict = Self.decodeDictionary(decoder) {
-            self.value = dict
-            return
-        }
-
-        self.value = .null
-    }
-
-    private static func decodeTuple(_ decoder: Decoder) -> Data? {
-        let unkeyedContainer = try? decoder.unkeyedContainer()
-        if var container = unkeyedContainer {
-            if container.count == 2 {
-                do {
-                    let intValue = try container.decode(UInt.self)
-                    let stringValue = try container.decode(String.self)
-                    return .token((intValue, .init(stringValue)))
-                } catch { }
-            }
-        }
-        return nil
-    }
-
-    private static func decodeArray(_ decoder: Decoder) -> Data? {
-        do {
-            if var container = try? decoder.unkeyedContainer() {
-                var elements: [Config] = []
-                while !container.isAtEnd {
-                    let element = try container.decode(Config.self)
-                    elements.append(element)
-                }
-                return .array(elements)
-            }
-        } catch { }
-        return nil
-    }
-
-    private static func decodeDictionary(_ decoder: Decoder) -> Data? {
-        do {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            var dictionaryValues: [BinaryDistinctString: Config] = [:]
-            for key in container.allKeys {
-                let value = try container.decode(Config.self, forKey: key)
-                dictionaryValues[BinaryDistinctString(key.stringValue)] = value
-            }
-
-            return .dictionary(dictionaryValues)
-        } catch {
-            return nil
+        } else if let dictionaryValue = try? container.decode([String: Config].self) {
+            let binaryDistinctKeys = Dictionary(uniqueKeysWithValues: dictionaryValue.map {
+                (BinaryDistinctString($0.key), $0.value)
+            })
+            self.value = .dictionary(binaryDistinctKeys)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported Config type")
         }
     }
 
     public func encode(to encoder: any Encoder) throws {
-        switch self.value {
+        var container = encoder.singleValueContainer()
+        switch value {
         case .null:
-            var container = encoder.singleValueContainer()
             try container.encodeNil()
-        case let .integer(val):
-            var container = encoder.singleValueContainer()
-            try container.encode(val)
-        case let .floating(val):
-            var container = encoder.singleValueContainer()
-            try container.encode(val)
-        case let .boolean(val):
-            var container = encoder.singleValueContainer()
-            try container.encode(val)
-        case let .string(val):
-            var container = encoder.singleValueContainer()
-            try container.encode(val.string)
-        case let .dictionary(val):
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            for (key, value) in val {
-                try container.encode(value, forKey: CodingKeys(stringValue: key.string)!)
-            }
-        case let .array(val):
-            var container = encoder.unkeyedContainer()
-            try container.encode(contentsOf: val)
-        case let .token(val):
-            var tupple = encoder.unkeyedContainer()
-            try tupple.encode(val.0)
-            try tupple.encode(val.1.string)
+        case let .integer(intValue):
+            try container.encode(intValue)
+        case let .floating(floatValue):
+            try container.encode(floatValue)
+        case let .boolean(boolValue):
+            try container.encode(boolValue)
+        case let .string(stringValue):
+            try container.encode(stringValue.string)
+        case let .dictionary(dictionaryValue):
+            let stringKeys = Dictionary(uniqueKeysWithValues: dictionaryValue.map { ($0.key.string, $0.value) })
+            try container.encode(stringKeys)
+        case let .array(arrayValue):
+            try container.encode(arrayValue)
+        case let .token(tokenValue):
+            try container.encode([Config(integerLiteral: Int(tokenValue.0)), Config(stringLiteral: tokenValue.1.string)])
         }
-    }
-
-    private struct CodingKeys: CodingKey {
-        var stringValue: String
-        init?(stringValue: String) {
-            self.stringValue = stringValue
-        }
-
-        var intValue: Int? { nil }
-        init?(intValue: Int) { nil }
     }
 }
 
