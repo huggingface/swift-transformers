@@ -279,13 +279,6 @@ struct SpecificTokenizerTests {
 
         #expect(tokenizer.tokenize(text: "€4") == ["€", "##4"])
         #expect(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test") == ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
-    }
-
-    @Test
-    func bertSpacesEncodeDecode() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased", hubApi: hubApiForTests) as? PreTrainedTokenizer
-        #expect(tokenizerOpt != nil)
-        let tokenizer = tokenizerOpt!
 
         let text = "l'eure"
         let tokenized = tokenizer.tokenize(text: text)
