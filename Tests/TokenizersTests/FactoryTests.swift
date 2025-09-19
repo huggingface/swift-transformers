@@ -6,7 +6,7 @@
 //
 
 import Hub
-import Tokenizers
+@testable import Tokenizers
 import XCTest
 
 class TestWithCustomHubDownloadLocation: XCTestCase {

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Tokenizers
+@testable import Tokenizers
 import XCTest
 
 class ChatTemplateTests: XCTestCase {
