@@ -75,8 +75,8 @@ struct Safetensor {
         var dict = [String: MLMultiArray]()
         for (key, point) in header {
             guard let offsets = point?.dataOffsets, offsets.count == 2,
-                  let shape = point?.shape as? [NSNumber],
-                  let dType = try point?.dataType
+                let shape = point?.shape as? [NSNumber],
+                let dType = try point?.dataType
             else { continue }
 
             let strides = shape.dropFirst().reversed().reduce(into: [1]) { acc, a in

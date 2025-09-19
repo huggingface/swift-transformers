@@ -44,8 +44,8 @@ extension HTTPURLResponse {
 
             if trimmed.contains("rel=\"\(rel)\"") || trimmed.contains("rel=\(rel)") {
                 if let start = trimmed.firstIndex(of: "<"),
-                   let end = trimmed.firstIndex(of: ">"),
-                   start < end
+                    let end = trimmed.firstIndex(of: ">"),
+                    start < end
                 {
                     let startIndex = trimmed.index(after: start)
                     return String(trimmed[startIndex..<end])
@@ -298,9 +298,7 @@ public extension HubApi {
     ///
     /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
     ///
-    /// - Parameters:
-    ///   - localDir: The local directory where metadata files are downloaded.
-    ///   - filePath: The path of the file for which metadata is being read.
+    /// - Parameter metadataPath: The path of the metadata file to read.
     /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
     /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
     func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
@@ -370,7 +368,7 @@ public extension HubApi {
             let nextChunk = try? fileHandle.read(upToCount: chunkSize)
 
             guard let nextChunk,
-                  !nextChunk.isEmpty
+                !nextChunk.isEmpty
             else {
                 return false
             }
@@ -378,7 +376,7 @@ public extension HubApi {
             hasher.update(data: nextChunk)
 
             return true
-        }) { }
+        }) {}
 
         let digest = hasher.finalize()
         return digest.map { String(format: "%02x", $0) }.joined()
@@ -452,16 +450,16 @@ public extension HubApi {
 
             // Local file exists + metadata exists + commit_hash matches => return file
             if hub.isValidHash(hash: remoteCommitHash, pattern: hub.commitHashPattern), downloaded, localMetadata != nil,
-               localCommitHash == remoteCommitHash
+                localCommitHash == remoteCommitHash
             {
                 return destination
             }
 
             // From now on, etag, commit_hash, url and size are not empty
             guard let remoteCommitHash = remoteMetadata.commitHash,
-                  let remoteEtag = remoteMetadata.etag,
-                  let remoteSize = remoteMetadata.size,
-                  remoteMetadata.location != ""
+                let remoteEtag = remoteMetadata.etag,
+                let remoteSize = remoteMetadata.size,
+                remoteMetadata.location != ""
             else {
                 throw EnvironmentError.invalidMetadataError("File metadata must have been retrieved from server")
             }
@@ -526,9 +524,9 @@ public extension HubApi {
         let repoDestination = localRepoLocation(repo)
         let repoMetadataDestination =
             repoDestination
-                .appendingPathComponent(".cache")
-                .appendingPathComponent("huggingface")
-                .appendingPathComponent("download")
+            .appendingPathComponent(".cache")
+            .appendingPathComponent("huggingface")
+            .appendingPathComponent("download")
 
         if await NetworkMonitor.shared.state.shouldUseOfflineMode() || useOfflineMode == true {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
@@ -711,8 +709,9 @@ public extension HubApi {
             return nil
         }
 
-        guard var refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey)
-            ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String
+        guard
+            var refreshRoute = response.getLinkURL(for: HFHttpHeaders.linkXetAuthKey)
+                ?? response.allHeaderFields[HFHttpHeaders.xetRefreshRoute] as? String
         else {
             return nil
         }
@@ -942,13 +941,13 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
         if (300...399).contains(response.statusCode) {
             // Get the Location header
             if let locationString = response.value(forHTTPHeaderField: "Location"),
-               let locationUrl = URL(string: locationString)
+                let locationUrl = URL(string: locationString)
             {
                 // Check if it's a relative redirect (no host component)
                 if locationUrl.host == nil {
                     // For relative redirects, construct the new URL using the original request's base
                     if let originalUrl = task.originalRequest?.url,
-                       var components = URLComponents(url: originalUrl, resolvingAgainstBaseURL: true)
+                        var components = URLComponents(url: originalUrl, resolvingAgainstBaseURL: true)
                     {
                         // Update the path component with the relative path
                         components.path = locationUrl.path
@@ -958,8 +957,10 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
                         if let resolvedUrl = components.url {
                             var newRequest = URLRequest(url: resolvedUrl)
                             // Copy headers from original request
-                            task.originalRequest?.allHTTPHeaderFields?.forEach { key, value in
-                                newRequest.setValue(value, forHTTPHeaderField: key)
+                            if let headers = task.originalRequest?.allHTTPHeaderFields {
+                                for (key, value) in headers {
+                                    newRequest.setValue(value, forHTTPHeaderField: key)
+                                }
                             }
                             newRequest.setValue(resolvedUrl.absoluteString, forHTTPHeaderField: "Location")
                             completionHandler(newRequest)

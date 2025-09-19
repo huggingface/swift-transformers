@@ -2,7 +2,6 @@
 import ArgumentParser
 import CoreML
 import Foundation
-
 import Generation
 import Models
 

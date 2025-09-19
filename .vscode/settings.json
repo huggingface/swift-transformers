@@ -1,8 +1,4 @@
 {
-    // SwiftFormat configuration to match CI
-    "swiftformat.configSearchPaths": [
-        ".swiftformat"
-    ],
     // Swift language settings
     "swift.path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
     "swift.buildPath": ".build",
@@ -15,12 +11,13 @@
     "editor.trimAutoWhitespace": true,
     // File associations
     "files.associations": {
+        ".swift-format": "json",
         "*.swift": "swift"
     },
     // Format on save for Swift files
     "[swift]": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "vknabel.vscode-swiftformat"
+        "editor.defaultFormatter": "swiftlang.swift-vscode"
     },
     // Exclude build artifacts from search
     "search.exclude": {
@@ -35,6 +32,6 @@
     "swift.swiftEnvironmentVariables": {
         "DEVELOPER_DIR": "/Applications/Xcode.app"
     },
-    // Disable automatic generation of launch `launch.json`
+    // Disable automatic generation of launch configuration (`launch.json`)
     "swift.autoGenerateLaunchConfigurations": false
 }

@@ -104,7 +104,7 @@ class ReplaceNormalizer: Normalizer {
 }
 
 class LowercaseNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.lowercased()
@@ -112,7 +112,7 @@ class LowercaseNormalizer: Normalizer {
 }
 
 class NFDNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.decomposedStringWithCanonicalMapping
@@ -120,7 +120,7 @@ class NFDNormalizer: Normalizer {
 }
 
 class NFCNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.precomposedStringWithCanonicalMapping
@@ -128,7 +128,7 @@ class NFCNormalizer: Normalizer {
 }
 
 class NFKDNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.decomposedStringWithCompatibilityMapping
@@ -136,7 +136,7 @@ class NFKDNormalizer: Normalizer {
 }
 
 class NFKCNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.precomposedStringWithCompatibilityMapping
@@ -177,9 +177,9 @@ class BertNormalizer: Normalizer {
     private func cleanText(text: String) -> String {
         text.map { c in
             guard let scalar = c.unicodeScalars.first,
-                  scalar.value != 0x0,
-                  scalar.value != 0xFFFD,
-                  !isControl(scalar)
+                scalar.value != 0x0,
+                scalar.value != 0xFFFD,
+                !isControl(scalar)
             else { return "\(c)" }
 
             // Replace whitespace: \t, \n, \r
@@ -220,15 +220,16 @@ class BertNormalizer: Normalizer {
 
     private func stripAccents(text: String) -> String {
         // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
-        String(text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
-            !(scalar.value >= 0x0300 && scalar.value <= 0x036F)
-        })
+        String(
+            text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
+                !(scalar.value >= 0x0300 && scalar.value <= 0x036F)
+            })
     }
 }
 
 class PrecompiledNormalizer: Normalizer {
     // TODO: use `precompiledCharsmap` (base64-encoded string) from the configuration
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         // TODO: This is a simplified implementation.
@@ -245,7 +246,7 @@ class PrecompiledNormalizer: Normalizer {
                 // Non-printing control characters
                 output.append("")
             case 0x0009, 0x000A, 0x000C, 0x000D, 0x1680, 0x200B...0x200F, 0x2028, 0x2029, 0x2581,
-                 0xFEFF, 0xFFFD:
+                0xFEFF, 0xFFFD:
                 // Separators
                 output.append(" ")
             case 0xFF5E:
@@ -259,9 +260,9 @@ class PrecompiledNormalizer: Normalizer {
         if hasFullwidthTilde {
             return
                 output
-                    .split(by: "\u{FF5E}")
-                    .map { $0.precomposedStringWithCompatibilityMapping }
-                    .joined(separator: "\u{FF5E}")
+                .split(by: "\u{FF5E}")
+                .map { $0.precomposedStringWithCompatibilityMapping }
+                .joined(separator: "\u{FF5E}")
         } else {
             return output.precomposedStringWithCompatibilityMapping
         }
@@ -269,7 +270,7 @@ class PrecompiledNormalizer: Normalizer {
 }
 
 class StripAccentsNormalizer: Normalizer {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func normalize(text: String) -> String {
         text.precomposedStringWithCompatibilityMapping

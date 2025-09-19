@@ -5,7 +5,7 @@ import PackageDescription
 
 /// Define the strict concurrency settings to be applied to all targets.
 let swiftSettings: [SwiftSetting] = [
-    .enableExperimentalFeature("StrictConcurrency"),
+    .enableExperimentalFeature("StrictConcurrency")
 ]
 
 let package = Package(

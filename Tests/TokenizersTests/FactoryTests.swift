@@ -15,7 +15,7 @@ class TestWithCustomHubDownloadLocation: XCTestCase {
         return base.appending(component: "huggingface-tests")
     }()
 
-    override func setUp() { }
+    override func setUp() {}
 
     override func tearDown() {
         do {
