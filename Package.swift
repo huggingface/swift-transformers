@@ -30,7 +30,7 @@ let package = Package(
         ),
         .executableTarget(name: "HubCLI", dependencies: ["Hub", .product(name: "ArgumentParser", package: "swift-argument-parser")]),
         .target(name: "Generation", dependencies: ["Tokenizers"]),
-        .target(name: "Hub", resources: [.process("FallbackConfigs")], swiftSettings: swiftSettings),
+        .target(name: "Hub", resources: [.process("Resources")], swiftSettings: swiftSettings),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
         .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
