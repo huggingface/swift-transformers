@@ -6,6 +6,7 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+#if canImport(CoreML)
 import CoreML
 import Foundation
 
@@ -196,3 +197,4 @@ extension MLMultiArray {
         return s + "]"
     }
 }
+#endif // canImport(CoreML)

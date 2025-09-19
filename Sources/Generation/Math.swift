@@ -6,6 +6,7 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+#if canImport(CoreML) && canImport(Accelerate)
 import Accelerate
 import CoreML
 import Foundation
@@ -168,3 +169,4 @@ public extension Math {
         }
     }
 }
+#endif // canImport(CoreML) && canImport(Accelerate)
