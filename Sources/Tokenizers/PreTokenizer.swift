@@ -242,9 +242,7 @@ class SplitPreTokenizer: PreTokenizer {
 enum StringSplitPattern {
     case regexp(regexp: String)
     case string(pattern: String)
-}
 
-extension StringSplitPattern {
     func split(_ text: String, invert: Bool = true) -> [String] {
         switch self {
         case let .regexp(regexp):
@@ -253,21 +251,26 @@ extension StringSplitPattern {
             text.split(by: substring, options: [], includeSeparators: !invert)
         }
     }
-}
 
-extension StringSplitPattern {
     static func from(config: Config) -> StringSplitPattern? {
         if let pattern = config.pattern.String.string() {
-            return StringSplitPattern.string(pattern: pattern)
+            return .string(pattern: pattern)
         }
         if let pattern = config.pattern.Regex.string() {
-            return StringSplitPattern.regexp(regexp: pattern)
+            return .regexp(regexp: pattern)
         }
         return nil
     }
 }
 
-public extension String {
+enum SplitDelimiterBehavior {
+    case removed
+    case isolated
+    case mergedWithPrevious
+    case mergedWithNext
+}
+
+extension String {
     func ranges(of string: String, options: CompareOptions = .regularExpression) -> [Range<Index>] {
         var result: [Range<Index>] = []
         var start = startIndex
@@ -339,16 +342,7 @@ public extension String {
 
         return result
     }
-}
 
-public enum SplitDelimiterBehavior {
-    case removed
-    case isolated
-    case mergedWithPrevious
-    case mergedWithNext
-}
-
-public extension String {
     func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
         func mergedWithNext(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
             var merged: [Range<String.Index>] = []
