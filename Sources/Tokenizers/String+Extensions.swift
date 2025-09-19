@@ -1,4 +1,5 @@
 import Foundation
+import struct Hub.Config
 
 enum StringSplitPattern {
     case regexp(regexp: String)
