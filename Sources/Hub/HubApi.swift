@@ -897,7 +897,7 @@ private extension [String] {
     }
 }
 
-public extension FileManager {
+private extension FileManager {
     func getFileUrls(at directoryUrl: URL) throws -> [URL] {
         var fileUrls = [URL]()
 
