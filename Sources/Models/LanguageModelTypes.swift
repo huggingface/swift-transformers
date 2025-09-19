@@ -5,7 +5,9 @@
 //  Created by Pedro Cuenca on 8/5/23.
 //
 
+#if canImport(CoreML)
 import CoreML
+
 import Generation
 import Tokenizers
 
@@ -40,3 +42,4 @@ public extension TextGenerationModel {
         try await generate(config: config, prompt: prompt, model: callAsFunction, tokenizer: tokenizer, callback: callback)
     }
 }
+#endif // canImport(CoreML)

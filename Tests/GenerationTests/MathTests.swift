@@ -4,9 +4,11 @@
 //  Created by Jan Krukowski on 25/11/2023.
 //
 
+#if canImport(CoreML)
 import CoreML
-@testable import Generation
 import XCTest
+
+@testable import Generation
 
 final class MathTests: XCTestCase {
     private let accuracy: Float = 0.00001
@@ -51,3 +53,4 @@ final class MathTests: XCTestCase {
         XCTAssertEqual(result1.reduce(0, +), 1.0, accuracy: accuracy)
     }
 }
+#endif // canImport(CoreML)

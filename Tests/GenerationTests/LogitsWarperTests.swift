@@ -4,9 +4,11 @@
 //  Created by Jan Krukowski on 09/12/2023.
 //
 
+#if canImport(CoreML)
 import CoreML
-@testable import Generation
 import XCTest
+
+@testable import Generation
 
 final class LogitsWarperTests: XCTestCase {
     private let accuracy: Float = 0.00001
@@ -150,3 +152,4 @@ final class LogitsWarperTests: XCTestCase {
         XCTAssertEqual(result5.logits, [4.5, 3.0, 2.0, 1.0], accuracy: accuracy)
     }
 }
+#endif // canImport(CoreML)

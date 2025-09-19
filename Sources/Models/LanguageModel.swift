@@ -5,7 +5,9 @@
 //  Created by Pedro Cuenca on 7/5/23.
 //
 
+#if canImport(CoreML)
 import CoreML
+
 import Generation
 import Hub
 import Tokenizers
@@ -226,3 +228,5 @@ public enum TokenizerError: LocalizedError {
         }
     }
 }
+
+#endif // canImport(CoreML)

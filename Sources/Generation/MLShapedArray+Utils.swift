@@ -5,6 +5,7 @@
 //  Created by Pedro Cuenca on 13/5/23.
 //
 
+#if canImport(CoreML)
 import CoreML
 
 public extension MLShapedArray<Float> {
@@ -50,3 +51,4 @@ public extension MLMultiArray {
         }
     }
 }
+#endif // canImport(CoreML)

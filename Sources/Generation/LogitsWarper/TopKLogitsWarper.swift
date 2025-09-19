@@ -1,3 +1,4 @@
+#if canImport(Accelerate)
 import Accelerate
 import Foundation
 
@@ -56,3 +57,4 @@ public struct TopKLogitsWarper: LogitsWarper {
         return (indices: topkIndices.map { indices[Int($0)] }, logits: topkLogits)
     }
 }
+#endif // canImport(Accelerate)

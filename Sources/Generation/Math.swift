@@ -6,6 +6,7 @@
 //  Copyright © 2019 Hugging Face. All rights reserved.
 //
 
+#if canImport(CoreML) && canImport(Accelerate)
 import Accelerate
 import CoreML
 import Foundation
@@ -15,7 +16,7 @@ import Foundation
 ///
 /// https://github.com/hollance/CoreMLHelpers
 ///
-public struct Math {
+public enum Math {
     /**
      Returns the index and value of the largest element in the array.
 
@@ -168,3 +169,4 @@ public extension Math {
         }
     }
 }
+#endif // canImport(CoreML) && canImport(Accelerate)

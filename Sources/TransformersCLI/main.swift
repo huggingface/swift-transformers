@@ -1,3 +1,4 @@
+#if canImport(CoreML)
 import ArgumentParser
 import CoreML
 import Foundation
@@ -107,3 +108,4 @@ extension Double {
         String(format: "\(format)", self)
     }
 }
+#endif // canImport(CoreML)

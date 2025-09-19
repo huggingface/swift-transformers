@@ -1,3 +1,4 @@
+#if canImport(CoreML)
 import CoreML
 
 public struct Weights {
@@ -91,3 +92,4 @@ struct Safetensor {
         return Weights(dict)
     }
 }
+#endif // canImport(CoreML)
