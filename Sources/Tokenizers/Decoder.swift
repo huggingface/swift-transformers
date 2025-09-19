@@ -68,10 +68,11 @@ class WordPieceDecoder: Decoder {
 
     func decode(tokens: [String]) -> [String] {
         let firstToken = cleanup ? cleanUpTokenization(tokens.first!) : tokens.first!
-        return [firstToken] + tokens.dropFirst().map { token in
-            let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
-            return cleanup ? cleanUpTokenization(token) : token
-        }
+        return [firstToken]
+            + tokens.dropFirst().map { token in
+                let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
+                return cleanup ? cleanUpTokenization(token) : token
+            }
     }
 
     /// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/decoders/wordpiece.rs#L40
@@ -153,7 +154,7 @@ class ReplaceDecoder: Decoder {
 }
 
 class ByteFallbackDecoder: Decoder {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func decode(tokens: [String]) -> [String] {
         var newTokens: [String] = []
@@ -186,7 +187,7 @@ class ByteFallbackDecoder: Decoder {
 }
 
 class FuseDecoder: Decoder {
-    required init(config: Config) { }
+    required init(config: Config) {}
 
     func decode(tokens: [String]) -> [String] {
         [tokens.joined(separator: "")]

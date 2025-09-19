@@ -5,8 +5,9 @@
 //
 
 import Hub
-@testable import Tokenizers
 import XCTest
+
+@testable import Tokenizers
 
 class PreTokenizerTests: XCTestCase {
     func testWhitespacePreTokenizer() {
@@ -154,15 +155,17 @@ class PreTokenizerTests: XCTestCase {
     /// https://github.com/huggingface/tokenizers/pull/1357
     func testMetaspacePreTokenizer() {
         // Prepend "always"
-        let preTokenizer = MetaspacePreTokenizer(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
-            "prepend_scheme": "always",
-        ]))
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "add_prefix_space": true,
+                "replacement": "▁",
+                "prepend_scheme": "always",
+            ]))
 
         // TODO: different sections on <s>
         let text = "Hey my friend <s>how▁are you"
-        let tokens = text
+        let tokens =
+            text
             .split(by: "<s>", includeSeparators: true)
             .flatMap { preTokenizer.preTokenize(text: $0) }
 

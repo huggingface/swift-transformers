@@ -1,6 +1,7 @@
+import XCTest
+
 @testable import Hub
 @testable import Models
-import XCTest
 
 class WeightsTests: XCTestCase {
     let downloadDestination: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")

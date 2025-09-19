@@ -5,8 +5,9 @@
 //
 
 import CoreML
-@testable import Generation
 import XCTest
+
+@testable import Generation
 
 final class LogitsWarperTests: XCTestCase {
     private let accuracy: Float = 0.00001

@@ -10,10 +10,12 @@ import Tokenizers
 import XCTest
 
 class ChatTemplateTests: XCTestCase {
-    let messages = [[
-        "role": "user",
-        "content": "Describe the Swift programming language.",
-    ]]
+    let messages = [
+        [
+            "role": "user",
+            "content": "Describe the Swift programming language.",
+        ]
+    ]
 
     static let phiTokenizerTask = Task {
         try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
@@ -105,7 +107,7 @@ class ChatTemplateTests: XCTestCase {
             [
                 "role": "user",
                 "content": "🥳🥳🥳",
-            ],
+            ]
         ]
 
         let encoded = try tokenizer.applyChatTemplate(messages: testMessages)
@@ -133,7 +135,7 @@ class ChatTemplateTests: XCTestCase {
             [
                 "role": "user",
                 "content": "What is the weather in Paris today?",
-            ],
+            ]
         ]
 
         let getCurrentWeatherToolSpec: [String: Any] = [
@@ -176,7 +178,7 @@ class ChatTemplateTests: XCTestCase {
         }
 
         if let startRange = decoded.range(of: "<tools>\n"),
-           let endRange = decoded.range(of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex)
+            let endRange = decoded.range(of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex)
         {
             let toolsSection = String(decoded[startRange.upperBound..<endRange.lowerBound])
             if let toolsDict = try? JSONSerialization.jsonObject(with: toolsSection.data(using: .utf8)!) as? [String: Any] {
@@ -189,29 +191,29 @@ class ChatTemplateTests: XCTestCase {
         }
 
         let expectedPromptStart = """
-        <|im_start|>system
-        You are Qwen, created by Alibaba Cloud. You are a helpful assistant.
+            <|im_start|>system
+            You are Qwen, created by Alibaba Cloud. You are a helpful assistant.
 
-        # Tools
+            # Tools
 
-        You may call one or more functions to assist with the user query.
+            You may call one or more functions to assist with the user query.
 
-        You are provided with function signatures within <tools></tools> XML tags:
-        <tools>
-        """
+            You are provided with function signatures within <tools></tools> XML tags:
+            <tools>
+            """
 
         let expectedPromptEnd = """
-        </tools>
+            </tools>
 
-        For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
-        <tool_call>
-        {"name": <function-name>, "arguments": <args-json-object>}
-        </tool_call><|im_end|>
-        <|im_start|>user
-        What is the weather in Paris today?<|im_end|>
-        <|im_start|>assistant
+            For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+            <tool_call>
+            {"name": <function-name>, "arguments": <args-json-object>}
+            </tool_call><|im_end|>
+            <|im_start|>user
+            What is the weather in Paris today?<|im_end|>
+            <|im_start|>assistant
 
-        """
+            """
 
         XCTAssertTrue(decoded.hasPrefix(expectedPromptStart), "Prompt should start with expected system message")
         XCTAssertTrue(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
@@ -227,21 +229,22 @@ class ChatTemplateTests: XCTestCase {
 
     /// Test for vision models with a vision chat template in chat_template.json
     func testChatTemplateFromChatTemplateJson() async throws {
-        let visionMessages = [
+        let visionMessages =
             [
-                "role": "user",
-                "content": [
-                    [
-                        "type": "text",
-                        "text": "What's in this image?",
-                    ] as [String: String],
-                    [
-                        "type": "image",
-                        "image_url": "example.jpg",
-                    ] as [String: String],
-                ] as [[String: String]],
-            ] as [String: Any],
-        ] as [[String: Any]]
+                [
+                    "role": "user",
+                    "content": [
+                        [
+                            "type": "text",
+                            "text": "What's in this image?",
+                        ] as [String: String],
+                        [
+                            "type": "image",
+                            "image_url": "example.jpg",
+                        ] as [String: String],
+                    ] as [[String: String]],
+                ] as [String: Any]
+            ] as [[String: Any]]
         // Qwen 2 VL does not have a chat_template.json file. The chat template is in tokenizer_config.json.
         let qwen2VLTokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2-VL-7B-Instruct-4bit")
         // Qwen 2.5 VL has a chat_template.json file with a different chat template than the one in tokenizer_config.json.
@@ -251,13 +254,13 @@ class ChatTemplateTests: XCTestCase {
         let qwen2_5VLEncoded = try qwen2_5VLTokenizer.applyChatTemplate(messages: visionMessages)
         let qwen2_5VLDecoded = qwen2_5VLTokenizer.decode(tokens: qwen2_5VLEncoded)
         let expectedOutput = """
-        <|im_start|>system
-        You are a helpful assistant.<|im_end|>
-        <|im_start|>user
-        What's in this image?<|vision_start|><|image_pad|><|vision_end|><|im_end|>
-        <|im_start|>assistant
+            <|im_start|>system
+            You are a helpful assistant.<|im_end|>
+            <|im_start|>user
+            What's in this image?<|vision_start|><|image_pad|><|vision_end|><|im_end|>
+            <|im_start|>assistant
 
-        """
+            """
         XCTAssertEqual(qwen2VLEncoded, qwen2_5VLEncoded, "Encoded sequences should be equal")
         XCTAssertEqual(qwen2VLDecoded, qwen2_5VLDecoded, "Decoded sequences should be equal")
         XCTAssertEqual(qwen2_5VLDecoded, expectedOutput, "Decoded sequence should match expected output")
