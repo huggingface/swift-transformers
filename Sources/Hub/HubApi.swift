@@ -891,7 +891,7 @@ public extension Hub {
     }
 }
 
-public extension [String] {
+private extension [String] {
     func matching(glob: String) -> [String] {
         filter { fnmatch(glob, $0, 0) == 0 }
     }
