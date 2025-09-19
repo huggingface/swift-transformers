@@ -15,7 +15,7 @@ import Foundation
 ///
 /// https://github.com/hollance/CoreMLHelpers
 ///
-public struct Math {
+public enum Math {
     /**
      Returns the index and value of the largest element in the array.
 
