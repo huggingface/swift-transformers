@@ -10,7 +10,7 @@ import XCTest
 
 class PreTokenizerTests: XCTestCase {
     func testWhitespacePreTokenizer() {
-        let preTokenizer = WhitespacePreTokenizer(config: Config([String: Config]()))
+        let preTokenizer = WhitespacePreTokenizer(config: Config())
 
         XCTAssertEqual(
             preTokenizer.preTokenize(text: "Hey friend!"),
@@ -27,7 +27,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testPunctuationPreTokenizer() {
-        let preTokenizer = PunctuationPreTokenizer(config: Config([String: Config]()))
+        let preTokenizer = PunctuationPreTokenizer(config: Config())
 
         XCTAssertEqual(
             preTokenizer.preTokenize(text: "Hey friend!"),
@@ -44,7 +44,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testByteLevelPreTokenizer() {
-        let preTokenizer1 = ByteLevelPreTokenizer(config: Config([String: Config]()))
+        let preTokenizer1 = ByteLevelPreTokenizer(config: Config())
 
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "Hey friend!"),
@@ -59,7 +59,7 @@ class PreTokenizerTests: XCTestCase {
             ["ĠĠ", "ĠHey", ",", "ĠĠĠ", "Ġfriend", ",", "ĠĠĠ", "Ġwhat", "'s", "Ġup", "?", "ĠĠ"]
         )
 
-        let preTokenizer2 = ByteLevelPreTokenizer(config: Config(["addPrefixSpace": true]))
+        let preTokenizer2 = ByteLevelPreTokenizer(config: Config(["addPrefixSpace": .boolean(true)]))
 
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "Hey friend!"),
@@ -74,7 +74,7 @@ class PreTokenizerTests: XCTestCase {
             ["ĠĠ", "ĠHey", "Ġ,", "ĠĠĠ", "Ġfriend", "Ġ,", "ĠĠĠ", "Ġwhat", "Ġ's", "Ġup", "Ġ?", "ĠĠ"]
         )
 
-        let preTokenizer3 = ByteLevelPreTokenizer(config: Config(["useRegex": false]))
+        let preTokenizer3 = ByteLevelPreTokenizer(config: Config(["useRegex": .boolean(false)]))
 
         XCTAssertEqual(
             preTokenizer3.preTokenize(text: "Hey friend!"),
@@ -91,14 +91,14 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testDigitsPreTokenizer() {
-        let preTokenizer1 = DigitsPreTokenizer(config: Config([String: Config]()))
+        let preTokenizer1 = DigitsPreTokenizer(config: Config())
 
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "1 12 123! 1234abc"),
             ["1", " ", "12", " ", "123", "! ", "1234", "abc"]
         )
 
-        let preTokenizer2 = DigitsPreTokenizer(config: Config(["individualDigits": true]))
+        let preTokenizer2 = DigitsPreTokenizer(config: Config(["individualDigits": .boolean(true)]))
 
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "1 12 123! 1234abc"),
@@ -107,7 +107,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testSplitPreTokenizer() {
-        let preTokenizer1 = SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
+        let preTokenizer1 = SplitPreTokenizer(config: Config(["pattern": .dictionary(Config(["String": .string(" ")]))]))
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "Hey friend!"),
             ["Hey", " ", "friend!"]
@@ -121,7 +121,7 @@ class PreTokenizerTests: XCTestCase {
             [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
-        let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
+        let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": .dictionary(Config(["Regex": .string("\\s")]))]))
         XCTAssertEqual(
             preTokenizer2.preTokenize(text: "Hey friend!"),
             ["Hey", " ", "friend!"]
@@ -135,7 +135,7 @@ class PreTokenizerTests: XCTestCase {
             [" ", " ", " ", "Hey,", " ", " ", " ", " ", "friend,", " ", " ", " ", " ", "what's", " ", "up?", " ", " "]
         )
 
-        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"], "invert": true]))
+        let preTokenizer3 = SplitPreTokenizer(config: Config(["pattern": .dictionary(Config(["Regex": .string("(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+")])), "invert": .boolean(true)]))
         XCTAssertEqual(
             preTokenizer3.preTokenize(text: "Hello"),
             ["Hello"]
@@ -155,13 +155,13 @@ class PreTokenizerTests: XCTestCase {
     func testMetaspacePreTokenizer() {
         // Prepend "always"
         let preTokenizer = MetaspacePreTokenizer(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
-            "prepend_scheme": "always",
+            "add_prefix_space": .boolean(true),
+            "replacement": .string(" "),
+            "prepend_scheme": .string("always"),
         ]))
 
         // TODO: different sections on <s>
-        let text = "Hey my friend <s>how▁are you"
+        let text = "Hey my friend <s>how are you"
         let tokens = text
             .split(by: "<s>", includeSeparators: true)
             .flatMap { preTokenizer.preTokenize(text: $0) }
@@ -173,7 +173,7 @@ class PreTokenizerTests: XCTestCase {
     }
 
     func testBertPreTokenizer() {
-        let preTokenizer1 = BertPreTokenizer(config: Config([String: Config]()))
+        let preTokenizer1 = BertPreTokenizer(config: Config())
         XCTAssertEqual(
             preTokenizer1.preTokenize(text: "Hey friend!"),
             ["Hey", "friend", "!"]

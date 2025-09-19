@@ -93,13 +93,14 @@ struct Whoami: AsyncParsableCommand, SubcommandWithToken {
     func run() async throws {
         let hubApi = HubApi(hfToken: hfToken)
         let userInfo = try await hubApi.whoami()
-        if let name = userInfo["name"].string(),
-           let fullname = userInfo["fullname"].string(),
-           let email = userInfo["email"].string()
+        if let name = userInfo["name"]?.string,
+           let fullname = userInfo["fullname"]?.string,
+           let email = userInfo["email"]?.string
         {
             print("\(name) (\(fullname) <\(email)>)")
         } else {
-            print("Cannot retrieve user info")
+            print("Could not retrieve user info. The response was:")
+            print(userInfo)
         }
     }
 }

@@ -106,18 +106,18 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         get async throws {
             if let hubConfig = try await configPromise.value.tokenizerConfig {
                 // Try to guess the class if it's not present and the modelType is
-                if hubConfig.tokenizerClass?.string() != nil { return hubConfig }
+                if hubConfig["tokenizer_class"]?.string != nil { return hubConfig }
                 guard let modelType = try await modelType else { return hubConfig }
 
                 // If the config exists but doesn't contain a tokenizerClass, use a fallback config if we have it
                 if let fallbackConfig = Self.fallbackTokenizerConfig(for: modelType) {
-                    let configuration = fallbackConfig.dictionary()?.merging(hubConfig.dictionary(or: [:]), strategy: { current, _ in current }) ?? [:]
+                    let configuration = fallbackConfig.properties.merging(hubConfig.properties, uniquingKeysWith: { current, _ in current })
                     return Config(configuration)
                 }
 
                 // Guess by capitalizing
-                var configuration = hubConfig.dictionary(or: [:])
-                configuration["tokenizer_class"] = .init("\(modelType.capitalized)Tokenizer")
+                var configuration = hubConfig.properties
+                configuration["tokenizer_class"] = .string(.init("\(modelType.capitalized)Tokenizer"))
                 return Config(configuration)
             }
 
@@ -135,7 +135,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
 
     public var modelType: String? {
         get async throws {
-            try await modelConfig.modelType.string()
+            try await modelConfig["model_type"]?.string
         }
     }
 
@@ -207,16 +207,16 @@ public final class LanguageModelConfigurationFromHub: Sendable {
                       let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
             {
                 // Fall back to .json template
-                chatTemplate = chatTemplateConfig.chatTemplate.string()
+                chatTemplate = chatTemplateConfig["chat_template"]?.string
             }
 
             if let chatTemplate {
                 // Create or update tokenizer config with chat template
-                if var configDict = tokenizerConfig?.dictionary() {
-                    configDict["chat_template"] = .init(chatTemplate)
+                if var configDict = tokenizerConfig?.properties {
+                    configDict["chat_template"] = .string(.init(chatTemplate))
                     tokenizerConfig = Config(configDict)
                 } else {
-                    tokenizerConfig = Config(["chat_template": chatTemplate])
+                    tokenizerConfig = ["chat_template": .string(chatTemplate)]
                 }
             }
 

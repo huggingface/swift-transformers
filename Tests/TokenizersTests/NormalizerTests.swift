@@ -18,12 +18,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = LowercaseNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.Lowercase.rawValue])
+        let config = Config(["type": .string(NormalizerType.Lowercase.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? LowercaseNormalizer)
     }
 
@@ -41,12 +41,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = NFDNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.NFD.rawValue])
+        let config = Config(["type": .string(NormalizerType.NFD.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFDNormalizer)
     }
 
@@ -64,12 +64,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = NFCNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.NFC.rawValue])
+        let config = Config(["type": .string(NormalizerType.NFC.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFCNormalizer)
     }
 
@@ -87,12 +87,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = NFKDNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.NFKD.rawValue])
+        let config = Config(["type": .string(NormalizerType.NFKD.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKDNormalizer)
     }
 
@@ -110,12 +110,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = NFKCNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.NFKC.rawValue])
+        let config = Config(["type": .string(NormalizerType.NFKC.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? NFKCNormalizer)
     }
 
@@ -125,7 +125,7 @@ class NormalizerTests: XCTestCase {
         ]
 
         // TODO: test combinations with/without lowercase
-        let config = Config(["stripAccents": true])
+        let config = Config(["stripAccents": .boolean(true)])
         let normalizer = BertNormalizer(config: config)
         for (arg, expect) in testCases {
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
@@ -146,12 +146,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config(["stripAccents": false])
+            let config = Config(["stripAccents": .boolean(false)])
             let normalizer = BertNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.Bert.rawValue])
+        let config = Config(["type": .string(NormalizerType.Bert.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? BertNormalizer)
     }
 
@@ -170,12 +170,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = BertNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.Bert.rawValue])
+        let config = Config(["type": .string(NormalizerType.Bert.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? BertNormalizer)
     }
 
@@ -195,12 +195,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = PrecompiledNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.Precompiled.rawValue])
+        let config = Config(["type": .string(NormalizerType.Precompiled.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? PrecompiledNormalizer)
     }
 
@@ -218,12 +218,12 @@ class NormalizerTests: XCTestCase {
         ]
 
         for (arg, expect) in testCases {
-            let config = Config([String: Config]())
+            let config = Config()
             let normalizer = StripAccentsNormalizer(config: config)
             XCTAssertEqual(normalizer.normalize(text: arg), expect)
         }
 
-        let config = Config(["type": NormalizerType.StripAccents.rawValue])
+        let config = Config(["type": .string(NormalizerType.StripAccents.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? StripAccentsNormalizer)
     }
 
@@ -240,9 +240,9 @@ class NormalizerTests: XCTestCase {
 
         for (input, expected, leftStrip, rightStrip) in testCases {
             let config = Config([
-                "type": NormalizerType.Strip.rawValue,
-                "stripLeft": leftStrip,
-                "stripRight": rightStrip,
+                "type": .string(NormalizerType.Strip.rawValue),
+                "stripLeft": .boolean(leftStrip),
+                "stripRight": .boolean(rightStrip),
             ])
             let normalizer = StripNormalizer(config: config)
             XCTAssertEqual(
@@ -251,7 +251,7 @@ class NormalizerTests: XCTestCase {
             )
         }
 
-        let config = Config(["type": NormalizerType.Strip.rawValue])
+        let config = Config(["type": .string(NormalizerType.Strip.rawValue)])
         XCTAssertNotNil(NormalizerFactory.fromConfig(config: config) as? StripNormalizer)
     }
 }

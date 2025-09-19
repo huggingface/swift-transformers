@@ -37,23 +37,23 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
     private let trie: Trie<Character>
 
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard let configVocab = tokenizerData.model.vocab.array() else {
+        guard let configVocab = tokenizerData["model"]?.dictionary?["vocab"]?.array else {
             throw TokenizerError.missingVocab
         }
 
         vocab = try configVocab.map { piece in
-            let tuple = piece.array(or: [])
+            let tuple = piece.array ?? []
 
-            guard let token = tuple.first?.string(),
+            guard let token = tuple.first?.string,
                   let scoreValue = tuple.last
             else {
                 throw TokenizerError.malformedVocab
             }
 
             let score: Float
-            if let floatScore = scoreValue.floating() {
+            if let floatScore = scoreValue.floating {
                 score = floatScore
-            } else if let numberScore = scoreValue.integer() {
+            } else if let numberScore = scoreValue.integer {
                 score = Float(numberScore)
 
             } else {
@@ -67,14 +67,14 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
             min(partial, token.score)
         }
 
-        guard let unknownTokenId = tokenizerData.model["unkId"].integer() else { throw TokenizerError.malformedVocab }
+        guard let unknownTokenId = tokenizerData["model"]?.dictionary?["unk_id"]?.integer else { throw TokenizerError.malformedVocab }
         self.unknownTokenId = unknownTokenId
         unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
 
         tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token as NSString }.enumerated().map { ($1, $0) })
         bosTokenId = tokensToIds[bosToken! as NSString] // May be nil
 
-        eosToken = tokenizerConfig.eosToken.string()
+        eosToken = tokenizerConfig["eos_token"]?.string
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
         trie = Trie()

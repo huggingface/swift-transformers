@@ -32,7 +32,7 @@ enum PostProcessorType: String {
 struct PostProcessorFactory {
     static func fromConfig(config: Config?) -> PostProcessor? {
         guard let config else { return nil }
-        guard let typeName = config.type.string() else { return nil }
+        guard let typeName = config.properties["type"]?.string else { return nil }
         let type = PostProcessorType(rawValue: typeName)
         switch type {
         case .TemplateProcessing: return TemplateProcessing(config: config)
@@ -46,12 +46,12 @@ struct PostProcessorFactory {
 }
 
 class TemplateProcessing: PostProcessor {
-    let single: [Config]
-    let pair: [Config]
+    let single: [Config.Value]
+    let pair: [Config.Value]
 
     required init(config: Config) {
-        guard let single = config.single.array() else { fatalError("Missing `single` processor configuration") }
-        guard let pair = config.pair.array() else { fatalError("Missing `pair` processor configuration") }
+        guard let single = config.properties["single"]?.array else { fatalError("Missing `single` processor configuration") }
+        guard let pair = config.properties["pair"]?.array else { fatalError("Missing `pair` processor configuration") }
 
         self.single = single
         self.pair = pair
@@ -62,13 +62,13 @@ class TemplateProcessing: PostProcessor {
 
         var toReturn: [String] = []
         for item in config {
-            if let id = item.SpecialToken.id.string() {
+            if let id = item.dictionary?.properties["SpecialToken"]?.dictionary?.properties["id"]?.string {
                 if addSpecialTokens {
                     toReturn.append(id)
                 }
-            } else if item.Sequence.id.string() == "A" {
+            } else if item.dictionary?.properties["Sequence"]?.dictionary?.properties["id"]?.string == "A" {
                 toReturn += tokens
-            } else if item.Sequence.id.string() == "B" {
+            } else if item.dictionary?.properties["Sequence"]?.dictionary?.properties["id"]?.string == "B" {
                 toReturn += tokensPair!
             }
         }
@@ -90,12 +90,12 @@ class RobertaProcessing: PostProcessor {
     private let addPrefixSpace: Bool
 
     required init(config: Config) {
-        guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
-        guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
+        guard let sep = config.properties["sep"]?.token else { fatalError("Missing `sep` processor configuration") }
+        guard let cls = config.properties["cls"]?.token else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
-        trimOffset = config.trimOffset.boolean(or: true)
-        addPrefixSpace = config.addPrefixSpace.boolean(or: true)
+        trimOffset = config.properties["trimOffset"]?.boolean(or: true) ?? true
+        addPrefixSpace = config.properties["addPrefixSpace"]?.boolean(or: true) ?? true
     }
 
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
@@ -147,8 +147,8 @@ class BertProcessing: PostProcessor {
     private let cls: (UInt, String)
 
     required init(config: Config) {
-        guard let sep = config.sep.token() else { fatalError("Missing `sep` processor configuration") }
-        guard let cls = config.cls.token() else { fatalError("Missing `cls` processor configuration") }
+        guard let sep = config.properties["sep"]?.token else { fatalError("Missing `sep` processor configuration") }
+        guard let cls = config.properties["cls"]?.token else { fatalError("Missing `cls` processor configuration") }
         self.sep = sep
         self.cls = cls
     }
@@ -169,7 +169,7 @@ class SequenceProcessing: PostProcessor {
     private let processors: [PostProcessor]
 
     required init(config: Config) {
-        guard let processorConfigs = config.processors.array() else {
+        guard let processorConfigs = config.properties["processors"]?.array?.compactMap(\.dictionary) else {
             fatalError("Missing `processors` configuration")
         }
 

@@ -10,16 +10,16 @@ import Foundation
 import Hub
 
 struct BytePair: Hashable {
-    let a: String
-    let b: String
+    let a: NSString
+    let b: NSString
     init(_ a: String, _ b: String) {
-        self.a = a
-        self.b = b
+        self.a = a as NSString
+        self.b = b as NSString
     }
 
     init(tuple: [String]) {
-        a = tuple[0]
-        b = tuple[1]
+        a = tuple[0] as NSString
+        b = tuple[1] as NSString
     }
 
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
@@ -48,15 +48,15 @@ class BPETokenizer: PreTrainedTokenizerModel {
 
     let fuseUnknownTokens: Bool
 
-    static func mergesFromConfig(_ config: Config?) -> [[String]]? {
+    static func mergesFromConfig(_ config: Config.Value?) -> [[String]]? {
         guard let config else { return nil }
 
-        if let merges = config.array() {
+        if let merges = config.array {
             return merges.reduce(into: [[String]]()) { result, element in
-                if let val: [String] = element.get() { // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
+                if let val = element.array?.compactMap({ $0.string }) { // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
                     result.append(val)
                 }
-                if let val: String = element.get() { // legacy
+                if let val = element.string { // legacy
                     result.append(val.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) })
                 }
             }
@@ -66,8 +66,8 @@ class BPETokenizer: PreTrainedTokenizerModel {
     }
 
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard let merges = Self.mergesFromConfig(tokenizerData.model.merges) else { fatalError("BPETokenizer requires merges") }
-        guard let vocab = tokenizerData.model.vocab.dictionary() else {
+        guard let merges = Self.mergesFromConfig(tokenizerData.model?.merges) else { fatalError("BPETokenizer requires merges") }
+        guard let vocab = tokenizerData.model?.vocab?.dictionary else {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: [BytePair: Int] = [:]
@@ -77,11 +77,9 @@ class BPETokenizer: PreTrainedTokenizerModel {
         }
         self.bpeRanks = bpeRanks
 
-        let addedTokens = addedTokens.reduce(into: [BinaryDistinctString: Config]()) { result, element in
-            result[BinaryDistinctString(element.key)] = .init(element.value)
-        }
-        tokensToIds = vocab.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
-            result[element.key.nsString] = element.value.integer()
+        let addedTokens = Dictionary(uniqueKeysWithValues: addedTokens.map { (Config.Key($0.key), Config.Value.integer($0.value)) })
+        tokensToIds = vocab.properties.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
+            result[element.key.value as NSString] = element.value.integer ?? 0
         }
 
         idsToTokens = Utils.invert(tokensToIds)
@@ -95,13 +93,13 @@ class BPETokenizer: PreTrainedTokenizerModel {
             unknownTokenId = nil
         }
 
-        eosToken = addedTokenAsString(tokenizerConfig.eosToken)
+        eosToken = addedTokenAsString(tokenizerConfig.eosToken?.dictionary)
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
-        bosToken = addedTokenAsString(tokenizerConfig.bosToken)
+        bosToken = addedTokenAsString(tokenizerConfig.bosToken?.dictionary)
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
-        fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
+        fuseUnknownTokens = tokenizerConfig.fuseUnk?.boolean ?? false
     }
 
     func convertTokenToId(_ token: String) -> Int? {
@@ -156,8 +154,8 @@ class BPETokenizer: PreTrainedTokenizerModel {
             let bigram = bigrams.min { bp1, bp2 -> Bool in
                 return bpeRanks[bp1]! < bpeRanks[bp2]!
             }!
-            let first = bigram.a
-            let second = bigram.b
+            let first = bigram.a as String
+            let second = bigram.b as String
             var newWord: [String] = []
             var i = 0
             while i < word.count {
