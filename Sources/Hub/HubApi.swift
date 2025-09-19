@@ -956,8 +956,10 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
                         if let resolvedUrl = components.url {
                             var newRequest = URLRequest(url: resolvedUrl)
                             // Copy headers from original request
-                            task.originalRequest?.allHTTPHeaderFields?.forEach { key, value in
-                                newRequest.setValue(value, forHTTPHeaderField: key)
+                            if let headers = task.originalRequest?.allHTTPHeaderFields {
+                                for (key, value) in headers {
+                                    newRequest.setValue(value, forHTTPHeaderField: key)
+                                }
                             }
                             newRequest.setValue(resolvedUrl.absoluteString, forHTTPHeaderField: "Location")
                             completionHandler(newRequest)
