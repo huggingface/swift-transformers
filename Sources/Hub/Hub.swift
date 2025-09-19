@@ -240,6 +240,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
     }
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
+        // Fallback tokenizer configuration files are located in the `Sources/Hub/Resources` directory
         guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else {
             return nil
         }
