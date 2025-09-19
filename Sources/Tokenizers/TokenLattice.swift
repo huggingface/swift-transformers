@@ -98,8 +98,7 @@ extension TokenLattice {
 
     /// Returns the substring of the sentence to be tokenized associated to the specified node
     ///
-    /// - Parameters:
-    ///     - node: The node defining the token to be extracted
+    /// - Parameter node: The node defining the token to be extracted
     ///
     /// - Returns: A **Substring** – i.e., a reference to the original positions, not a copy of the characters.
     func piece(_ node: TokenLatticeNode) -> any StringProtocol {
