@@ -298,8 +298,8 @@ public class PreTrainedTokenizer: Tokenizer {
         var addedTokens: [String: Int] = [:]
         var specialTokens: [String: Int] = [:]
         for addedToken in tokenizerData["addedTokens"].array(or: []) {
-            guard let id = addedToken["id"].integer() else { continue /* malformed: token with no id */ }
-            guard let content = addedToken.content.string() else { continue /* malformed: token with no content */ }
+            guard let id = addedToken["id"].integer() else { continue } // malformed: token with no id
+            guard let content = addedToken.content.string() else { continue } // malformed: token with no content
             addedTokens[content] = id
 
             if addedToken["special"].boolean(or: false) {
@@ -556,11 +556,9 @@ public class PreTrainedTokenizer: Tokenizer {
             context["tools"] = tools
         }
         if let additionalContext {
-            /*
-             Additional keys and values to be added to the context provided to the prompt templating engine.
-             For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
-             The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
-             */
+            // Additional keys and values to be added to the context provided to the prompt templating engine.
+            // For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
+            // The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
             for (key, value) in additionalContext {
                 context[key] = value
             }
