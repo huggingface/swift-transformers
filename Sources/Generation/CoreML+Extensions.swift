@@ -1,5 +1,5 @@
 //
-//  MLMultiArray+Utils.swift
+//  CoreML+Extensions.swift
 //  CoreMLBert
 //
 //  Created by Julien Chaumond on 27/06/2019.
@@ -10,7 +10,7 @@
 import CoreML
 import Foundation
 
-public extension MLMultiArray {
+extension MLMultiArray {
     /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
     static func from(_ arr: [Int], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
@@ -88,7 +88,7 @@ public extension MLMultiArray {
     }
 }
 
-public extension MLMultiArray {
+extension MLMultiArray {
     /// Provides a way to index n-dimensionals arrays a la numpy.
     enum Indexing: Equatable {
         case select(Int)
@@ -195,6 +195,50 @@ extension MLMultiArray {
             s += " "
         }
         return s + "]"
+    }
+}
+
+extension MLShapedArray<Float> {
+    var floats: [Float] {
+        guard strides.first == 1, strides.count == 1 else {
+            // For some reason this path is slow.
+            // If strides is not 1, we can write a Metal kernel to copy the values properly.
+            return scalars
+        }
+
+        // Fast path: memcpy
+        let mlArray = MLMultiArray(self)
+        return mlArray.floats ?? scalars
+    }
+}
+
+extension MLShapedArraySlice<Float> {
+    var floats: [Float] {
+        guard strides.first == 1, strides.count == 1 else {
+            // For some reason this path is slow.
+            // If strides is not 1, we can write a Metal kernel to copy the values properly.
+            return scalars
+        }
+
+        // Fast path: memcpy
+        let mlArray = MLMultiArray(self)
+        return mlArray.floats ?? scalars
+    }
+}
+
+extension MLMultiArray {
+    var floats: [Float]? {
+        guard dataType == .float32 else { return nil }
+
+        var result: [Float] = Array(repeating: 0, count: count)
+        return withUnsafeBytes { ptr in
+            guard let source = ptr.baseAddress else { return nil }
+            result.withUnsafeMutableBytes { resultPtr in
+                let dest = resultPtr.baseAddress!
+                memcpy(dest, source, self.count * MemoryLayout<Float>.stride)
+            }
+            return result
+        }
     }
 }
 #endif // canImport(CoreML)
