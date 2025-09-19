@@ -298,9 +298,7 @@ public extension HubApi {
     ///
     /// Reference: https://github.com/huggingface/huggingface_hub/blob/b2c9a148d465b43ab90fab6e4ebcbbf5a9df27d4/src/huggingface_hub/_local_folder.py#L263
     ///
-    /// - Parameters:
-    ///   - localDir: The local directory where metadata files are downloaded.
-    ///   - filePath: The path of the file for which metadata is being read.
+    /// - Parameter metadataPath: The path of the metadata file to read.
     /// - Throws: An `EnvironmentError.invalidMetadataError` if the metadata file is invalid and cannot be removed.
     /// - Returns: A `LocalDownloadFileMetadata` object if the metadata file exists and is valid, or `nil` if the file is missing or invalid.
     func readDownloadMetadata(metadataPath: URL) throws -> LocalDownloadFileMetadata? {
