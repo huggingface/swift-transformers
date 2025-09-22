@@ -435,7 +435,7 @@ struct ConfigTests {
             """
 
         let got = try Template(template).render([
-            "config": cfg.toJinjaCompatible()
+            "config": cfg.jinjaValue()
         ])
 
         #expect(got == exp)
