@@ -19,7 +19,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "Generation", dependencies: ["Tokenizers"]),
-        .target(name: "Hub", resources: [.process("Resources")], swiftSettings: swiftSettings),
+        .target(name: "Hub", dependencies: [.product(name: "Jinja", package: "swift-jinja")], resources: [.process("Resources")], swiftSettings: swiftSettings),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
         .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")]),
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
