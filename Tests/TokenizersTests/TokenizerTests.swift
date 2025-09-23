@@ -93,9 +93,9 @@ struct ModelSpec: Sendable, CustomStringConvertible {
 
 // MARK: -
 
-@Suite("Tokenizer Tests", .serialized)
+@Suite("Tokenizer Tests")
 struct TokenizerTests {
-    @Test(.serialized, arguments: [
+    @Test(arguments: [
         ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
         ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
         ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
