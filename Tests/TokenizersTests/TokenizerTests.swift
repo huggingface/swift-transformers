@@ -6,284 +6,23 @@
 //  Copyright © 2023 Hugging Face. All rights reserved.
 //
 
-import Hub
+import Foundation
+import Testing
+
+@testable import Hub
 @testable import Models
 @testable import Tokenizers
-import XCTest
 
-class GPT2TokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "distilgpt2" }
-    override class var encodedSamplesFilename: String? { "gpt2_encoded_tokens" }
-    override class var unknownTokenId: Int? { 50256 }
-}
+private let downloadDestination: URL = {
+    let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+    return base.appending(component: "huggingface-tests")
+}()
 
-class FalconTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "tiiuae/falcon-7b" }
-    override class var encodedSamplesFilename: String? { "falcon_encoded" }
-    override class var unknownTokenId: Int? { nil }
-}
+private let hubApiForTests = HubApi(downloadBase: downloadDestination)
 
-class LlamaTokenizerTests: TokenizerTests {
-    // meta-llama/Llama-2-7b-chat requires approval, and hf-internal-testing/llama-tokenizer does not have a config.json
-    override class var hubModelName: String? { "coreml-projects/Llama-2-7b-chat-coreml" }
-    override class var encodedSamplesFilename: String? { "llama_encoded" }
-    override class var unknownTokenId: Int? { 0 }
+private enum TestError: Error { case unsupportedTokenizer }
 
-    func testHexaEncode() async {
-        if let tester = Self._tester {
-            let tokenized = await tester.tokenizer?.tokenize(text: "\n")
-            XCTAssertEqual(tokenized, ["▁", "<0x0A>"])
-        }
-    }
-}
-
-class Llama32TokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "pcuenq/Llama-3.2-1B-Instruct-tokenizer" }
-    override class var encodedSamplesFilename: String? { "llama_3.2_encoded" }
-}
-
-class WhisperLargeTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "openai/whisper-large-v2" }
-    override class var encodedSamplesFilename: String? { "whisper_large_v2_encoded" }
-    override class var unknownTokenId: Int? { 50257 }
-}
-
-class WhisperTinyTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "openai/whisper-tiny.en" }
-    override class var encodedSamplesFilename: String? { "whisper_tiny_en_encoded" }
-    override class var unknownTokenId: Int? { 50256 }
-}
-
-class T5TokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "t5-base" }
-    override class var encodedSamplesFilename: String? { "t5_base_encoded" }
-    override class var unknownTokenId: Int? { 2 }
-}
-
-class BertCasedTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "distilbert/distilbert-base-multilingual-cased" }
-    override class var encodedSamplesFilename: String? { "distilbert_cased_encoded" }
-    override class var unknownTokenId: Int? { 100 }
-}
-
-class BertUncasedTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "google-bert/bert-base-uncased" }
-    override class var encodedSamplesFilename: String? { "bert_uncased_encoded" }
-    override class var unknownTokenId: Int? { 100 }
-}
-
-class GemmaTokenizerTests: TokenizerTests {
-    override class var hubModelName: String? { "pcuenq/gemma-tokenizer" }
-    override class var encodedSamplesFilename: String? { "gemma_encoded" }
-    override class var unknownTokenId: Int? { 3 }
-}
-
-class GemmaUnicodeTests: XCTestCase {
-    func testGemmaUnicode() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        // These are two different characters
-        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
-        let expected = [217138, 1305]
-        for (s, expected) in zip(cases, expected) {
-            let encoded = tokenizer.encode(text: " " + s)
-            XCTAssertEqual(encoded, [2, expected])
-        }
-
-        // Keys that start with BOM sequence
-        // https://github.com/huggingface/swift-transformers/issues/88
-        // https://github.com/ml-explore/mlx-swift-examples/issues/50#issuecomment-2046592213
-        XCTAssertEqual(tokenizer.convertIdToToken(122661), "\u{feff}#")
-        XCTAssertEqual(tokenizer.convertIdToToken(235345), "#")
-
-        // Verifies all expected entries are parsed
-        XCTAssertEqual((tokenizer.model as? BPETokenizer)?.vocabCount, 256_000)
-    }
-}
-
-class PhiSimpleTests: XCTestCase {
-    func testPhi4() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "microsoft/phi-4") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        XCTAssertEqual(tokenizer.encode(text: "hello"), [15339])
-        XCTAssertEqual(tokenizer.encode(text: "hello world"), [15339, 1917])
-        XCTAssertEqual(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>"), [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
-    }
-
-    /// https://github.com/huggingface/swift-transformers/issues/96
-    func testLegacyLlamaBehaviour() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-4k-instruct-4bit-no-q-embed") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        let inputIds = tokenizer(" Hi")
-        XCTAssertEqual(inputIds, [1, 29871, 6324])
-    }
-}
-
-class RobertaTokenizerTests: XCTestCase {
-    /// https://github.com/huggingface/swift-transformers/issues/99
-    func testRobertaXLMTokenizer() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "intfloat/multilingual-e5-small") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        let ids = tokenizer.encode(text: "query: how much protein should a female eat")
-        let expected = [0, 41, 1294, 12, 3642, 5045, 21308, 5608, 10, 117776, 73203, 2]
-        XCTAssertEqual(ids, expected)
-    }
-}
-
-class UnregisteredTokenizerTests: XCTestCase {
-    func testNllbTokenizer() async throws {
-        do {
-            _ = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M")
-            XCTFail("Expected AutoTokenizer.from to throw for strict mode")
-        } catch {
-            // Expected to throw in normal (strict) mode
-        }
-
-        // no strict mode proceeds
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", strict: false) as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        let ids = tokenizer.encode(text: "Why did the chicken cross the road?")
-        let expected = [256047, 24185, 4077, 349, 1001, 22690, 83580, 349, 82801, 248130, 2]
-        XCTAssertEqual(ids, expected)
-    }
-}
-
-class LlamaPostProcessorOverrideTests: XCTestCase {
-    /// Deepseek needs a post-processor override to add a bos token as in the reference implementation
-    func testDeepSeek() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [151646, 15191, 525, 498, 30])
-    }
-
-    /// Some Llama tokenizers already use a bos-prepending Template post-processor
-    func testLlama() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "coreml-projects/Llama-2-7b-chat-coreml") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [1, 11644, 526, 366, 29973])
-    }
-}
-
-class LocalFromPretrainedTests: XCTestCase {
-    func testLocalTokenizerFromPretrained() async throws {
-        let downloadDestination: URL = {
-            let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            return base.appending(component: "hf-local-pretrained-tests-downloads")
-        }()
-
-        let hubApi = HubApi(downloadBase: downloadDestination)
-        let downloadedTo = try await hubApi.snapshot(from: "pcuenq/gemma-tokenizer")
-
-        let tokenizer = try await AutoTokenizer.from(modelFolder: downloadedTo) as? PreTrainedTokenizer
-        XCTAssertNotNil(tokenizer)
-
-        try FileManager.default.removeItem(at: downloadDestination)
-    }
-}
-
-class BertDiacriticsTests: XCTestCase {
-    func testBertCased() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
-        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["Car"])
-    }
-
-    func testBertCasedResaved() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 181, 102075, 10113, 102])
-    }
-
-    func testBertUncased() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["ma", "##ka"])
-        XCTAssertEqual(tokenizer.encode(text: "mąka"), [101, 5003, 2912, 102])
-        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["depart", "##ement"])
-        XCTAssertEqual(tokenizer.encode(text: "département"), [101, 18280, 13665, 102])
-        XCTAssertEqual(tokenizer.tokenize(text: "Car"), ["car"])
-
-        XCTAssertEqual(tokenizer.tokenize(text: "€4"), ["€", "##4"])
-        XCTAssertEqual(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test"), ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
-    }
-}
-
-class BertSpacesTests: XCTestCase {
-    func testEncodeDecode() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        let text = "l'eure"
-        let tokenized = tokenizer.tokenize(text: text)
-        XCTAssertEqual(tokenized, ["l", "'", "eu", "##re"])
-        let encoded = tokenizer.encode(text: text)
-        XCTAssertEqual(encoded, [101, 1048, 1005, 7327, 2890, 102])
-        let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
-        // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
-        XCTAssertEqual(decoded, "l'eure")
-    }
-}
-
-class RobertaTests: XCTestCase {
-    func testEncodeDecode() async throws {
-        guard let tokenizer = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer else {
-            XCTFail()
-            return
-        }
-
-        XCTAssertEqual(tokenizer.tokenize(text: "l'eure"), ["l", "'", "e", "ure"])
-        XCTAssertEqual(tokenizer.encode(text: "l'eure"), [0, 462, 108, 242, 2407, 2])
-        XCTAssertEqual(tokenizer.decode(tokens: tokenizer.encode(text: "l'eure"), skipSpecialTokens: true), "l'eure")
-
-        XCTAssertEqual(tokenizer.tokenize(text: "mąka"), ["m", "Ä", "ħ", "ka"])
-        XCTAssertEqual(tokenizer.encode(text: "mąka"), [0, 119, 649, 5782, 2348, 2])
-
-        XCTAssertEqual(tokenizer.tokenize(text: "département"), ["d", "Ã©", "part", "ement"])
-        XCTAssertEqual(tokenizer.encode(text: "département"), [0, 417, 1140, 7755, 6285, 2])
-
-        XCTAssertEqual(tokenizer.tokenize(text: "Who are you?"), ["Who", "Ġare", "Ġyou", "?"])
-        XCTAssertEqual(tokenizer.encode(text: "Who are you?"), [0, 12375, 32, 47, 116, 2])
-
-        XCTAssertEqual(tokenizer.tokenize(text: " Who are you? "), ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"])
-        XCTAssertEqual(tokenizer.encode(text: " Who are you? "), [0, 3394, 32, 47, 116, 1437, 2])
-
-        XCTAssertEqual(tokenizer.tokenize(text: "<s>Who are you?</s>"), ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
-        XCTAssertEqual(tokenizer.encode(text: "<s>Who are you?</s>"), [0, 0, 12375, 32, 47, 116, 2, 2])
-    }
-}
-
-struct EncodedTokenizerSamplesDataset: Decodable {
+private struct Dataset: Decodable {
     let text: String
     // Bad naming, not just for bpe.
     // We are going to replace this testing method anyway.
@@ -292,206 +31,299 @@ struct EncodedTokenizerSamplesDataset: Decodable {
     let decoded_text: String
 }
 
-typealias EdgeCasesDataset = [String: [EdgeCase]]
+private func loadDataset(filename: String) throws -> Dataset {
+    let url = Bundle.module.url(forResource: filename, withExtension: "json")!
+    let json = try Data(contentsOf: url)
+    let decoder = JSONDecoder()
+    return try decoder.decode(Dataset.self, from: json)
+}
 
-struct EdgeCase: Decodable {
+private struct EdgeCase: Decodable {
     let input: String
+
+    struct EncodedData: Decodable {
+        let input_ids: [Int]
+        let token_type_ids: [Int]?
+        let attention_mask: [Int]
+    }
+
     let encoded: EncodedData
     let decoded_with_special: String
     let decoded_without_special: String
 }
 
-struct EncodedData: Decodable {
-    let input_ids: [Int]
-    let token_type_ids: [Int]?
-    let attention_mask: [Int]
+private func loadEdgeCases(for hubModelName: String) throws -> [EdgeCase]? {
+    let url = Bundle.module.url(forResource: "tokenizer_tests", withExtension: "json")!
+    let json = try Data(contentsOf: url)
+    let decoder = JSONDecoder()
+    let cases = try decoder.decode([String: [EdgeCase]].self, from: json)
+    return cases[hubModelName]
 }
 
-class TokenizerTester {
+private func makeTokenizer(hubModelName: String, hubApi: HubApi) async throws -> PreTrainedTokenizer {
+    let config = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
+    guard let tokenizerConfig = try await config.tokenizerConfig else {
+        throw TokenizerError.tokenizerConfigNotFound
+    }
+    let tokenizerData = try await config.tokenizerData
+    let tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+    guard let pretrained = tokenizer as? PreTrainedTokenizer else {
+        throw TestError.unsupportedTokenizer
+    }
+    return pretrained
+}
+
+// MARK: -
+
+struct ModelSpec: Sendable, CustomStringConvertible {
+    let hubModelName: String
     let encodedSamplesFilename: String
     let unknownTokenId: Int?
 
-    private var configuration: LanguageModelConfigurationFromHub?
-    private var edgeCases: [EdgeCase]?
-    private var _tokenizer: Tokenizer?
+    var description: String {
+        hubModelName
+    }
 
-    init(hubModelName: String, encodedSamplesFilename: String, unknownTokenId: Int?, hubApi: HubApi) {
-        configuration = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
+    init(_ hubModelName: String, _ encodedSamplesFilename: String, _ unknownTokenId: Int? = nil) {
+        self.hubModelName = hubModelName
         self.encodedSamplesFilename = encodedSamplesFilename
         self.unknownTokenId = unknownTokenId
-
-        // Read the edge cases dataset
-        edgeCases = {
-            let url = Bundle.module.url(forResource: "tokenizer_tests", withExtension: "json")!
-            let json = try! Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            let cases = try! decoder.decode(EdgeCasesDataset.self, from: json)
-            // Return the ones for this model
-            return cases[hubModelName]
-        }()
-    }
-
-    lazy var dataset: EncodedTokenizerSamplesDataset = {
-        let url = Bundle.module.url(forResource: encodedSamplesFilename, withExtension: "json")!
-        let json = try! Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        let dataset = try! decoder.decode(EncodedTokenizerSamplesDataset.self, from: json)
-        return dataset
-    }()
-
-    var tokenizer: Tokenizer? {
-        get async {
-            guard _tokenizer == nil else { return _tokenizer! }
-            do {
-                guard let tokenizerConfig = try await configuration!.tokenizerConfig else {
-                    throw TokenizerError.tokenizerConfigNotFound
-                }
-                let tokenizerData = try await configuration!.tokenizerData
-                _tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
-            } catch {
-                XCTFail("Cannot load tokenizer: \(error)")
-            }
-            return _tokenizer
-        }
-    }
-
-    var tokenizerModel: TokenizingModel? {
-        get async {
-            // The model is not usually accessible; maybe it should
-            guard let tokenizer = await tokenizer else { return nil }
-            return (tokenizer as! PreTrainedTokenizer).model
-        }
-    }
-
-    func testTokenize() async {
-        let tokenized = await tokenizer?.tokenize(text: dataset.text)
-        XCTAssertEqual(
-            tokenized,
-            dataset.bpe_tokens
-        )
-    }
-
-    func testEncode() async {
-        let encoded = await tokenizer?.encode(text: dataset.text)
-        XCTAssertEqual(
-            encoded,
-            dataset.token_ids
-        )
-    }
-
-    func testDecode() async {
-        let decoded = await tokenizer?.decode(tokens: dataset.token_ids)
-        XCTAssertEqual(
-            decoded,
-            dataset.decoded_text
-        )
-    }
-
-    /// Test encode and decode for a few edge cases
-    func testEdgeCases() async {
-        guard let edgeCases else {
-            print("Edge cases test ignored")
-            return
-        }
-        guard let tokenizer = await tokenizer else { return }
-        for edgeCase in edgeCases {
-            print("Testing \(edgeCase.input)")
-            XCTAssertEqual(
-                tokenizer.encode(text: edgeCase.input),
-                edgeCase.encoded.input_ids
-            )
-            XCTAssertEqual(
-                tokenizer.decode(tokens: edgeCase.encoded.input_ids),
-                edgeCase.decoded_with_special
-            )
-            XCTAssertEqual(
-                tokenizer.decode(tokens: edgeCase.encoded.input_ids, skipSpecialTokens: true),
-                edgeCase.decoded_without_special
-            )
-        }
-    }
-
-    func testUnknownToken() async {
-        guard let model = await tokenizerModel else { return }
-        XCTAssertEqual(model.unknownTokenId, unknownTokenId)
-        XCTAssertEqual(
-            model.unknownTokenId,
-            model.convertTokenToId("_this_token_does_not_exist_")
-        )
-        if let unknownTokenId = model.unknownTokenId {
-            XCTAssertEqual(
-                model.unknownToken,
-                model.convertIdToToken(unknownTokenId)
-            )
-        } else {
-            XCTAssertNil(model.unknownTokenId)
-        }
     }
 }
 
-class TokenizerTests: XCTestCase {
-    /// Parallel testing in Xcode (when enabled) uses different processes, so this shouldn't be a problem
-    static var _tester: TokenizerTester?
+// MARK: -
 
-    class var hubModelName: String? { nil }
-    class var encodedSamplesFilename: String? { nil }
+@Suite("Tokenizer Tests")
+struct TokenizerTests {
+    @Test(arguments: [
+        ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
+        ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
+        ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
+        ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
+        ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
+        ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
+        ModelSpec("t5-base", "t5_base_encoded", 2),
+        ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
+    ])
+    func tokenizer(spec: ModelSpec) async throws {
+        let tokenizer = try await makeTokenizer(hubModelName: spec.hubModelName, hubApi: hubApiForTests)
+        let dataset = try loadDataset(filename: spec.encodedSamplesFilename)
 
-    /// Known id retrieved from Python, to verify it was parsed correctly
-    class var unknownTokenId: Int? { nil }
+        #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
+        #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
+        #expect(tokenizer.decode(tokens: dataset.token_ids) == dataset.decoded_text)
 
-    static var downloadDestination: URL = {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        return base.appending(component: "huggingface-tests")
-    }()
+        // Edge cases (if available)
+        if let edgeCases = try? loadEdgeCases(for: spec.hubModelName) {
+            for edgeCase in edgeCases {
+                #expect(tokenizer.encode(text: edgeCase.input) == edgeCase.encoded.input_ids)
+                #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids) == edgeCase.decoded_with_special)
+                #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids, skipSpecialTokens: true) == edgeCase.decoded_without_special)
+            }
+        }
 
-    class var hubApi: HubApi { HubApi(downloadBase: downloadDestination) }
-
-    override class func setUp() {
-        if let hubModelName, let encodedSamplesFilename {
-            _tester = TokenizerTester(
-                hubModelName: hubModelName,
-                encodedSamplesFilename: encodedSamplesFilename,
-                unknownTokenId: unknownTokenId,
-                hubApi: hubApi
-            )
+        // Unknown token checks
+        let model = tokenizer.model
+        #expect(model.unknownTokenId == spec.unknownTokenId)
+        #expect(model.unknownTokenId == model.convertTokenToId("_this_token_does_not_exist_"))
+        if let unknownTokenId = model.unknownTokenId {
+            #expect(model.unknownToken == model.convertIdToToken(unknownTokenId))
+        } else {
+            #expect(model.unknownTokenId == nil)
         }
     }
 
-    override class func tearDown() {
+    @Test
+    func gemmaUnicode() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        // These are two different characters
+        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */ ]
+        let expected = [217138, 1305]
+        for (s, expected) in zip(cases, expected) {
+            let encoded = tokenizer.encode(text: " " + s)
+            #expect(encoded == [2, expected])
+        }
+
+        // Keys that start with BOM sequence
+        // https://github.com/huggingface/swift-transformers/issues/88
+        // https://github.com/ml-explore/mlx-swift-examples/issues/50#issuecomment-2046592213
+        #expect(tokenizer.convertIdToToken(122661) == "\u{feff}#")
+        #expect(tokenizer.convertIdToToken(235345) == "#")
+
+        // Verifies all expected entries are parsed
+        #expect((tokenizer.model as? BPETokenizer)?.vocabCount == 256_000)
+
+        // Test added tokens
+        let inputIds = tokenizer("This\n\nis\na\ntest.")
+        #expect(inputIds == [2, 1596, 109, 502, 108, 235250, 108, 2195, 235265])
+        let decoded = tokenizer.decode(tokens: inputIds)
+        #expect(decoded == "<bos>This\n\nis\na\ntest.")
+    }
+
+    @Test
+    func phi4() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "microsoft/phi-4") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "hello") == [15339])
+        #expect(tokenizer.encode(text: "hello world") == [15339, 1917])
+        #expect(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>") == [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
+    }
+
+    /// https://github.com/huggingface/swift-transformers/issues/96
+    @Test
+    func legacyLlamaBehaviour() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-4k-instruct-4bit-no-q-embed") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        let inputIds = tokenizer(" Hi")
+        #expect(inputIds == [1, 29871, 6324])
+    }
+
+    /// https://github.com/huggingface/swift-transformers/issues/99
+    @Test
+    func robertaXLMTokenizer() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "intfloat/multilingual-e5-small") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        let ids = tokenizer.encode(text: "query: how much protein should a female eat")
+        let expected = [0, 41, 1294, 12, 3642, 5045, 21308, 5608, 10, 117776, 73203, 2]
+        #expect(ids == expected)
+    }
+
+    @Test
+    func nllbTokenizer() async throws {
         do {
-            try FileManager.default.removeItem(at: downloadDestination)
+            _ = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M")
+            Issue.record("Expected AutoTokenizer.from to throw for strict mode")
         } catch {
-            print("Can't remove test download destination \(downloadDestination), error: \(error)")
+            // Expected to throw in normal (strict) mode
         }
+
+        // no strict mode proceeds
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", strict: false) as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        let ids = tokenizer.encode(text: "Why did the chicken cross the road?")
+        let expected = [256047, 24185, 4077, 349, 1001, 22690, 83580, 349, 82801, 248130, 2]
+        #expect(ids == expected)
     }
 
-    func testTokenize() async {
-        if let tester = Self._tester {
-            await tester.testTokenize()
-        }
+    /// Deepseek needs a post-processor override to add a bos token as in the reference implementation
+    @Test
+    func deepSeekPostProcessor() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+        #expect(tokenizer.encode(text: "Who are you?") == [151646, 15191, 525, 498, 30])
     }
 
-    func testEncode() async {
-        if let tester = Self._tester {
-            await tester.testEncode()
-        }
+    /// Some Llama tokenizers already use a bos-prepending Template post-processor
+    @Test
+    func llamaPostProcessor() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "coreml-projects/Llama-2-7b-chat-coreml") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+        #expect(tokenizer.encode(text: "Who are you?") == [1, 11644, 526, 366, 29973])
     }
 
-    func testDecode() async {
-        if let tester = Self._tester {
-            await tester.testDecode()
-        }
+    @Test
+    func localTokenizerFromPretrained() async throws {
+        let downloadDestination: URL = {
+            let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            return base.appending(component: "hf-local-pretrained-tests-downloads")
+        }()
+
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        let downloadedTo = try await hubApi.snapshot(from: "pcuenq/gemma-tokenizer")
+
+        let tokenizerOpt = try await AutoTokenizer.from(modelFolder: downloadedTo) as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+
+        try FileManager.default.removeItem(at: downloadDestination)
     }
 
-    func testEdgeCases() async {
-        if let tester = Self._tester {
-            await tester.testEdgeCases()
-        }
+    @Test
+    func bertCased() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "mąka") == [101, 181, 102075, 10113, 102])
+        #expect(tokenizer.tokenize(text: "Car") == ["Car"])
     }
 
-    func testUnknownToken() async {
-        if let tester = Self._tester {
-            await tester.testUnknownToken()
-        }
+    @Test
+    func bertCasedResaved() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "mąka") == [101, 181, 102075, 10113, 102])
+    }
+
+    @Test
+    func bertUncased() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.tokenize(text: "mąka") == ["ma", "##ka"])
+        #expect(tokenizer.encode(text: "mąka") == [101, 5003, 2912, 102])
+        #expect(tokenizer.tokenize(text: "département") == ["depart", "##ement"])
+        #expect(tokenizer.encode(text: "département") == [101, 18280, 13665, 102])
+        #expect(tokenizer.tokenize(text: "Car") == ["car"])
+
+        #expect(tokenizer.tokenize(text: "€4") == ["€", "##4"])
+        #expect(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test") == ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
+
+        let text = "l'eure"
+        let tokenized = tokenizer.tokenize(text: text)
+        #expect(tokenized == ["l", "'", "eu", "##re"])
+        let encoded = tokenizer.encode(text: text)
+        #expect(encoded == [101, 1048, 1005, 7327, 2890, 102])
+        let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
+        // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
+        #expect(decoded == "l'eure")
+
+        // Reading added_tokens from tokenizer.json
+        #expect(tokenizer.convertTokenToId("[PAD]") == 0)
+        #expect(tokenizer.convertTokenToId("[UNK]") == 100)
+        #expect(tokenizer.convertTokenToId("[CLS]") == 101)
+        #expect(tokenizer.convertTokenToId("[SEP]") == 102)
+        #expect(tokenizer.convertTokenToId("[MASK]") == 103)
+    }
+
+    @Test
+    func robertaEncodeDecode() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.tokenize(text: "l'eure") == ["l", "'", "e", "ure"])
+        #expect(tokenizer.encode(text: "l'eure") == [0, 462, 108, 242, 2407, 2])
+        #expect(tokenizer.decode(tokens: tokenizer.encode(text: "l'eure"), skipSpecialTokens: true) == "l'eure")
+
+        #expect(tokenizer.tokenize(text: "mąka") == ["m", "Ä", "ħ", "ka"])
+        #expect(tokenizer.encode(text: "mąka") == [0, 119, 649, 5782, 2348, 2])
+
+        #expect(tokenizer.tokenize(text: "département") == ["d", "Ã©", "part", "ement"])
+        #expect(tokenizer.encode(text: "département") == [0, 417, 1140, 7755, 6285, 2])
+
+        #expect(tokenizer.tokenize(text: "Who are you?") == ["Who", "Ġare", "Ġyou", "?"])
+        #expect(tokenizer.encode(text: "Who are you?") == [0, 12375, 32, 47, 116, 2])
+
+        #expect(tokenizer.tokenize(text: " Who are you? ") == ["ĠWho", "Ġare", "Ġyou", "?", "Ġ"])
+        #expect(tokenizer.encode(text: " Who are you? ") == [0, 3394, 32, 47, 116, 1437, 2])
+
+        #expect(tokenizer.tokenize(text: "<s>Who are you?</s>") == ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
+        #expect(tokenizer.encode(text: "<s>Who are you?</s>") == [0, 0, 12375, 32, 47, 116, 2, 2])
     }
 }

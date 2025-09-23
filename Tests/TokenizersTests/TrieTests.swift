@@ -5,35 +5,39 @@
 //  Created by Pedro Cuenca on 12/1/24.
 //
 
+import Foundation
+import Testing
 @testable import Tokenizers
-import XCTest
 
-class TrieTests: XCTestCase {
-    func testTrieBuilding() {
+@Suite("Trie data structure functionality")
+struct TrieTests {
+    @Test("Trie building and traversal")
+    func trieBuilding() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")
         trie.insert("carp")
         trie.insert("car")
-        XCTAssertEqual(trie.root.children.count, 1)
+        #expect(trie.root.children.count == 1)
 
         let c = trie.get("c")
-        XCTAssertNotNil(c)
-        XCTAssertEqual(c!.children.count, 1) // "a"
+        #expect(c != nil)
+        #expect(c!.children.count == 1) // "a"
 
         let ca = trie.get("ca")
-        XCTAssertNotNil(ca)
-        XCTAssertEqual(ca!.children.count, 2) // "r", "t"
+        #expect(ca != nil)
+        #expect(ca!.children.count == 2) // "r", "t"
 
         let car = trie.get("car")
-        XCTAssertNotNil(car)
-        XCTAssertTrue(car!.isLeaf)
-        XCTAssertFalse(ca!.isLeaf)
+        #expect(car != nil)
+        #expect(car!.isLeaf)
+        #expect(!ca!.isLeaf)
 
-        XCTAssertNil(trie.get("card"))
+        #expect(trie.get("card") == nil)
     }
 
-    func testTrieCommonPrefixSearch() {
+    @Test("Trie common prefix search")
+    func trieCommonPrefixSearch() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")
@@ -42,10 +46,11 @@ class TrieTests: XCTestCase {
 
         // trie.commonPrefixSearch returns [Character] not String
         let leaves = trie.commonPrefixSearch("carpooling").map { String($0) }
-        XCTAssertEqual(leaves, ["car", "carp"])
+        #expect(leaves == ["car", "carp"])
     }
 
-    func testTrieCommonPrefixSearchIterator() {
+    @Test("Trie common prefix search iterator")
+    func trieCommonPrefixSearchIterator() {
         // https://guillaume-be.github.io/2020-05-30/sentence_piece
         let trie = Trie<Character>()
         trie.insert("cat")
@@ -54,9 +59,9 @@ class TrieTests: XCTestCase {
 
         var expected = Set(["car", "carp"])
         for leaf in trie.commonPrefixSearchIterator("carpooling").map({ String($0) }) {
-            XCTAssert(expected.contains(leaf))
+            #expect(expected.contains(leaf))
             expected.remove(leaf)
         }
-        XCTAssertEqual(expected.count, 0)
+        #expect(expected.count == 0)
     }
 }

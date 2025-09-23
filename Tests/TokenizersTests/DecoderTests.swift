@@ -4,28 +4,33 @@
 //  Created by Pedro Cuenca on 20231123.
 //
 
+import Foundation
 import Hub
-@testable import Tokenizers
-import XCTest
+import Testing
 
-class DecoderTests: XCTestCase {
+@testable import Tokenizers
+
+@Suite("Tokenizer Decoder Tests")
+struct DecoderTests {
     /// https://github.com/huggingface/tokenizers/pull/1357
-    func testMetaspaceDecoder() {
-        let decoder = MetaspaceDecoder(config: Config([
-            "add_prefix_space": true,
-            "replacement": "▁",
-        ]))
+    @Test("Metaspace decoder with prefix space replacement")
+    func metaspaceDecoder() {
+        let decoder = MetaspaceDecoder(
+            config: Config([
+                "add_prefix_space": true,
+                "replacement": "▁",
+            ]))
 
         let tokens = ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]
         let decoded = decoder.decode(tokens: tokens)
 
-        XCTAssertEqual(
-            decoded,
-            ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
+        #expect(
+            decoded == ["Hey", " my", " friend", " ", " <s>", " how", " are", " you"]
         )
     }
 
-    func testWordPieceDecoder() {
+    @Test("WordPiece decoder with prefix and cleanup")
+    func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
         let decoder = WordPieceDecoder(config: config)
 
@@ -34,13 +39,16 @@ class DecoderTests: XCTestCase {
             (["##auto", "##mat", "##ic", "transmission"], "##automatic transmission"),
             (["who", "do", "##n't", "does", "n't", "can't"], "who don't doesn't can't"),
             (["##un", "##believ", "##able", "##fa", "##ntastic"], "##unbelievablefantastic"),
-            (["this", "is", "un", "##believ", "##able", "fa", "##ntastic"], "this is unbelievable fantastic"),
+            (
+                ["this", "is", "un", "##believ", "##able", "fa", "##ntastic"],
+                "this is unbelievable fantastic"
+            ),
             (["The", "##quick", "##brown", "fox"], "Thequickbrown fox"),
         ]
 
         for (tokens, expected) in testCases {
             let output = decoder.decode(tokens: tokens)
-            XCTAssertEqual(output.joined(), expected)
+            #expect(output.joined() == expected)
         }
     }
 }
