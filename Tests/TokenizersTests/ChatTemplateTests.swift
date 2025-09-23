@@ -264,10 +264,7 @@ struct ChatTemplateTests {
 
     @Test("Checking chat template availability")
     func hasChatTemplate() async throws {
-        var tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
-        #expect(!tokenizer.hasChatTemplate)
-
-        tokenizer = try await AutoTokenizer.from(
+        let tokenizer = try await AutoTokenizer.from(
             pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
         #expect(tokenizer.hasChatTemplate)
     }

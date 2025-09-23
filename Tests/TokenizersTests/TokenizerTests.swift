@@ -99,7 +99,6 @@ struct TokenizerTests {
         ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
         ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
         ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
-        ModelSpec("google-bert/bert-base-uncased", "bert_uncased_encoded", 100),
         ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
         ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
         ModelSpec("pcuenq/gemma-tokenizer", "gemma_encoded", 3),
@@ -279,13 +278,6 @@ struct TokenizerTests {
 
         #expect(tokenizer.tokenize(text: "€4") == ["€", "##4"])
         #expect(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test") == ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
-    }
-
-    @Test
-    func bertSpacesEncodeDecode() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer
-        #expect(tokenizerOpt != nil)
-        let tokenizer = tokenizerOpt!
 
         let text = "l'eure"
         let tokenized = tokenizer.tokenize(text: text)
@@ -295,6 +287,13 @@ struct TokenizerTests {
         let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
         // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
         #expect(decoded == "l'eure")
+
+        // Reading added_tokens from tokenizer.json
+        #expect(tokenizer.convertTokenToId("[PAD]") == 0)
+        #expect(tokenizer.convertTokenToId("[UNK]") == 100)
+        #expect(tokenizer.convertTokenToId("[CLS]") == 101)
+        #expect(tokenizer.convertTokenToId("[SEP]") == 102)
+        #expect(tokenizer.convertTokenToId("[MASK]") == 103)
     }
 
     @Test

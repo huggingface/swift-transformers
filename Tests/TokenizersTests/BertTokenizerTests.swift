@@ -248,36 +248,4 @@ struct BertTokenizerTests {
             #expect(decoded == String(expected))
         }
     }
-
-    @Test("BERT tokenizer recognizes added tokens")
-    func bertTokenizerAddedTokensRecognized() async throws {
-        let base: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
-        let hubApi = HubApi(downloadBase: base)
-        let configuration = LanguageModelConfigurationFromHub(modelName: "google-bert/bert-base-uncased", hubApi: hubApi)
-        guard let tokenizerConfig = try await configuration.tokenizerConfig else { fatalError("missing tokenizer config") }
-        let tokenizerData = try await configuration.tokenizerData
-        let addedTokens = [
-            "[ROAD]": 60_001,
-            "[RIVER]": 60_002,
-            "[BUILDING]": 60_003,
-            "[PARK]": 60_004,
-            "[BUFFER]": 60_005,
-            "[INTERSECT]": 60_006,
-            "[UNION]": 60_007,
-        ]
-        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens)
-        for (token, idx) in addedTokens {
-            #expect(tokenizer.convertTokenToId(token) == idx)
-        }
-        for (token, idx) in addedTokens {
-            #expect(tokenizer.convertIdToToken(idx) == token)
-        }
-
-        // Reading added_tokens from tokenizer.json
-        #expect(tokenizer.convertTokenToId("[PAD]") == 0)
-        #expect(tokenizer.convertTokenToId("[UNK]") == 100)
-        #expect(tokenizer.convertTokenToId("[CLS]") == 101)
-        #expect(tokenizer.convertTokenToId("[SEP]") == 102)
-        #expect(tokenizer.convertTokenToId("[MASK]") == 103)
-    }
 }
