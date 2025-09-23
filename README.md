@@ -111,8 +111,12 @@ Swift Transformers is a community project and we welcome contributions. Please
 check out [Issues](https://github.com/huggingface/swift-transformers/issues)
 tagged with `good first issue` if you are looking for a place to start!
 
-Please ensure your code passes the build and test suite before submitting a pull
-request. You can run the tests with `swift test`.
+Before submitting a pull request, please ensure your code:
+
+- Passes the test suite (`swift test`)
+- Passes linting checks (`swift format lint --recursive .`)
+
+To format your code, run `swift format -i --recursive .`.
 
 ## License
 
