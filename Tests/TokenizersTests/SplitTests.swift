@@ -11,6 +11,52 @@ import Tokenizers
 
 @Suite("Split Behavior Tests")
 struct SplitTests {
+    @Test("String splitting with capture groups")
+    func splitWithCaptureGroups() {
+        let addedTokensRegexp = #"(<\|end\|>)\s*|(<\|raw\|>)\s*"#
+        let captureRegex = try! NSRegularExpression(pattern: addedTokensRegexp, options: [])
+
+        #expect(
+            "eating <|raw|> meat <|end|> That's all".split(by: captureRegex) ==
+                ["eating ", "<|raw|>", "meat ", "<|end|>", "That's all"]
+        )
+
+        #expect(
+            "<|raw|>".split(by: captureRegex) ==
+                ["<|raw|>"]
+        )
+
+        #expect(
+            "This string doesn't have those separators".split(by: captureRegex) ==
+                ["This string doesn't have those separators"]
+        )
+
+        #expect(
+            "start <|end|>".split(by: captureRegex) ==
+                ["start ", "<|end|>"]
+        )
+
+        #expect(
+            "start <|end|> ".split(by: captureRegex) ==
+                ["start ", "<|end|>"]
+        )
+
+        #expect(
+            "start <|end|>       ".split(by: captureRegex) ==
+                ["start ", "<|end|>"]
+        )
+
+        #expect(
+            "start <|end|>       for real".split(by: captureRegex) ==
+                ["start ", "<|end|>", "for real"]
+        )
+
+        #expect(
+            "<|raw|><|end|>".split(by: captureRegex) ==
+                ["<|raw|>", "<|end|>"]
+        )
+    }
+
     @Test("Split behavior merged with previous")
     func splitBehaviorMergedWithPrevious() {
         #expect(

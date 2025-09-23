@@ -101,7 +101,6 @@ struct TokenizerTests {
         ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
         ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
         ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
-        ModelSpec("pcuenq/gemma-tokenizer", "gemma_encoded", 3),
         ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
         ModelSpec("t5-base", "t5_base_encoded", 2),
         ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
@@ -156,6 +155,12 @@ struct TokenizerTests {
 
         // Verifies all expected entries are parsed
         #expect((tokenizer.model as? BPETokenizer)?.vocabCount == 256_000)
+
+        // Test added tokens
+        let inputIds = tokenizer("This\n\nis\na\ntest.")
+        #expect(inputIds == [2, 1596, 109, 502, 108, 235250, 108, 2195, 235265])
+        let decoded = tokenizer.decode(tokens: inputIds)
+        #expect(decoded == "<bos>This\n\nis\na\ntest.")
     }
 
     @Test
