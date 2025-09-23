@@ -91,50 +91,50 @@ struct ModelSpec: Sendable, CustomStringConvertible {
     }
 }
 
-@Test("Tokenizer", arguments: [
-    ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
-    ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
-    ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
-    ModelSpec("google-bert/bert-base-uncased", "bert_uncased_encoded", 100),
-    ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
-    ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
-    ModelSpec("pcuenq/gemma-tokenizer", "gemma_encoded", 3),
-    ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
-    ModelSpec("t5-base", "t5_base_encoded", 2),
-    ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
-])
-func tokenizer(spec: ModelSpec) async throws {
-    let tokenizer = try await makeTokenizer(hubModelName: spec.hubModelName, hubApi: hubApiForTests)
-    let dataset = try loadDataset(filename: spec.encodedSamplesFilename)
+// MARK: -
 
-    #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
-    #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
-    #expect(tokenizer.decode(tokens: dataset.token_ids) == dataset.decoded_text)
+@Suite("Tokenizer Tests", .serialized)
+struct TokenizerTests {
+    @Test(.serialized, arguments: [
+        ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
+        ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
+        ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
+        ModelSpec("google-bert/bert-base-uncased", "bert_uncased_encoded", 100),
+        ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
+        ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
+        ModelSpec("pcuenq/gemma-tokenizer", "gemma_encoded", 3),
+        ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
+        ModelSpec("t5-base", "t5_base_encoded", 2),
+        ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
+    ])
+    func tokenizer(spec: ModelSpec) async throws {
+        let tokenizer = try await makeTokenizer(hubModelName: spec.hubModelName, hubApi: hubApiForTests)
+        let dataset = try loadDataset(filename: spec.encodedSamplesFilename)
 
-    // Edge cases (if available)
-    if let edgeCases = try? loadEdgeCases(for: spec.hubModelName) {
-        for edgeCase in edgeCases {
-            #expect(tokenizer.encode(text: edgeCase.input) == edgeCase.encoded.input_ids)
-            #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids) == edgeCase.decoded_with_special)
-            #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids, skipSpecialTokens: true) == edgeCase.decoded_without_special)
+        #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
+        #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
+        #expect(tokenizer.decode(tokens: dataset.token_ids) == dataset.decoded_text)
+
+        // Edge cases (if available)
+        if let edgeCases = try? loadEdgeCases(for: spec.hubModelName) {
+            for edgeCase in edgeCases {
+                #expect(tokenizer.encode(text: edgeCase.input) == edgeCase.encoded.input_ids)
+                #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids) == edgeCase.decoded_with_special)
+                #expect(tokenizer.decode(tokens: edgeCase.encoded.input_ids, skipSpecialTokens: true) == edgeCase.decoded_without_special)
+            }
+        }
+
+        // Unknown token checks
+        let model = tokenizer.model
+        #expect(model.unknownTokenId == spec.unknownTokenId)
+        #expect(model.unknownTokenId == model.convertTokenToId("_this_token_does_not_exist_"))
+        if let unknownTokenId = model.unknownTokenId {
+            #expect(model.unknownToken == model.convertIdToToken(unknownTokenId))
+        } else {
+            #expect(model.unknownTokenId == nil)
         }
     }
 
-    // Unknown token checks
-    let model = tokenizer.model
-    #expect(model.unknownTokenId == spec.unknownTokenId)
-    #expect(model.unknownTokenId == model.convertTokenToId("_this_token_does_not_exist_"))
-    if let unknownTokenId = model.unknownTokenId {
-        #expect(model.unknownToken == model.convertIdToToken(unknownTokenId))
-    } else {
-        #expect(model.unknownTokenId == nil)
-    }
-}
-
-// MARK: -
-
-@Suite("Specific Tokenizer Tests")
-struct SpecificTokenizerTests {
     @Test
     func gemmaUnicode() async throws {
         let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer
