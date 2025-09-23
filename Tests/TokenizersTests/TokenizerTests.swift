@@ -140,7 +140,10 @@ struct TokenizerTests {
         let tokenizer = tokenizerOpt!
 
         // These are two different characters
-        let cases = ["à" /* 0x61 0x300 */, "à" /* 0xe0 */]
+        let cases = [
+            "à", // 0x61 0x300
+            "à", // 0xe0
+        ]
         let expected = [217138, 1305]
         for (s, expected) in zip(cases, expected) {
             let encoded = tokenizer.encode(text: " " + s)
