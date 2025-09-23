@@ -193,11 +193,11 @@ public extension Dictionary where Key == BinaryDistinctString {
     }
 }
 
-public protocol StringConvertible: ExpressibleByStringLiteral { }
+public protocol StringConvertible: ExpressibleByStringLiteral {}
 
-extension BinaryDistinctString: StringConvertible { }
-extension String: StringConvertible { }
-extension NSString: StringConvertible { }
+extension BinaryDistinctString: StringConvertible {}
+extension String: StringConvertible {}
+extension NSString: StringConvertible {}
 
 public struct BinaryDistinctCharacter: Equatable, Hashable, CustomStringConvertible, ExpressibleByStringLiteral {
     let bytes: [UInt16]

@@ -77,7 +77,7 @@ class TemplateProcessing: PostProcessor {
 }
 
 class ByteLevelPostProcessor: PostProcessor {
-    required init(config: Config) { }
+    required init(config: Config) {}
     func postProcess(tokens: [String], tokensPair: [String]? = nil, addSpecialTokens: Bool = true) -> [String] { tokens }
 }
 

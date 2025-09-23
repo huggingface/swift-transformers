@@ -92,12 +92,12 @@ struct PreTokenizerTests {
         )
         #expect(
             preTokenizer3.preTokenize(text: "Hey friend!     How are you?!?") == [
-                "HeyĠfriend!ĠĠĠĠĠHowĠareĠyou?!?",
+                "HeyĠfriend!ĠĠĠĠĠHowĠareĠyou?!?"
             ]
         )
         #expect(
             preTokenizer3.preTokenize(text: "   Hey,    friend,    what's up?  ") == [
-                "ĠĠĠHey,ĠĠĠĠfriend,ĠĠĠĠwhat'sĠup?ĠĠ",
+                "ĠĠĠHey,ĠĠĠĠfriend,ĠĠĠĠwhat'sĠup?ĠĠ"
             ]
         )
     }
@@ -159,7 +159,7 @@ struct PreTokenizerTests {
             config: Config([
                 "pattern": [
                     "Regex":
-                        "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+                        "(?i:\'s|\'t|\'re|\'ve|\'m|\'ll|\'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
                 ], "invert": true,
             ]))
         #expect(
@@ -191,8 +191,8 @@ struct PreTokenizerTests {
         let text = "Hey my friend <s>how▁are you"
         let tokens =
             text
-                .split(by: "<s>", includeSeparators: true)
-                .flatMap { preTokenizer.preTokenize(text: $0) }
+            .split(by: "<s>", includeSeparators: true)
+            .flatMap { preTokenizer.preTokenize(text: $0) }
 
         #expect(
             tokens == ["▁Hey", "▁my", "▁friend", "▁", "▁<s>", "▁how", "▁are", "▁you"]

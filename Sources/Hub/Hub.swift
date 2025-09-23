@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Hub: Sendable { }
+public struct Hub: Sendable {}
 
 public extension Hub {
     enum HubClientError: LocalizedError {
@@ -204,7 +204,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
                 // Try to load .jinja template as plain text
                 chatTemplate = try? String(contentsOf: chatTemplateJinjaURL, encoding: .utf8)
             } else if FileManager.default.fileExists(atPath: chatTemplateJsonURL.path),
-                      let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
+                let chatTemplateConfig = try? hubApi.configuration(fileURL: chatTemplateJsonURL)
             {
                 // Fall back to .json template
                 chatTemplate = chatTemplateConfig.chatTemplate.string()

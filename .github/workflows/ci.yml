@@ -1,0 +1,39 @@
+name: Unit Tests
+
+on:
+    # This runs in the context of the base of the pull request,
+    # rather than in the context of the merge commit.
+    # Maintainers must approve and we tighten permissions below.
+    pull_request_target:
+        types: [opened, synchronize, reopened]
+
+permissions:
+    contents: read
+
+jobs:
+    build-and-test:
+        uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
+        with:
+            # Use the PR merge ref, not the head.
+            pr_number: ${{ github.event.pull_request.number }}
+        secrets: inherit
+
+    lint:
+      name: Lint
+      runs-on: macos-latest
+
+      steps:
+        - uses: actions/checkout@v4
+
+        - run: |
+            swift format lint --recursive .
+
+        - name: Suggest fixes (if check fails)
+          if: failure()
+          run: |
+            echo "### Here's how to fix the formatting locally:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "```bash" >> $GITHUB_STEP_SUMMARY
+            echo "# Format all Swift files" >> $GITHUB_STEP_SUMMARY
+            echo 'swift format -i --recursive .' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY

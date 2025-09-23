@@ -91,7 +91,6 @@ final class Downloader: NSObject, Sendable, ObservableObject {
     ///   - authToken: Bearer token for authentication with Hugging Face
     ///   - resumeSize: Number of bytes already downloaded for resuming interrupted downloads
     ///   - headers: Additional HTTP headers to include in the request
-    ///   - expectedSize: Expected file size in bytes for validation
     ///   - timeout: Time interval before the request times out
     ///   - numRetries: Number of retry attempts for failed downloads
     private func setUpDownload(
@@ -193,9 +192,8 @@ final class Downloader: NSObject, Sendable, ObservableObject {
     ///
     /// - Parameters:
     ///   - request: The URLRequest for the file to download
-    ///   - resumeSize: The number of bytes already downloaded. If set to 0 (default), the whole file is download. If set to a positive number, the download will resume at the given position
+    ///   - tempFile: The file handle for writing downloaded data
     ///   - numRetries: The number of retry attempts remaining for failed downloads
-    ///   - expectedSize: The expected size of the file to download. If set, the download will raise an error if the size of the received content is different from the expected one.
     /// - Throws: `DownloadError.unexpectedError` if the response is invalid or file size mismatch occurs
     ///           `URLError` if the download fails after all retries are exhausted
     private func httpGet(
@@ -298,7 +296,7 @@ final class Downloader: NSObject, Sendable, ObservableObject {
     }
 
     /// Check if an incomplete file exists for the destination and returns its size
-    /// - Parameter destination: The destination URL for the download
+    /// - Parameter incompletePath: The URL path for the incomplete file
     /// - Returns: Size of the incomplete file if it exists, otherwise 0
     static func incompleteFileSize(at incompletePath: URL) -> Int {
         if FileManager.default.fileExists(atPath: incompletePath.path) {

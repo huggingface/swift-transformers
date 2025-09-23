@@ -129,7 +129,7 @@ struct NormalizerTests {
     @Test("Strip accents functionality")
     func stripAccents() {
         let testCases = [
-            ("département", "departement"),
+            ("département", "departement")
         ]
 
         // TODO: test combinations with/without lowercase
