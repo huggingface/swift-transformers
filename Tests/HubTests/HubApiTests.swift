@@ -165,7 +165,7 @@ class HubApiTests: XCTestCase {
 
             XCTAssertEqual(metadata.commitHash, revision)
             XCTAssertNotNil(metadata.etag, etag)
-            XCTAssertTrue(metadata.location.contains(location))
+            XCTAssertTrue(metadata.location.contains(location), "\(metadata.location) does not contain \(location)")
             XCTAssertEqual(metadata.size, size)
         } catch {
             XCTFail("\(error)")
