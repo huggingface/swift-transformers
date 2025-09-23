@@ -19,7 +19,7 @@ import Foundation
 public enum Math {
     /**
      Returns the index and value of the largest element in the array.
-
+    
      - Parameters:
      - ptr: Pointer to the first element in memory.
      - count: How many elements to look at.

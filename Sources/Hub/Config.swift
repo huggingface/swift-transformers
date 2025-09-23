@@ -647,22 +647,22 @@ extension Config: Codable {
                 let intValue = try container.decode(Int.self)
                 self.value = .integer(intValue)
                 return
-            } catch { }
+            } catch {}
             do {
                 let floatValue = try container.decode(Float.self)
                 self.value = .floating(floatValue)
                 return
-            } catch { }
+            } catch {}
             do {
                 let boolValue = try container.decode(Bool.self)
                 self.value = .boolean(boolValue)
                 return
-            } catch { }
+            } catch {}
             do {
                 let stringValue = try container.decode(String.self)
                 self.value = .string(.init(stringValue))
                 return
-            } catch { }
+            } catch {}
         }
 
         if let tupple = Self.decodeTuple(decoder) {
@@ -690,7 +690,7 @@ extension Config: Codable {
                     let intValue = try container.decode(UInt.self)
                     let stringValue = try container.decode(String.self)
                     return .token((intValue, .init(stringValue)))
-                } catch { }
+                } catch {}
             }
         }
         return nil
@@ -706,7 +706,7 @@ extension Config: Codable {
                 }
                 return .array(elements)
             }
-        } catch { }
+        } catch {}
         return nil
     }
 

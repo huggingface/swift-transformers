@@ -74,7 +74,7 @@ public extension LanguageModel {
 public extension LanguageModel {
     var description: String {
         if let description = model.modelDescription.metadata[MLModelMetadataKey.description] as? String,
-           !description.isEmpty
+            !description.isEmpty
         {
             return description
         }
@@ -84,7 +84,7 @@ public extension LanguageModel {
     /// `name_or_path` in the Python world
     var modelName: String {
         if let userFields = model.modelDescription.metadata[MLModelMetadataKey.creatorDefinedKey] as? [String: String],
-           let name = userFields["co.huggingface.exporters.name"]
+            let name = userFields["co.huggingface.exporters.name"]
         {
             return name
         }

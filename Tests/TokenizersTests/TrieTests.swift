@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+
 @testable import Tokenizers
 
 @Suite("Trie data structure functionality")

@@ -15,7 +15,7 @@ struct ChatTemplateTests {
         [
             "role": "user",
             "content": "Describe the Swift programming language.",
-        ],
+        ]
     ]
 
     static let phiTokenizerTask = Task {
@@ -135,7 +135,7 @@ struct ChatTemplateTests {
             [
                 "role": "user",
                 "content": "🥳🥳🥳",
-            ],
+            ]
         ]
 
         let encoded = try tokenizer.applyChatTemplate(messages: testMessages)
@@ -170,7 +170,7 @@ struct ChatTemplateTests {
             [
                 "role": "user",
                 "content": "What is the weather in Paris today?",
-            ],
+            ]
         ]
 
         let getCurrentWeatherToolSpec: [String: Any] = [
@@ -203,7 +203,7 @@ struct ChatTemplateTests {
         func assertDictsAreEqual(_ actual: [String: Any], _ expected: [String: Any]) {
             for (key, value) in actual {
                 if let nestedDict = value as? [String: Any],
-                   let nestedDict2 = expected[key] as? [String: Any]
+                    let nestedDict2 = expected[key] as? [String: Any]
                 {
                     assertDictsAreEqual(nestedDict, nestedDict2)
                 } else if let arrayValue = value as? [String] {
@@ -217,9 +217,9 @@ struct ChatTemplateTests {
         }
 
         if let startRange = decoded.range(of: "<tools>\n"),
-           let endRange = decoded.range(
-               of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex
-           )
+            let endRange = decoded.range(
+                of: "\n</tools>", range: startRange.upperBound..<decoded.endIndex
+            )
         {
             let toolsSection = String(decoded[startRange.upperBound..<endRange.lowerBound])
             if let toolsDict = try? JSONSerialization.jsonObject(
@@ -234,29 +234,29 @@ struct ChatTemplateTests {
         }
 
         let expectedPromptStart = """
-        <|im_start|>system
-        You are Qwen, created by Alibaba Cloud. You are a helpful assistant.
+            <|im_start|>system
+            You are Qwen, created by Alibaba Cloud. You are a helpful assistant.
 
-        # Tools
+            # Tools
 
-        You may call one or more functions to assist with the user query.
+            You may call one or more functions to assist with the user query.
 
-        You are provided with function signatures within <tools></tools> XML tags:
-        <tools>
-        """
+            You are provided with function signatures within <tools></tools> XML tags:
+            <tools>
+            """
 
         let expectedPromptEnd = """
-        </tools>
+            </tools>
 
-        For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
-        <tool_call>
-        {"name": <function-name>, "arguments": <args-json-object>}
-        </tool_call><|im_end|>
-        <|im_start|>user
-        What is the weather in Paris today?<|im_end|>
-        <|im_start|>assistant
+            For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+            <tool_call>
+            {"name": <function-name>, "arguments": <args-json-object>}
+            </tool_call><|im_end|>
+            <|im_start|>user
+            What is the weather in Paris today?<|im_end|>
+            <|im_start|>assistant
 
-        """
+            """
 
         #expect(
             decoded.hasPrefix(expectedPromptStart),
@@ -282,7 +282,7 @@ struct ChatTemplateTests {
                             "image_url": "example.jpg",
                         ] as [String: String],
                     ] as [[String: String]],
-                ] as [String: Any],
+                ] as [String: Any]
             ] as [[String: Any]]
         // Qwen 2 VL does not have a chat_template.json file. The chat template is in tokenizer_config.json.
         let qwen2VLTokenizer = try await AutoTokenizer.from(
@@ -295,13 +295,13 @@ struct ChatTemplateTests {
         let qwen2_5VLEncoded = try qwen2_5VLTokenizer.applyChatTemplate(messages: visionMessages)
         let qwen2_5VLDecoded = qwen2_5VLTokenizer.decode(tokens: qwen2_5VLEncoded)
         let expectedOutput = """
-        <|im_start|>system
-        You are a helpful assistant.<|im_end|>
-        <|im_start|>user
-        What's in this image?<|vision_start|><|image_pad|><|vision_end|><|im_end|>
-        <|im_start|>assistant
+            <|im_start|>system
+            You are a helpful assistant.<|im_end|>
+            <|im_start|>user
+            What's in this image?<|vision_start|><|image_pad|><|vision_end|><|im_end|>
+            <|im_start|>assistant
 
-        """
+            """
         #expect(qwen2VLEncoded == qwen2_5VLEncoded, "Encoded sequences should be equal")
         #expect(qwen2VLDecoded == qwen2_5VLDecoded, "Decoded sequences should be equal")
         #expect(qwen2_5VLDecoded == expectedOutput, "Decoded sequence should match expected output")

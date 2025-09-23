@@ -7,8 +7,9 @@
 //
 
 import Foundation
-@testable import Hub
 import Testing
+
+@testable import Hub
 @testable import Tokenizers
 
 /// Stanford Question Answering Dataset (SQuAD)
@@ -219,27 +220,27 @@ struct BertTokenizerTests {
     @Test("BERT encoder/decoder round-trip")
     func encoderDecoder() {
         let text = """
-        Wake up (Wake up)
-        Grab a brush and put a little makeup
-        Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
-        Why'd you leave the keys upon the table?
-        Here you go, create another fable, you wanted to
-        Grab a brush and put a little makeup, you wanted to
-        Hide the scars to fade away the shakeup, you wanted to
-        Why'd you leave the keys upon the table? You wanted to
-        """
+            Wake up (Wake up)
+            Grab a brush and put a little makeup
+            Hide your scars to fade away the shakeup (Hide the scars to fade away the shakeup)
+            Why'd you leave the keys upon the table?
+            Here you go, create another fable, you wanted to
+            Grab a brush and put a little makeup, you wanted to
+            Hide the scars to fade away the shakeup, you wanted to
+            Why'd you leave the keys upon the table? You wanted to
+            """
 
         // Not sure if there's a way to achieve a non-destructive round-trip
         let decoded = """
-        wake up ( wake up )
-        grab a brush and put a little makeup
-        hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
-        why \' d you leave the keys upon the table ?
-        here you go , create another fable , you wanted to
-        grab a brush and put a little makeup , you wanted to
-        hide the scars to fade away the shakeup , you wanted to
-        why \' d you leave the keys upon the table ? you wanted to
-        """
+            wake up ( wake up )
+            grab a brush and put a little makeup
+            hide your scars to fade away the shakeup ( hide the scars to fade away the shakeup )
+            why \' d you leave the keys upon the table ?
+            here you go , create another fable , you wanted to
+            grab a brush and put a little makeup , you wanted to
+            hide the scars to fade away the shakeup , you wanted to
+            why \' d you leave the keys upon the table ? you wanted to
+            """
 
         let tokenizer = bertTokenizer
         for (line, expected) in zip(text.split(separator: "\n"), decoded.split(separator: "\n")) {

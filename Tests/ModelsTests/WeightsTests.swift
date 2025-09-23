@@ -1,7 +1,8 @@
 import Foundation
+import Testing
+
 @testable import Hub
 @testable import Models
-import Testing
 
 @Suite("Weights Tests")
 struct WeightsTests {

@@ -5,17 +5,17 @@ import PackageDescription
 
 /// Define the strict concurrency settings to be applied to all targets.
 let swiftSettings: [SwiftSetting] = [
-    .enableExperimentalFeature("StrictConcurrency"),
+    .enableExperimentalFeature("StrictConcurrency")
 ]
 
 let package = Package(
     name: "swift-transformers",
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
-        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
+        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"])
     ],
     dependencies: [
-        .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.3.0")),
+        .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.3.0"))
     ],
     targets: [
         .target(name: "Generation", dependencies: ["Tokenizers"]),

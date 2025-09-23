@@ -26,7 +26,7 @@ extension Data {
                 // Check for \u{feff} BOM (observed in Gemma tokenizers), which is encoded as 0xef 0xbb 0xbf.
                 // We may need more combinations.
                 if b == 0x22, i + 3 < src.count,
-                   src[i + 1] == 0xEF, src[i + 2] == 0xBB, src[i + 3] == 0xBF
+                    src[i + 1] == 0xEF, src[i + 2] == 0xBB, src[i + 3] == 0xBF
                 {
                     // Duplicate BOM
                     out.append(0xEF); out.append(0xBB); out.append(0xBF)

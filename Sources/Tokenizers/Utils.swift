@@ -66,14 +66,7 @@ struct Utils {
     /// Checks if a character is considered Chinese
     /// https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
     static func isChineseChar(_ c: UnicodeScalar) -> Bool {
-        (c.value >= 0x4E00 && c.value <= 0x9FFF) ||
-            (c.value >= 0x3400 && c.value <= 0x4DBF) ||
-            (c.value >= 0x20000 && c.value <= 0x2A6DF) ||
-            (c.value >= 0x2A700 && c.value <= 0x2B73F) ||
-            (c.value >= 0x2B740 && c.value <= 0x2B81F) ||
-            (c.value >= 0x2B820 && c.value <= 0x2CEAF) ||
-            (c.value >= 0xF900 && c.value <= 0xFAFF) ||
-            (c.value >= 0x2F800 && c.value <= 0x2FA1F)
+        (c.value >= 0x4E00 && c.value <= 0x9FFF) || (c.value >= 0x3400 && c.value <= 0x4DBF) || (c.value >= 0x20000 && c.value <= 0x2A6DF) || (c.value >= 0x2A700 && c.value <= 0x2B73F) || (c.value >= 0x2B740 && c.value <= 0x2B81F) || (c.value >= 0x2B820 && c.value <= 0x2CEAF) || (c.value >= 0xF900 && c.value <= 0xFAFF) || (c.value >= 0x2F800 && c.value <= 0x2FA1F)
     }
 }
 

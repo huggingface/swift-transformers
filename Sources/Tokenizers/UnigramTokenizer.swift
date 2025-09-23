@@ -45,7 +45,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
             let tuple = piece.array(or: [])
 
             guard let token = tuple.first?.string(),
-                  let scoreValue = tuple.last
+                let scoreValue = tuple.last
             else {
                 throw TokenizerError.malformedVocab
             }
