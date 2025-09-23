@@ -1,4 +1,4 @@
-name: Unit Tests
+name: CI
 
 on:
     # This runs in the context of the base of the pull request,
@@ -11,7 +11,8 @@ permissions:
     contents: read
 
 jobs:
-    build-and-test:
+    test:
+        name: Test
         uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
         with:
             # Use the PR merge ref, not the head.
