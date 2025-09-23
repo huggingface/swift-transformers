@@ -153,8 +153,8 @@ class HubApiTests: XCTestCase {
         do {
             let revision = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb"
             let etag = "fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107"
-            let location =
-                "https://cdn-lfs.hf.co/repos/4a/4e/4a4e587f66a2979dcd75e1d7324df8ee9ef74be3582a05bea31c2c26d0d467d0/fc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model.mlmodel%3B+filename%3D%22model.mlmodel"
+            // Expected as part of the Xet response (filename="model.mlmodel";)
+            let xetQuery = "filename%3D%22model.mlmodel%22%3B"
             let size = 504766
 
             let url = URL(
@@ -165,7 +165,7 @@ class HubApiTests: XCTestCase {
 
             XCTAssertEqual(metadata.commitHash, revision)
             XCTAssertNotNil(metadata.etag, etag)
-            XCTAssertTrue(metadata.location.contains(location))
+            XCTAssertTrue(metadata.location.contains(xetQuery), "\(metadata.location) does not contain \(xetQuery)")
             XCTAssertEqual(metadata.size, size)
         } catch {
             XCTFail("\(error)")
