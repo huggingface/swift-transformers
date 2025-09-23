@@ -27,7 +27,7 @@ jobs:
         - uses: actions/checkout@v4
 
         - run: |
-            swift format lint --recursive .
+            swift format lint --strict --recursive .
 
         - name: Suggest fixes (if check fails)
           if: failure()
