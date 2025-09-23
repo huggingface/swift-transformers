@@ -137,7 +137,7 @@ func tokenizer(spec: ModelSpec) async throws {
 struct SpecificTokenizerTests {
     @Test
     func gemmaUnicode() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -161,7 +161,7 @@ struct SpecificTokenizerTests {
 
     @Test
     func phi4() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "microsoft/phi-4", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "microsoft/phi-4") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -173,7 +173,7 @@ struct SpecificTokenizerTests {
     /// https://github.com/huggingface/swift-transformers/issues/96
     @Test
     func legacyLlamaBehaviour() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-4k-instruct-4bit-no-q-embed", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "mlx-community/Phi-3-mini-4k-instruct-4bit-no-q-embed") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -184,7 +184,7 @@ struct SpecificTokenizerTests {
     /// https://github.com/huggingface/swift-transformers/issues/99
     @Test
     func robertaXLMTokenizer() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "intfloat/multilingual-e5-small", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "intfloat/multilingual-e5-small") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -196,14 +196,14 @@ struct SpecificTokenizerTests {
     @Test
     func nllbTokenizer() async throws {
         do {
-            _ = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", hubApi: hubApiForTests)
+            _ = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M")
             Issue.record("Expected AutoTokenizer.from to throw for strict mode")
         } catch {
             // Expected to throw in normal (strict) mode
         }
 
         // no strict mode proceeds
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", hubApi: hubApiForTests, strict: false) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "Xenova/nllb-200-distilled-600M", strict: false) as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -215,7 +215,7 @@ struct SpecificTokenizerTests {
     /// Deepseek needs a post-processor override to add a bos token as in the reference implementation
     @Test
     func deepSeekPostProcessor() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
         #expect(tokenizer.encode(text: "Who are you?") == [151646, 15191, 525, 498, 30])
@@ -224,7 +224,7 @@ struct SpecificTokenizerTests {
     /// Some Llama tokenizers already use a bos-prepending Template post-processor
     @Test
     func llamaPostProcessor() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "coreml-projects/Llama-2-7b-chat-coreml", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "coreml-projects/Llama-2-7b-chat-coreml") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
         #expect(tokenizer.encode(text: "Who are you?") == [1, 11644, 526, 366, 29973])
@@ -248,7 +248,7 @@ struct SpecificTokenizerTests {
 
     @Test
     func bertCased() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "distilbert/distilbert-base-multilingual-cased") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -258,7 +258,7 @@ struct SpecificTokenizerTests {
 
     @Test
     func bertCasedResaved() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/distilbert-base-multilingual-cased-tokenizer") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -267,7 +267,7 @@ struct SpecificTokenizerTests {
 
     @Test
     func bertUncased() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
@@ -279,6 +279,13 @@ struct SpecificTokenizerTests {
 
         #expect(tokenizer.tokenize(text: "€4") == ["€", "##4"])
         #expect(tokenizer.tokenize(text: "test $1 R2 #3 €4 £5 ¥6 ₣7 ₹8 ₱9 test") == ["test", "$", "1", "r", "##2", "#", "3", "€", "##4", "£5", "¥", "##6", "[UNK]", "₹", "##8", "₱", "##9", "test"])
+    }
+
+    @Test
+    func bertSpacesEncodeDecode() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
 
         let text = "l'eure"
         let tokenized = tokenizer.tokenize(text: text)
@@ -292,7 +299,7 @@ struct SpecificTokenizerTests {
 
     @Test
     func robertaEncodeDecode() async throws {
-        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base", hubApi: hubApiForTests) as? PreTrainedTokenizer
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 

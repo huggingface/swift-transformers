@@ -5,66 +5,35 @@
 //  Created by Arda Atahan Ibis on 1/28/25.
 //
 
-import Foundation
-import Testing
+import Combine
+import XCTest
 
 @testable import Hub
+import XCTest
 
-@Suite("Downloader (unit)")
-struct DownloaderUnitTests {
-    @Test("moveDownloadedFile respects percentEncoded flag and preserves existing file")
-    func moveDownloadedFilePercentEncodedFlag() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+final class DownloaderTests: XCTestCase {
+    var tempDir: URL!
 
-        let appSupport = tempDir.appendingPathComponent("Application Support")
-        let destination = appSupport.appendingPathComponent("config.json")
-        let source1 = tempDir.appendingPathComponent("v1.incomplete")
-        let source2 = tempDir.appendingPathComponent("v2.incomplete")
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
 
-        try FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
-        try "existing".write(to: destination, atomically: true, encoding: .utf8)
-        try "v1".write(to: source1, atomically: true, encoding: .utf8)
-        try "v2".write(to: source2, atomically: true, encoding: .utf8)
-
-        do {
-            try FileManager.default.moveDownloadedFile(from: source1, to: destination, percentEncoded: true)
-            #expect(Bool(false), "Expected throw for percent-encoded path collision")
-        } catch let error as NSError {
-            #expect(error.code == 516)
+    override func tearDown() {
+        if let tempDir, FileManager.default.fileExists(atPath: tempDir.path) {
+            try? FileManager.default.removeItem(at: tempDir)
         }
-        #expect(try (String(contentsOf: destination)) == "existing")
-
-        #expect(try { try FileManager.default.moveDownloadedFile(from: source2, to: destination, percentEncoded: false); return true }())
-        #expect(try (String(contentsOf: destination)) == "v2")
+        super.tearDown()
     }
 
-    @Test("incompleteFileSize returns size for existing partial file")
-    func incompleteFileSize_read() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let partial = tempDir.appendingPathComponent("file.part")
-        try Data(repeating: 0x41, count: 1234).write(to: partial)
-        #expect(Downloader.incompleteFileSize(at: partial) == 1234)
-    }
-}
-
-@Suite("Downloader (integration)",
-       .disabled(if: ProcessInfo.processInfo.environment["HF_TOKEN"] == "", "Set HF_TOKEN to run network tests"))
-struct DownloaderIntegrationTests {
-    @Test("successful download and content matches", .timeLimit(.minutes(2)))
-    func successfulDownload() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
+    /// This test downloads a known config file, verifies the download completes, checks the content matches expected value
+    func testSuccessfulDownload() async throws {
+        // Create a test file
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
         let destination = tempDir.appendingPathComponent("config.json")
-        let expected = """
+        let fileContent = """
         {
           "architectures": [
             "LlamaForCausalLM"
@@ -79,96 +48,145 @@ struct DownloaderIntegrationTests {
         """
 
         let cacheDir = tempDir.appendingPathComponent("cache")
-        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
         let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
         let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
         let sub = await downloader.download(from: url)
+
         listen: for await state in sub {
             switch state {
-            case .notStarted: continue
-            case .downloading: continue
-            case let .failed(error): throw error
-            case .completed: break listen
-            }
-        }
-
-        #expect(FileManager.default.fileExists(atPath: destination.path))
-        #expect(try (String(contentsOf: destination, encoding: .utf8)) == expected)
-    }
-
-    @Test("download fails with incorrect expected size", .timeLimit(.minutes(2)))
-    func downloadFailsWithIncorrectSize() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
-        let etag = try await Hub.getFileMetadata(fileURL: url).etag!
-        let destination = tempDir.appendingPathComponent("config.json")
-
-        let cacheDir = tempDir.appendingPathComponent("cache")
-        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-        let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
-        FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
-
-        let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
-        let sub = await downloader.download(from: url, expectedSize: 999_999)
-
-        var failed = false
-        listen: for await state in sub {
-            switch state {
-            case .notStarted, .downloading: continue
-            case .failed:
-                failed = true
-                break listen
+            case .notStarted:
+                continue
+            case .downloading:
+                continue
+            case let .failed(error):
+                throw error
             case .completed:
                 break listen
             }
         }
 
-        #expect(failed)
-        #expect(!FileManager.default.fileExists(atPath: destination.path))
+        // Verify download completed successfully
+        XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path))
+        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), fileContent)
     }
 
-    @Test("interrupted LFS download resumes and completes", .timeLimit(.minutes(5)))
-    func successfulInterruptedDownload() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
+    /// This test attempts to download with incorrect expected file, verifies the download fails, ensures no partial file is left behind
+    func testDownloadFailsWithIncorrectSize() async throws {
+        let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
-        let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
-
-        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let destination = tempDir.appendingPathComponent("config.json")
 
         let cacheDir = tempDir.appendingPathComponent("cache")
-        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
         let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
         FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
 
         let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
-        let sub = await downloader.download(from: url, expectedSize: 73_194_001)
-
-        var threshold = 0.5
+        // Download with incorrect expected size
+        let sub = await downloader.download(from: url, expectedSize: 999999) // Incorrect size
         listen: for await state in sub {
             switch state {
-            case .notStarted: continue
-            case let .downloading(progress, _):
-                if threshold != 1.0, progress >= threshold {
-                    threshold = threshold == 0.5 ? 0.75 : 1.0
-                    await downloader.session.get()?.invalidateAndCancel()
-                }
-            case let .failed(error): throw error
-            case .completed: break listen
+            case .notStarted:
+                continue
+            case .downloading:
+                continue
+            case .failed:
+                break listen
+            case .completed:
+                XCTFail("Download should have failed due to size mismatch")
+                break listen
             }
         }
 
-        #expect(FileManager.default.fileExists(atPath: destination.path))
-        let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
-        let finalSize = attributes[.size] as! Int64
-        #expect(finalSize > 0)
+        // Verify no file was created at destination
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+    }
+
+    /// This test downloads an LFS file, interrupts the download at 50% and 75% progress,
+    /// verifies the download can resume and complete successfully, checks the final file exists and has content
+    func testSuccessfulInterruptedDownload() async throws {
+        let url = URL(string: "https://huggingface.co/coreml-projects/sam-2-studio/resolve/main/SAM%202%20Studio%201.1.zip")!
+        let etag = try await Hub.getFileMetadata(fileURL: url).etag!
+        let destination = tempDir.appendingPathComponent("SAM%202%20Studio%201.1.zip")
+
+        // Create parent directory if it doesn't exist
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let cacheDir = tempDir.appendingPathComponent("cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+
+        let incompleteDestination = cacheDir.appendingPathComponent("config.json.\(etag).incomplete")
+        FileManager.default.createFile(atPath: incompleteDestination.path, contents: nil, attributes: nil)
+
+        let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination)
+        let sub = await downloader.download(from: url, expectedSize: 73_194_001) // Correct size for verification
+
+        // First interruption point at 50%
+        var threshold = 0.5
+
+        do {
+            // Monitor download progress and interrupt at thresholds to test if
+            // download continues from where it left off
+            listen: for await state in sub {
+                switch state {
+                case .notStarted:
+                    continue
+                case let .downloading(progress, _):
+                    if threshold != 1.0, progress >= threshold {
+                        // Move to next threshold and interrupt
+                        threshold = threshold == 0.5 ? 0.75 : 1.0
+                        // Interrupt download
+                        await downloader.session.get()?.invalidateAndCancel()
+                    }
+                case let .failed(error):
+                    throw error
+                case .completed:
+                    break listen
+                }
+            }
+
+            // Verify the file exists and is complete
+            if FileManager.default.fileExists(atPath: destination.path) {
+                let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
+                let finalSize = attributes[.size] as! Int64
+                XCTAssertGreaterThan(finalSize, 0, "File should not be empty")
+            } else {
+                XCTFail("File was not created at destination")
+            }
+        } catch {
+            throw error
+        }
+    }
+
+    func testMoveDownloadedFilePercentEncodedFlag() throws {
+        let appSupport = tempDir.appendingPathComponent("Application Support")
+        let destination = appSupport.appendingPathComponent("config.json")
+        let source1 = tempDir.appendingPathComponent("v1.incomplete")
+        let source2 = tempDir.appendingPathComponent("v2.incomplete")
+
+        try FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        try "existing".write(to: destination, atomically: true, encoding: .utf8)
+        try "v1".write(to: source1, atomically: true, encoding: .utf8)
+        try "v2".write(to: source2, atomically: true, encoding: .utf8)
+
+        XCTAssertThrowsError(
+            try FileManager.default.moveDownloadedFile(from: source1, to: destination, percentEncoded: true)
+        ) { error in
+            XCTAssertEqual((error as NSError).code, 516)
+        }
+        XCTAssertEqual(try String(contentsOf: destination), "existing")
+
+        XCTAssertNoThrow(
+            try FileManager.default.moveDownloadedFile(from: source2, to: destination, percentEncoded: false)
+        )
+        XCTAssertEqual(try String(contentsOf: destination), "v2")
     }
 }
