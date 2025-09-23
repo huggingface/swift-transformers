@@ -309,7 +309,7 @@ struct ChatTemplateTests {
 
     @Test("Apply template error handling")
     func applyTemplateError() async throws {
-        let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased")
+        let tokenizer = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-chinese")
         #expect(!tokenizer.hasChatTemplate)
 
         #expect(throws: TokenizerError.self) {
