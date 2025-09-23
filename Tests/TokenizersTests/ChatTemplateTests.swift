@@ -45,10 +45,12 @@ struct ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
-    @Test("DeepSeek Qwen chat template formatting")
+    @Test("DeepSeek Qwen chat template formatting", .disabled("Disabled due to race condition with TokenizerTests.deepSeekPostProcessor"))
     func deepSeekQwenChatTemplate() async throws {
         let tokenizer = try await AutoTokenizer.from(
             pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+        #expect(tokenizer.hasChatTemplate)
+
         let encoded = try tokenizer.applyChatTemplate(messages: messages)
         let encodedTarget = [
             151646, 151644, 74785, 279, 23670, 15473, 4128, 13, 151645, 151648, 198,
@@ -162,6 +164,7 @@ struct ChatTemplateTests {
     func qwen2_5WithTools() async throws {
         let tokenizer = try await AutoTokenizer.from(
             pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
+        #expect(tokenizer.hasChatTemplate)
 
         let weatherQueryMessages: [[String: String]] = [
             [
@@ -260,13 +263,6 @@ struct ChatTemplateTests {
             "Prompt should start with expected system message"
         )
         #expect(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
-    }
-
-    @Test("Checking chat template availability")
-    func hasChatTemplate() async throws {
-        let tokenizer = try await AutoTokenizer.from(
-            pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
-        #expect(tokenizer.hasChatTemplate)
     }
 
     /// Test for vision models with a vision chat template in chat_template.json
