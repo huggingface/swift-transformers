@@ -14,8 +14,7 @@
 
 `swift-transformers` is a collection of utilities to help adopt language models in Swift apps. 
 
-It tries to follow the Python `transformers` API and abstractions whenever possible, but it also aims to provide an idiomatic Swift interface and does not assume prior familiarity with [`transformers`](https://github.com/huggingface/transformers) or [`tokenizers`](https://github.com/huggingface/tokenizers).
-
+Those familiar with the [`transformers`](https://github.com/huggingface/transformers) python library will find a familiar but idiomatic Swift API.
 
 ## Rationale & Overview
 
@@ -23,7 +22,9 @@ Check out [our announcement post](https://huggingface.co/blog/swift-coreml-llm).
 
 ## Modules
 
-- `Tokenizers`: Utilities to convert text to tokens and back, with support for Chat Templates and Tools. Follows the abstractions in [`tokenizers`](https://github.com/huggingface/tokenizers). Usage example:
+- `Tokenizers`: Utilities to convert text to tokens and back, with support for Chat Templates and Tools. Follows the abstractions in [`tokenizers`](https://github.com/huggingface/tokenizers). 
+
+Usage example:
 ```swift
 import Tokenizers
 func testTokenizer() async throws {
@@ -33,16 +34,15 @@ func testTokenizer() async throws {
     let decoded = tokenizer.decode(tokens: encoded)
 }
 ```
-
 - `Hub`: Utilities for interacting with the Hugging Face Hub! Download models, tokenizers and other config files. Usage example:
+
 ```swift
 import Hub
 func testHub() async throws {
     let repo = Hub.Repo(id: "mlx-community/Qwen2.5-0.5B-Instruct-2bit-mlx")
-    let filesToDownload = ["config.json", "*.safetensors"]
     let modelDirectory: URL = try await Hub.snapshot(
         from: repo,
-        matching: filesToDownload,
+        matching: ["config.json", "*.safetensors"],
         progressHandler: { progress in
             print("Download progress: \(progress.fractionCompleted * 100)%")
         }
@@ -51,9 +51,8 @@ func testHub() async throws {
 }
 ```
 
-- `Generation`: Algorithms for text generation. Handles tokenization internally. Currently supported ones are: greedy search, top-k sampling, and top-p sampling.
+- `Generation`: Utilities for text generation, handling tokenization for you. Currently supported sampling methods: greedy search, top-k sampling, and top-p sampling.
 - `Models`: Language model abstraction over a Core ML package.
-
 
 ## Usage via SwiftPM
 
@@ -85,25 +84,10 @@ targets: [
 
 Using `swift-transformers` in your project? Let us know and we'll add you to the list!
 
-## Supported Models
-
-You can run inference on Core ML models with `swift-transformers`. Note that Core ML is not required to use the `Tokenizers` or `Hub` modules.
-
-This package has been tested with autoregressive language models such as:
-
-- GPT, GPT-Neox, GPT-J.
-- SantaCoder.
-- StarCoder.
-- Falcon.
-- Llama 2.
-
-Encoder-decoder models such as T5 and Flan are currently _not supported_.
-
 ## Other Tools
 
 - [`swift-chat`](https://github.com/huggingface/swift-chat), a simple app demonstrating how to use this package.
 - [`exporters`](https://github.com/huggingface/exporters), a Core ML conversion package for transformers models, based on Apple's [`coremltools`](https://github.com/apple/coremltools).
-- [`transformers-to-coreml`](https://huggingface.co/spaces/coreml-projects/transformers-to-coreml), a no-code Core ML conversion tool built on `exporters`.
 
 ## Contributing 
 
