@@ -801,6 +801,13 @@ extension HubApi {
             }
 
             monitor.start(queue: queue)
+
+            // Seed initial state immediately to avoid a startup race
+            // where the default value (`isConnected == false`)
+            // is read before the first `pathUpdateHandler` callback fires.
+            Task {
+                await self.state.update(path: self.monitor.currentPath)
+            }
         }
 
         func stopMonitoring() {
