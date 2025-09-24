@@ -570,7 +570,7 @@ class SnapshotDownloadTests: XCTestCase {
         // If that's the case we just update the metadata and keep the local file.
         XCTAssertEqual(originalTimestamp, thirdDownloadTimestamp)
 
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
 
         // Updated metadata file needs to have the correct commit hash, etag and timestamp.
         // This is being updated because the local etag (SHA256 checksum) matches the remote etag
@@ -601,7 +601,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("llama-2-7b-chat.mlpackage/Data/com.apple.CoreML/model.mlmodel.metadata")
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
 
         let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nfc329090bfbb2570382c9af997cffd5f4b78b39b8aeca62076db69534e020107"
         XCTAssertTrue(metadataString.contains(expected))
@@ -631,7 +631,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
 
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
         XCTAssertTrue(metadataString.contains(expected))
@@ -661,7 +661,7 @@ class SnapshotDownloadTests: XCTestCase {
         )
 
         let metadataFile = metadataDestination.appendingPathComponent("x.bin.metadata")
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
         let metadataArr = metadataString.components(separatedBy: .newlines)
 
         let commitHash = metadataArr[0]
@@ -719,7 +719,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
         XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
 
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
 
         XCTAssertTrue(metadataString.contains(expected))
@@ -770,7 +770,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(originalTimestamp == secondDownloadTimestamp)
         XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
 
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
         let expected = "77b984598d90af6143d73d5a2d6214b23eba7e27\n98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4"
 
         XCTAssertTrue(metadataString.contains(expected))
@@ -821,7 +821,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(originalTimestamp != secondDownloadTimestamp)
         XCTAssertTrue(FileManager.default.fileExists(atPath: metadataDestination.path))
 
-        let metadataString = try String(contentsOfFile: metadataFile.path)
+        let metadataString = try String(contentsOfFile: metadataFile.path, encoding: .utf8)
         let expected = "eaf97358a37d03fd48e5a87d15aff2e8423c1afb\nd6ceb92ce9e3c83ab146dc8e92a93517ac1cc66f"
 
         XCTAssertTrue(metadataString.contains(expected))
@@ -1008,7 +1008,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(lastProgress?.completedUnitCount, 1)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
-        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
+        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
 
         let expected = """
             {
@@ -1047,7 +1047,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(lastProgress?.completedUnitCount, 1)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
-        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path)
+        let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
 
         let expected = """
             X

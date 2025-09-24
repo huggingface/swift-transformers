@@ -181,11 +181,11 @@ final class DownloaderTests: XCTestCase {
         ) { error in
             XCTAssertEqual((error as NSError).code, 516)
         }
-        XCTAssertEqual(try String(contentsOf: destination), "existing")
+        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), "existing")
 
         XCTAssertNoThrow(
             try FileManager.default.moveDownloadedFile(from: source2, to: destination, percentEncoded: false)
         )
-        XCTAssertEqual(try String(contentsOf: destination), "v2")
+        XCTAssertEqual(try String(contentsOf: destination, encoding: .utf8), "v2")
     }
 }

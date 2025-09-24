@@ -86,7 +86,7 @@ private enum Squad {
 private let bertTokenizer: BertTokenizer = {
     let vocab = {
         let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
-        let vocabTxt = try! String(contentsOf: url)
+        let vocabTxt = try! String(contentsOf: url, encoding: .utf8)
         let tokens = vocabTxt.split(separator: "\n").map { String($0) }
         var vocab: [String: Int] = [:]
         for (i, token) in tokens.enumerated() {
