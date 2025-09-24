@@ -268,7 +268,9 @@ public extension HubApi {
     /// `fileURL` is a complete local file path for the given model
     func configuration(fileURL: URL) throws -> Config {
         let data = try Data(contentsOf: fileURL)
-        let parsed = try JSONSerialization.bomPreservingJsonObject(with: data)
+        guard let parsed = try? JSONSerialization.bomPreservingJsonObject(with: data) else {
+            throw Hub.HubClientError.jsonSerialization(fileURL: fileURL, message: "JSON Serialization failed for \(fileURL). Please verify that you have set the HF_TOKEN environment variable.")
+        }
         guard let dictionary = parsed as? [NSString: Any] else { throw Hub.HubClientError.parse }
         return Config(dictionary)
     }

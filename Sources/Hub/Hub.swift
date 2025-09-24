@@ -14,6 +14,7 @@ public extension Hub {
         case authorizationRequired
         case httpStatusCode(Int)
         case parse
+        case jsonSerialization(fileURL: URL, message: String)
         case unexpectedError
         case downloadError(String)
         case fileNotFound(String)
@@ -31,6 +32,8 @@ public extension Hub {
                 String(localized: "HTTP error with status code: \(code)")
             case .parse:
                 String(localized: "Failed to parse server response.")
+            case .jsonSerialization(_, let message):
+                return message
             case .unexpectedError:
                 String(localized: "An unexpected error occurred.")
             case let .downloadError(message):
