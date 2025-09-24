@@ -70,7 +70,7 @@ public extension Hub {
 
 public final class LanguageModelConfigurationFromHub: Sendable {
     struct Configurations {
-        var modelConfig: Config
+        var modelConfig: Config?
         var tokenizerConfig: Config?
         var tokenizerData: Config
     }
@@ -96,7 +96,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         }
     }
 
-    public var modelConfig: Config {
+    public var modelConfig: Config? {
         get async throws {
             try await configPromise.value.modelConfig
         }
@@ -135,7 +135,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
 
     public var modelType: String? {
         get async throws {
-            try await modelConfig.modelType.string()
+            try await modelConfig?.modelType.string()
         }
     }
 
@@ -174,11 +174,11 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         do {
             // Load required configurations
             let modelConfigURL = modelFolder.appending(path: "config.json")
-            guard FileManager.default.fileExists(atPath: modelConfigURL.path) else {
-                throw Hub.HubClientError.configurationMissing("config.json")
-            }
 
-            let modelConfig = try hubApi.configuration(fileURL: modelConfigURL)
+            var modelConfig: Config? = nil
+            if FileManager.default.fileExists(atPath: modelConfigURL.path) {
+                modelConfig = try hubApi.configuration(fileURL: modelConfigURL)
+            }
 
             let tokenizerDataURL = modelFolder.appending(path: "tokenizer.json")
             guard FileManager.default.fileExists(atPath: tokenizerDataURL.path) else {
