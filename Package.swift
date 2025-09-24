@@ -10,7 +10,7 @@ let swiftSettings: [SwiftSetting] = [
 
 let package = Package(
     name: "swift-transformers",
-    platforms: [.iOS(.v16), .macOS(.v13)],
+    platforms: [.iOS("18.0"), .macOS("15.0")],
     products: [
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"])
     ],
