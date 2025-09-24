@@ -236,7 +236,7 @@ class MetaspaceDecoder: Decoder {
 }
 
 /// We could use firstIndex(where:), lastIndex(where:) for possibly better efficiency (and do both ends at once)
-public extension String {
+private extension String {
     func trimmingFromStart(character: Character = " ", upto: Int) -> String {
         var result = self
         var trimmed = 0

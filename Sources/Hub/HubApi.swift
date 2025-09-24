@@ -891,13 +891,13 @@ public extension Hub {
     }
 }
 
-public extension [String] {
+private extension [String] {
     func matching(glob: String) -> [String] {
         filter { fnmatch(glob, $0, 0) == 0 }
     }
 }
 
-public extension FileManager {
+private extension FileManager {
     func getFileUrls(at directoryUrl: URL) throws -> [URL] {
         var fileUrls = [URL]()
 
