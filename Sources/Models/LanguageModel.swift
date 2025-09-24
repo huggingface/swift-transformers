@@ -309,17 +309,12 @@ public extension LanguageModel {
 
     var tokenizer: Tokenizer {
         get async throws {
-            if let _tokenizer {
-                return _tokenizer
-            }
+            guard _tokenizer == nil else { return _tokenizer! }
             guard let tokenizerConfig = try await tokenizerConfig else {
-                throw "Cannot retrieve Tokenizer configuration"
+                throw TokenizerError.tokenizerConfigNotFound
             }
             let tokenizerData = try await tokenizerData
-            _tokenizer = try AutoTokenizer.from(
-                tokenizerConfig: tokenizerConfig,
-                tokenizerData: tokenizerData
-            )
+            _tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
             return _tokenizer!
         }
     }
@@ -415,6 +410,15 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
     }
 }
 
-extension String: @retroactive Error {}
+public enum TokenizerError: LocalizedError {
+    case tokenizerConfigNotFound
+
+    public var errorDescription: String? {
+        switch self {
+        case .tokenizerConfigNotFound:
+            String(localized: "Tokenizer configuration could not be found. The model may be missing required tokenizer files.", comment: "Error when tokenizer configuration is missing")
+        }
+    }
+}
 
 #endif // canImport(CoreML)
