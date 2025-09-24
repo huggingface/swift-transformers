@@ -10,10 +10,10 @@ import Hub
 import Testing
 import Tokenizers
 
-private func makeHubApi() -> (api: HubApi, downloadDestination: URL) {
+private func makeHubApi(useOfflineMode: Bool? = nil) -> (api: HubApi, downloadDestination: URL) {
     let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
     let destination = base.appending(component: "huggingface-tests-\(UUID().uuidString)")
-    return (HubApi(downloadBase: destination), destination)
+    return (HubApi(downloadBase: destination, useOfflineMode: useOfflineMode), destination)
 }
 
 @Suite("Factory")
@@ -40,7 +40,7 @@ struct FactoryTests {
 
     @Test
     func fromModelFolder() async throws {
-        let (hubApi, downloadDestination) = makeHubApi()
+        let (hubApi, downloadDestination) = makeHubApi(useOfflineMode: false)
         defer { try? FileManager.default.removeItem(at: downloadDestination) }
 
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]
@@ -54,7 +54,7 @@ struct FactoryTests {
 
     @Test
     func whisperFromModelFolder() async throws {
-        let (hubApi, downloadDestination) = makeHubApi()
+        let (hubApi, downloadDestination) = makeHubApi(useOfflineMode: false)
         defer { try? FileManager.default.removeItem(at: downloadDestination) }
 
         let filesToDownload = ["config.json", "tokenizer_config.json", "tokenizer.json"]

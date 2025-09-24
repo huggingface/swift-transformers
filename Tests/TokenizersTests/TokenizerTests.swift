@@ -244,7 +244,7 @@ struct TokenizerTests {
             return base.appending(component: "hf-local-pretrained-tests-downloads")
         }()
 
-        let hubApi = HubApi(downloadBase: downloadDestination)
+        let hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: false)
         let downloadedTo = try await hubApi.snapshot(from: "pcuenq/gemma-tokenizer")
 
         let tokenizerOpt = try await AutoTokenizer.from(modelFolder: downloadedTo) as? PreTrainedTokenizer
