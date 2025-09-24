@@ -33,7 +33,7 @@ public extension Hub {
             case .parse:
                 String(localized: "Failed to parse server response.")
             case .jsonSerialization(_, let message):
-                return message
+                message
             case .unexpectedError:
                 String(localized: "An unexpected error occurred.")
             case let .downloadError(message):
