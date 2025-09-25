@@ -8,6 +8,7 @@
 import Foundation
 import Hub
 import Testing
+
 @testable import Tokenizers
 
 private func makeHubApi() -> (api: HubApi, downloadDestination: URL) {
