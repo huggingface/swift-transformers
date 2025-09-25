@@ -141,7 +141,7 @@ public extension LanguageModel {
 
 /// async properties downloaded from the configuration
 public extension LanguageModel {
-    var modelConfig: Config {
+    var modelConfig: Config? {
         get async throws {
             try await configuration!.modelConfig
         }
@@ -161,13 +161,13 @@ public extension LanguageModel {
 
     var modelType: String? {
         get async throws {
-            try await modelConfig.modelType.string()
+            try await modelConfig?.modelType.string()
         }
     }
 
     var textGenerationParameters: Config? {
         get async throws {
-            try await modelConfig.taskSpecificParams.textGeneration
+            try await modelConfig?.taskSpecificParams.textGeneration
         }
     }
 
@@ -180,14 +180,14 @@ public extension LanguageModel {
     var bosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            return modelConfig.bosTokenId.integer()
+            return modelConfig?.bosTokenId.integer()
         }
     }
 
     var eosTokenId: Int? {
         get async throws {
             let modelConfig = try await modelConfig
-            return modelConfig.eosTokenId.integer()
+            return modelConfig?.eosTokenId.integer()
         }
     }
 
