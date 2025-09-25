@@ -9,22 +9,36 @@
 import Combine
 import Foundation
 
+/// A robust file downloader with support for resumable downloads and progress reporting.
+///
+/// The Downloader class handles file downloads from remote URLs with features including
+/// automatic resume capability, progress tracking, speed monitoring, and retry mechanisms.
+/// It supports both foreground and background download sessions for different use cases.
 final class Downloader: NSObject, Sendable, ObservableObject {
     private let destination: URL
     private let incompleteDestination: URL
     private let downloadResumeState: DownloadResumeState = .init()
     private let chunkSize: Int
 
+    /// Represents the current state of a download operation.
     enum DownloadState {
+        /// Download has not yet started.
         case notStarted
+        /// Download is in progress with completion percentage and optional speed in bytes/sec.
         case downloading(Double, Double?)
+        /// Download completed successfully with the final file URL.
         case completed(URL)
+        /// Download failed with an error.
         case failed(Error)
     }
 
+    /// Errors specific to download operations.
     enum DownloadError: Error {
+        /// The specified download location is invalid.
         case invalidDownloadLocation
+        /// An unexpected error occurred during download.
         case unexpectedError
+        /// The temporary file could not be found during resume.
         case tempFileNotFound
     }
 
@@ -36,6 +50,13 @@ final class Downloader: NSObject, Sendable, ObservableObject {
     let session: SessionActor = .init()
     private let task: TaskActor = .init()
 
+    /// Initializes a new downloader instance.
+    ///
+    /// - Parameters:
+    ///   - destination: The final destination URL for the downloaded file
+    ///   - incompleteDestination: The temporary location for incomplete downloads
+    ///   - inBackground: Whether to use background URL session (defaults to false)
+    ///   - chunkSize: Size of download chunks in bytes (defaults to 10MB)
     init(
         to destination: URL,
         incompleteDestination: URL,
@@ -58,6 +79,16 @@ final class Downloader: NSObject, Sendable, ObservableObject {
         sessionConfig = config
     }
 
+    /// Starts a download operation and returns a stream of download states.
+    ///
+    /// - Parameters:
+    ///   - url: The URL to download from
+    ///   - authToken: Optional authentication token for the request
+    ///   - headers: Additional HTTP headers to include
+    ///   - expectedSize: The expected file size in bytes for progress calculation
+    ///   - timeout: Request timeout interval in seconds (defaults to 10)
+    ///   - numRetries: Maximum number of retry attempts (defaults to 5)
+    /// - Returns: An async stream of download state updates
     func download(
         from url: URL,
         using authToken: String? = nil,

@@ -7,16 +7,33 @@
 
 import Foundation
 
+/// Extensions to JSONSerialization for handling BOM (Byte Order Mark) sequences.
 extension JSONSerialization {
+    /// Parses JSON data while preserving BOM sequences that appear after quotes.
+    ///
+    /// This method works around issues with certain tokenizer files (like Gemma) that contain
+    /// BOM sequences after quotes, which JSONSerialization incorrectly interprets as encoding markers.
+    ///
+    /// - Parameters:
+    ///   - data: The JSON data to parse
+    ///   - options: JSON reading options (defaults to empty)
+    /// - Returns: The parsed JSON object
+    /// - Throws: JSONSerialization errors if parsing fails
     class func bomPreservingJsonObject(with data: Data, options: JSONSerialization.ReadingOptions = []) throws -> Any {
         try JSONSerialization.jsonObject(with: data.duplicatingBOMsAfterQuotes, options: options)
     }
 }
 
 private extension Data {
-    /// Workaround for https://github.com/huggingface/swift-transformers/issues/116
-    /// Duplicate a BOM sequence that follows a quote. The first BOM is swallowed by JSONSerialization.jsonObject
-    /// because it thinks it marks the encoding.
+    /// Workaround for BOM handling in JSON parsing.
+    ///
+    /// Duplicates BOM sequences that follow quotes to prevent JSONSerialization from incorrectly
+    /// consuming them as encoding markers. This is needed for tokenizer files like Gemma that
+    /// contain BOM sequences as part of the token content.
+    ///
+    /// See: https://github.com/huggingface/swift-transformers/issues/116
+    ///
+    /// - Returns: Data with duplicated BOM sequences after quotes
     var duplicatingBOMsAfterQuotes: Data {
         withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             let src = raw.bindMemory(to: UInt8.self)

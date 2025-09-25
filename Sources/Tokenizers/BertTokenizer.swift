@@ -9,22 +9,48 @@
 import Foundation
 import Hub
 
+/// A BERT-style tokenizer implementing WordPiece tokenization.
+///
+/// This tokenizer performs basic tokenization (whitespace and punctuation splitting)
+/// followed by WordPiece subword tokenization, which is the approach used by BERT
+/// and related models.
 public class BertTokenizer {
     private let basicTokenizer: BasicTokenizer
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
     private let tokenizeChineseChars: Bool
 
+    /// The vocabulary mapping token strings to IDs.
     private let vocab: [String: Int]
+
+    /// The reverse vocabulary mapping IDs to token strings.
     private let ids_to_tokens: [Int: String]
 
+    /// The beginning-of-sequence token string, if defined.
     public var bosToken: String?
+
+    /// The numeric ID of the beginning-of-sequence token, if defined.
     public var bosTokenId: Int?
+
+    /// The end-of-sequence token string, if defined.
     public var eosToken: String?
+
+    /// The numeric ID of the end-of-sequence token, if defined.
     public var eosTokenId: Int?
 
+    /// Whether consecutive unknown tokens should be fused together.
     public let fuseUnknownTokens: Bool
 
+    /// Initializes a BERT tokenizer with the specified configuration.
+    ///
+    /// - Parameters:
+    ///   - vocab: The vocabulary mapping token strings to numeric IDs
+    ///   - merges: Merge rules (unused in BERT tokenization)
+    ///   - tokenizeChineseChars: Whether to add spaces around Chinese characters
+    ///   - bosToken: The beginning-of-sequence token
+    ///   - eosToken: The end-of-sequence token
+    ///   - fuseUnknownTokens: Whether to fuse consecutive unknown tokens
+    ///   - doLowerCase: Whether to convert text to lowercase during basic tokenization
     public init(
         vocab: [String: Int],
         merges: [String]?,
@@ -46,6 +72,13 @@ public class BertTokenizer {
         self.fuseUnknownTokens = fuseUnknownTokens
     }
 
+    /// Convenience initializer that creates a BERT tokenizer from configuration data.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: The tokenizer configuration
+    ///   - tokenizerData: The tokenizer data containing vocabulary
+    ///   - addedTokens: Additional tokens to include in the vocabulary
+    /// - Throws: `TokenizerError` if the vocabulary is missing or malformed
     public required convenience init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
         guard let vocab = tokenizerData.model.vocab.dictionary() else {
             throw TokenizerError.missingVocab
@@ -70,8 +103,8 @@ public class BertTokenizer {
                 guard let key = element["content"].string() else { return }
 
                 result[key] = val
-            })
-        {
+            }
+        ) {
             vocabulary.merge(pairs, uniquingKeysWith: { $1 })
         }
 
@@ -83,6 +116,10 @@ public class BertTokenizer {
         )
     }
 
+    /// Tokenizes input text using BERT's two-stage tokenization process.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of WordPiece tokens
     public func tokenize(text: String) -> [String] {
         let text = tokenizeChineseCharsIfNeed(text)
         var tokens: [String] = []
@@ -158,7 +195,10 @@ public class BertTokenizer {
 }
 
 extension BertTokenizer: PreTrainedTokenizerModel {
+    /// The unknown token string used for out-of-vocabulary words.
     public var unknownToken: String? { wordpieceTokenizer.unkToken }
+
+    /// The numeric ID of the unknown token.
     public var unknownTokenId: Int? { vocab[unknownToken!] }
 
     func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
@@ -168,10 +208,18 @@ extension BertTokenizer: PreTrainedTokenizerModel {
         return convertWordpieceToBasicTokenList(tokens)
     }
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID, or the unknown token ID if not found
     public func convertTokenToId(_ token: String) -> Int? {
         vocab[token] ?? unknownTokenId
     }
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string, or nil if the ID is invalid
     public func convertIdToToken(_ id: Int) -> String? {
         ids_to_tokens[id]
     }

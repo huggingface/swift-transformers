@@ -2,17 +2,31 @@
 import Accelerate
 import Foundation
 
-/// Top-K.
-/// Select the k most-probable element indices from `arr`
-/// and return both the indices (from the original array)
-/// and their probabilities.
+/// Logits warper that implements top-k filtering for sampling.
+///
+/// Selects the k most probable tokens and sets all other token probabilities
+/// to zero, effectively limiting the sampling space to the top k candidates.
+/// This helps balance diversity and quality in generated text.
 public struct TopKLogitsWarper: LogitsWarper {
+    /// Number of top tokens to keep.
     public var k: Int
 
+    /// Creates a top-k logits warper.
+    ///
+    /// - Parameter k: Number of top tokens to retain (others are filtered out)
     public init(k: Int) {
         self.k = k
     }
 
+    /// Applies top-k filtering to the logits.
+    ///
+    /// Uses Accelerate framework's optimized top-k algorithm to efficiently
+    /// select the k highest-valued logits and their corresponding indices.
+    ///
+    /// - Parameters:
+    ///   - indices: Current token indices
+    ///   - logits: Current logits values
+    /// - Returns: Tuple of (top-k indices, top-k logits)
     public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
         guard !logits.isEmpty else {
             return (indices: [], logits: [])

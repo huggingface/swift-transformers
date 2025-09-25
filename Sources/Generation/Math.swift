@@ -11,11 +11,12 @@ import Accelerate
 import CoreML
 import Foundation
 
+/// Mathematical utilities for text generation and tensor operations.
 ///
-/// From M.I. Hollemans
+/// Provides optimized implementations of common mathematical operations
+/// used in text generation, including argmax, softmax, sampling, and cumulative sum.
 ///
-/// https://github.com/hollance/CoreMLHelpers
-///
+/// - Note: From M.I. Hollemans - https://github.com/hollance/CoreMLHelpers
 public enum Math {
     /**
      Returns the index and value of the largest element in the array.
@@ -46,6 +47,13 @@ public enum Math {
         return (Int(maxIndex), maxValue)
     }
 
+    /// Returns the index and value of the largest element in a Float array.
+    ///
+    /// - Parameters:
+    ///   - ptr: Pointer to the first element in memory
+    ///   - count: How many elements to look at
+    ///   - stride: The distance between two elements in memory
+    /// - Returns: Tuple of (index, value) of the maximum element
     public static func argmax32(_ ptr: UnsafePointer<Float>, count: Int, stride: Int = 1) -> (Int, Float) {
         var maxValue: Float = 0
         var maxIndex: vDSP_Length = 0
@@ -53,16 +61,20 @@ public enum Math {
         return (Int(maxIndex), maxValue)
     }
 
-    /// MLMultiArray helper.
-    /// Works in our specific use case.
+    /// Returns the index and value of the largest element in an MLMultiArray of doubles.
+    ///
+    /// - Parameter multiArray: Input MLMultiArray with double precision values
+    /// - Returns: Tuple of (index, value) of the maximum element
     public static func argmax(_ multiArray: MLMultiArray) -> (Int, Double) {
         assert(multiArray.dataType == .double)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(multiArray.dataPointer))
         return Math.argmax(ptr, count: multiArray.count)
     }
 
-    /// MLMultiArray helper.
-    /// Works in our specific use case.
+    /// Returns the index and value of the largest element in an MLMultiArray of floats.
+    ///
+    /// - Parameter multiArray: Input MLMultiArray with single precision values
+    /// - Returns: Tuple of (index, value) of the maximum element
     public static func argmax32(_ multiArray: MLMultiArray) -> (Int, Float) {
         assert(multiArray.dataType == .float32)
         let ptr = UnsafeMutablePointer<Float32>(OpaquePointer(multiArray.dataPointer))
@@ -70,6 +82,12 @@ public enum Math {
     }
 
     /// Returns the cumulative sum of the array.
+    ///
+    /// Computes the cumulative sum where each element is the sum of all previous elements
+    /// plus the current element.
+    ///
+    /// - Parameter arr: Input array of Float values
+    /// - Returns: Array of cumulative sums
     public static func cumsum(_ arr: [Float]) -> [Float] {
         guard !arr.isEmpty else {
             return []
@@ -83,23 +101,34 @@ public enum Math {
         return result
     }
 
-    /// Multinomial sampling from an array of probs. Works well with topK
+    /// Performs multinomial sampling from probability distributions.
+    ///
+    /// Selects an index based on probability weights, commonly used for token sampling
+    /// in text generation after applying logits warpers.
+    ///
+    /// - Parameters:
+    ///   - indexes: Array of indices to sample from
+    ///   - probs: Probability weights for each index
+    /// - Returns: Selected index based on probability distribution
     public static func sample(indexes: [Int], probs: [Float]) -> Int {
         let i = randomNumber(probabilities: probs)
         return indexes[i]
     }
 
-    /**
-     Computes the "softmax" function over an array.
-     Based on code from https://github.com/nikolaypavlov/MLPNeuralNet/
-     This is what softmax looks like in "pseudocode" (actually using Python
-     and numpy):
-     x -= np.max(x)
-     exp_scores = np.exp(x)
-     softmax = exp_scores / np.sum(exp_scores)
-     First we shift the values of x so that the highest value in the array is 0.
-     This ensures numerical stability with the exponents, so they don't blow up.
-     */
+    /// Computes the softmax function over an array.
+    ///
+    /// Converts logits into a probability distribution by applying exponential normalization.
+    /// Uses numerical stability techniques by shifting values to prevent overflow.
+    ///
+    /// The implementation follows this algorithm:
+    /// 1. Subtract maximum value for numerical stability
+    /// 2. Apply exponential function to all elements
+    /// 3. Normalize by dividing by the sum of all exponentials
+    ///
+    /// - Parameter x: Input logits array
+    /// - Returns: Probability distribution (sums to 1.0)
+    ///
+    /// - Note: Based on code from https://github.com/nikolaypavlov/MLPNeuralNet/
     public static func softmax(_ x: [Float]) -> [Float] {
         var x = x
         let len = vDSP_Length(x.count)
@@ -128,10 +157,15 @@ public enum Math {
         return x
     }
 
-    /// Multinomial sampling
+    /// Generates a random index based on probability weights.
     ///
-    /// From https://stackoverflow.com/questions/30309556/generate-random-numbers-with-a-given-distribution
+    /// Uses the roulette wheel selection algorithm to choose an index where
+    /// the probability of selection is proportional to the weight at that index.
     ///
+    /// - Parameter probabilities: Array of probability weights (need not sum to 1.0)
+    /// - Returns: Selected index based on probability distribution
+    ///
+    /// - Note: From https://stackoverflow.com/questions/30309556/generate-random-numbers-with-a-given-distribution
     public static func randomNumber(probabilities: [Float]) -> Int {
         // Sum of all probabilities (so that we don't have to require that the sum is 1.0):
         let sum = probabilities.reduce(0, +)
@@ -150,9 +184,12 @@ public enum Math {
     }
 }
 
-// MLShapedArray versions
-
+/// MLShapedArray extensions for Math operations.
 public extension Math {
+    /// Returns the index and value of the largest element in an MLShapedArray of floats.
+    ///
+    /// - Parameter shapedArray: Input MLShapedArray containing Float values
+    /// - Returns: Tuple of (index, value) of the maximum element
     static func argmax(_ shapedArray: MLShapedArray<Float>) -> (Int, Float) {
         shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
             assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")
@@ -160,7 +197,12 @@ public extension Math {
         }
     }
 
-    // TODO: handle Double, etc.
+    /// Returns the index and value of the largest element in a generic MLShapedArray.
+    ///
+    /// - Parameter shapedArray: Input shaped array conforming to MLShapedArrayProtocol
+    /// - Returns: Tuple of (index, value) of the maximum element as Float
+    ///
+    /// - Note: Currently assumes Float data type
     static func argmax(_ shapedArray: some MLShapedArrayProtocol) -> (Int, Float) {
         shapedArray.withUnsafeShapedBufferPointer { ptr, shape, strides in
             assert(shape.count == 1, "Only supported for 1-dimensional arrays or slices")

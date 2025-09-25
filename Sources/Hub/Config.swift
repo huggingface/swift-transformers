@@ -8,6 +8,12 @@ import Foundation
 
 // MARK: - Configuration files with dynamic lookup
 
+/// A flexible configuration structure for handling JSON-like data with dynamic member lookup.
+///
+/// Config provides a type-safe way to work with configuration files from the Hugging Face Hub,
+/// supporting multiple data types and automatic type conversion. It uses dynamic member lookup
+/// to provide convenient access to nested configuration values while maintaining type safety
+/// through explicit conversion methods.
 @dynamicMemberLookup
 public struct Config: Hashable, Sendable,
     ExpressibleByStringLiteral,
@@ -19,19 +25,33 @@ public struct Config: Hashable, Sendable,
     ExpressibleByExtendedGraphemeClusterLiteral,
     CustomStringConvertible
 {
+    /// Type alias for configuration keys using binary-distinct strings.
     public typealias Key = BinaryDistinctString
+    /// Type alias for configuration values.
     public typealias Value = Config
 
     private let value: Data
 
+    /// The underlying data types supported by the configuration system.
+    ///
+    /// This enumeration represents all possible value types that can be stored
+    /// in a configuration, providing type-safe access to different data formats.
     public enum Data: Sendable {
+        /// Represents a null/nil value.
         case null
+        /// A string value stored as a binary-distinct string.
         case string(BinaryDistinctString)
+        /// An integer numeric value.
         case integer(Int)
+        /// A boolean true/false value.
         case boolean(Bool)
+        /// A floating-point numeric value.
         case floating(Float)
+        /// A dictionary mapping keys to configuration values.
         case dictionary([BinaryDistinctString: Config])
+        /// An array of configuration values.
         case array([Config])
+        /// A token tuple containing an ID and string value.
         case token((UInt, BinaryDistinctString))
 
         public static func == (lhs: Data, rhs: Data) -> Bool {
