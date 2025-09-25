@@ -34,7 +34,7 @@ jobs:
           run: |
             echo "### Here's how to fix the formatting locally:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "```bash" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
             echo "# Format all Swift files" >> $GITHUB_STEP_SUMMARY
             echo 'swift format -i --recursive .' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
