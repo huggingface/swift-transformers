@@ -1,9 +1,8 @@
 import ArgumentParser
 import CoreML
 import Foundation
-
-import Models
 import Generation
+import Models
 
 @available(macOS 15.0, iOS 18.0, *)
 @main
@@ -25,10 +24,11 @@ struct TransformersCLI: AsyncParsableCommand {
     @Option(help: "Compute units to load model with {all,cpuOnly,cpuAndGPU,cpuAndNeuralEngine}")
     var computeUnits: ComputeUnits = .cpuAndGPU
 
-    @Option(help: """
-        When enabled, two generation passes are ran, one to 'warm up' and another to collect \
-        benchmark metrics. 
-        """)
+    @Option(
+        help: """
+            When enabled, two generation passes are ran, one to 'warm up' and another to collect \
+            benchmark metrics. 
+            """)
     var warmup: Bool = false
 
     func generate(
@@ -63,7 +63,8 @@ struct TransformersCLI: AsyncParsableCommand {
         let tps = Double(tokensReceived) / endTime.timeIntervalSince(startTime)
         if printOutput {
             print("")
-            print("""
+            print(
+                """
                 \(tps.formatted("%.2f")) tokens/s, \
                 prompt pre-filling time: \(promptProcessingTime.formatted("%.2f"))s, \
                 total time: \(completionTime.formatted("%.2f"))s
@@ -86,7 +87,7 @@ struct TransformersCLI: AsyncParsableCommand {
         let compiledURL = try compile(at: url)
         print("Loading model \(compiledURL)")
         let model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
-        
+
         // Using greedy generation for now
         var config = model.defaultGenerationConfig
         config.doSample = false
@@ -126,7 +127,7 @@ enum ComputeUnits: String, ExpressibleByArgument, CaseIterable {
 ///
 /// - Parameter respone: The response to clean and format.
 /// - Returns: A 'user friendly' representation of the generated response.
-fileprivate func formatResponse(_ response: String) -> String {
+private func formatResponse(_ response: String) -> String {
     response
         .replacingOccurrences(of: "\\n", with: "\n")
         .replacingOccurrences(of: "<s>", with: "")

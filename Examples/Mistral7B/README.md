@@ -15,7 +15,7 @@ Running compression: 100%|██████████████████
 ### Generate Text
 
 ```shell
-✗ swift run transformers "Best recommendations for a place to visit in Paris in August 2024:" --max-length 128 StatefulMistral7BInstructInt4.mlpackage
+✗ swift run transformers-cli "Best recommendations for a place to visit in Paris in August 2024:" --max-length 128 StatefulMistral7BInstructInt4.mlpackage
 
 Best recommendations for a place to visit in Paris in August 2024:
 
