@@ -14,7 +14,7 @@
 
 `swift-transformers` is a collection of utilities to help adopt language models in Swift apps. 
 
-Those familiar with the [`transformers`](https://github.com/huggingface/transformers) python library will find a familiar but idiomatic Swift API.
+Those familiar with the [`transformers`](https://github.com/huggingface/transformers) Python library will find a familiar yet idiomatic Swift API.
 
 ## Rationale & Overview
 
