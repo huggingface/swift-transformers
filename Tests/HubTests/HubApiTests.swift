@@ -274,6 +274,7 @@ class SnapshotDownloadTests: XCTestCase {
     }
 
     func testCustomEndpointDownload() async throws {
+        try XCTSkipIf(true, "Skipping, getting 429 from mirror")
         let hubApi = HubApi(downloadBase: downloadDestination, endpoint: "https://hf-mirror.com")
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
