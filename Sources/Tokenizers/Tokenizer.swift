@@ -595,9 +595,9 @@ public class PreTrainedTokenizer: Tokenizer {
 
 // MARK: - Building
 
-public struct AutoTokenizer {}
+public enum AutoTokenizer {}
 
-struct PreTrainedTokenizerClasses {
+enum PreTrainedTokenizerClasses {
     /// Class overrides for custom behaviour
     /// Not to be confused with the TokenizerModel classes defined in TokenizerModel
     static let tokenizerClasses: [String: PreTrainedTokenizer.Type] = [
