@@ -8,18 +8,56 @@
 import Foundation
 import Hub
 
+/// Options that can be passed to pre-tokenization operations.
 public enum PreTokenizerOption: String {
+    /// Indicates this is the first section of text being processed.
     case firstSection
 }
 
+/// A set of pre-tokenization options.
 public typealias PreTokenizerOptions = Set<PreTokenizerOption>
 
+/// A protocol for pre-tokenization operations that split text before main tokenization.
+///
+/// Pre-tokenizers handle the initial splitting of text into chunks that will be
+/// further processed by the main tokenization algorithm. Common operations include
+/// splitting on whitespace, punctuation, or applying byte-level encoding.
 public protocol PreTokenizer {
+    /// Pre-tokenizes a single text string.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to pre-tokenize
+    ///   - options: Options controlling the pre-tokenization behavior
+    /// - Returns: An array of pre-tokenized text chunks
     func preTokenize(text: String, options: PreTokenizerOptions) -> [String]
+
+    /// Pre-tokenizes multiple text strings.
+    ///
+    /// - Parameters:
+    ///   - texts: The input texts to pre-tokenize
+    ///   - options: Options controlling the pre-tokenization behavior
+    /// - Returns: An array of pre-tokenized text chunks from all inputs
     func preTokenize(texts: [String], options: PreTokenizerOptions) -> [String]
+
+    /// Function call syntax for pre-tokenizing multiple texts.
+    ///
+    /// - Parameters:
+    ///   - texts: The input texts to pre-tokenize
+    ///   - options: Options controlling the pre-tokenization behavior
+    /// - Returns: An array of pre-tokenized text chunks
     func callAsFunction(texts: [String], options: PreTokenizerOptions) -> [String]
+
+    /// Function call syntax for pre-tokenizing a single text.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to pre-tokenize
+    ///   - options: Options controlling the pre-tokenization behavior
+    /// - Returns: An array of pre-tokenized text chunks
     func callAsFunction(text: String, options: PreTokenizerOptions) -> [String]
 
+    /// Initializes the pre-tokenizer from configuration.
+    ///
+    /// - Parameter config: The configuration for this pre-tokenizer
     init(config: Config)
 }
 

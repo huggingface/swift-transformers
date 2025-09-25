@@ -11,7 +11,15 @@ import CoreML
 import Foundation
 
 extension MLMultiArray {
-    /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
+    /// Creates an MLMultiArray from an array of integers.
+    ///
+    /// All values are stored in the last dimension of the MLMultiArray, with leading
+    /// dimensions set to 1. For example, with dims=2, the shape becomes [1, arr.count].
+    ///
+    /// - Parameters:
+    ///   - arr: Array of integers to convert
+    ///   - dims: Number of dimensions for the resulting MLMultiArray
+    /// - Returns: MLMultiArray containing the integer values
     static func from(_ arr: [Int], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
         shape[shape.count - 1] = arr.count
@@ -27,7 +35,15 @@ extension MLMultiArray {
         return o
     }
 
-    /// All values will be stored in the last dimension of the MLMultiArray (default is dims=1)
+    /// Creates an MLMultiArray from an array of doubles.
+    ///
+    /// All values are stored in the last dimension of the MLMultiArray, with leading
+    /// dimensions set to 1. For example, with dims=2, the shape becomes [1, arr.count].
+    ///
+    /// - Parameters:
+    ///   - arr: Array of doubles to convert
+    ///   - dims: Number of dimensions for the resulting MLMultiArray
+    /// - Returns: MLMultiArray containing the double values
     static func from(_ arr: [Double], dims: Int = 1) -> MLMultiArray {
         var shape = Array(repeating: 1, count: dims)
         shape[shape.count - 1] = arr.count
@@ -43,7 +59,13 @@ extension MLMultiArray {
         return o
     }
 
-    /// This will concatenate all dimensions into one one-dim array.
+    /// Converts an MLMultiArray to a flat array of integers.
+    ///
+    /// Concatenates all dimensions into a single one-dimensional array by reading
+    /// the MLMultiArray data in memory order.
+    ///
+    /// - Parameter o: MLMultiArray to convert
+    /// - Returns: Flat array of integer values
     static func toIntArray(_ o: MLMultiArray) -> [Int] {
         var arr = Array(repeating: 0, count: o.count)
         let ptr = UnsafeMutablePointer<Int32>(OpaquePointer(o.dataPointer))
@@ -53,9 +75,18 @@ extension MLMultiArray {
         return arr
     }
 
+    /// Converts this MLMultiArray to a flat array of integers.
+    ///
+    /// - Returns: Flat array of integer values
     func toIntArray() -> [Int] { Self.toIntArray(self) }
 
-    /// This will concatenate all dimensions into one one-dim array.
+    /// Converts an MLMultiArray to a flat array of doubles.
+    ///
+    /// Concatenates all dimensions into a single one-dimensional array by reading
+    /// the MLMultiArray data in memory order.
+    ///
+    /// - Parameter o: MLMultiArray to convert
+    /// - Returns: Flat array of double values
     static func toDoubleArray(_ o: MLMultiArray) -> [Double] {
         var arr: [Double] = Array(repeating: 0, count: o.count)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(o.dataPointer))
@@ -65,11 +96,17 @@ extension MLMultiArray {
         return arr
     }
 
+    /// Converts this MLMultiArray to a flat array of doubles.
+    ///
+    /// - Returns: Flat array of double values
     func toDoubleArray() -> [Double] { Self.toDoubleArray(self) }
 
-    /// Helper to construct a sequentially-indexed multi array,
-    /// useful for debugging and unit tests
-    /// Example in 3 dimensions:
+    /// Creates a test MLMultiArray with sequentially indexed values.
+    ///
+    /// Useful for debugging and unit tests. Values are assigned sequentially
+    /// starting from 0, following the memory layout of the specified shape.
+    ///
+    /// Example output for shape [2, 3, 4]:
     /// ```
     /// [[[ 0, 1, 2, 3 ],
     ///   [ 4, 5, 6, 7 ],
@@ -78,6 +115,9 @@ extension MLMultiArray {
     ///   [ 16, 17, 18, 19 ],
     ///   [ 20, 21, 22, 23 ]]]
     /// ```
+    ///
+    /// - Parameter shape: Desired shape of the test tensor
+    /// - Returns: MLMultiArray with sequential values for testing
     static func testTensor(shape: [Int]) -> MLMultiArray {
         let arr = try! MLMultiArray(shape: shape as [NSNumber], dataType: .double)
         let ptr = UnsafeMutablePointer<Double>(OpaquePointer(arr.dataPointer))
@@ -199,6 +239,12 @@ extension MLMultiArray {
 }
 
 extension MLShapedArray<Float> {
+    /// Efficiently extracts float values from the shaped array.
+    ///
+    /// Uses optimized memory copying when possible (stride=1), falling back to
+    /// slower scalar access for non-contiguous arrays.
+    ///
+    /// - Returns: Array of Float values from the shaped array
     var floats: [Float] {
         guard strides.first == 1, strides.count == 1 else {
             // For some reason this path is slow.
@@ -213,6 +259,12 @@ extension MLShapedArray<Float> {
 }
 
 extension MLShapedArraySlice<Float> {
+    /// Efficiently extracts float values from the shaped array slice.
+    ///
+    /// Uses optimized memory copying when possible (stride=1), falling back to
+    /// slower scalar access for non-contiguous slices.
+    ///
+    /// - Returns: Array of Float values from the shaped array slice
     var floats: [Float] {
         guard strides.first == 1, strides.count == 1 else {
             // For some reason this path is slow.
@@ -227,6 +279,12 @@ extension MLShapedArraySlice<Float> {
 }
 
 extension MLMultiArray {
+    /// Efficiently extracts float values from the MLMultiArray if it contains float32 data.
+    ///
+    /// Uses fast memory copying to extract all float values as a contiguous array.
+    /// Returns nil if the array doesn't contain float32 data.
+    ///
+    /// - Returns: Array of Float values, or nil if not float32 type
     var floats: [Float]? {
         guard dataType == .float32 else { return nil }
 

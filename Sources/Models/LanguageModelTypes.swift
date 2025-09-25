@@ -11,32 +11,87 @@ import CoreML
 import Generation
 import Tokenizers
 
+/// Protocol defining the core interface for language model implementations.
+///
+/// This protocol establishes the fundamental requirements for any language model
+/// that can perform next-token prediction and text generation tasks.
 public protocol LanguageModelProtocol {
-    /// `name_or_path` in the Python world
+    /// The name or path of the model.
+    ///
+    /// This corresponds to the `name_or_path` field in Hugging Face transformers.
     var modelName: String { get }
 
+    /// The tokenizer associated with this model.
+    ///
+    /// - Returns: A configured tokenizer instance
+    /// - Throws: An error if the tokenizer cannot be loaded or configured
     var tokenizer: Tokenizer { get async throws }
+
+    /// The underlying CoreML model used for inference.
     var model: MLModel { get }
 
+    /// Creates a new language model instance from a CoreML model.
+    ///
+    /// - Parameter model: The CoreML model to wrap
     init(model: MLModel)
 
-    /// Make prediction callable (this works like __call__ in Python)
+    /// Predicts the next token scores for the given input tokens.
+    ///
+    /// - Parameters:
+    ///   - tokens: The input token sequence
+    ///   - config: The generation configuration containing model parameters
+    /// - Returns: A shaped array containing the logits for the next token prediction
     func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
+
+    /// Function call syntax for next token prediction.
+    ///
+    /// This provides a more convenient syntax for calling `predictNextTokenScores`.
+    ///
+    /// - Parameters:
+    ///   - tokens: The input token sequence
+    ///   - config: The generation configuration containing model parameters
+    /// - Returns: A shaped array containing the logits for the next token prediction
     func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
 }
 
 public extension LanguageModelProtocol {
+    /// Default implementation of function call syntax that delegates to `predictNextTokenScores`.
     func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
         predictNextTokenScores(tokens, config: config)
     }
 }
 
+/// Protocol for language models that support text generation capabilities.
+///
+/// This protocol extends `LanguageModelProtocol` and `Generation` to provide
+/// high-level text generation functionality with configurable parameters.
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
+    /// The default generation configuration for this model.
+    ///
+    /// Provides model-specific defaults for generation parameters such as
+    /// sampling behavior, temperature, and token limits.
     var defaultGenerationConfig: GenerationConfig { get }
+
+    /// Generates text based on the given prompt and configuration.
+    ///
+    /// - Parameters:
+    ///   - config: The generation configuration specifying parameters like max tokens and sampling
+    ///   - prompt: The input text to use as the generation starting point
+    ///   - callback: Optional callback to receive intermediate generation results
+    /// - Returns: The generated text as a string
+    /// - Throws: An error if text generation fails
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async throws -> String
 }
 
 public extension TextGenerationModel {
+    /// Default implementation of text generation that uses the underlying generation framework.
+    ///
+    /// - Parameters:
+    ///   - config: The generation configuration specifying parameters like max tokens and sampling
+    ///   - prompt: The input text to use as the generation starting point
+    ///   - callback: Optional callback to receive intermediate generation results
+    /// - Returns: The generated text as a string
+    /// - Throws: An error if text generation fails
     @discardableResult
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async throws -> String {
         try await generate(config: config, prompt: prompt, model: callAsFunction, tokenizer: tokenizer, callback: callback)

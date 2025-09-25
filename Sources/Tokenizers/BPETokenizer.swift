@@ -9,6 +9,7 @@
 import Foundation
 import Hub
 
+/// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
 struct BytePair: Hashable {
     let a: String
     let b: String
@@ -32,20 +33,38 @@ struct BytePair: Hashable {
     }
 }
 
+/// A Byte-Pair Encoding (BPE) tokenizer implementation.
+///
+/// BPE tokenizers learn to merge the most frequently occurring pairs of characters
+/// or character sequences. This implementation supports various BPE-based models
+/// including GPT-2, RoBERTa, and other transformer models.
 class BPETokenizer: PreTrainedTokenizerModel {
     let bpeRanks: [BytePair: Int]
     private let tokensToIds: [NSString: Int]
     private let idsToTokens: [Int: NSString]
 
+    /// The total number of tokens in the vocabulary.
     var vocabCount: Int { tokensToIds.count }
 
+    /// The beginning-of-sequence token string, if defined.
     let bosToken: String?
+
+    /// The numeric ID of the beginning-of-sequence token, if defined.
     let bosTokenId: Int?
+
+    /// The end-of-sequence token string, if defined.
     let eosToken: String?
+
+    /// The numeric ID of the end-of-sequence token, if defined.
     let eosTokenId: Int?
+
+    /// The unknown token string used for out-of-vocabulary words.
     let unknownToken: String?
+
+    /// The numeric ID of the unknown token.
     let unknownTokenId: Int?
 
+    /// Whether consecutive unknown tokens should be fused together.
     let fuseUnknownTokens: Bool
 
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
@@ -65,6 +84,13 @@ class BPETokenizer: PreTrainedTokenizerModel {
         return nil
     }
 
+    /// Initializes a BPE tokenizer from configuration data.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: The tokenizer configuration
+    ///   - tokenizerData: The tokenizer data containing vocabulary and merges
+    ///   - addedTokens: Additional tokens to include in the vocabulary
+    /// - Throws: `TokenizerError` if required configuration is missing
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
         guard let merges = Self.mergesFromConfig(tokenizerData.model.merges) else { fatalError("BPETokenizer requires merges") }
         guard let vocab = tokenizerData.model.vocab.dictionary() else {
@@ -104,10 +130,18 @@ class BPETokenizer: PreTrainedTokenizerModel {
         fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
     }
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID, or the unknown token ID if not found
     func convertTokenToId(_ token: String) -> Int? {
         tokensToIds[token as NSString] ?? unknownTokenId
     }
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string, or nil if the ID is invalid
     func convertIdToToken(_ id: Int) -> String? {
         idsToTokens[id] as String?
     }
@@ -186,6 +220,10 @@ class BPETokenizer: PreTrainedTokenizerModel {
         return word.joined(separator: " ")
     }
 
+    /// Tokenizes input text using the BPE algorithm.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of BPE token strings
     func tokenize(text: String) -> [String] {
         var tokens: [String] = []
         let bpeTokens = bpe(token: text).split(separator: " ").map { String($0) }

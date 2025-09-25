@@ -8,10 +8,27 @@
 import Foundation
 import Hub
 
+/// A protocol for text normalization operations applied before tokenization.
+///
+/// Normalizers perform text preprocessing such as lowercasing, accent removal,
+/// Unicode normalization, and other text cleaning operations to standardize
+/// input before the main tokenization process.
 public protocol Normalizer {
+    /// Normalizes the input text according to the normalizer's rules.
+    ///
+    /// - Parameter text: The input text to normalize
+    /// - Returns: The normalized text
     func normalize(text: String) -> String
+
+    /// Function call syntax for text normalization.
+    ///
+    /// - Parameter text: The input text to normalize
+    /// - Returns: The normalized text
     func callAsFunction(text: String) -> String
 
+    /// Initializes the normalizer from configuration.
+    ///
+    /// - Parameter config: The configuration for this normalizer
     init(config: Config)
 }
 

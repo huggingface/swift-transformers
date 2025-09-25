@@ -1,15 +1,32 @@
 import Foundation
 
-/// Top-P.
-/// Select the smallest set of elements whose cumulative probability exceeds the probability `p`.
-/// Based on https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+/// Logits warper that implements nucleus (top-p) sampling.
+///
+/// Selects the smallest set of tokens whose cumulative probability exceeds
+/// the threshold p, providing dynamic vocabulary selection based on the
+/// probability distribution rather than a fixed number of tokens.
+///
+/// - Note: Based on https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
 public struct TopPLogitsWarper: LogitsWarper {
+    /// Cumulative probability threshold.
     public var p: Float
 
+    /// Creates a top-p (nucleus) logits warper.
+    ///
+    /// - Parameter p: Cumulative probability threshold (0.0 to 1.0)
     public init(p: Float) {
         self.p = p
     }
 
+    /// Applies top-p (nucleus) filtering to the logits.
+    ///
+    /// Computes softmax probabilities, sorts by probability, and selects tokens
+    /// until their cumulative probability exceeds the threshold p.
+    ///
+    /// - Parameters:
+    ///   - indices: Current token indices
+    ///   - logits: Current logits values
+    /// - Returns: Tuple of (filtered indices, filtered logits)
     public func warp(indices: [Int], logits: [Float]) -> (indices: [Int], logits: [Float]) {
         guard !logits.isEmpty else {
             return (indices: [], logits: [])

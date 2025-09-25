@@ -9,9 +9,13 @@ import Foundation
 import Hub
 import Jinja
 
+/// A type alias for chat messages, represented as key-value pairs.
 public typealias Message = [String: Any]
+
+/// A type alias for tool specifications used in chat templating.
 public typealias ToolSpec = [String: Any]
 
+/// Errors that can occur during tokenizer operations.
 public enum TokenizerError: LocalizedError {
     case missingConfig
     case missingTokenizerClassInConfig
@@ -47,25 +51,66 @@ public enum TokenizerError: LocalizedError {
     }
 }
 
+/// A protocol defining the core tokenization functionality.
+///
+/// This protocol defines the fundamental operations that any tokenization model must support,
+/// including converting between text and tokens, and between tokens and their numeric IDs.
 public protocol TokenizingModel {
+    /// Tokenizes the input text into a sequence of tokens.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of tokens as strings
     func tokenize(text: String) -> [String]
 
-    /// Alias for `tokenize`
+    /// Alias for `tokenize` that allows the instance to be called as a function.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of tokens as strings
     func callAsFunction(_ text: String) -> [String]
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID of the token, or nil if the token is not in the vocabulary
     func convertTokenToId(_ token: String) -> Int?
+
+    /// Converts multiple token strings to their corresponding numeric IDs.
+    ///
+    /// - Parameter tokens: An array of token strings to convert
+    /// - Returns: An array of numeric IDs, with nil values for tokens not in the vocabulary
     func convertTokensToIds(_ tokens: [String]) -> [Int?]
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string, or nil if the ID is not valid
     func convertIdToToken(_ id: Int) -> String?
+
+    /// Converts multiple numeric token IDs back to their string representations.
+    ///
+    /// - Parameter ids: An array of numeric token IDs to convert
+    /// - Returns: An array of token strings, with nil values for invalid IDs
     func convertIdsToTokens(_ ids: [Int]) -> [String?]
 
+    /// The beginning-of-sequence token string, if defined.
     var bosToken: String? { get }
+
+    /// The numeric ID of the beginning-of-sequence token, if defined.
     var bosTokenId: Int? { get }
+
+    /// The end-of-sequence token string, if defined.
     var eosToken: String? { get }
+
+    /// The numeric ID of the end-of-sequence token, if defined.
     var eosTokenId: Int? { get }
+
+    /// The unknown token string used for out-of-vocabulary words.
     var unknownToken: String? { get }
+
+    /// The numeric ID of the unknown token.
     var unknownTokenId: Int? { get }
 
+    /// Whether consecutive unknown tokens should be fused together.
     var fuseUnknownTokens: Bool { get }
 }
 
@@ -94,12 +139,22 @@ public extension TokenizingModel {
     }
 }
 
-/// A tokenizer model that is set up with Hub configuration data
+/// A tokenizer model that can be initialized from Hugging Face Hub configuration data.
+///
+/// This protocol extends `TokenizingModel` with the ability to be created from configuration
+/// files typically found in tokenizer repositories on the Hugging Face Hub.
 public protocol PreTrainedTokenizerModel: TokenizingModel {
+    /// Initializes a tokenizer model from configuration data.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: The tokenizer configuration (typically from tokenizer_config.json)
+    ///   - tokenizerData: The tokenizer data (typically from tokenizer.json)
+    ///   - addedTokens: A dictionary mapping added token strings to their IDs
+    /// - Throws: `TokenizerError` if the configuration is invalid or missing required data
     init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws
 }
 
-struct TokenizerModel {
+enum TokenizerModel {
     static let knownTokenizers: [String: PreTrainedTokenizerModel.Type] = [
         "BertTokenizer": BertTokenizer.self,
         "CodeGenTokenizer": BPETokenizer.self,
@@ -143,58 +198,170 @@ struct TokenizerModel {
     }
 }
 
+/// Arguments for specifying chat templates when applying chat formatting.
 public enum ChatTemplateArgument {
-    /// A Jinja template to use for the conversation. Normally it is not necessary to provide a template, since it will be read from the tokenizer config.
+    /// A Jinja template to use for the conversation.
+    ///
+    /// Normally it is not necessary to provide a template, since it will be read from the tokenizer config.
     case literal(String)
-    /// For models whose tokenizer config includes multiple chat templates, the template can be specified by name. Normally this is not necessary.
+
+    /// For models whose tokenizer config includes multiple chat templates, the template can be specified by name.
+    ///
+    /// Normally this is not necessary.
     case name(String)
 }
 
+/// A complete tokenizer interface supporting encoding, decoding, and chat template functionality.
+///
+/// This is the main protocol that defines all tokenizer operations, including text processing,
+/// chat template application, and special token handling.
 public protocol Tokenizer {
+    /// Tokenizes the input text into a sequence of tokens.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of tokens as strings
     func tokenize(text: String) -> [String]
 
-    /// Main entry point
+    /// Encodes text into token IDs with special tokens included by default.
+    ///
+    /// This is the main entry point for most tokenization tasks.
+    ///
+    /// - Parameter text: The input text to encode
+    /// - Returns: An array of token IDs
     func encode(text: String) -> [Int]
+
+    /// Encodes text into token IDs with optional special token handling.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to encode
+    ///   - addSpecialTokens: Whether to add special tokens (e.g., BOS, EOS)
+    /// - Returns: An array of token IDs
     func encode(text: String, addSpecialTokens: Bool) -> [Int]
+
+    /// Function call syntax for encoding text.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to encode
+    ///   - addSpecialTokens: Whether to add special tokens
+    /// - Returns: An array of token IDs
     func callAsFunction(_ text: String, addSpecialTokens: Bool) -> [Int]
 
-    /// Decode
+    /// Decodes token IDs back into text with special tokens included.
+    ///
+    /// - Parameter tokens: The token IDs to decode
+    /// - Returns: The decoded text string
     func decode(tokens: [Int]) -> String
+
+    /// Decodes token IDs back into text with optional special token handling.
+    ///
+    /// - Parameters:
+    ///   - tokens: The token IDs to decode
+    ///   - skipSpecialTokens: Whether to skip special tokens in the output
+    /// - Returns: The decoded text string
     func decode(tokens: [Int], skipSpecialTokens: Bool) -> String
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID of the token, or nil if not found
     func convertTokenToId(_ token: String) -> Int?
+
+    /// Converts multiple token strings to their corresponding numeric IDs.
+    ///
+    /// - Parameter tokens: An array of token strings to convert
+    /// - Returns: An array of numeric IDs, with nil values for unknown tokens
     func convertTokensToIds(_ tokens: [String]) -> [Int?]
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string, or nil if the ID is invalid
     func convertIdToToken(_ id: Int) -> String?
+
+    /// Converts multiple numeric token IDs back to their string representations.
+    ///
+    /// - Parameter ids: An array of numeric token IDs to convert
+    /// - Returns: An array of token strings, with nil values for invalid IDs
     func convertIdsToTokens(_ ids: [Int]) -> [String?]
 
+    /// The beginning-of-sequence token string, if defined.
     var bosToken: String? { get }
+
+    /// The numeric ID of the beginning-of-sequence token, if defined.
     var bosTokenId: Int? { get }
+
+    /// The end-of-sequence token string, if defined.
     var eosToken: String? { get }
+
+    /// The numeric ID of the end-of-sequence token, if defined.
     var eosTokenId: Int? { get }
+
+    /// The unknown token string used for out-of-vocabulary words.
     var unknownToken: String? { get }
+
+    /// The numeric ID of the unknown token.
     var unknownTokenId: Int? { get }
 
+    /// Whether this tokenizer has a chat template configured.
     var hasChatTemplate: Bool { get }
 
-    /// The appropriate chat template is selected from the tokenizer config
+    /// Applies the configured chat template to format messages for model input.
+    ///
+    /// - Parameter messages: Array of message dictionaries representing the conversation
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails or no template is available
     func applyChatTemplate(messages: [Message]) throws -> [Int]
 
-    /// The appropriate chat template is selected from the tokenizer config
+    /// Applies the configured chat template with optional tool specifications.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - tools: Optional array of tool specifications for function calling
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails or no template is available
     func applyChatTemplate(messages: [Message], tools: [ToolSpec]?) throws -> [Int]
 
-    /// The appropriate chat template is selected from the tokenizer config
+    /// Applies the configured chat template with tools and additional context.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - tools: Optional array of tool specifications for function calling
+    ///   - additionalContext: Additional context variables for template rendering
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails or no template is available
     func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: Any]?) throws -> [Int]
 
-    /// The chat template is provided as a string literal or specified by name
+    /// Applies a specific chat template to format messages.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - chatTemplate: The chat template to use (literal template or template name)
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails
     func applyChatTemplate(messages: [Message], chatTemplate: ChatTemplateArgument) throws -> [Int]
 
-    /// The chat template is provided as a string literal
+    /// Applies a chat template provided as a literal string.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - chatTemplate: The Jinja template string to use for formatting
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails
     func applyChatTemplate(messages: [Message], chatTemplate: String) throws -> [Int]
 
+    /// Applies a chat template with full control over all parameters.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - chatTemplate: Optional chat template specification
+    ///   - addGenerationPrompt: Whether to add a generation prompt for the assistant
+    ///   - truncation: Whether to truncate if the result exceeds maximum length
+    ///   - maxLength: Maximum allowed token length
+    ///   - tools: Optional array of tool specifications for function calling
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails
     func applyChatTemplate(
         messages: [Message],
-        // A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
         chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
@@ -202,9 +369,20 @@ public protocol Tokenizer {
         tools: [ToolSpec]?
     ) throws -> [Int]
 
+    /// Applies a chat template with full control over all parameters including additional context.
+    ///
+    /// - Parameters:
+    ///   - messages: Array of message dictionaries representing the conversation
+    ///   - chatTemplate: Optional chat template specification
+    ///   - addGenerationPrompt: Whether to add a generation prompt for the assistant
+    ///   - truncation: Whether to truncate if the result exceeds maximum length
+    ///   - maxLength: Maximum allowed token length
+    ///   - tools: Optional array of tool specifications for function calling
+    ///   - additionalContext: Additional context variables for template rendering
+    /// - Returns: Token IDs for the formatted conversation
+    /// - Throws: `TokenizerError` if template application fails
     func applyChatTemplate(
         messages: [Message],
-        // A chat template can optionally be provided or specified by name when several templates are included in the tokenizer config. Normally this is not necessary.
         chatTemplate: ChatTemplateArgument?,
         addGenerationPrompt: Bool,
         truncation: Bool,
@@ -268,6 +446,11 @@ let specialTokenAttributes: [String] = [
     "additional_special_tokens",
 ]
 
+/// A comprehensive tokenizer implementation supporting pre-trained models from Hugging Face.
+///
+/// This class provides a complete tokenizer implementation that can be initialized from
+/// Hugging Face Hub configuration files and supports all standard tokenization operations
+/// including chat template application, normalization, pre-tokenization, and post-processing.
 public class PreTrainedTokenizer: Tokenizer {
     let model: TokenizingModel
 
@@ -294,6 +477,13 @@ public class PreTrainedTokenizer: Tokenizer {
     /// Cache for compiled Jinja templates keyed by their literal template string
     private var compiledChatTemplateCache: [String: Template] = [:]
 
+    /// Initializes a tokenizer from Hugging Face configuration files.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: Configuration from tokenizer_config.json
+    ///   - tokenizerData: Configuration from tokenizer.json
+    ///   - strict: Whether to enforce strict validation of tokenizer types
+    /// - Throws: `TokenizerError` if configuration is invalid or tokenizer type is unsupported
     public required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {
         var addedTokens: [String: Int] = [:]
         var specialTokens: [String: Int] = [:]
@@ -402,6 +592,10 @@ public class PreTrainedTokenizer: Tokenizer {
         return fused
     }
 
+    /// Tokenizes input text using the configured normalization and pre-tokenization steps.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of token strings
     public func tokenize(text: String) -> [String] {
         // Take care of special tokens first
         let sections: [String] =
@@ -416,15 +610,32 @@ public class PreTrainedTokenizer: Tokenizer {
         }.flatMap { fuseUnknown($0) }
     }
 
-    /// Main entry point
+    /// Encodes input text into token IDs with optional special token handling.
+    ///
+    /// This is the main entry point for text encoding operations.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to encode
+    ///   - addSpecialTokens: Whether to add special tokens during post-processing
+    /// - Returns: An array of token IDs
     public func encode(text: String, addSpecialTokens: Bool = true) -> [Int] {
         postProcess(tokenize(text: text), addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
     }
 
+    /// Encodes input text into token IDs with special tokens included by default.
+    ///
+    /// - Parameter text: The input text to encode
+    /// - Returns: An array of token IDs
     public func encode(text: String) -> [Int] {
         encode(text: text, addSpecialTokens: true)
     }
 
+    /// Decodes token IDs back into human-readable text.
+    ///
+    /// - Parameters:
+    ///   - tokens: The token IDs to decode
+    ///   - skipSpecialTokens: Whether to exclude special tokens from the output text
+    /// - Returns: The decoded text string
     public func decode(tokens: [Int], skipSpecialTokens: Bool = false) -> String {
         // IDs to tokens
         let tokenStrings: [String]
@@ -442,14 +653,23 @@ public class PreTrainedTokenizer: Tokenizer {
         return cleanUp(text: decoded.joined(separator: ""))
     }
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID of the token, or nil if not found in the vocabulary
     public func convertTokenToId(_ token: String) -> Int? {
         model.convertTokenToId(token)
     }
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string, or nil if the ID is invalid
     public func convertIdToToken(_ id: Int) -> String? {
         model.convertIdToToken(id)
     }
 
+    /// Whether this tokenizer has a chat template configured.
     public var hasChatTemplate: Bool {
         !tokenizerConfig.chatTemplate.isNull()
     }
@@ -595,6 +815,11 @@ public class PreTrainedTokenizer: Tokenizer {
 
 // MARK: - Building
 
+/// A namespace for automatically creating appropriate tokenizer instances.
+///
+/// `AutoTokenizer` provides static methods for loading pre-trained tokenizers
+/// from the Hugging Face Hub or local directories. It automatically selects
+/// the appropriate tokenizer class based on the configuration.
 public enum AutoTokenizer {}
 
 enum PreTrainedTokenizerClasses {
@@ -606,6 +831,10 @@ enum PreTrainedTokenizerClasses {
 }
 
 public extension AutoTokenizer {
+    /// Determines the appropriate tokenizer class for the given configuration.
+    ///
+    /// - Parameter tokenizerConfig: The tokenizer configuration
+    /// - Returns: The appropriate `PreTrainedTokenizer` subclass
     internal static func tokenizerClass(for tokenizerConfig: Config) -> PreTrainedTokenizer.Type {
         guard let tokenizerClassName = tokenizerConfig.tokenizerClass.string() else {
             return PreTrainedTokenizer.self
@@ -620,11 +849,27 @@ public extension AutoTokenizer {
         return PreTrainedTokenizer.self
     }
 
+    /// Creates a tokenizer from configuration objects.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: The tokenizer configuration (from tokenizer_config.json)
+    ///   - tokenizerData: The tokenizer data (from tokenizer.json)
+    ///   - strict: Whether to enforce strict validation
+    /// - Returns: A configured `Tokenizer` instance
+    /// - Throws: `TokenizerError` if configuration is invalid
     static func from(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws -> Tokenizer {
         let tokenizerClass = tokenizerClass(for: tokenizerConfig)
         return try tokenizerClass.init(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 
+    /// Loads a tokenizer from a pre-trained model on the Hugging Face Hub.
+    ///
+    /// - Parameters:
+    ///   - model: The model identifier (e.g., "bert-base-uncased")
+    ///   - hubApi: The Hub API instance to use for downloading
+    ///   - strict: Whether to enforce strict validation
+    /// - Returns: A configured `Tokenizer` instance
+    /// - Throws: `TokenizerError` if the model cannot be loaded or configured
     static func from(
         pretrained model: String,
         hubApi: HubApi = .shared,
@@ -637,6 +882,14 @@ public extension AutoTokenizer {
         return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 
+    /// Loads a tokenizer from a local model folder.
+    ///
+    /// - Parameters:
+    ///   - modelFolder: The URL path to the local model folder
+    ///   - hubApi: The Hub API instance to use (unused for local loading)
+    ///   - strict: Whether to enforce strict validation
+    /// - Returns: A configured `Tokenizer` instance
+    /// - Throws: `TokenizerError` if the model folder is invalid or missing files
     static func from(
         modelFolder: URL,
         hubApi: HubApi = .shared,
