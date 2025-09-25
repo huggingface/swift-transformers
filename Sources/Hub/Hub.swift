@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Hub: Sendable {}
+public enum Hub: Sendable {}
 
 public extension Hub {
     enum HubClientError: LocalizedError {
