@@ -12,7 +12,9 @@ let package = Package(
     name: "swift-transformers",
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
-        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"])
+        .library(name: "Hub", targets: ["Hub"]),
+        .library(name: "Tokenizers", targets: ["Tokenizers"]),
+        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
     ],
     dependencies: [
         .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0")
