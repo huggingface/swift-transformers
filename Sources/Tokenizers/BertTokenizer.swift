@@ -14,7 +14,7 @@ import Hub
 /// This tokenizer performs basic tokenization (whitespace and punctuation splitting)
 /// followed by WordPiece subword tokenization, which is the approach used by BERT
 /// and related models.
-public class BertTokenizer: @unchecked Sendable {
+public final class BertTokenizer: Sendable {
     private let basicTokenizer: BasicTokenizer
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512
@@ -27,16 +27,16 @@ public class BertTokenizer: @unchecked Sendable {
     private let ids_to_tokens: [Int: String]
 
     /// The beginning-of-sequence token string, if defined.
-    public var bosToken: String?
+    public let bosToken: String?
 
     /// The numeric ID of the beginning-of-sequence token, if defined.
-    public var bosTokenId: Int?
+    public let bosTokenId: Int?
 
     /// The end-of-sequence token string, if defined.
-    public var eosToken: String?
+    public let eosToken: String?
 
     /// The numeric ID of the end-of-sequence token, if defined.
-    public var eosTokenId: Int?
+    public let eosTokenId: Int?
 
     /// Whether consecutive unknown tokens should be fused together.
     public let fuseUnknownTokens: Bool
@@ -225,7 +225,7 @@ extension BertTokenizer: PreTrainedTokenizerModel {
     }
 }
 
-class BasicTokenizer {
+final class BasicTokenizer: Sendable {
     let doLowerCase: Bool
 
     init(doLowerCase: Bool = true) {
@@ -291,7 +291,7 @@ private extension Character {
     }
 }
 
-class WordpieceTokenizer {
+final class WordpieceTokenizer: Sendable {
     let unkToken = "[UNK]"
     private let maxInputCharsPerWord = 100
     private let vocab: [String: Int]
