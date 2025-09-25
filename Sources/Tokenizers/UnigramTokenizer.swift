@@ -14,7 +14,7 @@ import Hub
 /// Unigram tokenizers use a probabilistic approach where each token has a score,
 /// and the tokenization process finds the most probable segmentation of the input text.
 /// This is commonly used in models like T5 and XLM-RoBERTa.
-class UnigramTokenizer: PreTrainedTokenizerModel {
+class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// A token with its associated score in the Unigram model.
     struct SentencePieceToken {
         var token: String
