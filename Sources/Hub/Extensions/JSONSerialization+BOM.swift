@@ -1,5 +1,5 @@
 //
-//  BOMDoubling.swift
+//  JSONSerialization+BOM.swift
 //  swift-transformers
 //
 //  Created by Pedro Cuenca on 20250912
@@ -7,7 +7,13 @@
 
 import Foundation
 
-extension Data {
+extension JSONSerialization {
+    class func bomPreservingJsonObject(with data: Data, options: JSONSerialization.ReadingOptions = []) throws -> Any {
+        try JSONSerialization.jsonObject(with: data.duplicatingBOMsAfterQuotes, options: options)
+    }
+}
+
+private extension Data {
     /// Workaround for https://github.com/huggingface/swift-transformers/issues/116
     /// Duplicate a BOM sequence that follows a quote. The first BOM is swallowed by JSONSerialization.jsonObject
     /// because it thinks it marks the encoding.
@@ -38,11 +44,5 @@ extension Data {
             }
             return Data(out)
         }
-    }
-}
-
-extension JSONSerialization {
-    class func bomPreservingJsonObject(with data: Data, options: JSONSerialization.ReadingOptions = []) throws -> Any {
-        try JSONSerialization.jsonObject(with: data.duplicatingBOMsAfterQuotes, options: options)
     }
 }
