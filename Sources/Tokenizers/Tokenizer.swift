@@ -477,6 +477,9 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     /// Cache for compiled Jinja templates keyed by their literal template string
     private var compiledChatTemplateCache: [String: Template] = [:]
 
+    /// Lock to protect the compiled chat template cache from concurrent access
+    private let cacheLock = NSLock()
+
     /// Initializes a tokenizer from Hugging Face configuration files.
     ///
     /// - Parameters:
@@ -531,10 +534,26 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     }
 
     private func compiledTemplate(for templateString: String) throws -> Template {
+        // Fast path: check cache under lock
+        cacheLock.lock()
+        if let cached = compiledChatTemplateCache[templateString] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
+        // Compile template outside of lock to avoid holding lock during expensive operation
+        let compiled = try Template(templateString)
+
+        // Insert into cache under lock (using double-checked locking pattern)
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        // Check again in case another thread compiled the same template
         if let cached = compiledChatTemplateCache[templateString] {
             return cached
         }
-        let compiled = try Template(templateString)
+
         compiledChatTemplateCache[templateString] = compiled
         return compiled
     }
