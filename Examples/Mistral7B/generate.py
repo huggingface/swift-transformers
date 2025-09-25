@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "coremltools",
+#     "numpy",
+#     "sentencepiece",
+#     "torch",
+#     "tqdm",
+#     "transformers",
+# ]
+# ///
 import argparse
 from typing import Dict, Generator, List, Tuple
 

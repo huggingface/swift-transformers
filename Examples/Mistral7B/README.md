@@ -1,7 +1,7 @@
 ### Export Mistral 7B Instruct v0.3
 
 ```shell
-✗ python export.py
+✗ uv run export.py
 
 Loading checkpoint shards: 100%|███████████████████████████| 3/3 [00:12<00:00,  4.11s/it]
 Converting PyTorch Frontend ==> MIL Ops: 100%|███| 5575/5575 [00:02<00:00, 2440.66 ops/s]

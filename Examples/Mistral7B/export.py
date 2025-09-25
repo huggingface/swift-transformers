@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "coremltools",
+#     "numpy",
+#     "sentencepiece",
+#     "torch",
+#     "tqdm",
+#     "transformers",
+# ]
+# ///
 import logging
 import os
 import warnings
