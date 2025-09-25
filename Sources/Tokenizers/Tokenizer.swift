@@ -215,7 +215,7 @@ public enum ChatTemplateArgument {
 ///
 /// This is the main protocol that defines all tokenizer operations, including text processing,
 /// chat template application, and special token handling.
-public protocol Tokenizer {
+public protocol Tokenizer: Sendable {
     /// Tokenizes the input text into a sequence of tokens.
     ///
     /// - Parameter text: The input text to tokenize
@@ -451,7 +451,7 @@ let specialTokenAttributes: [String] = [
 /// This class provides a complete tokenizer implementation that can be initialized from
 /// Hugging Face Hub configuration files and supports all standard tokenization operations
 /// including chat template application, normalization, pre-tokenization, and post-processing.
-public class PreTrainedTokenizer: Tokenizer {
+public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }
@@ -905,7 +905,7 @@ public extension AutoTokenizer {
 
 // MARK: - Tokenizer model classes
 
-class T5Tokenizer: UnigramTokenizer {}
+class T5Tokenizer: UnigramTokenizer, @unchecked Sendable {}
 
 // MARK: - PreTrainedTokenizer classes
 
@@ -954,7 +954,7 @@ func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?)
 }
 
 /// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
-class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
+class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
     let isLegacy: Bool
 
     required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {

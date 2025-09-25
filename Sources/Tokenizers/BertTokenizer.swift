@@ -14,7 +14,7 @@ import Hub
 /// This tokenizer performs basic tokenization (whitespace and punctuation splitting)
 /// followed by WordPiece subword tokenization, which is the approach used by BERT
 /// and related models.
-public class BertTokenizer {
+public class BertTokenizer: @unchecked Sendable {
     private let basicTokenizer: BasicTokenizer
     private let wordpieceTokenizer: WordpieceTokenizer
     private let maxLen = 512

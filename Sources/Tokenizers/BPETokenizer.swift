@@ -10,7 +10,7 @@ import Foundation
 import Hub
 
 /// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
-struct BytePair: Hashable {
+struct BytePair: Hashable, Sendable {
     let a: String
     let b: String
     init(_ a: String, _ b: String) {
@@ -38,7 +38,7 @@ struct BytePair: Hashable {
 /// BPE tokenizers learn to merge the most frequently occurring pairs of characters
 /// or character sequences. This implementation supports various BPE-based models
 /// including GPT-2, RoBERTa, and other transformer models.
-class BPETokenizer: PreTrainedTokenizerModel {
+class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     let bpeRanks: [BytePair: Int]
     private let tokensToIds: [NSString: Int]
     private let idsToTokens: [Int: NSString]
