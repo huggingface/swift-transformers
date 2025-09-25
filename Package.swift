@@ -15,15 +15,15 @@ let package = Package(
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"])
     ],
     dependencies: [
-        .package(url: "https://github.com/johnmai-dev/Jinja", .upToNextMinor(from: "1.3.0"))
+        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0")
     ],
     targets: [
         .target(name: "Generation", dependencies: ["Tokenizers"]),
-        .target(name: "Hub", resources: [.process("Resources")], swiftSettings: swiftSettings),
+        .target(name: "Hub", dependencies: [.product(name: "Jinja", package: "swift-jinja")], resources: [.process("Resources")], swiftSettings: swiftSettings),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
-        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")]),
+        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")]),
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
-        .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "Jinja")], swiftSettings: swiftSettings),
+        .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
         .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
     ]

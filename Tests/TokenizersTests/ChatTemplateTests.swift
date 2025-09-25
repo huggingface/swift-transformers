@@ -257,6 +257,7 @@ struct ChatTemplateTests {
             What is the weather in Paris today?<|im_end|>
             <|im_start|>assistant
 
+
             """
 
         #expect(
