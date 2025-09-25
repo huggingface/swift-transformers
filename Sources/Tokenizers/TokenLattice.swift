@@ -10,7 +10,7 @@
 /// We could make it generic so TokenLatticeNode stores an opaque type, but it's overkill right now.
 /// Based on https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/models/unigram/lattice.rs#L137
 /// and https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/utils/data-structures.js#L269C28-L269C28
-public struct TokenLattice {
+struct TokenLattice {
     let sentence: String
     let bosTokenId: Int
     let eosTokenId: Int
@@ -40,7 +40,7 @@ public struct TokenLattice {
     }
 }
 
-public extension TokenLattice {
+extension TokenLattice {
     /// Insert a new token into the node lattice.
     ///
     ///  - Parameters:
@@ -108,7 +108,7 @@ extension TokenLattice {
     }
 }
 
-public extension TokenLattice {
+extension TokenLattice {
     var tokens: [String] {
         viterbi().map { String(piece($0)) }
     }
