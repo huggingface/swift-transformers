@@ -47,18 +47,19 @@ extension Generation {
         var outputTokens = MLTensor(tokens).expandingShape(at: 0)
         while outputTokens.shape[1] < config.maxLength {
             let nextTokenScores = await model(outputTokens, config)
-            let nextToken = switch config.generationMode {
-            case .greedy:
-                selectNextTokenUsingGreedyDecoding(from: nextTokenScores)
-            case .sample:
-                selectNextTokenUsingTopKSampling(
-                    from: nextTokenScores,
-                    temperature: config.temperature,
-                    topK: config.topK
-                )
-            default:
-                fatalError("Generation mode \(config.generationMode) not implemented yet")
-            }
+            let nextToken =
+                switch config.generationMode {
+                case .greedy:
+                    selectNextTokenUsingGreedyDecoding(from: nextTokenScores)
+                case .sample:
+                    selectNextTokenUsingTopKSampling(
+                        from: nextTokenScores,
+                        temperature: config.temperature,
+                        topK: config.topK
+                    )
+                default:
+                    fatalError("Generation mode \(config.generationMode) not implemented yet")
+                }
 
             if let nextTokenId = await tensorToGenerationOutput(nextToken).first, nextTokenId == config.eosTokenId {
                 break

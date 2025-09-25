@@ -12,7 +12,7 @@ func selectNextTokenUsingTopKSampling(from scores: MLTensor, temperature: Float,
     let temperatureAdjustedScores = scores / temperature
     let (topKScores, topKIndices) = temperatureAdjustedScores.topK(topK)
     let topKProbs = topKScores.softmax(alongAxis: -1)
-    let rnd = topKProbs.sum() * Float.random(in: 0 ..< 1)
+    let rnd = topKProbs.sum() * Float.random(in: 0..<1)
     var accumTopKProbs = topKProbs.cumulativeSum(alongAxis: -1)
     accumTopKProbs += (accumTopKProbs .< rnd) * 100.0
     let topKIndex = accumTopKProbs.argsort()[..., 0]

@@ -11,7 +11,6 @@ import CoreML
 import Generation
 import Tokenizers
 
-
 /// A causal language model.
 @available(macOS 15.0, iOS 18.0, *)
 public protocol LanguageModelProtocol {

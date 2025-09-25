@@ -28,7 +28,7 @@ public class LanguageModel {
         configuration = LanguageModelConfigurationFromHub(modelName: modelName)
     }
 
-    public func resetState() async { }
+    public func resetState() async {}
 
     public func predictNextTokenScores(
         _ tokens: MLTensor,
@@ -160,7 +160,7 @@ public extension LanguageModel {
 
     var description: String {
         if let description = metadata[MLModelMetadataKey.description] as? String,
-           !description.isEmpty
+            !description.isEmpty
         {
             return description
         }
@@ -170,7 +170,7 @@ public extension LanguageModel {
     /// `name_or_path` in the Python world
     var modelName: String {
         if let userFields = metadata[MLModelMetadataKey.creatorDefinedKey] as? [String: String],
-           let name = userFields["co.huggingface.exporters.name"]
+            let name = userFields["co.huggingface.exporters.name"]
         {
             return name
         }
@@ -241,12 +241,14 @@ public extension LanguageModel {
         // Check if cache is dynamic or not.
         let kCacheConstraint = model.modelDescription.inputDescriptionsByName[Keys.keyCache]!
         if isDynamicallyShaped(kCacheConstraint) {
-            fatalError("""
+            fatalError(
+                """
                 KV Cache using IO is currently not supported, please file a feature request on \
                 https://github.com/huggingface/swift-transformers
                 """)
         } else {
-            fatalError("""
+            fatalError(
+                """
                 KV Cache using IO is currently not supported, please file a feature request on \
                 https://github.com/huggingface/swift-transformers
                 """)
@@ -365,19 +367,21 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
         assert(tokens.rank == 2) // [batch, current sequence length]
         let tokenCount = tokens.shape[1]
         guard let state else {
-            fatalError("""
+            fatalError(
+                """
                 Encountered uninitialized `state`. Ensure `resetState` is called prior to calling \
                 `predictNextTokenScores`. 
                 """)
         }
-        let inputIds = switch mode {
-        case .prefilling: tokens // Pass in all takens if pre-filling prompt
-        case .extending: tokens[nil, -1].expandingShape(at: 0) // otherwise just the last token
-        }
+        let inputIds =
+            switch mode {
+            case .prefilling: tokens // Pass in all takens if pre-filling prompt
+            case .extending: tokens[nil, -1].expandingShape(at: 0) // otherwise just the last token
+            }
         mode = .extending
 
         var inputDictionary = [
-            Keys.inputIds: inputIds,
+            Keys.inputIds: inputIds
         ]
         if isRequiringAttentionMask {
             #if !((os(macOS) || (macCatalyst)) && arch(x86_64))
