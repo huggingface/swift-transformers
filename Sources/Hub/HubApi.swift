@@ -26,8 +26,14 @@ enum HFHttpHeaders {
     static let linkXetAuthKey = "xet-auth"
 }
 
+/// Data structure for Xet-enabled file information.
+///
+/// Contains metadata for files that support Xet protocol optimizations,
+/// providing enhanced download performance for large files.
 public struct XetFileData {
+    /// The cryptographic hash of the file content.
     let fileHash: String
+    /// The URL route for refreshing authentication tokens.
     let refreshRoute: String
 }
 
@@ -57,6 +63,11 @@ extension HTTPURLResponse {
     }
 }
 
+/// Client for interacting with the Hugging Face Hub API.
+///
+/// HubApi provides methods for downloading files, retrieving metadata, managing repositories,
+/// and handling authentication with the Hugging Face Hub. It supports offline mode,
+/// background downloads, and automatic retry mechanisms for robust file transfers.
 public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
@@ -68,6 +79,14 @@ public struct HubApi: Sendable {
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
+    /// Initializes a new Hub API client.
+    ///
+    /// - Parameters:
+    ///   - downloadBase: The base directory for downloads (defaults to Documents/huggingface)
+    ///   - hfToken: The Hugging Face authentication token (defaults to environment variable)
+    ///   - endpoint: The Hub endpoint URL (defaults to https://huggingface.co)
+    ///   - useBackgroundSession: Whether to use background URL sessions for downloads
+    ///   - useOfflineMode: Override for offline mode detection (defaults to automatic detection)
     public init(
         downloadBase: URL? = nil,
         hfToken: String? = nil,
@@ -96,6 +115,7 @@ public struct HubApi: Sendable {
     let sha256Pattern = "^[0-9a-f]{64}$"
     let commitHashPattern = "^[0-9a-f]{40}$"
 
+    /// The shared Hub API instance with default configuration.
     public static let shared = HubApi()
 
     private static let logger = Logger()
@@ -139,16 +159,29 @@ private extension HubApi {
 
 /// File retrieval
 public extension HubApi {
-    /// Model data for parsed filenames
+    /// Represents a file in a repository.
+    ///
+    /// Contains metadata about files available in a Hub repository,
+    /// used for file discovery and listing operations.
     struct Sibling: Codable {
+        /// The relative filename within the repository.
         let rfilename: String
     }
 
+    /// Response structure for repository file listings.
+    ///
+    /// Contains the list of files available in a repository,
+    /// returned by the Hub API when querying repository contents.
     struct SiblingsResponse: Codable {
+        /// Array of files in the repository.
         let siblings: [Sibling]
     }
 
-    /// Throws error if the response code is not 20X
+    /// Performs an HTTP GET request with authentication and error handling.
+    ///
+    /// - Parameter url: The URL to request
+    /// - Returns: A tuple containing the response data and HTTP response
+    /// - Throws: HubClientError for authentication, network, or HTTP errors
     func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         if let hfToken {
@@ -178,8 +211,13 @@ public extension HubApi {
         }
     }
 
-    /// Throws error if page does not exist or is not accessible.
+    /// Performs an HTTP HEAD request to retrieve metadata without downloading content.
+    ///
     /// Allows relative redirects but ignores absolute ones for LFS files.
+    ///
+    /// - Parameter url: The URL to request
+    /// - Returns: A tuple containing the response data and HTTP response
+    /// - Throws: HubClientError if the page does not exist or is not accessible
     func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
@@ -204,6 +242,14 @@ public extension HubApi {
         return (data, response)
     }
 
+    /// Retrieves the list of filenames in a repository that match the specified glob patterns.
+    ///
+    /// - Parameters:
+    ///   - repo: The repository to query
+    ///   - revision: The git revision to use (defaults to "main")
+    ///   - globs: Array of glob patterns to filter files (empty array returns all files)
+    /// - Returns: Array of matching filenames
+    /// - Throws: HubClientError if the repository cannot be accessed or parsed
     func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
         let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)/revision/\(revision)")!
@@ -815,24 +861,60 @@ extension HubApi {
     }
 }
 
-/// Stateless wrappers that use `HubApi` instances
+/// Convenience methods that use the shared `HubApi` instance
 public extension Hub {
+    /// Retrieves filenames from a repository using the shared Hub API instance.
+    ///
+    /// - Parameters:
+    ///   - repo: The repository to query
+    ///   - globs: Array of glob patterns to filter files (defaults to all files)
+    /// - Returns: Array of matching filenames
+    /// - Throws: HubClientError if the operation fails
     static func getFilenames(from repo: Hub.Repo, matching globs: [String] = []) async throws -> [String] {
         try await HubApi.shared.getFilenames(from: repo, matching: globs)
     }
 
+    /// Retrieves filenames from a repository by ID using the shared Hub API instance.
+    ///
+    /// - Parameters:
+    ///   - repoId: The repository ID to query
+    ///   - globs: Array of glob patterns to filter files (defaults to all files)
+    /// - Returns: Array of matching filenames
+    /// - Throws: HubClientError if the operation fails
     static func getFilenames(from repoId: String, matching globs: [String] = []) async throws -> [String] {
         try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: globs)
     }
 
+    /// Retrieves filenames from a repository matching a single glob pattern.
+    ///
+    /// - Parameters:
+    ///   - repo: The repository to query
+    ///   - glob: The glob pattern to filter files
+    /// - Returns: Array of matching filenames
+    /// - Throws: HubClientError if the operation fails
     static func getFilenames(from repo: Repo, matching glob: String) async throws -> [String] {
         try await HubApi.shared.getFilenames(from: repo, matching: glob)
     }
 
+    /// Retrieves filenames from a repository by ID matching a single glob pattern.
+    ///
+    /// - Parameters:
+    ///   - repoId: The repository ID to query
+    ///   - glob: The glob pattern to filter files
+    /// - Returns: Array of matching filenames
+    /// - Throws: HubClientError if the operation fails
     static func getFilenames(from repoId: String, matching glob: String) async throws -> [String] {
         try await HubApi.shared.getFilenames(from: Repo(id: repoId), matching: glob)
     }
 
+    /// Downloads a repository snapshot using the shared Hub API instance.
+    ///
+    /// - Parameters:
+    ///   - repo: The repository to download
+    ///   - globs: Array of glob patterns to filter files (defaults to all files)
+    ///   - progressHandler: Closure called with download progress updates
+    /// - Returns: URL to the local repository directory
+    /// - Throws: HubClientError if the download fails
     static func snapshot(from repo: Repo, matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in }) async throws -> URL {
         try await HubApi.shared.snapshot(from: repo, matching: globs, progressHandler: progressHandler)
     }
@@ -868,6 +950,11 @@ public extension Hub {
         try await HubApi.shared.snapshot(from: Repo(id: repoId), matching: glob, progressHandler: progressHandler)
     }
 
+    /// Retrieves user information using the provided authentication token.
+    ///
+    /// - Parameter token: The Hugging Face authentication token
+    /// - Returns: Configuration containing user information
+    /// - Throws: HubClientError if authentication fails or the request is invalid
     static func whoami(token: String) async throws -> Config {
         try await HubApi(hfToken: token).whoami()
     }

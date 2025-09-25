@@ -29,7 +29,10 @@ class HubTests: XCTestCase {
     func testConfigDownload() async {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
-            let config = try await configLoader.modelConfig
+            guard let config = try await configLoader.modelConfig else {
+                XCTFail("Test repo is expected to have a config.json file")
+                return
+            }
 
             // Test leaf value (Int)
             guard let eos = config["eos_token_id"].integer() else {
@@ -71,7 +74,10 @@ class HubTests: XCTestCase {
     func testConfigCamelCase() async {
         do {
             let configLoader = LanguageModelConfigurationFromHub(modelName: "t5-base", hubApi: hubApi)
-            let config = try await configLoader.modelConfig
+            guard let config = try await configLoader.modelConfig else {
+                XCTFail("Test repo is expected to have a config.json file")
+                return
+            }
 
             // Test leaf value (Int)
             guard let eos = config["eosTokenId"].integer() else {

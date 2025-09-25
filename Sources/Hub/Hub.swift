@@ -7,21 +7,43 @@
 
 import Foundation
 
-public struct Hub: Sendable {}
+/// A namespace struct providing access to Hugging Face Hub functionality.
+///
+/// The Hub struct serves as the entry point for interacting with the Hugging Face model repository,
+/// providing static methods for downloading models, retrieving file metadata, and managing repository snapshots.
+/// All operations are performed through the shared HubApi instance unless specified otherwise.
+public enum Hub {}
 
 public extension Hub {
+    /// Errors that can occur during Hub client operations.
+    ///
+    /// This enumeration covers all possible error conditions that may arise when
+    /// interacting with the Hugging Face Hub, including network issues, authentication
+    /// problems, file system errors, and parsing failures.
     enum HubClientError: LocalizedError {
+        /// Authentication is required but no valid token was provided.
         case authorizationRequired
+        /// An HTTP error occurred with the specified status code.
         case httpStatusCode(Int)
+        /// Failed to parse server response or configuration data.
         case parse
+        /// Expected json response could not be parsed as json.
         case jsonSerialization(fileURL: URL, message: String)
+        /// An unexpected error occurred during operation.
         case unexpectedError
+        /// A download operation failed with the specified error message.
         case downloadError(String)
+        /// The requested file was not found on the server or locally.
         case fileNotFound(String)
+        /// A network error occurred during communication.
         case networkError(URLError)
+        /// The requested resource could not be found.
         case resourceNotFound(String)
+        /// A required configuration file is missing.
         case configurationMissing(String)
+        /// A file system operation failed.
         case fileSystemError(Error)
+        /// Failed to parse data with the specified error message.
         case parseError(String)
 
         public var errorDescription: String? {
@@ -54,16 +76,31 @@ public extension Hub {
         }
     }
 
+    /// The type of repository on the Hugging Face Hub.
     enum RepoType: String, Codable {
+        /// Model repositories containing machine learning models.
         case models
+        /// Dataset repositories containing training and evaluation data.
         case datasets
+        /// Spaces repositories containing applications and demos.
         case spaces
     }
 
+    /// Represents a repository on the Hugging Face Hub.
+    ///
+    /// A repository is identified by its unique ID and type, allowing access to
+    /// different kinds of resources hosted on the Hub platform.
     struct Repo: Codable {
+        /// The unique identifier for the repository (e.g., "microsoft/DialoGPT-medium").
         public let id: String
+        /// The type of repository (models, datasets, or spaces).
         public let type: RepoType
 
+        /// Creates a new repository reference.
+        ///
+        /// - Parameters:
+        ///   - id: The unique identifier for the repository
+        ///   - type: The type of repository (defaults to .models)
         public init(id: String, type: RepoType = .models) {
             self.id = id
             self.type = type
@@ -71,15 +108,27 @@ public extension Hub {
     }
 }
 
+/// Manages language model configuration loading from the Hugging Face Hub.
+///
+/// This class handles the asynchronous loading and processing of model configurations,
+/// tokenizer configurations, and tokenizer data from either remote Hub repositories
+/// or local model directories. It provides fallback mechanisms for missing configurations
+/// and manages the complexities of different model types and their specific requirements.
 public final class LanguageModelConfigurationFromHub: Sendable {
     struct Configurations {
-        var modelConfig: Config
+        var modelConfig: Config?
         var tokenizerConfig: Config?
         var tokenizerData: Config
     }
 
     private let configPromise: Task<Configurations, Error>
 
+    /// Initializes configuration loading from a remote Hub repository.
+    ///
+    /// - Parameters:
+    ///   - modelName: The name/ID of the model repository (e.g., "microsoft/DialoGPT-medium")
+    ///   - revision: The git revision to use (defaults to "main")
+    ///   - hubApi: The Hub API client to use (defaults to shared instance)
     public init(
         modelName: String,
         revision: String = "main",
@@ -90,6 +139,11 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         }
     }
 
+    /// Initializes configuration loading from a local model directory.
+    ///
+    /// - Parameters:
+    ///   - modelFolder: The local directory containing model configuration files
+    ///   - hubApi: The Hub API client to use for parsing configurations (defaults to shared instance)
     public init(
         modelFolder: URL,
         hubApi: HubApi = .shared
@@ -99,12 +153,24 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         }
     }
 
-    public var modelConfig: Config {
+    /// The main model configuration containing architecture and parameter settings.
+    ///
+    /// - Returns: The loaded model configuration
+    /// - Throws: Hub errors if configuration loading fails
+    public var modelConfig: Config? {
         get async throws {
             try await configPromise.value.modelConfig
         }
     }
 
+    /// The tokenizer configuration with automatic fallback handling.
+    ///
+    /// This property attempts to load the tokenizer configuration from the Hub,
+    /// applying fallback configurations when needed and inferring tokenizer classes
+    /// based on the model type when not explicitly specified.
+    ///
+    /// - Returns: The tokenizer configuration, or nil if not available
+    /// - Throws: Hub errors if configuration loading fails
     public var tokenizerConfig: Config? {
         get async throws {
             if let hubConfig = try await configPromise.value.tokenizerConfig {
@@ -130,15 +196,23 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         }
     }
 
+    /// The tokenizer data containing vocabulary and merge rules.
+    ///
+    /// - Returns: The loaded tokenizer data configuration
+    /// - Throws: Hub errors if configuration loading fails
     public var tokenizerData: Config {
         get async throws {
             try await configPromise.value.tokenizerData
         }
     }
 
+    /// The model architecture type extracted from the configuration.
+    ///
+    /// - Returns: The model type string, or nil if not specified
+    /// - Throws: Hub errors if configuration loading fails
     public var modelType: String? {
         get async throws {
-            try await modelConfig.modelType.string()
+            try await modelConfig?.modelType.string()
         }
     }
 
@@ -177,11 +251,11 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         do {
             // Load required configurations
             let modelConfigURL = modelFolder.appending(path: "config.json")
-            guard FileManager.default.fileExists(atPath: modelConfigURL.path) else {
-                throw Hub.HubClientError.configurationMissing("config.json")
-            }
 
-            let modelConfig = try hubApi.configuration(fileURL: modelConfigURL)
+            var modelConfig: Config? = nil
+            if FileManager.default.fileExists(atPath: modelConfigURL.path) {
+                modelConfig = try hubApi.configuration(fileURL: modelConfigURL)
+            }
 
             let tokenizerDataURL = modelFolder.appending(path: "tokenizer.json")
             guard FileManager.default.fileExists(atPath: tokenizerDataURL.path) else {

@@ -8,10 +8,27 @@
 import Foundation
 import Hub
 
+/// A protocol for decoding operations that convert tokens back to readable text.
+///
+/// Decoders handle the reverse transformation of tokens into human-readable text,
+/// performing operations like removing special prefixes, converting byte representations
+/// back to characters, and joining token pieces into words.
 public protocol Decoder {
+    /// Decodes tokens back into text components.
+    ///
+    /// - Parameter tokens: The token strings to decode
+    /// - Returns: An array of decoded text components
     func decode(tokens: [String]) -> [String]
+
+    /// Function call syntax for token decoding.
+    ///
+    /// - Parameter tokens: The token strings to decode
+    /// - Returns: An array of decoded text components
     func callAsFunction(tokens: [String]) -> [String]
 
+    /// Initializes the decoder from configuration.
+    ///
+    /// - Parameter config: The configuration for this decoder
     init(config: Config)
 }
 

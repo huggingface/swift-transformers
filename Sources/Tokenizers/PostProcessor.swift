@@ -8,10 +8,33 @@
 import Foundation
 import Hub
 
+/// A protocol for post-processing operations applied after tokenization.
+///
+/// Post-processors handle the final stage of tokenization, typically adding
+/// special tokens (like [CLS] and [SEP] for BERT) and formatting the token
+/// sequence according to model requirements.
 public protocol PostProcessor {
+    /// Post-processes tokenized text by adding special tokens and formatting.
+    ///
+    /// - Parameters:
+    ///   - tokens: The primary sequence of tokens to process
+    ///   - tokensPair: An optional secondary sequence for tasks like sentence pair classification
+    ///   - addSpecialTokens: Whether to add special tokens during processing
+    /// - Returns: The post-processed token sequence
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool) -> [String]
+
+    /// Function call syntax for post-processing.
+    ///
+    /// - Parameters:
+    ///   - tokens: The primary sequence of tokens to process
+    ///   - tokensPair: An optional secondary sequence
+    ///   - addSpecialTokens: Whether to add special tokens
+    /// - Returns: The post-processed token sequence
     func callAsFunction(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool) -> [String]
 
+    /// Initializes the post-processor from configuration.
+    ///
+    /// - Parameter config: The configuration for this post-processor
     init(config: Config)
 }
 

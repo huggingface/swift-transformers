@@ -9,33 +9,63 @@
 import Foundation
 import Hub
 
+/// A Unigram tokenizer implementation based on the SentencePiece algorithm.
+///
+/// Unigram tokenizers use a probabilistic approach where each token has a score,
+/// and the tokenization process finds the most probable segmentation of the input text.
+/// This is commonly used in models like T5 and XLM-RoBERTa.
 class UnigramTokenizer: PreTrainedTokenizerModel {
+    /// A token with its associated score in the Unigram model.
     struct SentencePieceToken {
         var token: String
         var score: Float
     }
 
+    /// The complete vocabulary of tokens with their scores.
     let vocab: [SentencePieceToken]
 
+    /// The special token used for unknown/out-of-vocabulary text.
     let unknownPiece: SentencePieceToken
+
+    /// The score associated with the unknown token.
     var unknownTokenScore: Float { unknownPiece.score }
 
+    /// The numeric ID of the unknown token.
     let unknownTokenId: Int?
+
+    /// The unknown token string.
     var unknownToken: String? { unknownPiece.token }
 
+    /// The minimum score found in the vocabulary (used for score calculations).
     let minScore: Float
+
+    /// Mapping from token strings to their numeric IDs.
     let tokensToIds: [NSString: Int]
 
+    /// The beginning-of-sequence token (hardcoded as space for Unigram).
     let bosToken: String? = " "
+
+    /// The numeric ID of the beginning-of-sequence token.
     let bosTokenId: Int?
+
+    /// The end-of-sequence token string, if defined.
     let eosToken: String?
+
+    /// The numeric ID of the end-of-sequence token, if defined.
     let eosTokenId: Int?
 
-    /// Hardcoded in Unigram tokenizers
+    /// Whether consecutive unknown tokens should be fused (always true for Unigram).
     let fuseUnknownTokens: Bool = true
 
     private let trie: Trie<Character>
 
+    /// Initializes a Unigram tokenizer from configuration data.
+    ///
+    /// - Parameters:
+    ///   - tokenizerConfig: The tokenizer configuration
+    ///   - tokenizerData: The tokenizer data containing vocabulary and scores
+    ///   - addedTokens: Additional tokens to include in the vocabulary
+    /// - Throws: `TokenizerError` if the vocabulary is missing or malformed
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
         guard let configVocab = tokenizerData.model.vocab.array() else {
             throw TokenizerError.missingVocab
@@ -81,14 +111,26 @@ class UnigramTokenizer: PreTrainedTokenizerModel {
         trie.append(contentsOf: vocab.map { $0.token })
     }
 
+    /// Converts a token string to its corresponding numeric ID.
+    ///
+    /// - Parameter token: The token string to convert
+    /// - Returns: The numeric ID, or the unknown token ID if not found
     func convertTokenToId(_ token: String) -> Int? {
         tokensToIds[token as NSString] ?? unknownTokenId
     }
 
+    /// Converts a numeric token ID back to its string representation.
+    ///
+    /// - Parameter id: The numeric token ID to convert
+    /// - Returns: The token string
     func convertIdToToken(_ id: Int) -> String? {
         vocab[id].token
     }
 
+    /// Tokenizes input text using the Unigram algorithm with dynamic programming.
+    ///
+    /// - Parameter text: The input text to tokenize
+    /// - Returns: An array of token strings representing the most probable segmentation
     func tokenize(text: String) -> [String] {
         var lattice = TokenLattice(sentence: text, bosTokenId: bosTokenId ?? 0, eosTokenId: eosTokenId ?? 0)
 

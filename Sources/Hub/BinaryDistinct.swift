@@ -7,18 +7,31 @@
 
 import Foundation
 
-/// BinaryDistinctString helps to overcome limitations of both String and NSString types. Where the prior is performing unicode normalization and the following is not Sendable. For more reference [Modifying-and-Comparing-Strings](https://developer.apple.com/documentation/swift/string#Modifying-and-Comparing-Strings).
+/// A binary-distinct string type that preserves exact byte sequences without Unicode normalization.
+///
+/// BinaryDistinctString overcomes limitations of both String and NSString types, where String
+/// performs Unicode normalization that can alter byte sequences, and NSString is not Sendable.
+/// This type maintains exact binary representation while providing string-like operations.
+///
+/// Use this type when you need to preserve exact byte sequences in string data, such as
+/// when working with tokenizer vocabularies or configuration keys that must match precisely.
+///
+/// For more information, see [Modifying and Comparing Strings](https://developer.apple.com/documentation/swift/string#Modifying-and-Comparing-Strings).
 public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, CustomStringConvertible, ExpressibleByStringLiteral {
+    /// The underlying UTF-16 code unit representation.
     public let value: [UInt16]
 
+    /// The NSString representation of this binary-distinct string.
     public var nsString: NSString {
         String(utf16CodeUnits: value, count: value.count) as NSString
     }
 
+    /// The Swift String representation of this binary-distinct string.
     public var string: String {
         String(nsString)
     }
 
+    /// The character count of the string.
     public var count: Int {
         string.count
     }
@@ -28,22 +41,37 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
         string
     }
 
+    /// Creates a binary-distinct string from UTF-16 code units.
+    ///
+    /// - Parameter bytes: Array of UTF-16 code units representing the string
     public init(_ bytes: [UInt16]) {
         value = bytes
     }
 
+    /// Creates a binary-distinct string from an NSString.
+    ///
+    /// - Parameter str: The NSString to convert
     public init(_ str: NSString) {
         value = Array(str as String).flatMap { $0.utf16 }
     }
 
+    /// Creates a binary-distinct string from a Swift String.
+    ///
+    /// - Parameter str: The String to convert
     public init(_ str: String) {
         self.init(str as NSString)
     }
 
+    /// Creates a binary-distinct string from a single character.
+    ///
+    /// - Parameter character: The BinaryDistinctCharacter to convert
     public init(_ character: BinaryDistinctCharacter) {
         value = character.bytes
     }
 
+    /// Creates a binary-distinct string from an array of characters.
+    ///
+    /// - Parameter characters: Array of BinaryDistinctCharacter to concatenate
     public init(_ characters: [BinaryDistinctCharacter]) {
         var data: [UInt16] = []
         for character in characters {

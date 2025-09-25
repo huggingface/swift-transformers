@@ -11,27 +11,54 @@ import CoreML
 import CoreML
 import Tokenizers
 
+/// Supported text generation modes.
 public enum GenerationMode {
+    /// Contrastive search generation mode
     case contrastiveSearch
+    /// Greedy decoding generation mode
     case greedy
+    /// Sampling-based generation mode
     case sample
+    /// Beam search generation mode
     case beam
+    /// Group beam search generation mode
     case groupBeam
+    /// Unsupported generation mode
     case unsupported
 }
 
+/// Array of token IDs representing input tokens.
 public typealias InputTokens = [Int]
+
+/// Array of token IDs representing generated output tokens.
 public typealias GenerationOutput = [Int]
 
-/// A callable (a model, usually), that predicts the next token after a given sequence
+/// A callable model that predicts the next token after a given sequence.
+///
+/// - Parameter tokens: Input token sequence
+/// - Parameter config: Generation configuration
+/// - Returns: Logits array for next token prediction
 @available(macOS 15.0, iOS 18.0, *)
 public typealias NextTokenModel = (MLTensor, GenerationConfig) async -> MLTensor
 
+/// Callback for receiving generated tokens during streaming.
 public typealias PredictionTokensCallback = (GenerationOutput) -> Void
+
+/// Callback for receiving generated text during streaming.
 public typealias PredictionStringCallback = (String) -> Void
 
+/// Protocol for text generation implementations.
 @available(macOS 15.0, iOS 18.0, *)
 public protocol Generation {
+    /// Generates text from a prompt string.
+    ///
+    /// - Parameters:
+    ///   - config: Generation configuration
+    ///   - prompt: Input prompt text
+    ///   - model: Model for next token prediction
+    ///   - tokenizer: Tokenizer for encoding/decoding
+    ///   - callback: Optional callback for streaming text
+    /// - Returns: Generated text string
     func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
 }
 
@@ -81,6 +108,17 @@ extension Generation {
 
 @available(macOS 15.0, iOS 18.0, *)
 public extension Generation {
+    /// Performs greedy or sampling-based text generation based on generation configuration.
+    ///
+    /// - Parameters:
+    ///   - config: Generation configuration with sampling parameters
+    ///   - prompt: Input string
+    ///   - model: Model for next token prediction
+    ///   - tokenizer: Tokenizer to convert prompt to input tokens
+    ///   - callback: Optional callback for streaming tokens
+    /// - Returns: Generated token sequence
+    ///
+    /// - Note: Based on https://github.com/huggingface/transformers/blob/42017d82baa083da2bee3055fdac80c81ee97b8a/src/transformers/generation/utils.py#L1552
     func generate(
         config: GenerationConfig,
         prompt: String,
