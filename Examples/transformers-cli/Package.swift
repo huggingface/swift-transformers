@@ -7,7 +7,9 @@ let package = Package(
     name: "transformers-cli",
     platforms: [.iOS(.v18), .macOS(.v15)],
     dependencies: [
-        .package(url: "https://github.com/huggingface/swift-transformers", branch: "main"),
+        .package(path: "../.."),
+        // If you copy this manifest as a template, use the following line instead
+        //.package(url: "https://github.com/huggingface/swift-transformers", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
     ],
     targets: [
