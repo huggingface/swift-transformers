@@ -34,7 +34,9 @@ func testTokenizer() async throws {
     let decoded = tokenizer.decode(tokens: encoded)
 }
 ```
-- `Hub`: Utilities for interacting with the Hugging Face Hub! Download models, tokenizers and other config files. Usage example:
+- `Hub`: Utilities for interacting with the Hugging Face Hub. Download models, tokenizers and other config files. 
+
+Usage example:
 
 ```swift
 import Hub
