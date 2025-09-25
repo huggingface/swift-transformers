@@ -137,6 +137,7 @@ public extension LanguageModel {
     }
 }
 
+@available(macOS 15.0, iOS 18.0, *)
 extension LanguageModel {
     enum KVCacheAvailability {
         /// Language models that support KV cache via state. Implementation details for handling state

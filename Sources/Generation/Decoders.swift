@@ -1,13 +1,16 @@
+#if canImport(CoreML)
 import CoreML
 
 // MARK: Greedy Decoding
 
+@available(macOS 15.0, iOS 18.0, *)
 func selectNextTokenUsingGreedyDecoding(from scores: MLTensor) -> MLTensor {
     scores.argmax(alongAxis: -1).reshaped(to: [1, 1])
 }
 
 // MARK: Top-K Sampling
 
+@available(macOS 15.0, iOS 18.0, *)
 func selectNextTokenUsingTopKSampling(from scores: MLTensor, temperature: Float, topK: Int) -> MLTensor {
     let temperatureAdjustedScores = scores / temperature
     let (topKScores, topKIndices) = temperatureAdjustedScores.topK(topK)
@@ -22,3 +25,4 @@ func selectNextTokenUsingTopKSampling(from scores: MLTensor, temperature: Float,
     )
     return nextTokenTensor.reshaped(to: [1, 1])
 }
+#endif // canImport(CoreML)
