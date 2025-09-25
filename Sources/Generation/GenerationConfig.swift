@@ -33,7 +33,7 @@ public struct GenerationConfig {
     public var penaltyAlpha: Double?
 
     /// Temperature for sampling (higher values increase randomness).
-    public var temperature = 1.0
+    public var temperature: Float = 1.0
 
     /// Number of top tokens to consider for top-k sampling.
     public var topK = 50
@@ -66,14 +66,25 @@ public struct GenerationConfig {
     ///   - topK: Top-k sampling parameter
     ///   - topP: Top-p sampling parameter
     ///   - repetitionPenalty: Repetition penalty factor
-    public init(maxLength: Int = 20, maxNewTokens: Int, doSample: Bool = false, numBeams: Int = 1, numBeamGroups: Int = 1, penaltyAlpha: Double? = nil, temperature: Double = 1.0, topK: Int = 50, topP: Double = 1.0, repetitionPenalty: Double = 1.0) {
+    public init(
+        maxLength: Int = 20,
+        maxNewTokens: Int,
+        doSample: Bool = false,
+        numBeams: Int = 1,
+        numBeamGroups: Int = 1,
+        penaltyAlpha: Double? = nil,
+        temperature: Double = 1.0,
+        topK: Int = 50,
+        topP: Double = 1.0,
+        repetitionPenalty: Double = 1.0
+    ) {
         self.maxLength = maxLength
         self.maxNewTokens = maxNewTokens
         self.doSample = doSample
         self.numBeams = numBeams
         self.numBeamGroups = numBeamGroups
         self.penaltyAlpha = penaltyAlpha
-        self.temperature = temperature
+        self.temperature = Float(temperature)
         self.topK = topK
         self.topP = topP
         self.repetitionPenalty = repetitionPenalty

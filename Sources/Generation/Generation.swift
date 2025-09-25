@@ -8,6 +8,7 @@
 #if canImport(CoreML)
 import CoreML
 
+import CoreML
 import Tokenizers
 
 /// Supported text generation modes.
@@ -37,7 +38,8 @@ public typealias GenerationOutput = [Int]
 /// - Parameter tokens: Input token sequence
 /// - Parameter config: Generation configuration
 /// - Returns: Logits array for next token prediction
-public typealias NextTokenModel = (InputTokens, GenerationConfig) -> any MLShapedArrayProtocol
+@available(macOS 15.0, iOS 18.0, *)
+public typealias NextTokenModel = (MLTensor, GenerationConfig) async -> MLTensor
 
 /// Callback for receiving generated tokens during streaming.
 public typealias PredictionTokensCallback = (GenerationOutput) -> Void
@@ -46,17 +48,8 @@ public typealias PredictionTokensCallback = (GenerationOutput) -> Void
 public typealias PredictionStringCallback = (String) -> Void
 
 /// Protocol for text generation implementations.
+@available(macOS 15.0, iOS 18.0, *)
 public protocol Generation {
-    /// Performs greedy search generation.
-    ///
-    /// - Parameters:
-    ///   - config: Generation configuration
-    ///   - tokens: Input token sequence
-    ///   - model: Model for next token prediction
-    ///   - callback: Optional callback for streaming tokens
-    /// - Returns: Generated token sequence
-    func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback?) async -> GenerationOutput
-
     /// Generates text from a prompt string.
     ///
     /// - Parameters:
@@ -69,89 +62,84 @@ public protocol Generation {
     func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
 }
 
-public extension Generation {
-    func greedySearch(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback? = nil) async -> GenerationOutput {
-        // Iterate until we find the eos token or reach the max length
-        // TODO: additional stopping criteria
-        var outputTokens = tokens
-        while outputTokens.count < config.maxLength {
-            let logits = model(outputTokens, config)
-            let (nextToken, _) = Math.argmax(logits)
-            if nextToken == config.eosTokenId { break }
-            outputTokens.append(nextToken)
-            callback?(outputTokens)
+@available(macOS 15.0, iOS 18.0, *)
+extension Generation {
+    public func generate(
+        config: GenerationConfig,
+        tokens: InputTokens,
+        model: NextTokenModel,
+        callback: PredictionTokensCallback? = nil
+    ) async -> GenerationOutput {
+        let tokens = tokens.map { Int32($0) }
+        var outputTokens = MLTensor(tokens).expandingShape(at: 0)
+        while outputTokens.shape[1] < config.maxLength {
+            let nextTokenScores = await model(outputTokens, config)
+            let nextToken =
+                switch config.generationMode {
+                case .greedy:
+                    selectNextTokenUsingGreedyDecoding(from: nextTokenScores)
+                case .sample:
+                    selectNextTokenUsingTopKSampling(
+                        from: nextTokenScores,
+                        temperature: config.temperature,
+                        topK: config.topK
+                    )
+                default:
+                    fatalError("Generation mode \(config.generationMode) not implemented yet")
+                }
+
+            if let nextTokenId = await tensorToGenerationOutput(nextToken).first, nextTokenId == config.eosTokenId {
+                break
+            }
+
+            outputTokens = MLTensor(concatenating: [outputTokens, nextToken], alongAxis: -1)
+            if let callback {
+                let outputTokenIDs = await tensorToGenerationOutput(outputTokens)
+                callback(outputTokenIDs)
+            }
         }
-        return outputTokens
+        return await tensorToGenerationOutput(outputTokens)
     }
 
-    /// Performs sampling-based text generation with configurable logits warping.
-    ///
-    /// Uses various logits warpers (temperature, top-k, top-p, repetition penalty) to modify
-    /// token probabilities before sampling, enabling diverse and controllable text generation.
+    private func tensorToGenerationOutput(_ tensor: MLTensor) async -> GenerationOutput {
+        await tensor.shapedArray(of: Int32.self).scalars.map { Int($0) }
+    }
+}
+
+@available(macOS 15.0, iOS 18.0, *)
+public extension Generation {
+    /// Performs greedy or sampling-based text generation based on generation configuration.
     ///
     /// - Parameters:
     ///   - config: Generation configuration with sampling parameters
-    ///   - tokens: Input token sequence
+    ///   - prompt: Input string
     ///   - model: Model for next token prediction
+    ///   - tokenizer: Tokenizer to convert prompt to input tokens
     ///   - callback: Optional callback for streaming tokens
     /// - Returns: Generated token sequence
     ///
     /// - Note: Based on https://github.com/huggingface/transformers/blob/42017d82baa083da2bee3055fdac80c81ee97b8a/src/transformers/generation/utils.py#L1552
-    func sample(config: GenerationConfig, tokens: InputTokens, model: NextTokenModel, callback: PredictionTokensCallback? = nil) async -> GenerationOutput {
-        // Iterate until we find the eos token or reach the max length
-        // TODO: additional stopping criteria
-        var outputTokens = tokens
-        let logitsProcessor = LogitsProcessor(logitsWarpers: logitsWarpers(config: config))
-        while outputTokens.count < config.maxLength {
-            let outputs = model(outputTokens, config)
-            // `floats` can be much faster than `scalars` for a vector with stride 1, as it uses `memcpy` in that case
-            let logits = (outputs as? MLShapedArraySlice<Float>)?.floats ?? outputs.scalars as! [Float]
-            let (indexes, processedLogits) = logitsProcessor(logits)
-            let nextToken = Math.sample(indexes: indexes, probs: Math.softmax(processedLogits))
-            if nextToken == config.eosTokenId { break }
-            outputTokens.append(nextToken)
-            callback?(outputTokens)
-        }
-        return outputTokens
-    }
-
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback? = nil) async -> String {
+    func generate(
+        config: GenerationConfig,
+        prompt: String,
+        model: NextTokenModel,
+        tokenizer: Tokenizer,
+        callback: PredictionStringCallback? = nil
+    ) async -> String {
         let tokens = tokenizer.encode(text: prompt)
         var generationConfig = config
         generationConfig.maxLength = config.maxNewTokens + tokens.count
-
-        let output: GenerationOutput
-        switch generationConfig.generationMode {
-        case .greedy:
-            output = await greedySearch(config: generationConfig, tokens: tokens, model: model) { tokens in
-                callback?(tokenizer.decode(tokens: tokens))
-            }
-        case .sample:
-            output = await sample(config: generationConfig, tokens: tokens, model: model) { tokens in
-                callback?(tokenizer.decode(tokens: tokens))
-            }
-        default:
-            fatalError("Generation mode \(generationConfig.generationMode) not implemented yet")
+        generationConfig.eosTokenId = tokenizer.eosTokenId
+        generationConfig.bosTokenId = tokenizer.bosTokenId
+        let output = await generate(
+            config: generationConfig,
+            tokens: tokens,
+            model: model
+        ) { tokens in
+            callback?(tokenizer.decode(tokens: tokens))
         }
 
         return tokenizer.decode(tokens: output)
-    }
-
-    private func logitsWarpers(config: GenerationConfig) -> [any LogitsWarper] {
-        var logitsWarpers = [any LogitsWarper]()
-        if config.temperature > 0, config.temperature != 1 {
-            logitsWarpers.append(TemperatureLogitsWarper(temperature: Float(config.temperature)))
-        }
-        if config.topK > 0 {
-            logitsWarpers.append(TopKLogitsWarper(k: config.topK))
-        }
-        if config.topP < 1.0 {
-            logitsWarpers.append(TopPLogitsWarper(p: Float(config.topP)))
-        }
-        if config.repetitionPenalty != 1.0 {
-            logitsWarpers.append(RepetitionPenaltyWarper(penalty: config.repetitionPenalty))
-        }
-        return logitsWarpers
     }
 }
 #endif // canImport(CoreML)

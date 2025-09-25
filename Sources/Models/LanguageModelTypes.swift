@@ -15,6 +15,7 @@ import Tokenizers
 ///
 /// This protocol establishes the fundamental requirements for any language model
 /// that can perform next-token prediction and text generation tasks.
+@available(macOS 15.0, iOS 18.0, *)
 public protocol LanguageModelProtocol {
     /// The name or path of the model.
     ///
@@ -30,6 +31,11 @@ public protocol LanguageModelProtocol {
     /// The underlying CoreML model used for inference.
     var model: MLModel { get }
 
+    /// Resets the state of the language model.
+    ///
+    /// Call `resetState()` for each new sequence generated.
+    func resetState() async
+
     /// Creates a new language model instance from a CoreML model.
     ///
     /// - Parameter model: The CoreML model to wrap
@@ -38,11 +44,14 @@ public protocol LanguageModelProtocol {
     /// Predicts the next token scores for the given input tokens.
     ///
     /// - Parameters:
-    ///   - tokens: The input token sequence
-    ///   - config: The generation configuration containing model parameters
-    /// - Returns: A shaped array containing the logits for the next token prediction
-    func predictNextTokenScores(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
+    ///   - input: The input sequence tensor.
+    ///   - config: The generation configuration containing model parameters.
+    /// - Returns: MLTensor with the raw scores of the next token.
+    func predictNextTokenScores(_ input: MLTensor, config: GenerationConfig) async -> MLTensor
+}
 
+@available(macOS 15.0, iOS 18.0, *)
+public extension LanguageModelProtocol {
     /// Function call syntax for next token prediction.
     ///
     /// This provides a more convenient syntax for calling `predictNextTokenScores`.
@@ -51,13 +60,8 @@ public protocol LanguageModelProtocol {
     ///   - tokens: The input token sequence
     ///   - config: The generation configuration containing model parameters
     /// - Returns: A shaped array containing the logits for the next token prediction
-    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol
-}
-
-public extension LanguageModelProtocol {
-    /// Default implementation of function call syntax that delegates to `predictNextTokenScores`.
-    func callAsFunction(_ tokens: InputTokens, config: GenerationConfig) -> any MLShapedArrayProtocol {
-        predictNextTokenScores(tokens, config: config)
+    func callAsFunction(_ input: MLTensor, config: GenerationConfig) async -> MLTensor {
+        await predictNextTokenScores(input, config: config)
     }
 }
 
@@ -65,6 +69,7 @@ public extension LanguageModelProtocol {
 ///
 /// This protocol extends `LanguageModelProtocol` and `Generation` to provide
 /// high-level text generation functionality with configurable parameters.
+@available(macOS 15.0, iOS 18.0, *)
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     /// The default generation configuration for this model.
     ///
@@ -80,9 +85,14 @@ public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     ///   - callback: Optional callback to receive intermediate generation results
     /// - Returns: The generated text as a string
     /// - Throws: An error if text generation fails
-    func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback?) async throws -> String
+    func generate(
+        config: GenerationConfig,
+        prompt: String,
+        callback: PredictionStringCallback?
+    ) async throws -> String
 }
 
+@available(macOS 15.0, iOS 18.0, *)
 public extension TextGenerationModel {
     /// Default implementation of text generation that uses the underlying generation framework.
     ///
@@ -94,7 +104,17 @@ public extension TextGenerationModel {
     /// - Throws: An error if text generation fails
     @discardableResult
     func generate(config: GenerationConfig, prompt: String, callback: PredictionStringCallback? = nil) async throws -> String {
-        try await generate(config: config, prompt: prompt, model: callAsFunction, tokenizer: tokenizer, callback: callback)
+        // Prepare the language model for a new sequence.
+        await resetState()
+
+        // Run inference.
+        return try await generate(
+            config: config,
+            prompt: prompt,
+            model: callAsFunction,
+            tokenizer: tokenizer,
+            callback: callback
+        )
     }
 }
 #endif // canImport(CoreML)
