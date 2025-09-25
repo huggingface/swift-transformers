@@ -215,7 +215,7 @@ public enum ChatTemplateArgument {
 ///
 /// This is the main protocol that defines all tokenizer operations, including text processing,
 /// chat template application, and special token handling.
-public protocol Tokenizer {
+public protocol Tokenizer: Sendable {
     /// Tokenizes the input text into a sequence of tokens.
     ///
     /// - Parameter text: The input text to tokenize
@@ -451,7 +451,7 @@ let specialTokenAttributes: [String] = [
 /// This class provides a complete tokenizer implementation that can be initialized from
 /// Hugging Face Hub configuration files and supports all standard tokenization operations
 /// including chat template application, normalization, pre-tokenization, and post-processing.
-public class PreTrainedTokenizer: Tokenizer {
+public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }
@@ -476,6 +476,9 @@ public class PreTrainedTokenizer: Tokenizer {
 
     /// Cache for compiled Jinja templates keyed by their literal template string
     private var compiledChatTemplateCache: [String: Template] = [:]
+
+    /// Lock to protect the compiled chat template cache from concurrent access
+    private let cacheLock = NSLock()
 
     /// Initializes a tokenizer from Hugging Face configuration files.
     ///
@@ -531,10 +534,26 @@ public class PreTrainedTokenizer: Tokenizer {
     }
 
     private func compiledTemplate(for templateString: String) throws -> Template {
+        // Fast path: check cache under lock
+        cacheLock.lock()
+        if let cached = compiledChatTemplateCache[templateString] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
+        // Compile template outside of lock to avoid holding lock during expensive operation
+        let compiled = try Template(templateString)
+
+        // Insert into cache under lock (using double-checked locking pattern)
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        // Check again in case another thread compiled the same template
         if let cached = compiledChatTemplateCache[templateString] {
             return cached
         }
-        let compiled = try Template(templateString)
+
         compiledChatTemplateCache[templateString] = compiled
         return compiled
     }
@@ -769,32 +788,34 @@ public class PreTrainedTokenizer: Tokenizer {
         }
 
         let template = try compiledTemplate(for: selectedChatTemplate)
-        var context: [String: Any] = [
-            "messages": messages,
-            "add_generation_prompt": addGenerationPrompt,
+        var context: [String: Jinja.Value] = try [
+            "messages": .array(messages.map { try Value(any: $0) }),
+            "add_generation_prompt": .boolean(addGenerationPrompt),
         ]
         if let tools {
-            context["tools"] = tools
+            context["tools"] = try .array(tools.map { try Value(any: $0) })
         }
         if let additionalContext {
             // Additional keys and values to be added to the context provided to the prompt templating engine.
             // For example, the app could set "tools_in_user_message" to false for Llama 3.1 and 3.2 if a system message is provided.
             // The default value is true in the Llama 3.1 and 3.2 chat templates, but these models will perform better if the tools are included in a system message.
             for (key, value) in additionalContext {
-                context[key] = value
+                context[key] = try Value(any: value)
             }
         }
 
         for (key, value) in tokenizerConfig.dictionary(or: [:]) {
             if specialTokenAttributes.contains(key.string), !value.isNull() {
                 if let stringValue = value.string() {
-                    context[key.string] = stringValue
+                    context[key.string] = .string(stringValue)
                 } else if let dictionary = value.dictionary() {
-                    context[key.string] = addedTokenAsString(Config(dictionary))
+                    if let addedTokenString = addedTokenAsString(Config(dictionary)) {
+                        context[key.string] = .string(addedTokenString)
+                    }
                 } else if let array: [String] = value.get() {
-                    context[key.string] = array
+                    context[key.string] = .array(array.map { .string($0) })
                 } else {
-                    context[key.string] = value
+                    context[key.string] = try Value(any: value)
                 }
             }
         }
@@ -905,7 +926,7 @@ public extension AutoTokenizer {
 
 // MARK: - Tokenizer model classes
 
-class T5Tokenizer: UnigramTokenizer {}
+class T5Tokenizer: UnigramTokenizer, @unchecked Sendable {}
 
 // MARK: - PreTrainedTokenizer classes
 
@@ -954,7 +975,7 @@ func maybeUpdatePostProcessor(tokenizerConfig: Config, processorConfig: Config?)
 }
 
 /// See https://github.com/xenova/transformers.js/blob/1a9964fb09b8f54fcbeac46dc6aae8d76795809d/src/tokenizers.js#L3203 for these exceptions
-class LlamaPreTrainedTokenizer: PreTrainedTokenizer {
+class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
     let isLegacy: Bool
 
     required init(tokenizerConfig: Config, tokenizerData: Config, strict: Bool = true) throws {

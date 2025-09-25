@@ -5,6 +5,7 @@
 //  Created by Piotr Kowalczuk on 06.03.25.
 
 import Foundation
+import Jinja
 
 // MARK: - Configuration files with dynamic lookup
 
@@ -433,28 +434,28 @@ public struct Config: Hashable, Sendable,
         self.dictionary(or: or)
     }
 
-    public func toJinjaCompatible() -> Any? {
+    public func jinjaValue() -> Jinja.Value {
         switch self.value {
         case let .array(val):
-            return val.map { $0.toJinjaCompatible() }
+            return .array(val.map { $0.jinjaValue() })
         case let .dictionary(val):
-            var result: [String: Any?] = [:]
+            var result: [String: Jinja.Value] = [:]
             for (key, config) in val {
-                result[key.string] = config.toJinjaCompatible()
+                result[key.string] = config.jinjaValue()
             }
-            return result
+            return .object(.init(uniqueKeysWithValues: result))
         case let .boolean(val):
-            return val
+            return .boolean(val)
         case let .floating(val):
-            return val
+            return .double(Double(String(val)) ?? Double(val))
         case let .integer(val):
-            return val
+            return .int(val)
         case let .string(val):
-            return val.string
+            return .string(val.string)
         case let .token(val):
-            return [String(val.0): val.1.string] as [String: String]
+            return [String(val.0): .string(val.1.string)]
         case .null:
-            return nil
+            return .null
         }
     }
 

@@ -19,6 +19,7 @@ struct ChatTemplateTests {
         ]
     ]
 
+    @MainActor
     static let phiTokenizerTask = Task {
         try await AutoTokenizer.from(pretrained: "microsoft/Phi-3-mini-128k-instruct")
     }
@@ -27,6 +28,7 @@ struct ChatTemplateTests {
         try await phiTokenizerTask.value
     }
 
+    @MainActor
     static let tokenizerWithTemplateArrayTask = Task {
         try await AutoTokenizer.from(pretrained: "mlx-community/Mistral-7B-Instruct-v0.3-4bit")
     }
@@ -256,6 +258,7 @@ struct ChatTemplateTests {
             <|im_start|>user
             What is the weather in Paris today?<|im_end|>
             <|im_start|>assistant
+
 
             """
 

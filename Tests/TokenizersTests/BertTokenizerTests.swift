@@ -83,6 +83,7 @@ private enum Squad {
 
 // MARK: -
 
+@MainActor
 private let bertTokenizer: BertTokenizer = {
     let vocab = {
         let url = Bundle.module.url(forResource: "bert-vocab", withExtension: "txt")!
@@ -101,6 +102,7 @@ private let bertTokenizer: BertTokenizer = {
 // MARK: -
 
 @Suite("BERT Tokenizer Tests")
+@MainActor
 struct BertTokenizerTests {
     @Test("Basic tokenizer correctly tokenizes text")
     func testBasicTokenizer() {
