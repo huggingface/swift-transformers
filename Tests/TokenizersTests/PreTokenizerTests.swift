@@ -176,6 +176,59 @@ struct PreTokenizerTests {
         )
     }
 
+    @Test("Split behavior merged with previous")
+    func splitBehaviorMergedWithPrevious() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) == ["the-", "final-", "-", "countdown"]
+        )
+
+        #expect(
+            "the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) == ["the-", "final-", "-", "countdown-"]
+        )
+
+        #expect(
+            "the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) == ["the-", "final-", "-", "countdown-", "-"]
+        )
+
+        #expect(
+            "-the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) == ["-", "the-", "final-", "-", "countdown-", "-"]
+        )
+
+        #expect(
+            "--the-final--countdown--".split(by: "-", options: .caseInsensitive, behavior: .mergedWithPrevious) == ["-", "-", "the-", "final-", "-", "countdown-", "-"]
+        )
+    }
+
+    @Test("Split behavior merged with next")
+    func splitBehaviorMergedWithNext() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) == ["the", "-final", "-", "-countdown"]
+        )
+
+        #expect(
+            "-the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) == ["-the", "-final", "-", "-countdown"]
+        )
+
+        #expect(
+            "--the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) == ["-", "-the", "-final", "-", "-countdown"]
+        )
+
+        #expect(
+            "--the-final--countdown-".split(by: "-", options: .caseInsensitive, behavior: .mergedWithNext) == ["-", "-the", "-final", "-", "-countdown", "-"]
+        )
+    }
+
+    @Test("Split behavior other")
+    func splitBehaviorOther() {
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .isolated) == ["the", "-", "final", "-", "-", "countdown"]
+        )
+
+        #expect(
+            "the-final--countdown".split(by: "-", options: .caseInsensitive, behavior: .removed) == ["the", "final", "countdown"]
+        )
+    }
+
     /// https://github.com/huggingface/tokenizers/pull/1357
     @Test("Metaspace pre-tokenizer with prefix space handling")
     func metaspacePreTokenizer() {

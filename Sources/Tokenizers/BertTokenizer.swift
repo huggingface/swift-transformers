@@ -226,7 +226,7 @@ class BasicTokenizer {
     }
 }
 
-extension Character {
+private extension Character {
     /// https://github.com/huggingface/transformers/blob/8c1b5d37827a6691fef4b2d926f2d04fb6f5a9e3/src/transformers/tokenization_utils.py#L367
     var isExtendedPunctuation: Bool {
         if isPunctuation { return true }

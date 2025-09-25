@@ -1,4 +1,4 @@
 version: 1
 builder:
   configs:
-    - documentation_targets: [Hub, Tokenizers, TensorUtils, Generation, Models]
+    - documentation_targets: [Hub, Tokenizers, Generation, Models]

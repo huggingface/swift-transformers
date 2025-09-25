@@ -7,7 +7,8 @@
 
 import Foundation
 import Testing
-import Tokenizers
+
+@testable import Tokenizers
 
 @Suite("Chat Template Tests")
 struct ChatTemplateTests {

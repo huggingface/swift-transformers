@@ -8,7 +8,8 @@
 import Foundation
 import Hub
 import Testing
-import Tokenizers
+
+@testable import Tokenizers
 
 private func makeHubApi() -> (api: HubApi, downloadDestination: URL) {
     let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
