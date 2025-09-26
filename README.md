@@ -18,7 +18,7 @@ Those familiar with the [`transformers`](https://github.com/huggingface/transfor
 
 ## Rationale & Overview
 
-Check out [our announcement post](https://huggingface.co/blog/swift-coreml-llm) and our [1.0 release post](https://huggingfce.co/blog/swift-transformers) for more context on why we built this library.
+Check out [our v1.0 release post](https://huggingfce.co/blog/swift-transformershttps://huggingface.co/blog/swift-coreml-llm) and our [announcement](https://huggingface.co/blog/swift-coreml-llm) for more context on why we built this library.
 
 ## Examples
 
