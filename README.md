@@ -18,43 +18,75 @@ Those familiar with the [`transformers`](https://github.com/huggingface/transfor
 
 ## Rationale & Overview
 
-Check out [our announcement post](https://huggingface.co/blog/swift-coreml-llm).
+Check out [our v1.0 release post](https://huggingfce.co/blog/swift-transformers) and our [original announcement](https://huggingface.co/blog/swift-coreml-llm) for more context on why we built this library.
 
-## Modules
+## Examples
 
-- `Tokenizers`: Utilities to convert text to tokens and back, with support for Chat Templates and Tools. Follows the abstractions in [`tokenizers`](https://github.com/huggingface/tokenizers). 
+The most commonly used modules from `swift-transformers` are `Tokenizers` and `Hub`, which allow fast tokenization and
+model downloads from the Hugging Face Hub.
 
-Usage example:
-```swift
-import Tokenizers
-func testTokenizer() async throws {
-    let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
-    let messages = [["role": "user", "content": "Describe the Swift programming language."]]
-    let encoded = try tokenizer.applyChatTemplate(messages: messages)
-    let decoded = tokenizer.decode(tokens: encoded)
-}
-```
-- `Hub`: Utilities for interacting with the Hugging Face Hub. Download models, tokenizers and other config files. 
+### Tokenizing text + chat templating
 
-Usage example:
+Tokenizing text should feel very familiar to those who have used the Python `transformers` library:
 
 ```swift
-import Hub
-func testHub() async throws {
-    let repo = Hub.Repo(id: "mlx-community/Qwen2.5-0.5B-Instruct-2bit-mlx")
-    let modelDirectory: URL = try await Hub.snapshot(
-        from: repo,
-        matching: ["config.json", "*.safetensors"],
-        progressHandler: { progress in
-            print("Download progress: \(progress.fractionCompleted * 100)%")
-        }
-    )
-    print("Files downloaded to: \(modelDirectory.path)")
-}
+let tokenizer = try await AutoTokenizer.from(pretrained: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+let messages = [["role": "user", "content": "Describe the Swift programming language."]]
+let encoded = try tokenizer.applyChatTemplate(messages: messages)
+let decoded = tokenizer.decode(tokens: encoded)
 ```
 
-- `Generation`: Utilities for text generation, handling tokenization for you. Currently supported sampling methods: greedy search, top-k sampling, and top-p sampling.
-- `Models`: Language model abstraction over a Core ML package.
+
+### Tool calling
+
+`swift-transformers` natively supports formatting inputs for tool calling, allowing for complex interactions with language models:
+
+```swift
+let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
+
+let weatherTool = [
+    "type": "function",
+    "function": [
+        "name": "get_current_weather",
+        "description": "Get the current weather in a given location",
+        "parameters": [
+            "type": "object",
+            "properties": ["location": ["type": "string", "description": "City and state"]],
+            "required": ["location"]
+        ]
+    ]
+]
+
+let tokens = try tokenizer.applyChatTemplate(
+    messages: [["role": "user", "content": "What's the weather in Paris?"]],
+    tools: [weatherTool]
+)
+```
+
+
+### Hub downloads
+
+Downloading models to a user device _fast_ and _reliably_ is a core requirement of on-device ML. `swift-transformers` provides a simple API to
+download models from the Hugging Face Hub, with progress reporting, flaky connection handling, and more:
+
+```swift
+let repo = Hub.Repo(id: "mlx-community/Qwen2.5-0.5B-Instruct-2bit-mlx")
+let modelDirectory: URL = try await Hub.snapshot(
+    from: repo,
+    matching: ["config.json", "*.safetensors"],
+    progressHandler: { progress in
+        print("Download progress: \(progress.fractionCompleted * 100)%")
+    }
+)
+print("Files downloaded to: \(modelDirectory.path)")
+```
+
+### CoreML Integration
+
+The `Models` and `Generation` modules provide handy utilities when working with language models in CoreML. Check out our
+example converting and running Mistral 7B using CoreML [here](https://github.com/huggingface/swift-transformers/tree/main/Examples).
+
+The [modernization of Core ML](https://github.com/huggingface/swift-transformers/pull/257) and corresponding examples were primarily contributed by @joshnewnham, @1duo, @alejandro-isaza, @aseemw. Thank you 🙏
 
 ## Usage via SwiftPM
 
