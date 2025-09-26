@@ -66,7 +66,7 @@ let tokens = try tokenizer.applyChatTemplate(
 
 ### Hub downloads
 
-Downloading models to a user device _fast_ is a core requirement of on-device ML. `swift-transformers` provides a simple API to
+Downloading models to a user device _fast_ and _reliably_ is a core requirement of on-device ML. `swift-transformers` provides a simple API to
 download models from the Hugging Face Hub, with progress reporting, flaky connection handling, and more:
 
 ```swift
