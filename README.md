@@ -39,7 +39,7 @@ let decoded = tokenizer.decode(tokens: encoded)
 
 ### Tool calling
 
-`swift-transformers` natively supports tool calling, allowing for complex interactions with language models:
+`swift-transformers` natively supports formatting inputs for tool calling, allowing for complex interactions with language models:
 
 ```swift
 let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/Qwen2.5-7B-Instruct-4bit")
