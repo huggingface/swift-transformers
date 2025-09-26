@@ -125,7 +125,7 @@ enum ComputeUnits: String, ExpressibleByArgument, CaseIterable {
 
 /// Returns a cleaned and formatted version of the response.
 ///
-/// - Parameter respone: The response to clean and format.
+/// - Parameter response: The response to clean and format.
 /// - Returns: A 'user friendly' representation of the generated response.
 private func formatResponse(_ response: String) -> String {
     response

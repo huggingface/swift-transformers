@@ -236,8 +236,7 @@ public extension LanguageModel {
 
     /// Determines the type of KV Cache available for the model, if any.
     ///
-    /// - Parameters:
-    ///   - model: The Core ML model
+    /// - Parameter model: The Core ML model
     /// - Returns: The type of KV Cache available.
     fileprivate static func kvCacheAvailability(for model: MLModel) -> KVCacheAvailability? {
         func isStatefulKVCacheAvailable(for model: MLModel) -> Bool {
