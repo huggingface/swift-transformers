@@ -18,7 +18,7 @@ Those familiar with the [`transformers`](https://github.com/huggingface/transfor
 
 ## Rationale & Overview
 
-Check out [our announcement post](https://huggingface.co/blog/swift-coreml-llm).
+Check out [our announcement post](https://huggingface.co/blog/swift-coreml-llm) and our [1.0 release post](https://huggingfce.co/blog/swift-transformers) for more context on why we built this library.
 
 ## Examples
 
@@ -80,6 +80,11 @@ let modelDirectory: URL = try await Hub.snapshot(
 )
 print("Files downloaded to: \(modelDirectory.path)")
 ```
+
+### CoreML Integration
+
+The `Models` and `Generation` modules provide handy utilities when working with language models in CoreML. Check out our
+example converting and running Mistral 7B using CoreML [here](https://github.com/huggingface/swift-transformers/tree/main/Examples).
 
 ## Usage via SwiftPM
 
