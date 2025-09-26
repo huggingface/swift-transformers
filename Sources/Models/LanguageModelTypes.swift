@@ -57,9 +57,9 @@ public extension LanguageModelProtocol {
     /// This provides a more convenient syntax for calling `predictNextTokenScores`.
     ///
     /// - Parameters:
-    ///   - tokens: The input token sequence
-    ///   - config: The generation configuration containing model parameters
-    /// - Returns: A shaped array containing the logits for the next token prediction
+    ///   - input: The input sequence tensor.
+    ///   - config: The generation configuration containing model parameters.
+    /// - Returns: MLTensor with the raw scores of the next token.
     func callAsFunction(_ input: MLTensor, config: GenerationConfig) async -> MLTensor {
         await predictNextTokenScores(input, config: config)
     }
