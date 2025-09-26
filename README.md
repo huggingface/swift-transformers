@@ -86,6 +86,8 @@ print("Files downloaded to: \(modelDirectory.path)")
 The `Models` and `Generation` modules provide handy utilities when working with language models in CoreML. Check out our
 example converting and running Mistral 7B using CoreML [here](https://github.com/huggingface/swift-transformers/tree/main/Examples).
 
+The [modernization of Core ML](https://github.com/huggingface/swift-transformers/pull/257) and corresponding examples were primarily contributed by @joshnewnham, @1duo, @alejandro-isaza, @aseemw. Thank you 🙏
+
 ## Usage via SwiftPM
 
 To use `swift-transformers` with SwiftPM, you can add this to your `Package.swift`:
