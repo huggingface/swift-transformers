@@ -35,6 +35,11 @@ public struct TopKLogitsWarper: LogitsProcessor {
         let vocabSize = scores.shape[scores.rank - 1]
         let k = min(topK, vocabSize) // Safety check
 
+        // If k equals vocabSize, no filtering is needed
+        if k >= vocabSize {
+            return scores
+        }
+
         // Get the k-th highest score (the threshold)
         let (topKValues, _) = scores.topK(k)
 

@@ -76,7 +76,10 @@ extension Generation {
         // Create logits processor list based on config
         let logitsProcessorList = createLogitsProcessorList(config: config)
 
-        while outputTokens.shape[1] < config.maxLength {
+        let inputLength = outputTokens.shape[1]
+        let maxTotalLength = min(config.maxLength, inputLength + config.maxNewTokens)
+
+        while outputTokens.shape[1] < maxTotalLength {
             // Get raw logits from model
             let nextTokenScores = await model(outputTokens, config)
 
@@ -119,7 +122,9 @@ extension Generation {
             processors.append(TemperatureLogitsWarper(temperature: config.temperature))
         }
 
-        // Top-K filtering
+        // Top-K filtering (only apply if topK is meaningful)
+        // Note: We can't determine vocab size here, so TopKLogitsWarper handles the case
+        // where topK >= vocabSize internally
         if config.topK > 0 && config.topK < Int.max {
             processors.append(TopKLogitsWarper(topK: config.topK))
         }

@@ -44,26 +44,37 @@ public struct RepetitionPenaltyLogitsProcessor: LogitsProcessor {
 
         // Process each batch item
         var scoresData = scoresArray.scalars
-        let batchSize = scores.shape[0]
-        let vocabSize = scores.shape[1]
+        let shape = scores.shape
+        precondition(!shape.isEmpty, "scores tensor must have at least one dimension")
+
+        let batchSize = shape[0]
+        let vocabSize = shape[shape.count - 1]
+        let elementsPerBatch = shape.dropFirst().reduce(1, *)
+        let vocabBlocksPerBatch = max(elementsPerBatch / max(vocabSize, 1), 1)
 
         for batchIdx in 0..<batchSize {
-            let seqStart = batchIdx * vocabSize
+            let batchOffset = batchIdx * elementsPerBatch
 
             // Get unique token IDs from this sequence
             let seqStartIds = batchIdx * inputIds.shape[1]
             let seqEndIds = seqStartIds + inputIds.shape[1]
             let tokenIds = Set(inputIdsArray.scalars[seqStartIds..<seqEndIds].map { Int($0) })
 
-            // Apply penalty to each token that appeared in the sequence
-            for tokenId in tokenIds {
-                guard tokenId >= 0 && tokenId < vocabSize else { continue }
+            // Apply penalty to each token that appeared in the sequence across all vocab blocks
+            for blockIdx in 0..<vocabBlocksPerBatch {
+                let blockOffset = batchOffset + blockIdx * vocabSize
 
-                let scoreIdx = seqStart + tokenId
-                let score = scoresData[scoreIdx]
+                for tokenId in tokenIds {
+                    guard tokenId >= 0 && tokenId < vocabSize else { continue }
 
-                // Apply penalty based on sign (following transformers implementation)
-                scoresData[scoreIdx] = score < 0 ? score * penalty : score / penalty
+                    let scoreIdx = blockOffset + tokenId
+                    guard scoreIdx < scoresData.count else { continue }
+
+                    let score = scoresData[scoreIdx]
+
+                    // Apply penalty based on sign (following transformers implementation)
+                    scoresData[scoreIdx] = score < 0 ? score * penalty : score / penalty
+                }
             }
         }
 

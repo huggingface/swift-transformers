@@ -1,5 +1,6 @@
-import XCTest
 import CoreML
+import XCTest
+
 @testable import Generation
 
 @available(macOS 15.0, iOS 18.0, *)
@@ -17,7 +18,7 @@ final class LogitsProcessorTests: XCTestCase {
         let scores = MLTensor(shape: [1, 3], scalars: [Float(2.0), Float(4.0), Float(6.0)], scalarType: Float.self)
 
         let result = await warper(inputIds, scores)
-        let expected: [Float] = [1.0, 2.0, 3.0]  // Each score divided by 2.0
+        let expected: [Float] = [1.0, 2.0, 3.0] // Each score divided by 2.0
 
         await assertMLTensorEqual(result, expected: expected, accuracy: accuracy)
     }
@@ -29,7 +30,7 @@ final class LogitsProcessorTests: XCTestCase {
         let scores = MLTensor(shape: [1, 2], scalars: [Float(1.0), Float(2.0)], scalarType: Float.self)
 
         let result = await sharper(inputIds, scores)
-        let expected: [Float] = [2.0, 4.0]  // Divided by 0.5 = multiplied by 2
+        let expected: [Float] = [2.0, 4.0] // Divided by 0.5 = multiplied by 2
 
         await assertMLTensorEqual(result, expected: expected, accuracy: accuracy)
     }
@@ -146,6 +147,29 @@ final class LogitsProcessorTests: XCTestCase {
 
         // With penalty=1.0, scores should be unchanged
         XCTAssertEqual(resultArray, expectedArray, "Penalty of 1.0 should not change scores")
+    }
+
+    func testRepetitionPenaltyWithRank3Scores() async throws {
+        let processor = RepetitionPenaltyLogitsProcessor(penalty: 2.0)
+
+        // Input sequence with tokens [1, 2, 3]
+        let inputIds = MLTensor(shape: [1, 3], scalars: [Int32(1), Int32(2), Int32(3)], scalarType: Int32.self)
+
+        // Scores shaped as [batch, sequence_length, vocab] -> [1, 1, 5]
+        let scores = MLTensor(
+            shape: [1, 1, 5],
+            scalars: [Float(0.5), Float(-0.5), Float(1.0), Float(-1.0), Float(2.0)],
+            scalarType: Float.self
+        )
+
+        let result = await processor(inputIds, scores)
+        let resultArray = await result.shapedArray(of: Float.self).scalars
+
+        let expected: [Float] = [0.5, -1.0, 0.5, -2.0, 2.0]
+        XCTAssertEqual(resultArray.count, expected.count, "Flattened tensor mismatch")
+        for (value, exp) in zip(resultArray, expected) {
+            XCTAssertEqual(value, exp, accuracy: accuracy)
+        }
     }
 
     // MARK: - Processor List Tests
