@@ -408,7 +408,7 @@ extension LanguageModel: TextGenerationModel {
     /// Provides sensible defaults based on the model type, with model-specific
     /// optimizations for known architectures like GPT models.
     public var defaultGenerationConfig: GenerationConfig {
-        var config = GenerationConfig(maxNewTokens: 2048)
+        var config: GenerationConfig = GenerationConfig(maxNewTokens: 2048)
         switch modelName.lowercased() {
         case let x where x.contains("gpt"):
             config.doSample = true
