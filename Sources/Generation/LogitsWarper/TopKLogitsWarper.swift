@@ -33,7 +33,7 @@ public struct TopKLogitsWarper: LogitsProcessor {
 
     public func callAsFunction(_ inputIds: MLTensor, _ scores: MLTensor) async -> MLTensor {
         let vocabSize = scores.shape[scores.rank - 1]
-        let k = min(topK, vocabSize)  // Safety check
+        let k = min(topK, vocabSize) // Safety check
 
         // Get the k-th highest score (the threshold)
         let (topKValues, _) = scores.topK(k)
