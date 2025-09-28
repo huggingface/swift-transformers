@@ -74,16 +74,31 @@ extension Generation {
         var outputTokens = MLTensor(tokens).expandingShape(at: 0)
         while outputTokens.shape[1] < config.maxLength {
             let nextTokenScores = await model(outputTokens, config)
+            // Apply logits processors (repetition penalty, etc.)
+            let processedLogits = applyLogitsProcessors(
+                inputIds: outputTokens,
+                logits: nextTokenScores,
+                config: config
+            )
+
             let nextToken =
                 switch config.generationMode {
                 case .greedy:
-                    selectNextTokenUsingGreedyDecoding(from: nextTokenScores)
+                    selectNextTokenUsingGreedyDecoding(from: processedLogits)
                 case .sample:
-                    selectNextTokenUsingTopKSampling(
-                        from: nextTokenScores,
-                        temperature: config.temperature,
-                        topK: config.topK
-                    )
+                    if config.topP < 1.0 {
+                        selectNextTokenUsingTopPSampling(
+                            from: processedLogits,
+                            temperature: config.temperature,
+                            topP: config.topP
+                        )
+                    } else {
+                        selectNextTokenUsingTopKSampling(
+                            from: processedLogits,
+                            temperature: config.temperature,
+                            topK: config.topK
+                        )
+                    }
                 default:
                     fatalError("Generation mode \(config.generationMode) not implemented yet")
                 }
@@ -103,6 +118,35 @@ extension Generation {
 
     private func tensorToGenerationOutput(_ tensor: MLTensor) async -> GenerationOutput {
         await tensor.shapedArray(of: Int32.self).scalars.map { Int($0) }
+    }
+
+    /// Applies configured logits processors to the raw logits.
+    ///
+    /// - Parameters:
+    ///   - inputIds: The input token sequence
+    ///   - logits: Raw logits from the model
+    ///   - config: Generation configuration with processor settings
+    /// - Returns: Processed logits
+    private func applyLogitsProcessors(inputIds: MLTensor, logits: MLTensor, config: GenerationConfig) -> MLTensor {
+        var warpers: [LogitsWarper] = []
+
+        // Add temperature warper if temperature is not 1.0
+        if config.temperature != 1.0 {
+            warpers.append(TemperatureLogitsWarper(temperature: Double(config.temperature)))
+        }
+
+        // Add repetition penalty if configured
+        if config.repetitionPenalty != 1.0 {
+            warpers.append(RepetitionPenaltyWarper(penalty: config.repetitionPenalty))
+        }
+
+        // Apply all warpers if any are configured
+        if warpers.isEmpty {
+            return logits
+        }
+
+        let processor = LogitsProcessor(warpers: warpers)
+        return processor.process(inputIds: inputIds, logits: logits)
     }
 }
 
