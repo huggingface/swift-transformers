@@ -27,9 +27,24 @@ struct TransformersCLI: AsyncParsableCommand {
     @Option(
         help: """
             When enabled, two generation passes are ran, one to 'warm up' and another to collect \
-            benchmark metrics. 
+            benchmark metrics.
             """)
     var warmup: Bool = false
+
+    @Option(help: "Enable sampling mode (true) or use greedy decoding (false)")
+    var doSample: Bool = false
+
+    @Option(help: "Temperature for sampling (lower = more deterministic, typical: 0.7-1.0)")
+    var temperature: Float?
+
+    @Option(help: "Top-k filtering - only consider k most likely tokens (typical: 5-50)")
+    var topK: Int?
+
+    @Option(help: "Top-p (nucleus) sampling - cumulative probability threshold (typical: 0.9-0.95)")
+    var topP: Double?
+
+    @Option(help: "Repetition penalty to discourage repeating tokens (typical: 1.0-2.0, 1.0 = no penalty)")
+    var repetitionPenalty: Double?
 
     func generate(
         model: LanguageModel,
@@ -88,10 +103,22 @@ struct TransformersCLI: AsyncParsableCommand {
         print("Loading model \(compiledURL)")
         let model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
 
-        // Using greedy generation for now
         var config = model.defaultGenerationConfig
-        config.doSample = false
+        config.doSample = doSample
         config.maxNewTokens = maxLength
+
+        if let temperature = temperature {
+            config.temperature = temperature
+        }
+        if let topK = topK {
+            config.topK = topK
+        }
+        if let topP = topP {
+            config.topP = topP
+        }
+        if let repetitionPenalty = repetitionPenalty {
+            config.repetitionPenalty = repetitionPenalty
+        }
 
         // Given the size of the out-of-model computation, dispatch all
         // tensor operations to the CPU.

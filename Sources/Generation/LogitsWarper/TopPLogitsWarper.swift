@@ -42,54 +42,59 @@ public struct TopPLogitsWarper: LogitsProcessor {
         // 3. Compute cumulative sum of probabilities
         // 4. Remove tokens with cumulative probability > top_p
         // 5. Keep at least min_tokens_to_keep
-        // 6. Scatter mask back to original indexing using argsort indices
+        // 6. Scatter mask back to original indexing using inverse permutation
 
         let vocabSize = scores.shape[scores.rank - 1]
 
-        // Get sorted indices (descending order - highest scores first)
+        // Scores are already in Float32 (handled by LogitsProcessorList)
+        // Sort in descending order (highest scores first)
         let sortedIndices = scores.argsort(alongAxis: -1, descendingOrder: true)
+
+        // Build inverse permutation for scattering back
+        let inversePermutation = sortedIndices.argsort(alongAxis: -1)
 
         // Gather scores in sorted order
         let sortedScores = scores.gathering(atIndices: sortedIndices, alongAxis: -1)
 
-        // Compute softmax on sorted scores
+        // Compute probabilities and cumulative sum in sorted order
         let sortedProbs = sortedScores.softmax(alongAxis: -1)
-
-        // Compute cumulative sum
         let cumulativeProbs = sortedProbs.cumulativeSum(alongAxis: -1)
 
-        // Create mask: remove tokens where cumsum > topP
-        // The HuggingFace implementation removes tokens where cumsum - current_prob > topP
+        // Shift cumsum to exclude current token (HuggingFace convention)
         // This ensures we include the first token that pushes us over the threshold
-
-        // Shift cumsum to get cumsum of previous tokens
-        // For first token, this will be 0
         let cumulativeProbsShifted = cumulativeProbs - sortedProbs
 
-        // Need CPU fallback for scatter and minTokensToKeep logic
-        let cumulativeProbsArray = await cumulativeProbsShifted.shapedArray(of: Float.self)
-        let indicesArray = await sortedIndices.shapedArray(of: Int32.self)
-        let scoresArray = await scores.shapedArray(of: Float.self)
+        // Create position tensor [0, 1, 2, ..., vocabSize-1] for minTokensToKeep check
+        let baseShape = Array(repeating: 1, count: sortedScores.rank - 1) + [vocabSize]
+        var multiples = sortedScores.shape
+        multiples[multiples.count - 1] = 1
 
-        var maskedScores = scoresArray.scalars
-        let batchSize = scores.shape[0]
+        let positions = MLTensor(
+            rangeFrom: Int32(0),
+            to: Int32(vocabSize),
+            by: 1,
+            scalarType: Int32.self
+        )
+        .reshaped(to: baseShape)
+        .tiled(multiples: multiples)
+        .cast(to: Float.self)
 
-        for batchIdx in 0..<batchSize {
-            let batchStart = batchIdx * vocabSize
-            for i in 0..<vocabSize {
-                let sortedIdx = batchStart + i
-                let originalIdx = Int(indicesArray.scalars[sortedIdx])
+        // Create mask in sorted order:
+        // Remove if: position >= minTokensToKeep AND cumsum_shifted > topP
+        let beyondMinimum = positions .>= Float(minTokensToKeep)
+        let exceedsThreshold = cumulativeProbsShifted .> topP
+        let removeMaskSorted = beyondMinimum .& exceedsThreshold
 
-                // Keep first minTokensToKeep tokens, otherwise check cumsum threshold
-                let shouldRemove = (i >= minTokensToKeep) && (cumulativeProbsArray.scalars[sortedIdx] > topP)
+        // Apply filter value in sorted space
+        let filterTensor = MLTensor(
+            repeating: filterValue,
+            shape: sortedScores.shape,
+            scalarType: Float.self
+        )
+        let filteredSorted = sortedScores.replacing(with: filterTensor, where: removeMaskSorted)
 
-                if shouldRemove {
-                    maskedScores[batchStart + originalIdx] = filterValue
-                }
-            }
-        }
-
-        return MLTensor(shape: scores.shape, scalars: maskedScores, scalarType: Float.self)
+        // Scatter back to original indexing using inverse permutation
+        return filteredSorted.gathering(atIndices: inversePermutation, alongAxis: -1)
     }
 }
 #endif

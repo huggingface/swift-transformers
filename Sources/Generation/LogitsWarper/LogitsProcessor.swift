@@ -43,11 +43,17 @@ public struct LogitsProcessorList {
     ///   - scores: Tensor of raw logit scores with shape `[batch_size, vocab_size]`
     /// - Returns: Processed logits tensor with shape `[batch_size, vocab_size]`
     public func callAsFunction(_ inputIds: MLTensor, _ scores: MLTensor) async -> MLTensor {
-        var processedScores = scores
+        // Following transformers convention: all logits processing happens in Float32
+        // Cast to Float32 once at the start, process, then cast back to original type at the end
+        let originalScalarType = scores.scalarType
+        var processedScores = scores.scalarType == Float.self ? scores : scores.cast(to: Float.self)
+
         for processor in processors {
             processedScores = await processor(inputIds, processedScores)
         }
-        return processedScores
+
+        // Cast back to original type if needed
+        return originalScalarType == Float.self ? processedScores : processedScores.cast(to: originalScalarType)
     }
 }
 #endif
