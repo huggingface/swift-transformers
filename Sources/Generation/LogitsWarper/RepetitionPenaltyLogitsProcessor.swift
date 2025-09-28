@@ -32,54 +32,54 @@ public struct RepetitionPenaltyLogitsProcessor: LogitsProcessor {
     public func callAsFunction(_ inputIds: MLTensor, _ scores: MLTensor) async -> MLTensor {
         guard penalty != 1.0 else { return scores }
 
-        // Implementation approach (following transformers):
-        // 1. Get unique token IDs from inputIds
-        // 2. For each unique token, gather its logit value
-        // 3. Apply conditional penalty: if logit < 0: *= penalty, else: /= penalty
-        // 4. Scatter penalized values back to original positions
+        // Optimized implementation following transformers:
+        // 1. Gather scores for tokens that appear in input_ids
+        // 2. Apply conditional penalty: if score < 0: *= penalty, else: /= penalty
+        // 3. Scatter penalized values back to original positions
 
-        // Convert to CPU for gather/scatter operations
-        let scoresArray = await scores.shapedArray(of: Float.self)
+        // Gather scores for tokens that appear in input_ids
+        let gatheredScores = scores.gathering(atIndices: inputIds, alongAxis: -1)
+
+        // Apply conditional penalty based on sign (vectorized)
+        let negativeScores = gatheredScores .< 0.0
+        let penalizedScores = negativeScores.cast(to: Float.self) * (gatheredScores * penalty) +
+                              (1.0 - negativeScores.cast(to: Float.self)) * (gatheredScores / penalty)
+
+        // Scatter penalized values back to original positions
+        // Note: MLTensor doesn't have direct scatter, so we use CPU operations for this step
+        let vocabSize = scores.shape[scores.rank - 1]
+        let batchSize = scores.shape[0]
+
         let inputIdsArray = await inputIds.shapedArray(of: Int32.self)
-
-        // Process each batch item
-        var scoresData = scoresArray.scalars
-        let shape = scores.shape
-        precondition(!shape.isEmpty, "scores tensor must have at least one dimension")
-
-        let batchSize = shape[0]
-        let vocabSize = shape[shape.count - 1]
-        let elementsPerBatch = shape.dropFirst().reduce(1, *)
-        let vocabBlocksPerBatch = max(elementsPerBatch / max(vocabSize, 1), 1)
+        let penalizedArray = await penalizedScores.shapedArray(of: Float.self)
+        var scoresArray = await scores.shapedArray(of: Float.self)
 
         for batchIdx in 0..<batchSize {
-            let batchOffset = batchIdx * elementsPerBatch
+            let seqStart = batchIdx * inputIds.shape[1]
+            let seqEnd = seqStart + inputIds.shape[1]
+            let batchOffset = batchIdx * scoresArray.shape.dropFirst().reduce(1, *)
 
-            // Get unique token IDs from this sequence
-            let seqStartIds = batchIdx * inputIds.shape[1]
-            let seqEndIds = seqStartIds + inputIds.shape[1]
-            let tokenIds = Set(inputIdsArray.scalars[seqStartIds..<seqEndIds].map { Int($0) })
+            for (tokenIdx, inputIdxInSeq) in (seqStart..<seqEnd).enumerated() {
+                let tokenId = Int(inputIdsArray.scalars[inputIdxInSeq])
+                guard tokenId >= 0 && tokenId < vocabSize else { continue }
 
-            // Apply penalty to each token that appeared in the sequence across all vocab blocks
-            for blockIdx in 0..<vocabBlocksPerBatch {
-                let blockOffset = batchOffset + blockIdx * vocabSize
-
-                for tokenId in tokenIds {
-                    guard tokenId >= 0 && tokenId < vocabSize else { continue }
-
-                    let scoreIdx = blockOffset + tokenId
-                    guard scoreIdx < scoresData.count else { continue }
-
-                    let score = scoresData[scoreIdx]
-
-                    // Apply penalty based on sign (following transformers implementation)
-                    scoresData[scoreIdx] = score < 0 ? score * penalty : score / penalty
+                // For rank-2: [batch_size, vocab_size]
+                if scores.rank == 2 {
+                    let scoreIdx = batchOffset + tokenId
+                    let penalizedIdx = seqStart + tokenIdx
+                    scoresArray.scalars[scoreIdx] = penalizedArray.scalars[penalizedIdx]
+                }
+                // For rank-3: [batch_size, seq_len, vocab_size] - update last position
+                else if scores.rank == 3 {
+                    let lastSeqPos = scores.shape[1] - 1
+                    let scoreIdx = batchOffset + lastSeqPos * vocabSize + tokenId
+                    let penalizedIdx = seqStart + tokenIdx
+                    scoresArray.scalars[scoreIdx] = penalizedArray.scalars[penalizedIdx]
                 }
             }
         }
 
-        // Create new tensor with penalized scores
-        return MLTensor(shape: scores.shape, scalars: scoresData, scalarType: Float.self)
+        return MLTensor(shape: scores.shape, scalars: scoresArray.scalars, scalarType: Float.self)
     }
 }
 #endif
