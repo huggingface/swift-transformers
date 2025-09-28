@@ -129,7 +129,8 @@ extension LanguageModel {
         static let valueCache = "valueCache"
         // Output keys
         static let logits = "logits"
-        static let present = "presentKeys"
+        // swift-format-ignore: DontRepeatTypeInStaticProperties
+        static let presentKeys = "presentKeys"
         static let presentValues = "presentValues"
     }
 }
@@ -265,7 +266,7 @@ public extension LanguageModel {
         }
         let kCacheInput = model.modelDescription.inputDescriptionsByName[Keys.keyCache] != nil
         let vCacheInput = model.modelDescription.inputDescriptionsByName[Keys.valueCache] != nil
-        let kCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.present] != nil
+        let kCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.presentKeys] != nil
         let vCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.presentValues] != nil
 
         guard Set([kCacheInput, vCacheInput, kCacheOutput, vCacheOutput]).count == 1 else {
