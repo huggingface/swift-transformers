@@ -129,7 +129,7 @@ extension LanguageModel {
         static let valueCache = "valueCache"
         // Output keys
         static let logits = "logits"
-        static let present = "presentKeys"
+        static let presentKeys = "presentKeys"
         static let presentValues = "presentValues"
     }
 }
@@ -265,7 +265,7 @@ public extension LanguageModel {
         }
         let kCacheInput = model.modelDescription.inputDescriptionsByName[Keys.keyCache] != nil
         let vCacheInput = model.modelDescription.inputDescriptionsByName[Keys.valueCache] != nil
-        let kCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.present] != nil
+        let kCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.presentKeys] != nil
         let vCacheOutput = model.modelDescription.outputDescriptionsByName[Keys.presentValues] != nil
 
         guard Set([kCacheInput, vCacheInput, kCacheOutput, vCacheOutput]).count == 1 else {
@@ -408,7 +408,7 @@ extension LanguageModel: TextGenerationModel {
     /// Provides sensible defaults based on the model type, with model-specific
     /// optimizations for known architectures like GPT models.
     public var defaultGenerationConfig: GenerationConfig {
-        var config: GenerationConfig = GenerationConfig(maxNewTokens: 2048)
+        var config = GenerationConfig(maxNewTokens: 2048)
         switch modelName.lowercased() {
         case let x where x.contains("gpt"):
             config.doSample = true
