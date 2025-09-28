@@ -33,7 +33,7 @@
         "AvoidRetroactiveConformances": true,
         "BeginDocumentationCommentWithOneLineSummary": false,
         "DoNotUseSemicolons": false,
-        "DontRepeatTypeInStaticProperties": true,
+        "DontRepeatTypeInStaticProperties": false,
         "FileScopedDeclarationPrivacy": true,
         "FullyIndirectEnum": true,
         "GroupNumericLiterals": false,
