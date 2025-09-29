@@ -129,6 +129,7 @@ extension LanguageModel {
         static let valueCache = "valueCache"
         // Output keys
         static let logits = "logits"
+        // swift-format-ignore: DontRepeatTypeInStaticProperties
         static let presentKeys = "presentKeys"
         static let presentValues = "presentValues"
     }
