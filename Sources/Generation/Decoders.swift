@@ -52,26 +52,4 @@ func selectNextTokenUsingSampling(from scores: MLTensor) -> MLTensor {
     // Ensure indices are Int32 for concatenation with input tokens
     return sampledIndex.scalarType == Int32.self ? sampledIndex : sampledIndex.cast(to: Int32.self)
 }
-
-// MARK: Legacy Top-K Sampling (deprecated, use LogitsProcessorList instead)
-
-/// Legacy top-k sampling function that combines temperature, top-k, and sampling.
-///
-/// - Note: This function is deprecated. Use `selectNextTokenUsingSampling` with
-///   `TemperatureLogitsWarper` and `TopKLogitsWarper` in a `LogitsProcessorList` instead.
-@available(macOS 15.0, iOS 18.0, *)
-func selectNextTokenUsingTopKSampling(from scores: MLTensor, temperature: Float, topK: Int) -> MLTensor {
-    let temperatureAdjustedScores = scores / temperature
-    let (topKScores, topKIndices) = temperatureAdjustedScores.topK(topK)
-    let topKProbs = topKScores.softmax(alongAxis: -1)
-    let rnd = topKProbs.sum() * Float.random(in: 0..<1)
-    var accumTopKProbs = topKProbs.cumulativeSum(alongAxis: -1)
-    accumTopKProbs += (accumTopKProbs .< rnd) * 100.0
-    let topKIndex = accumTopKProbs.argsort()[..., 0]
-    let nextTokenTensor = topKIndices.gathering(
-        atIndices: topKIndex,
-        alongAxis: topKIndices.rank - 1
-    )
-    return nextTokenTensor.reshaped(to: [1, 1])
-}
 #endif // canImport(CoreML)
