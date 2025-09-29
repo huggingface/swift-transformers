@@ -1,6 +1,11 @@
 #if canImport(CoreML)
 import CoreML
 
+/// Error thrown by logits processors
+public enum LogitsProcessorError: Error {
+    case invalidParameter(String)
+}
+
 /// LogitsProcessor that prevents repetition of previous tokens through a penalty.
 ///
 /// For each token that has already appeared in the sequence:
@@ -24,8 +29,11 @@ public struct RepetitionPenaltyLogitsProcessor: LogitsProcessor {
     /// Creates a repetition penalty logits processor.
     ///
     /// - Parameter penalty: Penalty factor. Values > 1.0 penalize repetition, values < 1.0 encourage it.
-    public init(penalty: Float) {
-        precondition(penalty > 0, "penalty must be strictly positive, got \(penalty)")
+    /// - Throws: If penalty is not strictly positive
+    public init(penalty: Float) throws {
+        guard penalty > 0 else {
+            throw LogitsProcessorError.invalidParameter("penalty must be strictly positive, got \(penalty)")
+        }
         self.penalty = penalty
     }
 
@@ -42,8 +50,7 @@ public struct RepetitionPenaltyLogitsProcessor: LogitsProcessor {
 
         // Apply conditional penalty based on sign (vectorized)
         let negativeScores = gatheredScores .< 0.0
-        let penalizedScores = negativeScores.cast(to: Float.self) * (gatheredScores * penalty) +
-                              (1.0 - negativeScores.cast(to: Float.self)) * (gatheredScores / penalty)
+        let penalizedScores = negativeScores.cast(to: Float.self) * (gatheredScores * penalty) + (1.0 - negativeScores.cast(to: Float.self)) * (gatheredScores / penalty)
 
         // Scatter penalized values back to original positions
         // Note: MLTensor doesn't have direct scatter, so we use CPU operations for this step

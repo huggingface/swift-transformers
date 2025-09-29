@@ -108,7 +108,7 @@ final class LogitsProcessorTests: XCTestCase {
     // MARK: - Repetition Penalty Tests
 
     func testRepetitionPenaltyProcessor() async throws {
-        let processor = RepetitionPenaltyLogitsProcessor(penalty: 2.0)
+        let processor = try RepetitionPenaltyLogitsProcessor(penalty: 2.0)
 
         // Input sequence with tokens [1, 2, 3]
         let inputIds = MLTensor(shape: [1, 3], scalars: [Int32(1), Int32(2), Int32(3)], scalarType: Int32.self)
@@ -136,7 +136,7 @@ final class LogitsProcessorTests: XCTestCase {
     }
 
     func testRepetitionPenaltyWithNoPenalty() async throws {
-        let processor = RepetitionPenaltyLogitsProcessor(penalty: 1.0)
+        let processor = try RepetitionPenaltyLogitsProcessor(penalty: 1.0)
 
         let inputIds = MLTensor(shape: [1, 2], scalars: [Int32(1), Int32(2)], scalarType: Int32.self)
         let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
@@ -150,7 +150,7 @@ final class LogitsProcessorTests: XCTestCase {
     }
 
     func testRepetitionPenaltyWithRank3Scores() async throws {
-        let processor = RepetitionPenaltyLogitsProcessor(penalty: 2.0)
+        let processor = try RepetitionPenaltyLogitsProcessor(penalty: 2.0)
 
         // Input sequence with tokens [1, 2, 3]
         let inputIds = MLTensor(shape: [1, 3], scalars: [Int32(1), Int32(2), Int32(3)], scalarType: Int32.self)
