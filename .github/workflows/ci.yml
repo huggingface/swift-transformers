@@ -20,21 +20,30 @@ jobs:
         secrets: inherit
 
     lint:
-      name: Lint
-      runs-on: macos-latest
+        name: Lint
+        runs-on: macos-latest
 
-      steps:
-        - uses: actions/checkout@v4
+        steps:
+            - name: Checkout PR merge ref if called from PR
+              if: ${{ github.event.pull_request.number }}
+              uses: actions/checkout@v4
+              with:
+                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
+                  fetch-depth: 0
 
-        - run: |
-            swift format lint --strict --recursive .
+            - name: Checkout fallback
+              if: ${{ !github.event.pull_request.number }}
+              uses: actions/checkout@v4
 
-        - name: Suggest fixes (if check fails)
-          if: failure()
-          run: |
-            echo "### Here's how to fix the formatting locally:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```bash' >> $GITHUB_STEP_SUMMARY
-            echo "# Format all Swift files" >> $GITHUB_STEP_SUMMARY
-            echo 'swift format -i --recursive .' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            - run: |
+                  swift format lint --strict --recursive .
+
+            - name: Suggest fixes (if check fails)
+              if: failure()
+              run: |
+                  echo "### Here's how to fix the formatting locally:" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo '```bash' >> $GITHUB_STEP_SUMMARY
+                  echo "# Format all Swift files" >> $GITHUB_STEP_SUMMARY
+                  echo 'swift format -i --recursive .' >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
