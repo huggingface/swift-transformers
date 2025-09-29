@@ -117,6 +117,13 @@ extension Generation {
     private func createLogitsProcessorList(config: GenerationConfig) -> LogitsProcessorList {
         var processors: [any LogitsProcessor] = []
 
+        // Repetition penalty (applied before sampling warpers)
+        if config.repetitionPenalty != 1.0 {
+            if let processor = try? RepetitionPenaltyLogitsProcessor(penalty: Float(config.repetitionPenalty)) {
+                processors.append(processor)
+            }
+        }
+
         // Temperature scaling (if not default)
         if config.temperature > 0 && config.temperature != 1.0 {
             processors.append(TemperatureLogitsWarper(temperature: config.temperature))
@@ -132,11 +139,6 @@ extension Generation {
         // Top-P (nucleus) sampling
         if config.topP < 1.0 {
             processors.append(TopPLogitsWarper(topP: Float(config.topP)))
-        }
-
-        // Repetition penalty
-        if config.repetitionPenalty != 1.0 {
-            processors.append(RepetitionPenaltyLogitsProcessor(penalty: Float(config.repetitionPenalty)))
         }
 
         return LogitsProcessorList(processors: processors)
