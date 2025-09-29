@@ -54,6 +54,7 @@ final class GenerationIntegrationTests: XCTestCase {
         var config = GenerationConfig(maxNewTokens: 3)
         config.doSample = false // Greedy mode
         config.eosTokenId = -1 // Disable early stopping
+        config.maxLength = 10
 
         let generation = TestGeneration()
         let startTokens = [0] // Start with token 0
