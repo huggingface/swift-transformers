@@ -126,19 +126,25 @@ extension Generation {
 
         // Temperature scaling (if not default)
         if config.temperature > 0 && config.temperature != 1.0 {
-            processors.append(TemperatureLogitsWarper(temperature: config.temperature))
+            if let processor = try? TemperatureLogitsWarper(temperature: config.temperature) {
+                processors.append(processor)
+            }
         }
 
         // Top-K filtering (only apply if topK is meaningful)
         // Note: We can't determine vocab size here, so TopKLogitsWarper handles the case
         // where topK >= vocabSize internally
         if config.topK > 0 && config.topK < Int.max {
-            processors.append(TopKLogitsWarper(topK: config.topK))
+            if let processor = try? TopKLogitsWarper(topK: config.topK) {
+                processors.append(processor)
+            }
         }
 
         // Top-P (nucleus) sampling
         if config.topP < 1.0 {
-            processors.append(TopPLogitsWarper(topP: Float(config.topP)))
+            if let processor = try? TopPLogitsWarper(topP: Float(config.topP)) {
+                processors.append(processor)
+            }
         }
 
         return LogitsProcessorList(processors: processors)

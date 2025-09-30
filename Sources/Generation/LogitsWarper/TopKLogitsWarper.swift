@@ -22,9 +22,15 @@ public struct TopKLogitsWarper: LogitsProcessor {
     ///   - topK: Number of highest probability tokens to keep
     ///   - filterValue: Value to set filtered tokens to (default: -infinity)
     ///   - minTokensToKeep: Minimum tokens that cannot be filtered (default: 1)
-    public init(topK: Int, filterValue: Float = -.infinity, minTokensToKeep: Int = 1) {
-        precondition(topK > 0, "topK must be strictly positive, got \(topK)")
-        precondition(minTokensToKeep >= 1, "minTokensToKeep must be at least 1, got \(minTokensToKeep)")
+    /// - Throws: If topK is not strictly positive or if minTokensToKeep is less than 1
+    /// - Note: If topK is larger than the vocabulary size, no filtering is applied.
+    public init(topK: Int, filterValue: Float = -.infinity, minTokensToKeep: Int = 1) throws {
+        guard topK > 0 else {
+            throw LogitsProcessorError.invalidParameter("topK must be strictly positive, got \(topK)")
+        }
+        guard minTokensToKeep >= 1 else {
+            throw LogitsProcessorError.invalidParameter("minTokensToKeep must be at least 1, got \(minTokensToKeep)")
+        }
 
         self.topK = max(topK, minTokensToKeep)
         self.filterValue = filterValue

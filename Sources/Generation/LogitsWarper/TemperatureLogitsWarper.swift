@@ -19,8 +19,11 @@ public struct TemperatureLogitsWarper: LogitsProcessor {
     ///
     /// - Parameter temperature: Strictly positive float value used to modulate the logits distribution.
     ///   Must be > 0. Values close to 0 approximate greedy decoding.
-    public init(temperature: Float) {
-        precondition(temperature > 0, "temperature must be strictly positive, got \(temperature)")
+    /// - Throws: If temperature is not strictly positive
+    public init(temperature: Float) throws {
+        guard temperature > 0 else {
+            throw LogitsProcessorError.invalidParameter("temperature must be strictly positive, got \(temperature)")
+        }
         self.temperature = temperature
     }
 

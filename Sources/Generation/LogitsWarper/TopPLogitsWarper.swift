@@ -26,9 +26,14 @@ public struct TopPLogitsWarper: LogitsProcessor {
     ///   - topP: Cumulative probability threshold. Must be between 0 and 1.
     ///   - filterValue: Value to set filtered tokens to (default: -infinity)
     ///   - minTokensToKeep: Minimum tokens that cannot be filtered (default: 1)
-    public init(topP: Float, filterValue: Float = -.infinity, minTokensToKeep: Int = 1) {
-        precondition(topP >= 0 && topP <= 1.0, "topP must be in [0, 1], got \(topP)")
-        precondition(minTokensToKeep >= 1, "minTokensToKeep must be at least 1, got \(minTokensToKeep)")
+    /// - Throws: If topP is not in [0, 1] or if minTokensToKeep is less than 1
+    public init(topP: Float, filterValue: Float = -.infinity, minTokensToKeep: Int = 1) throws {
+        guard topP >= 0 && topP <= 1.0 else {
+            throw LogitsProcessorError.invalidParameter("topP must be in [0, 1], got \(topP)")
+        }
+        guard minTokensToKeep >= 1 else {
+            throw LogitsProcessorError.invalidParameter("minTokensToKeep must be at least 1, got \(minTokensToKeep)")
+        }
 
         self.topP = topP
         self.filterValue = filterValue

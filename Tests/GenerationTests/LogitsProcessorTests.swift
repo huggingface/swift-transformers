@@ -10,7 +10,7 @@ final class LogitsProcessorTests: XCTestCase {
     // MARK: - Temperature Tests
 
     func testTemperatureWarper() async throws {
-        let warper = TemperatureLogitsWarper(temperature: 2.0)
+        let warper = try TemperatureLogitsWarper(temperature: 2.0)
 
         // Create input: batch_size=1, seq_len=3
         let inputIds = MLTensor(shape: [1, 3], scalars: [Int32(1), Int32(2), Int32(3)], scalarType: Int32.self)
@@ -25,7 +25,7 @@ final class LogitsProcessorTests: XCTestCase {
 
     func testTemperatureWarperWithDifferentValues() async throws {
         // Test temperature < 1 (sharper distribution)
-        let sharper = TemperatureLogitsWarper(temperature: 0.5)
+        let sharper = try TemperatureLogitsWarper(temperature: 0.5)
         let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
         let scores = MLTensor(shape: [1, 2], scalars: [Float(1.0), Float(2.0)], scalarType: Float.self)
 
@@ -38,7 +38,7 @@ final class LogitsProcessorTests: XCTestCase {
     // MARK: - Top-K Tests
 
     func testTopKWarper() async throws {
-        let warper = TopKLogitsWarper(topK: 3)
+        let warper = try TopKLogitsWarper(topK: 3)
 
         let inputIds = MLTensor(shape: [1, 2], scalars: [Int32(1), Int32(2)], scalarType: Int32.self)
         let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
@@ -55,7 +55,7 @@ final class LogitsProcessorTests: XCTestCase {
     }
 
     func testTopKWarperWithSmallK() async throws {
-        let warper = TopKLogitsWarper(topK: 1)
+        let warper = try TopKLogitsWarper(topK: 1)
 
         let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
         let scores = MLTensor(shape: [1, 3], scalars: [Float(1.0), Float(5.0), Float(3.0)], scalarType: Float.self)
@@ -72,7 +72,7 @@ final class LogitsProcessorTests: XCTestCase {
     // MARK: - Top-P Tests
 
     func testTopPWarper() async throws {
-        let warper = TopPLogitsWarper(topP: 0.9)
+        let warper = try TopPLogitsWarper(topP: 0.9)
 
         let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
         // Create a distribution where top tokens dominate: [0.0, 1.0, 2.0, 3.0, 10.0]
@@ -92,7 +92,7 @@ final class LogitsProcessorTests: XCTestCase {
 
     func testTopPWarperWithHighThreshold() async throws {
         // With topP=0.99, almost all tokens should be kept
-        let warper = TopPLogitsWarper(topP: 0.99)
+        let warper = try TopPLogitsWarper(topP: 0.99)
 
         let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
         let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
@@ -175,8 +175,8 @@ final class LogitsProcessorTests: XCTestCase {
     // MARK: - Processor List Tests
 
     func testLogitsProcessorList() async throws {
-        let temp = TemperatureLogitsWarper(temperature: 2.0)
-        let topK = TopKLogitsWarper(topK: 3)
+        let temp = try TemperatureLogitsWarper(temperature: 2.0)
+        let topK = try TopKLogitsWarper(topK: 3)
         let processorList = LogitsProcessorList(processors: [temp, topK])
 
         let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
