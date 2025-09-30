@@ -39,10 +39,13 @@ public struct GenerationConfig {
     public var topK = 50
 
     /// Cumulative probability threshold for top-p sampling.
-    public var topP = 1.0
+    public var topP: Float = 1.0
+
+    /// Minimum token probability threshold, scaled by the most likely token's probability.
+    public var minP: Float?
 
     /// Penalty for token repetition (1.0 means no penalty).
-    public var repetitionPenalty = 1.0
+    public var repetitionPenalty: Float = 1.0
 
     /// Token ID used for padding sequences.
     public var padTokenId: Int?
@@ -65,6 +68,7 @@ public struct GenerationConfig {
     ///   - temperature: Sampling temperature
     ///   - topK: Top-k sampling parameter
     ///   - topP: Top-p sampling parameter
+    ///   - minP: Min-p sampling parameter
     ///   - repetitionPenalty: Repetition penalty factor
     public init(
         maxLength: Int = 20,
@@ -73,10 +77,11 @@ public struct GenerationConfig {
         numBeams: Int = 1,
         numBeamGroups: Int = 1,
         penaltyAlpha: Double? = nil,
-        temperature: Double = 1.0,
+        temperature: Float = 1.0,
         topK: Int = 50,
-        topP: Double = 1.0,
-        repetitionPenalty: Double = 1.0
+        topP: Float = 1.0,
+        minP: Float? = nil,
+        repetitionPenalty: Float = 1.0
     ) {
         self.maxLength = maxLength
         self.maxNewTokens = maxNewTokens
@@ -84,9 +89,10 @@ public struct GenerationConfig {
         self.numBeams = numBeams
         self.numBeamGroups = numBeamGroups
         self.penaltyAlpha = penaltyAlpha
-        self.temperature = Float(temperature)
+        self.temperature = temperature
         self.topK = topK
         self.topP = topP
+        self.minP = minP
         self.repetitionPenalty = repetitionPenalty
     }
 }

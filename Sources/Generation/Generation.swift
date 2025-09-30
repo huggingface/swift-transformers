@@ -72,18 +72,27 @@ extension Generation {
     ) async -> GenerationOutput {
         let tokens = tokens.map { Int32($0) }
         var outputTokens = MLTensor(tokens).expandingShape(at: 0)
-        while outputTokens.shape[1] < config.maxLength {
+
+        // Create logits processor list based on config
+        let logitsProcessorList = createLogitsProcessorList(config: config)
+
+        let inputLength = outputTokens.shape[1]
+        let maxTotalLength = min(config.maxLength, inputLength + config.maxNewTokens)
+
+        while outputTokens.shape[1] < maxTotalLength {
+            // Get raw logits from model
             let nextTokenScores = await model(outputTokens, config)
+
+            // Apply logits processors
+            let processedScores = await logitsProcessorList(outputTokens, nextTokenScores)
+
+            // Select next token based on generation mode
             let nextToken =
                 switch config.generationMode {
                 case .greedy:
-                    selectNextTokenUsingGreedyDecoding(from: nextTokenScores)
+                    selectNextTokenUsingGreedyDecoding(from: processedScores)
                 case .sample:
-                    selectNextTokenUsingTopKSampling(
-                        from: nextTokenScores,
-                        temperature: config.temperature,
-                        topK: config.topK
-                    )
+                    selectNextTokenUsingSampling(from: processedScores)
                 default:
                     fatalError("Generation mode \(config.generationMode) not implemented yet")
                 }
@@ -99,6 +108,53 @@ extension Generation {
             }
         }
         return await tensorToGenerationOutput(outputTokens)
+    }
+
+    /// Creates a list of logits processors based on generation configuration.
+    ///
+    /// - Parameter config: Generation configuration specifying which processors to apply
+    /// - Returns: List of logits processors to apply during generation
+    private func createLogitsProcessorList(config: GenerationConfig) -> LogitsProcessorList {
+        var processors: [any LogitsProcessor] = []
+
+        // Repetition penalty (applied before sampling warpers)
+        if config.repetitionPenalty != 1.0 {
+            if let processor = try? RepetitionPenaltyLogitsProcessor(penalty: Float(config.repetitionPenalty)) {
+                processors.append(processor)
+            }
+        }
+
+        // Temperature scaling (if not default)
+        if config.temperature > 0 && config.temperature != 1.0 {
+            if let processor = try? TemperatureLogitsWarper(temperature: config.temperature) {
+                processors.append(processor)
+            }
+        }
+
+        // Top-K filtering (only apply if topK is meaningful)
+        // Note: We can't determine vocab size here, so TopKLogitsWarper handles the case
+        // where topK >= vocabSize internally
+        if config.topK > 0 && config.topK < Int.max {
+            if let processor = try? TopKLogitsWarper(topK: config.topK) {
+                processors.append(processor)
+            }
+        }
+
+        // Top-P (nucleus) sampling
+        if config.topP < 1.0 {
+            if let processor = try? TopPLogitsWarper(topP: Float(config.topP)) {
+                processors.append(processor)
+            }
+        }
+
+        // Min-P sampling (applied after temperature scaling)
+        if let minP = config.minP {
+            if let processor = try? MinPLogitsWarper(minP: Float(minP)) {
+                processors.append(processor)
+            }
+        }
+
+        return LogitsProcessorList(processors: processors)
     }
 
     private func tensorToGenerationOutput(_ tensor: MLTensor) async -> GenerationOutput {
