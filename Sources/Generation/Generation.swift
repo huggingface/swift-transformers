@@ -147,6 +147,13 @@ extension Generation {
             }
         }
 
+        // Min-P sampling (applied after temperature scaling)
+        if let minP = config.minP {
+            if let processor = try? MinPLogitsWarper(minP: Float(minP)) {
+                processors.append(processor)
+            }
+        }
+
         return LogitsProcessorList(processors: processors)
     }
 

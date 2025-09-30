@@ -34,17 +34,20 @@ struct TransformersCLI: AsyncParsableCommand {
     @Option(help: "Enable sampling mode (true) or use greedy decoding (false)")
     var doSample: Bool = false
 
-    @Option(help: "Temperature for sampling (lower = more deterministic, typical: 0.7-1.0)")
+    @Option(help: "Temperature for sampling (lower = more deterministic, typical: 0.1-2.0)")
     var temperature: Float?
 
     @Option(help: "Top-k filtering - only consider k most likely tokens (typical: 5-50)")
     var topK: Int?
 
     @Option(help: "Top-p (nucleus) sampling - cumulative probability threshold (typical: 0.9-0.95)")
-    var topP: Double?
+    var topP: Float?
+
+    @Option(help: "Min-p sampling - minimum probability threshold scaled by top token (typical: 0.01-0.2)")
+    var minP: Float?
 
     @Option(help: "Repetition penalty to discourage repeating tokens (typical: 1.0-2.0, 1.0 = no penalty)")
-    var repetitionPenalty: Double?
+    var repetitionPenalty: Float?
 
     func generate(
         model: LanguageModel,
@@ -115,6 +118,9 @@ struct TransformersCLI: AsyncParsableCommand {
         }
         if let topP = topP {
             config.topP = topP
+        }
+        if let minP = minP {
+            config.minP = minP
         }
         if let repetitionPenalty = repetitionPenalty {
             config.repetitionPenalty = repetitionPenalty

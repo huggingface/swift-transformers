@@ -246,6 +246,54 @@ final class GenerationIntegrationTests: XCTestCase {
         XCTAssertEqual(model.callCount, 3, "Model should be called 3 times")
     }
 
+    func testMinPFiltering() async throws {
+        let model = MockLanguageModel()
+
+        // Test with min-p: keep tokens with prob >= minP * max_prob
+        var configWithMinP = GenerationConfig(maxNewTokens: 3)
+        configWithMinP.doSample = true // Sampling mode
+        configWithMinP.temperature = 1.0 // No temperature adjustment
+        configWithMinP.minP = 0.05 // Relatively permissive threshold
+        configWithMinP.eosTokenId = -1
+        configWithMinP.maxLength = 10
+
+        let generation = TestGeneration()
+        let startTokens = [0]
+
+        let output = await generation.generate(
+            config: configWithMinP,
+            tokens: startTokens,
+            model: model.predictNextToken
+        )
+
+        XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
+        XCTAssertEqual(output[0], 0, "First token should be the start token")
+
+        // All tokens should be valid
+        for token in output[1...] {
+            XCTAssertTrue(token >= 0 && token < 10, "Token should be in vocab range")
+        }
+
+        // Test with more aggressive min-p
+        model.callCount = 0
+        var configAggressiveMinP = GenerationConfig(maxNewTokens: 3)
+        configAggressiveMinP.doSample = true
+        configAggressiveMinP.temperature = 1.0
+        configAggressiveMinP.minP = 0.5 // Much more aggressive
+        configAggressiveMinP.eosTokenId = -1
+        configAggressiveMinP.maxLength = 10
+
+        let outputAggressive = await generation.generate(
+            config: configAggressiveMinP,
+            tokens: startTokens,
+            model: model.predictNextToken
+        )
+
+        XCTAssertEqual(outputAggressive.count, 4, "Should generate 3 new tokens + initial token")
+        // With aggressive min-p, should sample from fewer options
+        // (exact behavior depends on model, but verify it doesn't crash)
+    }
+
     func testEarlyStoppingWithEOS() async throws {
         // Create a model that returns EOS token after 2 generations
         class EOSModel {

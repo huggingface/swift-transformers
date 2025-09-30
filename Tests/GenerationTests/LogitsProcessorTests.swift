@@ -207,6 +207,114 @@ final class LogitsProcessorTests: XCTestCase {
         // Should be unchanged
         XCTAssertEqual(resultArray, expectedArray)
     }
+
+    // MARK: - Min-P Tests
+
+    func testMinPWarper() async throws {
+        let warper = try MinPLogitsWarper(minP: 0.1)
+
+        let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
+        // Scores: [1.0, 2.0, 3.0, 4.0, 5.0]
+        // After softmax, probabilities will be computed
+        // Max prob will be for score=5.0
+        // Min threshold = 0.1 * max_prob
+        // Tokens with prob < threshold should be filtered
+        let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
+
+        let result = await warper(inputIds, scores)
+        let resultArray = await result.shapedArray(of: Float.self).scalars
+
+        // Compute expected: softmax probabilities manually
+        let scoresArray = await scores.shapedArray(of: Float.self).scalars
+        let expScores = scoresArray.map { exp($0) }
+        let sumExp = expScores.reduce(0, +)
+        let probs = expScores.map { $0 / sumExp }
+        let maxProb = probs.max()!
+        let threshold = 0.1 * maxProb
+
+        // Check that low probability tokens are filtered
+        for (idx, prob) in probs.enumerated() {
+            if prob < threshold {
+                XCTAssertTrue(resultArray[idx].isInfinite && resultArray[idx] < 0, "Token \(idx) with prob \(prob) should be filtered")
+            } else {
+                XCTAssertEqual(resultArray[idx], scoresArray[idx], accuracy: accuracy, "Token \(idx) should not be filtered")
+            }
+        }
+    }
+
+    func testMinPWarperKeepsMinTokens() async throws {
+        // Even with aggressive minP, should keep at least minTokensToKeep tokens
+        let warper = try MinPLogitsWarper(minP: 0.99, minTokensToKeep: 2)
+
+        let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
+        let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
+
+        let result = await warper(inputIds, scores)
+        let resultArray = await result.shapedArray(of: Float.self).scalars
+
+        // Count non-infinite values
+        let nonInfiniteCount = resultArray.filter { !$0.isInfinite }.count
+        XCTAssertGreaterThanOrEqual(nonInfiniteCount, 2, "Should keep at least 2 tokens")
+    }
+
+    func testMinPWarperWithLowThreshold() async throws {
+        // With very low minP, most tokens should pass
+        let warper = try MinPLogitsWarper(minP: 0.001)
+
+        let inputIds = MLTensor(shape: [1, 1], scalars: [Int32(1)], scalarType: Int32.self)
+        let scores = MLTensor(shape: [1, 5], scalars: [Float(1.0), Float(2.0), Float(3.0), Float(4.0), Float(5.0)], scalarType: Float.self)
+
+        let result = await warper(inputIds, scores)
+        let resultArray = await result.shapedArray(of: Float.self).scalars
+
+        // Most or all tokens should remain
+        let nonInfiniteCount = resultArray.filter { !$0.isInfinite }.count
+        XCTAssertGreaterThanOrEqual(nonInfiniteCount, 4, "With low minP, most tokens should pass")
+    }
+
+    func testMinPWarperInvalidParameters() {
+        // Test invalid minP
+        XCTAssertThrowsError(try MinPLogitsWarper(minP: -0.1))
+        XCTAssertThrowsError(try MinPLogitsWarper(minP: 1.5))
+
+        // Test invalid minTokensToKeep
+        XCTAssertThrowsError(try MinPLogitsWarper(minP: 0.1, minTokensToKeep: 0))
+        XCTAssertThrowsError(try MinPLogitsWarper(minP: 0.1, minTokensToKeep: -1))
+    }
+
+    // MARK: - Parameter Validation Tests
+
+    func testTemperatureWarperInvalidParameters() {
+        // Test invalid temperature values
+        XCTAssertThrowsError(try TemperatureLogitsWarper(temperature: 0.0))
+        XCTAssertThrowsError(try TemperatureLogitsWarper(temperature: -1.0))
+    }
+
+    func testTopKWarperInvalidParameters() {
+        // Test invalid topK values
+        XCTAssertThrowsError(try TopKLogitsWarper(topK: 0))
+        XCTAssertThrowsError(try TopKLogitsWarper(topK: -1))
+
+        // Test invalid minTokensToKeep
+        XCTAssertThrowsError(try TopKLogitsWarper(topK: 5, minTokensToKeep: 0))
+        XCTAssertThrowsError(try TopKLogitsWarper(topK: 5, minTokensToKeep: -1))
+    }
+
+    func testTopPWarperInvalidParameters() {
+        // Test invalid topP values
+        XCTAssertThrowsError(try TopPLogitsWarper(topP: -0.1))
+        XCTAssertThrowsError(try TopPLogitsWarper(topP: 1.5))
+
+        // Test invalid minTokensToKeep
+        XCTAssertThrowsError(try TopPLogitsWarper(topP: 0.9, minTokensToKeep: 0))
+        XCTAssertThrowsError(try TopPLogitsWarper(topP: 0.9, minTokensToKeep: -1))
+    }
+
+    func testRepetitionPenaltyInvalidParameters() {
+        // Test invalid penalty values
+        XCTAssertThrowsError(try RepetitionPenaltyLogitsProcessor(penalty: 0.0))
+        XCTAssertThrowsError(try RepetitionPenaltyLogitsProcessor(penalty: -1.0))
+    }
 }
 
 // MARK: - Test Helpers
