@@ -33,12 +33,30 @@ public class LanguageModel {
 
     /// Creates a new language model instance from a CoreML model.
     ///
-    /// - Parameter model: The CoreML model to wrap
+    /// - Parameters:
+    ///   - model: The CoreML model to wrap
+    ///   - configuration: Optional Hub configuration already resolved on disk
+    ///   - tokenizer: Optional preconstructed tokenizer to reuse
     /// - Important: Triggers a fatal error if the model doesn't have the expected input shape information
-    public required init(model: MLModel) {
+    public required init(
+        model: MLModel,
+        configuration: LanguageModelConfigurationFromHub? = nil,
+        tokenizer: Tokenizer? = nil
+    ) {
         self.model = model
+        _tokenizer = tokenizer
         (minContextLength, maxContextLength) = Self.contextRange(from: model)
-        configuration = LanguageModelConfigurationFromHub(modelName: modelName)
+        if let configuration {
+            self.configuration = configuration
+        } else if tokenizer == nil {
+            self.configuration = LanguageModelConfigurationFromHub(modelName: modelName)
+        } else {
+            self.configuration = nil
+        }
+    }
+
+    public convenience required init(model: MLModel) {
+        self.init(model: model, configuration: nil, tokenizer: nil)
     }
 
     public func resetState() async {}
@@ -142,16 +160,59 @@ public extension LanguageModel {
     /// - Parameters:
     ///   - url: The URL of the compiled CoreML model file (.mlmodelc)
     ///   - computeUnits: The compute units to use for model inference
+    ///   - configuration: Optional Hub configuration describing tokenizer/model metadata
+    ///   - tokenizer: Optional tokenizer instance to reuse instead of loading from disk
     /// - Returns: A configured `LanguageModel` instance
     /// - Throws: An error if the model cannot be loaded from the specified URL
-    static func loadCompiled(url: URL, computeUnits: MLComputeUnits = .cpuAndGPU) throws -> LanguageModel {
+    static func loadCompiled(
+        url: URL,
+        computeUnits: MLComputeUnits = .cpuAndGPU,
+        configuration: LanguageModelConfigurationFromHub? = nil,
+        tokenizer: Tokenizer? = nil
+    ) throws -> LanguageModel {
         let config = MLModelConfiguration()
         config.computeUnits = computeUnits
         let model = try MLModel(contentsOf: url, configuration: config)
         return switch kvCacheAvailability(for: model) {
-        case .statefulKVCache: LanguageModelWithStatefulKVCache(model: model)
-        default: LanguageModel(model: model)
+        case .statefulKVCache:
+            LanguageModelWithStatefulKVCache(
+                model: model,
+                configuration: configuration,
+                tokenizer: tokenizer
+            )
+        default:
+            LanguageModel(
+                model: model,
+                configuration: configuration,
+                tokenizer: tokenizer
+            )
         }
+    }
+
+    static func loadCompiled(
+        url: URL,
+        tokenizerFolder: URL,
+        computeUnits: MLComputeUnits = .cpuAndGPU
+    ) throws -> LanguageModel {
+        let configuration = LanguageModelConfigurationFromHub(modelFolder: tokenizerFolder)
+        return try loadCompiled(
+            url: url,
+            computeUnits: computeUnits,
+            configuration: configuration
+        )
+    }
+
+    static func loadCompiled(
+        url: URL,
+        tokenizer: Tokenizer,
+        computeUnits: MLComputeUnits = .cpuAndGPU
+    ) throws -> LanguageModel {
+        try loadCompiled(
+            url: url,
+            computeUnits: computeUnits,
+            configuration: nil,
+            tokenizer: tokenizer
+        )
     }
 }
 
@@ -304,7 +365,8 @@ public extension LanguageModel {
     /// - Throws: An error if the configuration cannot be loaded
     var modelConfig: Config? {
         get async throws {
-            try await configuration!.modelConfig
+            guard let configuration else { return nil }
+            return try await configuration.modelConfig
         }
     }
 
@@ -314,7 +376,8 @@ public extension LanguageModel {
     /// - Throws: An error if the configuration cannot be loaded
     var tokenizerConfig: Config? {
         get async throws {
-            try await configuration!.tokenizerConfig
+            guard let configuration else { return nil }
+            return try await configuration.tokenizerConfig
         }
     }
 
@@ -324,7 +387,10 @@ public extension LanguageModel {
     /// - Throws: An error if the tokenizer data cannot be loaded
     var tokenizerData: Config {
         get async throws {
-            try await configuration!.tokenizerData
+            guard let configuration else {
+                throw TokenizerError.missingConfig
+            }
+            return try await configuration.tokenizerData
         }
     }
 
@@ -434,8 +500,12 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
 
     var state: MLState?
 
-    public required init(model: MLModel) {
-        super.init(model: model)
+    public required init(
+        model: MLModel,
+        configuration: LanguageModelConfigurationFromHub? = nil,
+        tokenizer: Tokenizer? = nil
+    ) {
+        super.init(model: model, configuration: configuration, tokenizer: tokenizer)
         // To support pre-filling and extend, the input must support
         // flexible shapes.
         guard maxContextLength - minContextLength > 1 else {
@@ -506,11 +576,15 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
 public enum TokenizerError: LocalizedError {
     /// The tokenizer configuration file could not be found.
     case tokenizerConfigNotFound
+    /// The language model configuration required to load tokenizer data is missing.
+    case missingConfig
 
     public var errorDescription: String? {
         switch self {
         case .tokenizerConfigNotFound:
             String(localized: "Tokenizer configuration could not be found. The model may be missing required tokenizer files.", comment: "Error when tokenizer configuration is missing")
+        case .missingConfig:
+            String(localized: "Language model configuration was not set, tokenizer assets could not be loaded.", comment: "Error when configuration needed for tokenizer data is missing")
         }
     }
 }
