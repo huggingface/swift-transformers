@@ -49,6 +49,9 @@ struct TransformersCLI: AsyncParsableCommand {
     @Option(help: "Repetition penalty to discourage repeating tokens (typical: 1.0-2.0, 1.0 = no penalty)")
     var repetitionPenalty: Float?
 
+    @Option(help: "Path to a local folder containing tokenizer_config.json and tokenizer.json")
+    var tokenizerFolder: String?
+
     func generate(
         model: LanguageModel,
         config: GenerationConfig,
@@ -104,7 +107,17 @@ struct TransformersCLI: AsyncParsableCommand {
         let url = URL(filePath: modelPath)
         let compiledURL = try compile(at: url)
         print("Loading model \(compiledURL)")
-        let model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
+        let model: LanguageModel
+        if let tokenizerFolder {
+            let tokenizerURL = URL(filePath: tokenizerFolder, directoryHint: .isDirectory)
+            model = try LanguageModel.loadCompiled(
+                url: compiledURL,
+                tokenizerFolder: tokenizerURL,
+                computeUnits: computeUnits.asMLComputeUnits
+            )
+        } else {
+            model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
+        }
 
         var config = model.defaultGenerationConfig
         config.doSample = doSample
