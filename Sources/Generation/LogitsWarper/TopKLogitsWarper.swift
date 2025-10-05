@@ -10,7 +10,7 @@ import CoreML
 /// Pro tip: In practice, LLMs use top_k in the 5-50 range.
 ///
 /// Based on: https://github.com/huggingface/transformers/blob/main/src/transformers/generation/logits_process.py#L532
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public struct TopKLogitsWarper: LogitsProcessor {
     public let topK: Int
     public let filterValue: Float

@@ -12,7 +12,7 @@ import Generation
 import Hub
 import Tokenizers
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 /// A high-level interface for language model inference using CoreML.
 ///
 /// `LanguageModel` provides a convenient way to load and interact with pre-trained
@@ -72,7 +72,7 @@ public class LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 private extension LanguageModel {
     static func contextRange(from model: MLModel) -> (min: Int, max: Int) {
         contextRange(from: model, inputKey: Keys.inputIds)
@@ -109,7 +109,7 @@ private extension LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension LanguageModel {
     struct Configurations {
         var modelConfig: Config
@@ -118,7 +118,7 @@ extension LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension LanguageModel {
     enum Keys {
         // Input keys
@@ -135,7 +135,7 @@ extension LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension LanguageModel {
     /// Loads a compiled CoreML model from disk.
     ///
@@ -155,7 +155,7 @@ public extension LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension LanguageModel {
     enum KVCacheAvailability {
         /// Language models that support KV cache via state. Implementation details for handling state
@@ -167,7 +167,7 @@ extension LanguageModel {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension LanguageModel {
     /// Metadata fields associated to the Core ML model.
     var metadata: [MLModelMetadataKey: Any] {
@@ -296,7 +296,7 @@ public extension LanguageModel {
 // MARK: - Configuration Properties
 
 /// Asynchronous properties that are downloaded from the Hugging Face Hub configuration.
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension LanguageModel {
     /// The model configuration dictionary.
     ///
@@ -402,7 +402,7 @@ public extension LanguageModel {
 
 // MARK: - TextGenerationModel Conformance
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension LanguageModel: TextGenerationModel {
     /// The default generation configuration for this model.
     ///
@@ -424,7 +424,7 @@ extension LanguageModel: TextGenerationModel {
 ///
 /// Maintains a KV Cache as sequence generation progresses,
 /// using stateful Core ML buffers to minimize latency.
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public class LanguageModelWithStatefulKVCache: LanguageModel {
     private enum Mode {
         case prefilling

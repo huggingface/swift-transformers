@@ -3,7 +3,7 @@ import CoreML
 
 // MARK: Greedy Decoding
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 func selectNextTokenUsingGreedyDecoding(from scores: MLTensor) -> MLTensor {
     let indices = scores.argmax(alongAxis: -1).reshaped(to: [1, 1])
     // Ensure indices are Int32 for concatenation with input tokens
@@ -19,7 +19,7 @@ func selectNextTokenUsingGreedyDecoding(from scores: MLTensor) -> MLTensor {
 ///
 /// - Parameter scores: Processed logits tensor [batch_size, vocab_size]
 /// - Returns: Sampled token ID tensor [batch_size, 1]
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 func selectNextTokenUsingSampling(from scores: MLTensor) -> MLTensor {
     // Convert logits to probabilities
     let probs = scores.softmax(alongAxis: -1)

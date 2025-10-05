@@ -38,7 +38,7 @@ public typealias GenerationOutput = [Int]
 /// - Parameter tokens: Input token sequence
 /// - Parameter config: Generation configuration
 /// - Returns: Logits array for next token prediction
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public typealias NextTokenModel = (MLTensor, GenerationConfig) async -> MLTensor
 
 /// Callback for receiving generated tokens during streaming.
@@ -48,7 +48,7 @@ public typealias PredictionTokensCallback = (GenerationOutput) -> Void
 public typealias PredictionStringCallback = (String) -> Void
 
 /// Protocol for text generation implementations.
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public protocol Generation {
     /// Generates text from a prompt string.
     ///
@@ -62,7 +62,7 @@ public protocol Generation {
     func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension Generation {
     public func generate(
         config: GenerationConfig,
@@ -162,7 +162,7 @@ extension Generation {
     }
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension Generation {
     /// Performs greedy or sampling-based text generation based on generation configuration.
     ///
