@@ -4,7 +4,7 @@ import XCTest
 
 @testable import Generation
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 final class GenerationIntegrationTests: XCTestCase {
 
     // MARK: - Mock Model for Testing
@@ -343,7 +343,7 @@ final class GenerationIntegrationTests: XCTestCase {
 
 // MARK: - Test Helper
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 struct TestGeneration: Generation {
     func generate(
         config: GenerationConfig,

@@ -15,7 +15,7 @@ import Tokenizers
 ///
 /// This protocol establishes the fundamental requirements for any language model
 /// that can perform next-token prediction and text generation tasks.
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public protocol LanguageModelProtocol {
     /// The name or path of the model.
     ///
@@ -50,7 +50,7 @@ public protocol LanguageModelProtocol {
     func predictNextTokenScores(_ input: MLTensor, config: GenerationConfig) async -> MLTensor
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension LanguageModelProtocol {
     /// Function call syntax for next token prediction.
     ///
@@ -69,7 +69,7 @@ public extension LanguageModelProtocol {
 ///
 /// This protocol extends `LanguageModelProtocol` and `Generation` to provide
 /// high-level text generation functionality with configurable parameters.
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     /// The default generation configuration for this model.
     ///
@@ -92,7 +92,7 @@ public protocol TextGenerationModel: Generation, LanguageModelProtocol {
     ) async throws -> String
 }
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public extension TextGenerationModel {
     /// Default implementation of text generation that uses the underlying generation framework.
     ///
