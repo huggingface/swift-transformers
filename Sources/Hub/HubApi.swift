@@ -576,7 +576,16 @@ public extension HubApi {
             .appendingPathComponent("huggingface")
             .appendingPathComponent("download")
 
-        if await NetworkMonitor.shared.state.shouldUseOfflineMode() || useOfflineMode == true {
+        let shouldUseOfflineMode: Bool
+        if useOfflineMode == true {
+            shouldUseOfflineMode = true
+        } else if useOfflineMode == nil {
+            shouldUseOfflineMode = await NetworkMonitor.shared.state.shouldUseOfflineMode()
+        } else {
+            shouldUseOfflineMode = false
+        }
+
+        if shouldUseOfflineMode {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
                 throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
             }
