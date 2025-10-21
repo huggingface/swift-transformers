@@ -420,6 +420,31 @@ extension LanguageModel: TextGenerationModel {
     }
 }
 
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+extension LanguageModel {
+    /// Generates tokens from input tokens.
+    ///
+    /// - Parameters:
+    ///   - config: The generation configuration specifying parameters like max tokens and sampling
+    ///   - tokens: The input token sequence to use as the generation starting point
+    ///   - callback: Optional callback to receive intermediate generation results
+    /// - Returns: The generated token sequence
+    /// - Throws: An error if token generation fails
+    @discardableResult
+    public func generate(
+        config: GenerationConfig,
+        tokens: InputTokens,
+        callback: PredictionTokensCallback? = nil
+    ) async throws -> GenerationOutput {
+        return await generate(
+            config: config,
+            tokens: tokens,
+            model: callAsFunction,
+            callback: callback
+        )
+    }
+}
+
 /// Language model implementation with stateful KV Cache.
 ///
 /// Maintains a KV Cache as sequence generation progresses,
