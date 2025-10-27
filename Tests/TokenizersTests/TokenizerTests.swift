@@ -177,6 +177,41 @@ struct TokenizerTests {
         #expect(tokenizer.encode(text: "<|im_start|>user<|im_sep|>Who are you?<|im_end|><|im_start|>assistant<|im_sep|>") == [100264, 882, 100266, 15546, 527, 499, 30, 100265, 100264, 78191, 100266])
     }
 
+    @Test
+    func tokenizerFromLocalFolder() async throws {
+        let bundle = Bundle.module
+        guard
+            let tokenizerConfigURL = bundle.url(
+                forResource: "tokenizer_config",
+                withExtension: "json",
+                subdirectory: "Offline"
+            ),
+            bundle.url(
+                forResource: "tokenizer",
+                withExtension: "json",
+                subdirectory: "Offline"
+            ) != nil
+        else {
+            Issue.record("Missing offline tokenizer fixtures")
+            return
+        }
+
+        let configuration = LanguageModelConfigurationFromHub(modelFolder: tokenizerConfigURL.deletingLastPathComponent())
+
+        let tokenizerConfigOpt = try await configuration.tokenizerConfig
+        #expect(tokenizerConfigOpt != nil)
+        let tokenizerConfig = tokenizerConfigOpt!
+        let tokenizerData = try await configuration.tokenizerData
+
+        let tokenizer = try AutoTokenizer.from(
+            tokenizerConfig: tokenizerConfig,
+            tokenizerData: tokenizerData
+        )
+
+        let encoded = tokenizer.encode(text: "offline path")
+        #expect(!encoded.isEmpty)
+    }
+
     /// https://github.com/huggingface/swift-transformers/issues/96
     @Test
     func legacyLlamaBehaviour() async throws {
