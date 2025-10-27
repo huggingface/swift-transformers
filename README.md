@@ -88,6 +88,36 @@ example converting and running Mistral 7B using CoreML [here](https://github.com
 
 The [modernization of Core ML](https://github.com/huggingface/swift-transformers/pull/257) and corresponding examples were primarily contributed by @joshnewnham, @1duo, @alejandro-isaza, @aseemw. Thank you 🙏
 
+### Offline CoreML tokenizers
+
+When you bundle a compiled CoreML model and tokenizer files with your app, you can skip any network requests by injecting
+the tokenizer when constructing `LanguageModel`:
+
+```swift
+let compiledURL: URL = ... // path to .mlmodelc
+let tokenizerFolder: URL = ... // folder containing tokenizer_config.json and tokenizer.json
+
+// Construct the tokenizer from local files (inside an async context)
+let tokenizer = try await AutoTokenizer.from(modelFolder: tokenizerFolder)
+let model = try LanguageModel.loadCompiled(
+    url: compiledURL,
+    tokenizer: tokenizer
+)
+```
+
+Make sure the tokenizer assets come from the same Hugging Face repo as the original checkpoint or are compatible with the model you use. For the
+Mistral example in `Examples/Mistral7B/`, you can fetch the tokenizer like this:
+
+```bash
+huggingface-cli download \
+  mistralai/Mistral-7B-Instruct-v0.3 \
+  tokenizer.json tokenizer_config.json \
+  --local-dir Examples/Mistral7B/local-tokenizer
+```
+
+If the repo is gated, authenticate with `huggingface-cli login` first. Both initializers reuse the tokenizer
+you pass in and never reach out to the Hugging Face Hub.
+
 ## Usage via SwiftPM
 
 To use `swift-transformers` with SwiftPM, you can add this to your `Package.swift`:
@@ -139,5 +169,3 @@ To format your code, run `swift format -i --recursive .`.
 ## License
 
 [Apache 2](LICENSE).
-
-
