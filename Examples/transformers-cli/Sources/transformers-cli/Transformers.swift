@@ -50,7 +50,7 @@ struct TransformersCLI: AsyncParsableCommand {
     var repetitionPenalty: Float?
 
     @Option(help: "Path to a local folder containing tokenizer_config.json and tokenizer.json")
-    var tokenizerFolder: String?
+    var tokenizerPath: String?
 
     func generate(
         model: LanguageModel,
