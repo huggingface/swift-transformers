@@ -110,7 +110,7 @@ let modelWithTokenizer = try LanguageModel.loadCompiled(
 )
 ```
 
-Make sure the tokenizer assets come from the same Hugging Face repo as the original checkpoint. For the
+Make sure the tokenizer assets come from the same Hugging Face repo as the original checkpoint or are compatible with the model you use. For the
 Mistral example in `Examples/Mistral7B/`, you can fetch the tokenizer like this:
 
 ```bash
