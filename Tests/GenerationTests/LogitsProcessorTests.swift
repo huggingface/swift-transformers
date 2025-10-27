@@ -3,7 +3,7 @@ import XCTest
 
 @testable import Generation
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 final class LogitsProcessorTests: XCTestCase {
     private let accuracy: Float = 0.0001
 
@@ -319,7 +319,7 @@ final class LogitsProcessorTests: XCTestCase {
 
 // MARK: - Test Helpers
 
-@available(macOS 15.0, iOS 18.0, *)
+@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 func assertMLTensorEqual(
     _ tensor: MLTensor,
     expected: [Float],
