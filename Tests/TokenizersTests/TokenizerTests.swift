@@ -182,14 +182,12 @@ struct TokenizerTests {
         let bundle = Bundle.module
         guard
             let tokenizerConfigURL = bundle.url(
-                forResource: "tokenizer_config",
-                withExtension: "json",
-                subdirectory: "Offline"
+                forResource: "offline_tokenizer_config",
+                withExtension: "json"
             ),
             bundle.url(
-                forResource: "tokenizer",
-                withExtension: "json",
-                subdirectory: "Offline"
+                forResource: "offline_tokenizer",
+                withExtension: "json"
             ) != nil
         else {
             Issue.record("Missing offline tokenizer fixtures")
