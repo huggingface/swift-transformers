@@ -95,7 +95,7 @@ the tokenizer (or a local configuration) when constructing `LanguageModel`:
 
 ```swift
 let compiledURL: URL = ... // path to .mlmodelc
-let tokenizerFolder: URL = ... // folder containing tokenizer_config.json and tokenizer.json
+let tokenizerURL: URL = ... // folder containing tokenizer_config.json and tokenizer.json
 
 let model = try LanguageModel.loadCompiled(
     url: compiledURL,
