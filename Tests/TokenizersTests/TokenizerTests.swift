@@ -182,11 +182,11 @@ struct TokenizerTests {
         let bundle = Bundle.module
         guard
             let tokenizerConfigURL = bundle.url(
-                forResource: "offline_tokenizer_config",
+                forResource: "tokenizer_config",
                 withExtension: "json"
             ),
             bundle.url(
-                forResource: "offline_tokenizer",
+                forResource: "tokenizer",
                 withExtension: "json"
             ) != nil
         else {
