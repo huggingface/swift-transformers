@@ -91,20 +91,15 @@ The [modernization of Core ML](https://github.com/huggingface/swift-transformers
 ### Offline CoreML tokenizers
 
 When you bundle a compiled CoreML model and tokenizer files with your app, you can skip any network requests by injecting
-the tokenizer (or a local configuration) when constructing `LanguageModel`:
+the tokenizer when constructing `LanguageModel`:
 
 ```swift
 let compiledURL: URL = ... // path to .mlmodelc
-let tokenizerURL: URL = ... // folder containing tokenizer_config.json and tokenizer.json
+let tokenizerFolder: URL = ... // folder containing tokenizer_config.json and tokenizer.json
 
-let model = try LanguageModel.loadCompiled(
-    url: compiledURL,
-    tokenizerFolder: tokenizerFolder
-)
-
-// Or construct the tokenizer yourself (inside an async context)
+// Construct the tokenizer from local files (inside an async context)
 let tokenizer = try await AutoTokenizer.from(modelFolder: tokenizerFolder)
-let modelWithTokenizer = try LanguageModel.loadCompiled(
+let model = try LanguageModel.loadCompiled(
     url: compiledURL,
     tokenizer: tokenizer
 )

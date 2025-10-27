@@ -35,20 +35,16 @@ public class LanguageModel {
     ///
     /// - Parameters:
     ///   - model: The CoreML model to wrap
-    ///   - configuration: Optional Hub configuration already resolved on disk
     ///   - tokenizer: Optional preconstructed tokenizer to reuse
     /// - Important: Triggers a fatal error if the model doesn't have the expected input shape information
     public required init(
         model: MLModel,
-        configuration: LanguageModelConfigurationFromHub? = nil,
         tokenizer: Tokenizer? = nil
     ) {
         self.model = model
         _tokenizer = tokenizer
         (minContextLength, maxContextLength) = Self.contextRange(from: model)
-        if let configuration {
-            self.configuration = configuration
-        } else if tokenizer == nil {
+        if tokenizer == nil {
             self.configuration = LanguageModelConfigurationFromHub(modelName: modelName)
         } else {
             self.configuration = nil
@@ -56,7 +52,7 @@ public class LanguageModel {
     }
 
     public convenience required init(model: MLModel) {
-        self.init(model: model, configuration: nil, tokenizer: nil)
+        self.init(model: model, tokenizer: nil)
     }
 
     public func resetState() async {}
@@ -160,14 +156,12 @@ public extension LanguageModel {
     /// - Parameters:
     ///   - url: The URL of the compiled CoreML model file (.mlmodelc)
     ///   - computeUnits: The compute units to use for model inference
-    ///   - configuration: Optional Hub configuration describing tokenizer/model metadata
     ///   - tokenizer: Optional tokenizer instance to reuse instead of loading from disk
     /// - Returns: A configured `LanguageModel` instance
     /// - Throws: An error if the model cannot be loaded from the specified URL
     static func loadCompiled(
         url: URL,
         computeUnits: MLComputeUnits = .cpuAndGPU,
-        configuration: LanguageModelConfigurationFromHub? = nil,
         tokenizer: Tokenizer? = nil
     ) throws -> LanguageModel {
         let config = MLModelConfiguration()
@@ -177,42 +171,14 @@ public extension LanguageModel {
         case .statefulKVCache:
             LanguageModelWithStatefulKVCache(
                 model: model,
-                configuration: configuration,
                 tokenizer: tokenizer
             )
         default:
             LanguageModel(
                 model: model,
-                configuration: configuration,
                 tokenizer: tokenizer
             )
         }
-    }
-
-    static func loadCompiled(
-        url: URL,
-        computeUnits: MLComputeUnits = .cpuAndGPU,
-        tokenizer tokenizerFolder: URL,
-    ) throws -> LanguageModel {
-        let configuration = LanguageModelConfigurationFromHub(modelFolder: tokenizerFolder)
-        return try loadCompiled(
-            url: url,
-            computeUnits: computeUnits,
-            configuration: configuration
-        )
-    }
-
-    static func loadCompiled(
-        url: URL,
-        computeUnits: MLComputeUnits = .cpuAndGPU,
-        tokenizer: Tokenizer,
-    ) throws -> LanguageModel {
-        try loadCompiled(
-            url: url,
-            computeUnits: computeUnits,
-            configuration: nil,
-            tokenizer: tokenizer
-        )
     }
 }
 
@@ -527,10 +493,9 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
 
     public required init(
         model: MLModel,
-        configuration: LanguageModelConfigurationFromHub? = nil,
         tokenizer: Tokenizer? = nil
     ) {
-        super.init(model: model, configuration: configuration, tokenizer: tokenizer)
+        super.init(model: model, tokenizer: tokenizer)
         // To support pre-filling and extend, the input must support
         // flexible shapes.
         guard maxContextLength - minContextLength > 1 else {
