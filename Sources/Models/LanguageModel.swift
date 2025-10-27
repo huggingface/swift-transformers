@@ -156,7 +156,7 @@ public extension LanguageModel {
     /// - Parameters:
     ///   - url: The URL of the compiled CoreML model file (.mlmodelc)
     ///   - computeUnits: The compute units to use for model inference
-    ///   - tokenizer: Optional tokenizer instance to reuse instead of loading from disk
+    ///   - tokenizer: Optional tokenizer instance to reuse
     /// - Returns: A configured `LanguageModel` instance
     /// - Throws: An error if the model cannot be loaded from the specified URL
     static func loadCompiled(
