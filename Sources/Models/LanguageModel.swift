@@ -204,8 +204,8 @@ public extension LanguageModel {
 
     static func loadCompiled(
         url: URL,
+        computeUnits: MLComputeUnits = .cpuAndGPU,
         tokenizer: Tokenizer,
-        computeUnits: MLComputeUnits = .cpuAndGPU
     ) throws -> LanguageModel {
         try loadCompiled(
             url: url,
