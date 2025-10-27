@@ -191,8 +191,8 @@ public extension LanguageModel {
 
     static func loadCompiled(
         url: URL,
-        tokenizerFolder: URL,
-        computeUnits: MLComputeUnits = .cpuAndGPU
+        computeUnits: MLComputeUnits = .cpuAndGPU,
+        tokenizer tokenizerFolder: URL,
     ) throws -> LanguageModel {
         let configuration = LanguageModelConfigurationFromHub(modelFolder: tokenizerFolder)
         return try loadCompiled(
