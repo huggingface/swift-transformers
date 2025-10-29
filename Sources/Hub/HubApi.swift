@@ -79,6 +79,19 @@ public struct HubApi: Sendable {
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
+    /// Session actor for metadata requests with redirect handling.
+    ///
+    /// Static to share a single URLSession across all HubApi instances, preventing resource
+    /// exhaustion when many instances are created. Persists for process lifetime.
+    private static let redirectSession: RedirectSessionActor = .init()
+
+    /// Cache for metadata responses with configurable expiration.
+    ///
+    /// Shared cache across all HubApi instances for better hit rates and lower memory usage.
+    /// Reduces redundant network requests for file metadata. Default TTL is 1 minute (60 seconds).
+    /// Entries auto-expire based on TTL on next get call for any key.
+    internal static let metadataCache: MetadataCache = .init(defaultTTL: 1 * 60)
+
     /// Initializes a new Hub API client.
     ///
     /// - Parameters:
@@ -184,7 +197,7 @@ public extension HubApi {
     /// - Throws: HubClientError for authentication, network, or HTTP errors
     func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
-        if let hfToken {
+        if let hfToken, !hfToken.isEmpty {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
 
@@ -213,31 +226,43 @@ public extension HubApi {
 
     /// Performs an HTTP HEAD request to retrieve metadata without downloading content.
     ///
-    /// Allows relative redirects but ignores absolute ones for LFS files.
+    /// Uses a shared URLSession with custom redirect handling that only allows relative redirects
+    /// and blocks absolute redirects (important for LFS file security).
     ///
     /// - Parameter url: The URL to request
     /// - Returns: A tuple containing the response data and HTTP response
     /// - Throws: HubClientError if the page does not exist or is not accessible
     func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
+        // Create cache key that includes URL and auth status (empty string treated as no auth)
+        let hasAuth = hfToken.map { !$0.isEmpty } ?? false
+        let cacheKey = MetadataCacheKey(url: url, hasAuth: hasAuth)
+        
+        // Check cache first
+        if let cachedResponse = await Self.metadataCache.get(cacheKey) {
+            return (Data(), cachedResponse)
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        if let hfToken {
+        if let hfToken, !hfToken.isEmpty {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
 
-        let redirectDelegate = RedirectDelegate()
-        let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
-
+        // Use shared session with redirect handling to avoid creating multiple URLSession instances
+        let session = await Self.redirectSession.get()
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
-        case 200..<400: break // Allow redirects to pass through to the redirect delegate
+        case 200..<400: break // Success and redirects handled by delegate
         case 401, 403: throw Hub.HubClientError.authorizationRequired
         case 404: throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
+
+        // Cache successful response
+        await Self.metadataCache.set(cacheKey, response: response)
 
         return (data, response)
     }
@@ -1062,5 +1087,132 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
 
         // For all other cases (non-redirects or absolute redirects), prevent redirect
         completionHandler(nil)
+    }
+}
+
+/// Actor to manage shared URLSession for redirect handling.
+///
+/// Lazily initializes and reuses a single URLSession across all HubApi instances
+/// to avoid resource exhaustion when running multiple tests or creating many instances.
+private actor RedirectSessionActor {
+    private var urlSession: URLSession?
+    
+    func get() -> URLSession {
+        if let urlSession = urlSession {
+            return urlSession
+        }
+        
+        // Create session once and reuse
+        let redirectDelegate = RedirectDelegate()
+        let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
+        self.urlSession = session
+        return session
+    }
+}
+
+/// Cache key for HEAD metadata requests.
+///
+/// Includes URL and auth status to ensure cache correctness when
+/// switching between authenticated and unauthenticated requests.
+internal struct MetadataCacheKey: Hashable {
+    let url: URL
+    let hasAuth: Bool
+}
+
+/// Actor-based in-memory cache for HEAD metadata responses with automatic expiration.
+///
+/// Reduces redundant HTTP HEAD requests by caching only the `HTTPURLResponse` (headers, status code)
+/// with configurable TTL. The response body data is not cached since HEAD requests typically return
+/// minimal or no body content - all useful information is in the headers.
+///
+/// Uses `ContinuousClock` for monotonic time that's unaffected by system time changes.
+///
+/// This cache is distinct from the filesystem metadata stored by `writeDownloadMetadata()`.
+/// This in-memory cache is used for `remoteMetadata` and simply avoids
+/// redundant network requests during a session.
+///
+/// Reference: https://github.com/swiftlang/swift-package-manager/blob/04b0249cf3aca928f6f4aed46cb412cf5696d7fd/Sources/PackageRegistry/RegistryClient.swift#L58-L61.
+internal actor MetadataCache {
+    private var cache: [MetadataCacheKey: CachedMetadata] = [:]
+    private let clock = ContinuousClock()
+    
+    /// Default time-to-live in seconds for cached entries.
+    private let defaultTTL: Duration
+
+    /// Cache entry with expiration time.
+    private struct CachedMetadata {
+        let response: HTTPURLResponse
+        let expiresAt: ContinuousClock.Instant
+    }
+
+    /// Initializes a new metadata cache.
+    ///
+    /// - Parameter defaultTTL: Default time-to-live for cached entries in seconds (default: 300 seconds / 1 minute)
+    init(defaultTTL: TimeInterval = 1 * 60) {
+        self.defaultTTL = .seconds(defaultTTL)
+    }
+
+    /// Get cached response if it exists and hasn't expired.
+    ///
+    /// - Parameter key: The cache key to lookup
+    /// - Returns: Cached HTTP response if found and not expired, nil otherwise
+    func get(_ key: MetadataCacheKey) -> HTTPURLResponse? {
+        // Clean up expired entries
+        clearExpired()
+        
+        guard let cached = cache[key] else {
+            return nil
+        }
+        
+        // Check if expired
+        let now = clock.now
+        if cached.expiresAt < now {
+            cache.removeValue(forKey: key)
+            return nil
+        }
+        
+        return cached.response
+    }
+    
+    /// Set cached response with optional custom expiration.
+    ///
+    /// - Parameters:
+    ///   - key: The cache key
+    ///   - response: The HTTP response to cache
+    ///   - ttl: Optional custom duration until expiration (uses defaultTTL if nil)
+    func set(_ key: MetadataCacheKey, response: HTTPURLResponse, ttl: Duration? = nil) {
+        let ttl = ttl ?? defaultTTL
+        let expiresAt = clock.now.advanced(by: ttl)
+        cache[key] = CachedMetadata(
+            response: response,
+            expiresAt: expiresAt
+        )
+    }
+
+    /// Check if a key exists in the cache and hasn't expired.
+    ///
+    /// - Parameter key: The cache key to check
+    /// - Returns: True if the key exists and is not expired, false otherwise
+    func contains(_ key: MetadataCacheKey) -> Bool {
+        guard let cached = cache[key] else {
+            return false
+        }
+        return cached.expiresAt >= clock.now
+    }
+    
+    /// Get the number of entries currently in the cache.
+    var count: Int {
+        cache.count
+    }
+
+    /// Remove expired entries from cache.
+    private func clearExpired() {
+        let now = clock.now
+        cache = cache.filter { $0.value.expiresAt >= now }
+    }
+
+    /// Clear all cached entries.
+    func clear() {
+        cache.removeAll()
     }
 }
