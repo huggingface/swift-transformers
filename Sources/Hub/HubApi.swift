@@ -236,12 +236,12 @@ public extension HubApi {
         // Create cache key that includes URL and auth status (empty string treated as no auth)
         let hasAuth = hfToken.map { !$0.isEmpty } ?? false
         let cacheKey = MetadataCacheKey(url: url, hasAuth: hasAuth)
-        
+
         // Check cache first
         if let cachedResponse = await Self.metadataCache.get(cacheKey) {
             return (Data(), cachedResponse)
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         if let hfToken, !hfToken.isEmpty {
@@ -1096,12 +1096,12 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
 /// to avoid resource exhaustion when running multiple tests or creating many instances.
 private actor RedirectSessionActor {
     private var urlSession: URLSession?
-    
+
     func get() -> URLSession {
         if let urlSession = urlSession {
             return urlSession
         }
-        
+
         // Create session once and reuse
         let redirectDelegate = RedirectDelegate()
         let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
@@ -1135,7 +1135,7 @@ internal struct MetadataCacheKey: Hashable {
 internal actor MetadataCache {
     private var cache: [MetadataCacheKey: CachedMetadata] = [:]
     private let clock = ContinuousClock()
-    
+
     /// Default time-to-live in seconds for cached entries.
     private let defaultTTL: Duration
 
@@ -1159,21 +1159,21 @@ internal actor MetadataCache {
     func get(_ key: MetadataCacheKey) -> HTTPURLResponse? {
         // Clean up expired entries
         clearExpired()
-        
+
         guard let cached = cache[key] else {
             return nil
         }
-        
+
         // Check if expired
         let now = clock.now
         if cached.expiresAt < now {
             cache.removeValue(forKey: key)
             return nil
         }
-        
+
         return cached.response
     }
-    
+
     /// Set cached response with optional custom expiration.
     ///
     /// - Parameters:
@@ -1199,7 +1199,7 @@ internal actor MetadataCache {
         }
         return cached.expiresAt >= clock.now
     }
-    
+
     /// Get the number of entries currently in the cache.
     var count: Int {
         cache.count
