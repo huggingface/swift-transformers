@@ -575,8 +575,10 @@ public extension HubApi {
             .appendingPathComponent(".cache")
             .appendingPathComponent("huggingface")
             .appendingPathComponent("download")
+        
+        let shouldUseOfflineMode = await NetworkMonitor.shared.state.shouldUseOfflineMode()
 
-        if await NetworkMonitor.shared.state.shouldUseOfflineMode() || useOfflineMode == true {
+        if useOfflineMode ?? shouldUseOfflineMode {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
                 throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
             }
@@ -808,7 +810,8 @@ public extension HubApi {
 /// Network monitor helper class to help decide whether to use offline mode
 extension HubApi {
     private actor NetworkStateActor {
-        public var isConnected: Bool = false
+        /// Assume best case connection until updated by the monitor
+        public var isConnected: Bool = true
         public var isExpensive: Bool = false
         public var isConstrained: Bool = false
 
@@ -822,7 +825,7 @@ extension HubApi {
             if ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1" {
                 return false
             }
-            return !isConnected || isExpensive || isConstrained
+            return !isConnected
         }
     }
 
