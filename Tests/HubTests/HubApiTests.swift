@@ -187,17 +187,17 @@ class HubApiTests: XCTestCase {
             let initiallyIsCached = await HubApi.metadataCache.contains(cacheKey)
             XCTAssertFalse(initiallyIsCached, "Cache should be empty before first request")
 
-                // First call should miss cache and hit network
-                let response1 = try await hub.httpHead(for: testUrl)
-                XCTAssertNotNil(response1)
+            // First call should miss cache and hit network
+            let response1 = try await hub.httpHead(for: testUrl)
+            XCTAssertNotNil(response1)
 
-                // Verify cache now contains the entry
-                let isCached = await HubApi.metadataCache.contains(cacheKey)
-                XCTAssertTrue(isCached, "Cache should contain entry after first request")
+            // Verify cache now contains the entry
+            let isCached = await HubApi.metadataCache.contains(cacheKey)
+            XCTAssertTrue(isCached, "Cache should contain entry after first request")
 
-                // Second call should hit cache (same URL, same auth state)
-                let response2 = try await hub.httpHead(for: testUrl)
-                XCTAssertNotNil(response2)
+            // Second call should hit cache (same URL, same auth state)
+            let response2 = try await hub.httpHead(for: testUrl)
+            XCTAssertNotNil(response2)
 
             // Responses should have same etag
             XCTAssertEqual(
