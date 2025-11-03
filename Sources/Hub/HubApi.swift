@@ -1147,7 +1147,7 @@ internal actor MetadataCache {
 
     /// Initializes a new metadata cache.
     ///
-    /// - Parameter defaultTTL: Default time-to-live for cached entries in seconds (default: 300 seconds / 1 minute)
+    /// - Parameter defaultTTL: Default time-to-live for cached entries in seconds (default: 60 seconds / 1 minute)
     init(defaultTTL: TimeInterval = 1 * 60) {
         self.defaultTTL = .seconds(defaultTTL)
     }
