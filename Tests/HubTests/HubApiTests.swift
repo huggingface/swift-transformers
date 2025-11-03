@@ -187,17 +187,17 @@ class HubApiTests: XCTestCase {
             let initiallyIsCached = await HubApi.metadataCache.contains(cacheKey)
             XCTAssertFalse(initiallyIsCached, "Cache should be empty before first request")
 
-            // First call should miss cache and hit network
-            let (_, response1) = try await hub.httpHead(for: testUrl)
-            XCTAssertNotNil(response1)
+                // First call should miss cache and hit network
+                let response1 = try await hub.httpHead(for: testUrl)
+                XCTAssertNotNil(response1)
 
-            // Verify cache now contains the entry
-            let isCached = await HubApi.metadataCache.contains(cacheKey)
-            XCTAssertTrue(isCached, "Cache should contain entry after first request")
+                // Verify cache now contains the entry
+                let isCached = await HubApi.metadataCache.contains(cacheKey)
+                XCTAssertTrue(isCached, "Cache should contain entry after first request")
 
-            // Second call should hit cache (same URL, same auth state)
-            let (_, response2) = try await hub.httpHead(for: testUrl)
-            XCTAssertNotNil(response2)
+                // Second call should hit cache (same URL, same auth state)
+                let response2 = try await hub.httpHead(for: testUrl)
+                XCTAssertNotNil(response2)
 
             // Responses should have same etag
             XCTAssertEqual(
@@ -221,8 +221,8 @@ class HubApiTests: XCTestCase {
             await HubApi.metadataCache.clear()
 
             // Cache should be separate for different URLs
-            let (_, response1) = try await hub.httpHead(for: url1)
-            let (_, response2) = try await hub.httpHead(for: url2)
+            let response1 = try await hub.httpHead(for: url1)
+            let response2 = try await hub.httpHead(for: url2)
 
             XCTAssertNotNil(response1)
             XCTAssertNotNil(response2)
@@ -260,7 +260,7 @@ class HubApiTests: XCTestCase {
 
             // Make a real request to get a valid HTTPURLResponse
             let hub = HubApi(hfToken: "")
-            let (_, response) = try await hub.httpHead(for: testUrl)
+            let response = try await hub.httpHead(for: testUrl)
             XCTAssertNotNil(response)
             XCTAssertEqual(response.statusCode, 200)
 
@@ -333,7 +333,7 @@ class HubApiTests: XCTestCase {
             let results = try await withThrowingTaskGroup(of: HTTPURLResponse.self) { group in
                 for _ in 0..<10 {
                     group.addTask {
-                        let (_, response) = try await hub.httpHead(for: testUrl)
+                        let response = try await hub.httpHead(for: testUrl)
                         return response
                     }
                 }
@@ -372,7 +372,7 @@ class HubApiTests: XCTestCase {
             await HubApi.metadataCache.clear()
 
             // Make a request to populate cache
-            let (_, response) = try await hub.httpHead(for: testUrl)
+            let response = try await hub.httpHead(for: testUrl)
             XCTAssertNotNil(response)
 
             // Manually set cache entry with very short TTL (100ms)

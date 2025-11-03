@@ -230,16 +230,15 @@ public extension HubApi {
     /// and blocks absolute redirects (important for LFS file security).
     ///
     /// - Parameter url: The URL to request
-    /// - Returns: A tuple containing the response data and HTTP response
+    /// - Returns: The HTTP response containing headers and status code
     /// - Throws: HubClientError if the page does not exist or is not accessible
-    func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
-        // Create cache key that includes URL and auth status (empty string treated as no auth)
-        let hasAuth = hfToken.map { !$0.isEmpty } ?? false
-        let cacheKey = MetadataCacheKey(url: url, hasAuth: hasAuth)
+    func httpHead(for url: URL) async throws -> HTTPURLResponse {
+        // Create cache key that includes URL and auth status
+        let cacheKey = MetadataCacheKey(url: url, hasAuth: hfToken?.isEmpty == false)
 
         // Check cache first
         if let cachedResponse = await Self.metadataCache.get(cacheKey) {
-            return (Data(), cachedResponse)
+            return cachedResponse
         }
 
         var request = URLRequest(url: url)
@@ -251,11 +250,11 @@ public extension HubApi {
 
         // Use shared session with redirect handling to avoid creating multiple URLSession instances
         let session = await Self.redirectSession.get()
-        let (data, response) = try await session.data(for: request)
+        let (_, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
-        case 200..<400: break // Success and redirects handled by delegate
+        case 200..<400: break // Allow redirects to pass through to the redirect delegate
         case 401, 403: throw Hub.HubClientError.authorizationRequired
         case 404: throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
@@ -264,7 +263,7 @@ public extension HubApi {
         // Cache successful response
         await Self.metadataCache.set(cacheKey, response: response)
 
-        return (data, response)
+        return response
     }
 
     /// Retrieves the list of filenames in a repository that match the specified glob patterns.
@@ -755,7 +754,7 @@ public extension HubApi {
     }
 
     func getFileMetadata(url: URL) async throws -> FileMetadata {
-        let (_, response) = try await httpHead(for: url)
+        let response = try await httpHead(for: url)
         let location = response.statusCode == 302 ? response.value(forHTTPHeaderField: "Location") : response.url?.absoluteString
 
         return FileMetadata(
@@ -1202,7 +1201,8 @@ internal actor MetadataCache {
 
     /// Get the number of entries currently in the cache.
     var count: Int {
-        cache.count
+        clearExpired()
+        return cache.count
     }
 
     /// Remove expired entries from cache.
