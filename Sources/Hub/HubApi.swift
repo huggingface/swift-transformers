@@ -575,7 +575,7 @@ public extension HubApi {
             .appendingPathComponent(".cache")
             .appendingPathComponent("huggingface")
             .appendingPathComponent("download")
-        
+
         let shouldUseOfflineMode = await NetworkMonitor.shared.state.shouldUseOfflineMode()
 
         if useOfflineMode ?? shouldUseOfflineMode {
