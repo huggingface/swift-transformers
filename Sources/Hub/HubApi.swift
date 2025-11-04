@@ -85,13 +85,6 @@ public struct HubApi: Sendable {
     /// exhaustion when many instances are created. Persists for process lifetime.
     private static let redirectSession: RedirectSessionActor = .init()
 
-    /// Cache for metadata responses with configurable expiration.
-    ///
-    /// Shared cache across all HubApi instances for better hit rates and lower memory usage.
-    /// Reduces redundant network requests for file metadata. Default TTL is 1 minute (60 seconds).
-    /// Entries auto-expire based on TTL on next get call for any key.
-    internal static let metadataCache: MetadataCache = .init(defaultTTL: 1 * 60)
-
     /// Initializes a new Hub API client.
     ///
     /// - Parameters:
@@ -233,14 +226,6 @@ public extension HubApi {
     /// - Returns: The HTTP response containing headers and status code
     /// - Throws: HubClientError if the page does not exist or is not accessible
     func httpHead(for url: URL) async throws -> HTTPURLResponse {
-        // Create cache key that includes URL and auth status
-        let cacheKey = MetadataCacheKey(url: url, hasAuth: hfToken?.isEmpty == false)
-
-        // Check cache first
-        if let cachedResponse = await Self.metadataCache.get(cacheKey) {
-            return cachedResponse
-        }
-
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         if let hfToken, !hfToken.isEmpty {
@@ -259,9 +244,6 @@ public extension HubApi {
         case 404: throw Hub.HubClientError.fileNotFound(url.lastPathComponent)
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
-
-        // Cache successful response
-        await Self.metadataCache.set(cacheKey, response: response)
 
         return response
     }
@@ -1106,113 +1088,5 @@ private actor RedirectSessionActor {
         let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
         self.urlSession = session
         return session
-    }
-}
-
-/// Cache key for HEAD metadata requests.
-///
-/// Includes URL and auth status to ensure cache correctness when
-/// switching between authenticated and unauthenticated requests.
-internal struct MetadataCacheKey: Hashable {
-    let url: URL
-    let hasAuth: Bool
-}
-
-/// Actor-based in-memory cache for HEAD metadata responses with automatic expiration.
-///
-/// Reduces redundant HTTP HEAD requests by caching only the `HTTPURLResponse` (headers, status code)
-/// with configurable TTL. The response body data is not cached since HEAD requests typically return
-/// minimal or no body content - all useful information is in the headers.
-///
-/// Uses `ContinuousClock` for monotonic time that's unaffected by system time changes.
-///
-/// This cache is distinct from the filesystem metadata stored by `writeDownloadMetadata()`.
-/// This in-memory cache is used for `remoteMetadata` and simply avoids
-/// redundant network requests during a session.
-///
-/// Reference: https://github.com/swiftlang/swift-package-manager/blob/04b0249cf3aca928f6f4aed46cb412cf5696d7fd/Sources/PackageRegistry/RegistryClient.swift#L58-L61.
-internal actor MetadataCache {
-    private var cache: [MetadataCacheKey: CachedMetadata] = [:]
-    private let clock = ContinuousClock()
-
-    /// Default time-to-live in seconds for cached entries.
-    private let defaultTTL: Duration
-
-    /// Cache entry with expiration time.
-    private struct CachedMetadata {
-        let response: HTTPURLResponse
-        let expiresAt: ContinuousClock.Instant
-    }
-
-    /// Initializes a new metadata cache.
-    ///
-    /// - Parameter defaultTTL: Default time-to-live for cached entries in seconds (default: 60 seconds / 1 minute)
-    init(defaultTTL: TimeInterval = 1 * 60) {
-        self.defaultTTL = .seconds(defaultTTL)
-    }
-
-    /// Get cached response if it exists and hasn't expired.
-    ///
-    /// - Parameter key: The cache key to lookup
-    /// - Returns: Cached HTTP response if found and not expired, nil otherwise
-    func get(_ key: MetadataCacheKey) -> HTTPURLResponse? {
-        // Clean up expired entries
-        clearExpired()
-
-        guard let cached = cache[key] else {
-            return nil
-        }
-
-        // Check if expired
-        let now = clock.now
-        if cached.expiresAt < now {
-            cache.removeValue(forKey: key)
-            return nil
-        }
-
-        return cached.response
-    }
-
-    /// Set cached response with optional custom expiration.
-    ///
-    /// - Parameters:
-    ///   - key: The cache key
-    ///   - response: The HTTP response to cache
-    ///   - ttl: Optional custom duration until expiration (uses defaultTTL if nil)
-    func set(_ key: MetadataCacheKey, response: HTTPURLResponse, ttl: Duration? = nil) {
-        let ttl = ttl ?? defaultTTL
-        let expiresAt = clock.now.advanced(by: ttl)
-        cache[key] = CachedMetadata(
-            response: response,
-            expiresAt: expiresAt
-        )
-    }
-
-    /// Check if a key exists in the cache and hasn't expired.
-    ///
-    /// - Parameter key: The cache key to check
-    /// - Returns: True if the key exists and is not expired, false otherwise
-    func contains(_ key: MetadataCacheKey) -> Bool {
-        guard let cached = cache[key] else {
-            return false
-        }
-        return cached.expiresAt >= clock.now
-    }
-
-    /// Get the number of entries currently in the cache.
-    var count: Int {
-        clearExpired()
-        return cache.count
-    }
-
-    /// Remove expired entries from cache.
-    private func clearExpired() {
-        let now = clock.now
-        cache = cache.filter { $0.value.expiresAt >= now }
-    }
-
-    /// Clear all cached entries.
-    func clear() {
-        cache.removeAll()
     }
 }
