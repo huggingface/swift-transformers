@@ -79,6 +79,12 @@ public struct HubApi: Sendable {
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
+    /// Session actor for metadata requests with relative redirect handling (used in HEAD requests).
+    ///
+    /// Static to share a single URLSession across all HubApi instances, preventing resource
+    /// exhaustion when many instances are created. Persists for process lifetime.
+    private static let redirectSession: RedirectSessionActor = .init()
+
     /// Initializes a new Hub API client.
     ///
     /// - Parameters:
@@ -184,7 +190,7 @@ public extension HubApi {
     /// - Throws: HubClientError for authentication, network, or HTTP errors
     func httpGet(for url: URL) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
-        if let hfToken {
+        if let hfToken, !hfToken.isEmpty {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
 
@@ -213,23 +219,23 @@ public extension HubApi {
 
     /// Performs an HTTP HEAD request to retrieve metadata without downloading content.
     ///
-    /// Allows relative redirects but ignores absolute ones for LFS files.
+    /// Uses a shared URLSession with custom redirect handling that only allows relative redirects
+    /// and blocks absolute redirects (important for LFS file security).
     ///
     /// - Parameter url: The URL to request
-    /// - Returns: A tuple containing the response data and HTTP response
+    /// - Returns: The HTTP response containing headers and status code
     /// - Throws: HubClientError if the page does not exist or is not accessible
-    func httpHead(for url: URL) async throws -> (Data, HTTPURLResponse) {
+    func httpHead(for url: URL) async throws -> HTTPURLResponse {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        if let hfToken {
+        if let hfToken, !hfToken.isEmpty {
             request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
         }
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
 
-        let redirectDelegate = RedirectDelegate()
-        let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
-
-        let (data, response) = try await session.data(for: request)
+        // Use shared session with redirect handling to avoid creating multiple URLSession instances
+        let session = await Self.redirectSession.get()
+        let (_, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
@@ -239,7 +245,7 @@ public extension HubApi {
         default: throw Hub.HubClientError.httpStatusCode(response.statusCode)
         }
 
-        return (data, response)
+        return response
     }
 
     /// Retrieves the list of filenames in a repository that match the specified glob patterns.
@@ -732,7 +738,7 @@ public extension HubApi {
     }
 
     func getFileMetadata(url: URL) async throws -> FileMetadata {
-        let (_, response) = try await httpHead(for: url)
+        let response = try await httpHead(for: url)
         let location = response.statusCode == 302 ? response.value(forHTTPHeaderField: "Location") : response.url?.absoluteString
 
         return FileMetadata(
@@ -1065,5 +1071,25 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
 
         // For all other cases (non-redirects or absolute redirects), prevent redirect
         completionHandler(nil)
+    }
+}
+
+/// Actor to manage shared URLSession for redirect handling.
+///
+/// Lazily initializes and reuses a single URLSession across all HubApi instances
+/// to avoid resource exhaustion when running multiple tests or creating many instances.
+private actor RedirectSessionActor {
+    private var urlSession: URLSession?
+
+    func get() -> URLSession {
+        if let urlSession = urlSession {
+            return urlSession
+        }
+
+        // Create session once and reuse
+        let redirectDelegate = RedirectDelegate()
+        let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
+        self.urlSession = session
+        return session
     }
 }
