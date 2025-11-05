@@ -79,7 +79,7 @@ public struct HubApi: Sendable {
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
-    /// Session actor for metadata requests with redirect handling.
+    /// Session actor for metadata requests with relative redirect handling (used in HEAD requests).
     ///
     /// Static to share a single URLSession across all HubApi instances, preventing resource
     /// exhaustion when many instances are created. Persists for process lifetime.
