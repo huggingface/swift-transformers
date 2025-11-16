@@ -491,9 +491,10 @@ public extension HubApi {
             }
         }
 
-        /// Note we go from Combine in Downloader to callback-based progress reporting
-        /// We'll probably need to support Combine as well to play well with Swift UI
-        /// (See for example PipelineLoader in swift-coreml-diffusers)
+        /// Downloads the file with progress tracking.
+        /// - Parameter progressHandler: Called with download progress (0.0-1.0) and speed in bytes/sec, if available.
+        /// - Returns: Local file URL (uses cached file if commit hash matches).
+        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Downloader.DownloadError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)

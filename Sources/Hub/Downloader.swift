@@ -6,7 +6,6 @@
 //  See LICENSE at https://github.com/huggingface/swift-coreml-diffusers/LICENSE
 //
 
-import Combine
 import Foundation
 
 /// A robust file downloader with support for resumable downloads and progress reporting.
@@ -14,7 +13,7 @@ import Foundation
 /// The Downloader class handles file downloads from remote URLs with features including
 /// automatic resume capability, progress tracking, speed monitoring, and retry mechanisms.
 /// It supports both foreground and background download sessions for different use cases.
-final class Downloader: NSObject, Sendable, ObservableObject {
+final class Downloader: NSObject, Sendable {
     private let destination: URL
     private let incompleteDestination: URL
     private let downloadResumeState: DownloadResumeState = .init()
