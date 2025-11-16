@@ -5,7 +5,7 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-import Crypto
+import CryptoKit
 import Foundation
 import Network
 import os
