@@ -18,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0"),
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.1.0")
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "4.1.0"),
     ],
     targets: [
         .target(name: "Generation", dependencies: ["Tokenizers"]),
@@ -26,7 +26,7 @@ let package = Package(
             name: "Hub",
             dependencies: [
                 .product(name: "Jinja", package: "swift-jinja"),
-                .product(name: "Crypto", package: "swift-crypto")
+                .product(name: "Crypto", package: "swift-crypto"),
             ],
             resources: [.process("Resources")],
             swiftSettings: swiftSettings
