@@ -494,6 +494,8 @@ public extension HubApi {
         /// Downloads the file with progress tracking.
         /// - Parameter progressHandler: Closure called periodically with completion percentage (0.0-1.0) and optional download speed in bytes/sec.
         /// - Returns: Local file URL. Returns cached file immediately if already downloaded and up-to-date.
+        /// - Throws: ``EnvironmentError`` when metadata validation fails or the download cannot start, and any error
+        ///   bubbled up from ``Downloader`` during transfer (including cancellation).
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
