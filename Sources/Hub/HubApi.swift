@@ -491,9 +491,8 @@ public extension HubApi {
             }
         }
 
-        /// Note we go from Combine in Downloader to callback-based progress reporting
-        /// We'll probably need to support Combine as well to play well with Swift UI
-        /// (See for example PipelineLoader in swift-coreml-diffusers)
+        /// Downloader emits progress over AsyncStream which we bridge here to a simple callback.
+        /// A Combine wrapper can be layered on top when needed for SwiftUI-style progress reporting.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
