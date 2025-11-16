@@ -491,8 +491,9 @@ public extension HubApi {
             }
         }
 
-        /// Downloader emits progress over AsyncStream which we bridge here to a simple callback.
-        /// A Combine wrapper can be layered on top when needed for SwiftUI-style progress reporting.
+        /// Downloads the file with progress tracking.
+        /// - Parameter progressHandler: Closure called periodically with completion percentage (0.0-1.0) and optional download speed in bytes/sec.
+        /// - Returns: Local file URL. Returns cached file immediately if already downloaded and up-to-date.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
