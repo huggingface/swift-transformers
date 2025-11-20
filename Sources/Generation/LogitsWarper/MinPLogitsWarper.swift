@@ -42,7 +42,7 @@ public struct MinPLogitsWarper: LogitsProcessor {
     }
 
     public func callAsFunction(_ inputIds: MLTensor, _ scores: MLTensor) async -> MLTensor {
-        // Optimized algorithm (following transformers PR #42248):
+        // Algorithm (following transformers implementation):
         // 1. Compute probabilities from logits
         // 2. Find max probability per batch (with keepdim)
         // 3. Calculate threshold = minP * maxProb
