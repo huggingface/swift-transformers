@@ -3,6 +3,7 @@ import CoreML
 import Foundation
 import Generation
 import Models
+import Tokenizers
 
 @available(macOS 15.0, iOS 18.0, *)
 @main
@@ -108,12 +109,13 @@ struct TransformersCLI: AsyncParsableCommand {
         let compiledURL = try compile(at: url)
         print("Loading model \(compiledURL)")
         let model: LanguageModel
-        if let tokenizerFolder {
-            let tokenizerURL = URL(filePath: tokenizerFolder, directoryHint: .isDirectory)
+        if let tokenizerPath {
+            let tokenizerURL = URL(filePath: tokenizerPath, directoryHint: .isDirectory)
+            let tokenizer = try await AutoTokenizer.from(modelFolder: tokenizerURL)
             model = try LanguageModel.loadCompiled(
                 url: compiledURL,
-                tokenizerFolder: tokenizerURL,
-                computeUnits: computeUnits.asMLComputeUnits
+                computeUnits: computeUnits.asMLComputeUnits,
+                tokenizer: tokenizer
             )
         } else {
             model = try LanguageModel.loadCompiled(url: compiledURL, computeUnits: computeUnits.asMLComputeUnits)
