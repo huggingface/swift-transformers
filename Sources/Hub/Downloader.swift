@@ -263,16 +263,31 @@ final class Downloader: NSObject, Sendable, ObservableObject {
 
         var newNumRetries = numRetries
         do {
+            // Batch collect bytes to reduce Data.append() overhead
+            // Use ContiguousArray for better performance (no NSArray bridging overhead)
+            // Larger batch size = fewer Data.append calls
+            let batchSize = 16384 // 16KB batches
+            var byteBatch = ContiguousArray<UInt8>()
+            byteBatch.reserveCapacity(batchSize)
+
             for try await byte in asyncBytes {
-                buffer.append(byte)
+                byteBatch.append(byte)
+
+                // When we've collected a batch, append to main buffer
+                if byteBatch.count >= batchSize {
+                    buffer.append(contentsOf: byteBatch)
+                    byteBatch.removeAll(keepingCapacity: true)
+                }
+
                 // When buffer is full, write to disk
-                if buffer.count == chunkSize {
+                if buffer.count >= chunkSize {
                     if !buffer.isEmpty { // Filter out keep-alive chunks
                         try tempFile.write(contentsOf: buffer)
+                        let bytesWritten = buffer.count
                         buffer.removeAll(keepingCapacity: true)
 
-                        totalDownloadedLocal += chunkSize
-                        await downloadResumeState.incDownloadedSize(chunkSize)
+                        totalDownloadedLocal += bytesWritten
+                        await downloadResumeState.incDownloadedSize(bytesWritten)
                         newNumRetries = 5
                         guard let expectedSize = await downloadResumeState.expectedSize else { continue }
                         let progress = expectedSize != 0 ? Double(totalDownloadedLocal) / Double(expectedSize) : 0
@@ -288,6 +303,11 @@ final class Downloader: NSObject, Sendable, ObservableObject {
                         await broadcaster.broadcast(state: .downloading(progress, speed))
                     }
                 }
+            }
+
+            // Flush remaining bytes from batch
+            if !byteBatch.isEmpty {
+                buffer.append(contentsOf: byteBatch)
             }
 
             if !buffer.isEmpty {
@@ -446,12 +466,9 @@ actor Broadcaster<E: Sendable> {
 
     func broadcast(state: E) async {
         latestState = state
-        await withTaskGroup(of: Void.self) { group in
-            for continuation in continuations.values {
-                group.addTask {
-                    continuation.yield(state)
-                }
-            }
+        // continuation.yield() is already async-safe, no need to wrap in Tasks
+        for continuation in continuations.values {
+            continuation.yield(state)
         }
     }
 }
