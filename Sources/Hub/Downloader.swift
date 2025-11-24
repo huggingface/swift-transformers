@@ -265,15 +265,14 @@ final class Downloader: NSObject, Sendable, ObservableObject {
         do {
             // Batch collect bytes to reduce Data.append() overhead
             // Use ContiguousArray for better performance (no NSArray bridging overhead)
-            // Larger batch size = fewer Data.append calls
-            let batchSize = 16384 // 16KB batches
+            let batchSize = 16384 // 16 kB
             var byteBatch = ContiguousArray<UInt8>()
             byteBatch.reserveCapacity(batchSize)
 
             for try await byte in asyncBytes {
                 byteBatch.append(byte)
 
-                // When we've collected a batch, append to main buffer
+                // Append batch to main buffer
                 if byteBatch.count >= batchSize {
                     buffer.append(contentsOf: byteBatch)
                     byteBatch.removeAll(keepingCapacity: true)
@@ -466,7 +465,6 @@ actor Broadcaster<E: Sendable> {
 
     func broadcast(state: E) async {
         latestState = state
-        // continuation.yield() is already async-safe, no need to wrap in Tasks
         for continuation in continuations.values {
             continuation.yield(state)
         }
