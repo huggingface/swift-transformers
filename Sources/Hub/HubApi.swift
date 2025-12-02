@@ -152,8 +152,8 @@ private extension HubApi {
                     )
                 }
             },
-            { try? String(contentsOf: .homeDirectory.appendingPathComponent(".cache/huggingface/token"), encoding: .utf8) },
-            { try? String(contentsOf: .homeDirectory.appendingPathComponent(".huggingface/token"), encoding: .utf8) },
+            { try? String(contentsOf: .homeDirectory.appending(path: ".cache/huggingface/token"), encoding: .utf8) },
+            { try? String(contentsOf: .homeDirectory.appending(path: ".huggingface/token"), encoding: .utf8) },
         ]
         return possibleTokens
             .lazy
@@ -258,7 +258,12 @@ public extension HubApi {
     /// - Throws: HubClientError if the repository cannot be accessed or parsed
     func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
-        let url = URL(string: "\(endpoint)/api/\(repo.type)/\(repo.id)/revision/\(revision)")!
+        let url = URL(string: endpoint)!
+            .appending(path: "api")
+            .appending(path: repo.type.rawValue)
+            .appending(path: repo.id)
+            .appending(path: "revision")
+            .appending(component: revision) // Encode slashes (e.g., "pr/1" -> "pr%2F1")
         let (data, _) = try await httpGet(for: url)
         let response = try JSONDecoder().decode(SiblingsResponse.self, from: data)
         let filenames = response.siblings.map { $0.rfilename }
@@ -333,7 +338,9 @@ public extension HubApi {
     func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
 
-        let url = URL(string: "\(endpoint)/api/whoami-v2")!
+        let url = URL(string: endpoint)!
+            .appending(path: "api")
+            .appending(path: "whoami-v2")
         let (data, _) = try await httpGet(for: url)
 
         let parsed = try JSONSerialization.jsonObject(with: data, options: [])
@@ -462,10 +469,11 @@ public extension HubApi {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
             var url = URL(string: endpoint ?? "https://huggingface.co")!
             if repo.type != .models {
-                url = url.appending(component: repo.type.rawValue)
+                url = url.appending(path: repo.type.rawValue)
             }
             url = url.appending(path: repo.id)
-            url = url.appending(path: "resolve/\(revision)")
+            url = url.appending(path: "resolve")
+            url = url.appending(component: revision) // Encode slashes (e.g., "pr/1" -> "pr%2F1")
             url = url.appending(path: relativeFilename)
             return url
         }
@@ -579,9 +587,9 @@ public extension HubApi {
         let repoDestination = localRepoLocation(repo)
         let repoMetadataDestination =
             repoDestination
-            .appendingPathComponent(".cache")
-            .appendingPathComponent("huggingface")
-            .appendingPathComponent("download")
+            .appending(path: ".cache")
+            .appending(path: "huggingface")
+            .appending(path: "download")
 
         let shouldUseOfflineMode = await NetworkMonitor.shared.state.shouldUseOfflineMode()
 
@@ -792,7 +800,10 @@ public extension HubApi {
 
     func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         let files = try await getFilenames(from: repo, matching: globs)
-        let url = URL(string: "\(endpoint)/\(repo.id)/resolve/\(revision)")!
+        let url = URL(string: endpoint)!
+            .appending(path: repo.id)
+            .appending(path: "resolve")
+            .appending(component: revision) // Encode slashes (e.g., "pr/1" -> "pr%2F1")
         var selectedMetadata: [FileMetadata] = []
         for file in files {
             let fileURL = url.appending(path: file)

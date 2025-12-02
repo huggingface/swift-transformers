@@ -11,6 +11,29 @@ import XCTest
 class HubApiTests: XCTestCase {
     // TODO: use a specific revision for these tests
 
+    /// Test that revision values containing slashes (like "pr/1") are properly URL encoded.
+    /// The Hub API requires "pr/1" to be encoded as "pr%2F1" - otherwise it returns 404.
+    func testGetFilenamesWithPRRevision() async throws {
+        let hubApi = HubApi()
+        let filenames = try await hubApi.getFilenames(
+            from: Hub.Repo(id: "coreml-projects/sam-2-studio"),
+            revision: "pr/1",
+            matching: ["*.md"]
+        )
+        XCTAssertFalse(filenames.isEmpty, "Should retrieve filenames from PR revision")
+    }
+
+    /// Test that getFileMetadata works with PR revision format.
+    func testGetFileMetadataWithPRRevision() async throws {
+        let hubApi = HubApi()
+        let metadata = try await hubApi.getFileMetadata(
+            from: Hub.Repo(id: "coreml-projects/sam-2-studio"),
+            revision: "pr/1",
+            matching: ["*.md"]
+        )
+        XCTAssertFalse(metadata.isEmpty, "Should retrieve file metadata from PR revision")
+    }
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
@@ -1180,5 +1203,13 @@ class SnapshotDownloadTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+    }
+
+    /// Test that snapshot download works with PR revision format.
+    func testDownloadWithPRRevision() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+        let prRepo = "coreml-projects/sam-2-studio"
+        let downloadedTo = try await hubApi.snapshot(from: prRepo, revision: "pr/1", matching: "*.md")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: downloadedTo.path))
     }
 }
