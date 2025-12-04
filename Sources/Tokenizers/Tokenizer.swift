@@ -168,6 +168,7 @@ enum TokenizerModel {
         "LlamaTokenizer": BPETokenizer.self,
         "RobertaTokenizer": BPETokenizer.self,
         "T5Tokenizer": T5Tokenizer.self,
+        "TokenizersBackend": BPETokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self,
         "Qwen2Tokenizer": BPETokenizer.self,
         "WhisperTokenizer": BPETokenizer.self,
