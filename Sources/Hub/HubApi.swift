@@ -546,6 +546,10 @@ public extension HubApi {
         // to avoid issues with HubClient modifying totalUnitCount
         let downloadProgress = Progress()
 
+        // If the file exists locally but metadata check failed, force a re-download
+        // to skip HubClient's cache (which may have the old/wrong version)
+        let forceDownload = downloaded
+
         // Download the file using HubClient
         _ = try await client.downloadFile(
             at: filename,
