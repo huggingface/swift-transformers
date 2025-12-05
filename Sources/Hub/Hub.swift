@@ -113,8 +113,16 @@ public extension Hub {
 
 extension Hub.Repo {
     /// Converts this `Hub.Repo` to a `Repo.ID` for use with `HubClient`.
+    ///
+    /// Model names without a namespace (e.g., "t5-base") are treated as having
+    /// an implicit "hf" namespace, making them "hf/t5-base".
     var repoID: HuggingFace.Repo.ID {
-        HuggingFace.Repo.ID(rawValue: id)!
+        if let repoID = HuggingFace.Repo.ID(rawValue: id) {
+            return repoID
+        }
+        // Handle models without namespace (e.g., "t5-base" -> "hf/t5-base")
+        // These are legacy model IDs that don't follow the namespace/name format
+        return HuggingFace.Repo.ID(namespace: "hf", name: id)
     }
 }
 
