@@ -98,11 +98,11 @@ struct TokenizerTests {
     @Test(arguments: [
         ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
         ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
-        ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
+        ModelSpec("distilbert/distilgpt2", "gpt2_encoded_tokens", 50256),
         ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
         ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
         ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
-        ModelSpec("t5-base", "t5_base_encoded", 2),
+        ModelSpec("google-t5/t5-base", "t5_base_encoded", 2),
         ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
     ])
     func tokenizer(spec: ModelSpec) async throws {
