@@ -542,6 +542,10 @@ public extension HubApi {
             }
         }
 
+        // Create a separate progress for the download (not linked to parent)
+        // to avoid issues with HubClient modifying totalUnitCount
+        let downloadProgress = Progress()
+
         // Download the file using HubClient
         _ = try await client.downloadFile(
             at: filename,
