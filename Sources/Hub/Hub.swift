@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HuggingFace
 
 /// A namespace struct providing access to Hugging Face Hub functionality.
 ///
@@ -104,6 +105,37 @@ public extension Hub {
         public init(id: String, type: RepoType = .models) {
             self.id = id
             self.type = type
+        }
+    }
+}
+
+// MARK: - Type Conversions for HuggingFace Integration
+
+extension Hub.Repo {
+    /// Converts this `Hub.Repo` to a `Repo.ID` for use with `HubClient`.
+    var repoID: HuggingFace.Repo.ID {
+        HuggingFace.Repo.ID(rawValue: id)!
+    }
+}
+
+extension Hub.RepoType {
+    /// Converts this `Hub.RepoType` to a `Repo.Kind` for use with `HubClient`.
+    var repoKind: HuggingFace.Repo.Kind {
+        switch self {
+        case .models: return .model
+        case .datasets: return .dataset
+        case .spaces: return .space
+        }
+    }
+}
+
+extension HuggingFace.Repo.Kind {
+    /// Converts this `Repo.Kind` to a `Hub.RepoType`.
+    var hubRepoType: Hub.RepoType {
+        switch self {
+        case .model: return .models
+        case .dataset: return .datasets
+        case .space: return .spaces
         }
     }
 }
