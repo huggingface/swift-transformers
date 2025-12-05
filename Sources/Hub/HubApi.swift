@@ -557,11 +557,13 @@ public extension HubApi {
             to: destination,
             kind: repo.type.repoKind,
             revision: revision,
-            progress: fileProgress
+            inBackground: useBackgroundSession,
+            forceDownload: forceDownload,
+            progress: downloadProgress
         )
 
-        // Update progress with throughput info
-        if let throughput = fileProgress.userInfo[.throughputKey] as? Double {
+        // Update parent progress with throughput info from the download
+        if let throughput = downloadProgress.userInfo[.throughputKey] as? Double {
             parentProgress.setUserInfoObject(throughput, forKey: .throughputKey)
         }
         progressHandler(parentProgress)
