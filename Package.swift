@@ -21,6 +21,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "3.0.0"..<"5.0.0"),
         .package(url: "https://github.com/ibireme/yyjson.git", exact: "0.12.0"),
+        .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.4.0"),
     ],
     targets: [
         .target(name: "Generation", dependencies: ["Tokenizers"]),
@@ -31,6 +32,7 @@ let package = Package(
                 .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "yyjson", package: "yyjson"),
+                .product(name: "HuggingFace", package: "swift-huggingface"),
             ],
             resources: [
                 .process("Resources")
