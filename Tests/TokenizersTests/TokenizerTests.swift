@@ -362,4 +362,13 @@ struct TokenizerTests {
         #expect(tokenizer.tokenize(text: "<s>Who are you?</s>") == ["<s>", "Who", "Ġare", "Ġyou", "?", "</s>"])
         #expect(tokenizer.encode(text: "<s>Who are you?</s>") == [0, 0, 12375, 32, 47, 116, 2, 2])
     }
+
+    @Test
+    func tokenizerBackend() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "mlx-community/Ministral-3-3B-Instruct-2512-4bit") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "She took a train to the West") == [6284, 5244, 1261, 10018, 1317, 1278, 5046])
+    }
 }
