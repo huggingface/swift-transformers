@@ -10,10 +10,10 @@ import Hub
 import Jinja
 
 /// A type alias for chat messages, represented as key-value pairs.
-public typealias Message = [String: Any]
+public typealias Message = [String: any Sendable]
 
 /// A type alias for tool specifications used in chat templating.
-public typealias ToolSpec = [String: Any]
+public typealias ToolSpec = [String: any Sendable]
 
 /// Errors that can occur during tokenizer operations.
 public enum TokenizerError: LocalizedError {
@@ -330,7 +330,7 @@ public protocol Tokenizer: Sendable {
     ///   - additionalContext: Additional context variables for template rendering
     /// - Returns: Token IDs for the formatted conversation
     /// - Throws: `TokenizerError` if template application fails or no template is available
-    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: Any]?) throws -> [Int]
+    func applyChatTemplate(messages: [Message], tools: [ToolSpec]?, additionalContext: [String: any Sendable]?) throws -> [Int]
 
     /// Applies a specific chat template to format messages.
     ///
@@ -389,7 +389,7 @@ public protocol Tokenizer: Sendable {
         truncation: Bool,
         maxLength: Int?,
         tools: [ToolSpec]?,
-        additionalContext: [String: Any]?
+        additionalContext: [String: any Sendable]?
     ) throws -> [Int]
 }
 
@@ -405,7 +405,7 @@ extension Tokenizer {
         truncation: Bool,
         maxLength: Int?,
         tools: [ToolSpec]?,
-        additionalContext: [String: Any]?
+        additionalContext: [String: any Sendable]?
     ) throws -> [Int] {
         if additionalContext == nil {
             try applyChatTemplate(
@@ -702,7 +702,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         try applyChatTemplate(messages: messages, addGenerationPrompt: true, tools: tools)
     }
 
-    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil, additionalContext: [String: Any]? = nil) throws
+    public func applyChatTemplate(messages: [Message], tools: [ToolSpec]? = nil, additionalContext: [String: any Sendable]? = nil) throws
         -> [Int]
     {
         try applyChatTemplate(
@@ -747,7 +747,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         // [chat templating guide](https://huggingface.co/docs/transformers/main/en/chat_templating#automated-function-conversion-for-tool-use)
         // for more information.
         tools: [ToolSpec]? = nil,
-        additionalContext: [String: Any]? = nil
+        additionalContext: [String: any Sendable]? = nil
     ) throws -> [Int] {
         var selectedChatTemplate: String?
         if let chatTemplate, case let .literal(template) = chatTemplate {
