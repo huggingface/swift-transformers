@@ -5,12 +5,6 @@
 //  Created by Pedro Cuenca on 7/5/23.
 //
 
-#if canImport(CoreML)
-import CoreML
-
-import CoreML
-import Tokenizers
-
 /// Supported text generation modes.
 public enum GenerationMode {
     /// Contrastive search generation mode
@@ -33,6 +27,16 @@ public typealias InputTokens = [Int]
 /// Array of token IDs representing generated output tokens.
 public typealias GenerationOutput = [Int]
 
+/// Callback for receiving generated tokens during streaming.
+public typealias PredictionTokensCallback = (GenerationOutput) -> Void
+
+/// Callback for receiving generated text during streaming.
+public typealias PredictionStringCallback = (String) -> Void
+
+#if canImport(CoreML)
+import CoreML
+import Tokenizers
+
 /// A callable model that predicts the next token after a given sequence.
 ///
 /// - Parameter tokens: Input token sequence
@@ -40,12 +44,6 @@ public typealias GenerationOutput = [Int]
 /// - Returns: Logits array for next token prediction
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 public typealias NextTokenModel = (MLTensor, GenerationConfig) async -> MLTensor
-
-/// Callback for receiving generated tokens during streaming.
-public typealias PredictionTokensCallback = (GenerationOutput) -> Void
-
-/// Callback for receiving generated text during streaming.
-public typealias PredictionStringCallback = (String) -> Void
 
 /// Protocol for text generation implementations.
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)

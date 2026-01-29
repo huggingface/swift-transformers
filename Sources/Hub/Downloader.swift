@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A robust file downloader with support for resumable downloads and progress reporting.
 ///
@@ -70,11 +73,13 @@ final class Downloader: NSObject, Sendable {
         let sessionIdentifier = "swift-transformers.hub.downloader"
 
         var config = URLSessionConfiguration.default
+        #if !canImport(FoundationNetworking)
         if inBackground {
             config = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
             config.isDiscretionary = false
             config.sessionSendsLaunchEvents = true
         }
+        #endif
         sessionConfig = config
     }
 
@@ -132,6 +137,8 @@ final class Downloader: NSObject, Sendable {
         numRetries: Int
     ) async {
         let resumeSize = Self.incompleteFileSize(at: incompleteDestination)
+
+        #if !canImport(FoundationNetworking)
         guard let tasks = await session.get()?.allTasks else {
             return
         }
@@ -151,6 +158,7 @@ final class Downloader: NSObject, Sendable {
                 existing.cancel()
             }
         }
+        #endif
 
         await task.set(
             Task {
@@ -241,6 +249,34 @@ final class Downloader: NSObject, Sendable {
             await newRequest.setValue("bytes=\(downloadResumeState.downloadedSize)-", forHTTPHeaderField: "Range")
         }
 
+        #if canImport(FoundationNetworking)
+        // Linux: Use data(for:) instead of bytes(for:) which isn't available
+        let (data, response) = try await session.data(for: newRequest)
+
+        guard let response = response as? HTTPURLResponse else {
+            throw DownloadError.unexpectedError
+        }
+
+        guard (200..<300).contains(response.statusCode) else {
+            throw DownloadError.unexpectedError
+        }
+
+        // Write data in chunks for progress reporting
+        var totalDownloadedLocal = await downloadResumeState.downloadedSize
+        let lastSampleTime = Date()
+
+        // Write all data at once (streaming not available on Linux)
+        try tempFile.write(contentsOf: data)
+        totalDownloadedLocal += data.count
+        await downloadResumeState.incDownloadedSize(data.count)
+
+        if let expectedSize = await downloadResumeState.expectedSize {
+            let progress = expectedSize != 0 ? Double(totalDownloadedLocal) / Double(expectedSize) : 0
+            let elapsed = Date().timeIntervalSince(lastSampleTime)
+            let speed = elapsed > 0 ? Double(data.count) / elapsed : nil
+            await broadcaster.broadcast(state: .downloading(progress, speed))
+        }
+        #else
         // Start the download and get the byte stream
         let (asyncBytes, response) = try await session.bytes(for: newRequest)
 
@@ -330,6 +366,7 @@ final class Downloader: NSObject, Sendable {
             )
             return
         }
+        #endif
 
         // Verify the downloaded file size matches the expected size
         let actualSize = try tempFile.seekToEnd()

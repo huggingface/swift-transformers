@@ -5,10 +5,17 @@
 //  Created by Pedro Cuenca on 20231230.
 //
 
-import CryptoKit
+import Crypto
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Network)
 import Network
+#endif
+#if canImport(os)
 import os
+#endif
 
 /// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
 /// `requests` in Python leaves headers as their original casing,
@@ -69,7 +76,7 @@ extension HTTPURLResponse {
 /// and handling authentication with the Hugging Face Hub. It supports offline mode,
 /// background downloads, and automatic retry mechanisms for robust file transfers.
 public struct HubApi: Sendable {
-    var downloadBase: URL
+    public var downloadBase: URL
     var hfToken: String?
     var endpoint: String
     var useBackgroundSession: Bool
@@ -124,8 +131,21 @@ public struct HubApi: Sendable {
     /// The shared Hub API instance with default configuration.
     public static let shared = HubApi()
 
+    #if canImport(os)
     private static let logger = Logger()
+    #else
+    private static let logger = PrintLogger()
+    #endif
 }
+
+#if !canImport(os)
+/// Simple print-based logger for non-Apple platforms
+private struct PrintLogger {
+    func warning(_ message: String) {
+        print("[warning] \(message)")
+    }
+}
+#endif
 
 private extension HubApi {
     static func hfEndpointfromEnv() -> String {
@@ -300,13 +320,13 @@ public extension HubApi {
         public var errorDescription: String? {
             switch self {
             case let .invalidMetadataError(message):
-                String(localized: "Invalid metadata: \(message)")
+                ( "Invalid metadata: \(message)")
             case let .offlineModeError(message):
-                String(localized: "Offline mode error: \(message)")
+                ( "Offline mode error: \(message)")
             case let .fileIntegrityError(message):
-                String(localized: "File integrity check failed: \(message)")
+                ( "File integrity check failed: \(message)")
             case let .fileWriteError(message):
-                String(localized: "Failed to write file: \(message)")
+                ( "Failed to write file: \(message)")
             }
         }
     }
@@ -369,14 +389,14 @@ public extension HubApi {
                 let lines = contents.components(separatedBy: .newlines)
 
                 guard lines.count >= 3 else {
-                    throw EnvironmentError.invalidMetadataError(String(localized: "Metadata file is missing required fields"))
+                    throw EnvironmentError.invalidMetadataError(( "Metadata file is missing required fields"))
                 }
 
                 let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
                 let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
 
                 guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                    throw EnvironmentError.invalidMetadataError(String(localized: "Invalid timestamp format"))
+                    throw EnvironmentError.invalidMetadataError(( "Invalid timestamp format"))
                 }
 
                 let timestampDate = Date(timeIntervalSince1970: timestamp)
@@ -388,7 +408,7 @@ public extension HubApi {
                     HubApi.logger.warning("Invalid metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
                     try FileManager.default.removeItem(at: metadataPath)
                 } catch {
-                    throw EnvironmentError.invalidMetadataError(String(localized: "Could not remove corrupted metadata file: \(error.localizedDescription)"))
+                    throw EnvironmentError.invalidMetadataError(( "Could not remove corrupted metadata file: \(error.localizedDescription)"))
                 }
                 return nil
             } catch {
@@ -396,7 +416,7 @@ public extension HubApi {
                     HubApi.logger.warning("Error reading metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
                     try FileManager.default.removeItem(at: metadataPath)
                 } catch {
-                    throw EnvironmentError.invalidMetadataError(String(localized: "Could not remove corrupted metadata file: \(error.localizedDescription)"))
+                    throw EnvironmentError.invalidMetadataError(( "Could not remove corrupted metadata file: \(error.localizedDescription)"))
                 }
                 return nil
             }
@@ -425,7 +445,7 @@ public extension HubApi {
         var hasher = SHA256()
         let chunkSize = 1024 * 1024 // 1MB chunks
 
-        while autoreleasepool(invoking: {
+        func readNextChunk() -> Bool {
             let nextChunk = try? fileHandle.read(upToCount: chunkSize)
 
             guard let nextChunk,
@@ -437,7 +457,13 @@ public extension HubApi {
             hasher.update(data: nextChunk)
 
             return true
-        }) {}
+        }
+
+        #if canImport(ObjectiveC)
+        while autoreleasepool(invoking: readNextChunk) {}
+        #else
+        while readNextChunk() {}
+        #endif
 
         let digest = hasher.finalize()
         return digest.map { String(format: "%02x", $0) }.joined()
@@ -450,7 +476,7 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
             try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
         } catch {
-            throw EnvironmentError.fileWriteError(String(localized: "Failed to write metadata to \(metadataPath.path): \(error.localizedDescription)"))
+            throw EnvironmentError.fileWriteError(( "Failed to write metadata to \(metadataPath.path): \(error.localizedDescription)"))
         }
     }
 
@@ -595,12 +621,12 @@ public extension HubApi {
 
         if useOfflineMode ?? shouldUseOfflineMode {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
-                throw EnvironmentError.offlineModeError(String(localized: "Repository not available locally"))
+                throw EnvironmentError.offlineModeError(( "Repository not available locally"))
             }
 
             let fileUrls = try FileManager.default.getFileUrls(at: repoDestination)
             if fileUrls.isEmpty {
-                throw EnvironmentError.offlineModeError(String(localized: "No files available locally for this repository"))
+                throw EnvironmentError.offlineModeError(( "No files available locally for this repository"))
             }
 
             for fileUrl in fileUrls {
@@ -614,7 +640,7 @@ public extension HubApi {
                 let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
 
                 guard let localMetadata else {
-                    throw EnvironmentError.offlineModeError(String(localized: "Metadata not available for \(fileUrl.lastPathComponent)"))
+                    throw EnvironmentError.offlineModeError(( "Metadata not available for \(fileUrl.lastPathComponent)"))
                 }
                 let localEtag = localMetadata.etag
 
@@ -622,7 +648,7 @@ public extension HubApi {
                 if isValidHash(hash: localEtag, pattern: sha256Pattern) {
                     let fileHash = try computeFileHash(file: fileUrl)
                     if fileHash != localEtag {
-                        throw EnvironmentError.fileIntegrityError(String(localized: "Hash mismatch for \(fileUrl.lastPathComponent)"))
+                        throw EnvironmentError.fileIntegrityError(( "Hash mismatch for \(fileUrl.lastPathComponent)"))
                     }
                 }
             }
@@ -833,11 +859,13 @@ extension HubApi {
         public var isExpensive: Bool = false
         public var isConstrained: Bool = false
 
+        #if canImport(Network)
         func update(path: NWPath) {
             isConnected = path.status == .satisfied
             isExpensive = path.isExpensive
             isConstrained = path.isConstrained
         }
+        #endif
 
         func shouldUseOfflineMode() -> Bool {
             if ProcessInfo.processInfo.environment["CI_DISABLE_NETWORK_MONITOR"] == "1" {
@@ -848,20 +876,25 @@ extension HubApi {
     }
 
     private final class NetworkMonitor: Sendable {
+        #if canImport(Network)
         private let monitor: NWPathMonitor
         private let queue: DispatchQueue
+        #endif
 
         public let state: NetworkStateActor = .init()
 
         static let shared = NetworkMonitor()
 
         init() {
+            #if canImport(Network)
             monitor = NWPathMonitor()
             queue = DispatchQueue(label: "HubApi.NetworkMonitor")
             startMonitoring()
+            #endif
         }
 
         func startMonitoring() {
+            #if canImport(Network)
             monitor.pathUpdateHandler = { [weak self] path in
                 guard let self else { return }
                 Task {
@@ -870,10 +903,13 @@ extension HubApi {
             }
 
             monitor.start(queue: queue)
+            #endif
         }
 
         func stopMonitoring() {
+            #if canImport(Network)
             monitor.cancel()
+            #endif
         }
 
         deinit {

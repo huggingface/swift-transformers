@@ -30,23 +30,23 @@ public enum TokenizerError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingConfig:
-            String(localized: "Tokenizer configuration is missing.", comment: "Error when tokenizer config cannot be found")
+            "Tokenizer configuration is missing."
         case .missingTokenizerClassInConfig:
-            String(localized: "The tokenizer class is not specified in the configuration.", comment: "Error when tokenizer_class is missing in config")
+            "The tokenizer class is not specified in the configuration."
         case let .unsupportedTokenizer(name):
-            String(localized: "The tokenizer type '\(name)' is not supported.", comment: "Error when tokenizer type is not supported")
+            "The tokenizer type '\(name)' is not supported."
         case .missingVocab:
-            String(localized: "Vocabulary file is missing from the tokenizer configuration.", comment: "Error when vocab file is missing")
+            "Vocabulary file is missing from the tokenizer configuration."
         case .malformedVocab:
-            String(localized: "The vocabulary file is malformed or corrupted.", comment: "Error when vocab file is malformed")
+            "The vocabulary file is malformed or corrupted."
         case let .chatTemplate(message):
-            String(localized: "Chat template error: \(message)", comment: "Error with chat template")
+            "Chat template error: \(message)"
         case .missingChatTemplate:
-            String(localized: "This tokenizer does not have a chat template, and no template was passed.")
+            "This tokenizer does not have a chat template, and no template was passed."
         case let .tooLong(message):
-            String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
+            "Input is too long: \(message)"
         case let .mismatchedConfig(message):
-            String(localized: "Tokenizer configuration mismatch: \(message)", comment: "Error when tokenizer configuration is inconsistent")
+            "Tokenizer configuration mismatch: \(message)"
         }
     }
 }

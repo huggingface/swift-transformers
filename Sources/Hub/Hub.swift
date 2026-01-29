@@ -49,29 +49,29 @@ public extension Hub {
         public var errorDescription: String? {
             switch self {
             case .authorizationRequired:
-                String(localized: "Authentication required. Please provide a valid Hugging Face token.")
+                "Authentication required. Please provide a valid Hugging Face token."
             case let .httpStatusCode(code):
-                String(localized: "HTTP error with status code: \(code)")
+                "HTTP error with status code: \(code)"
             case .parse:
-                String(localized: "Failed to parse server response.")
+                "Failed to parse server response."
             case .jsonSerialization(_, let message):
                 message
             case .unexpectedError:
-                String(localized: "An unexpected error occurred.")
+                "An unexpected error occurred."
             case let .downloadError(message):
-                String(localized: "Download failed: \(message)")
+                "Download failed: \(message)"
             case let .fileNotFound(filename):
-                String(localized: "File not found: \(filename)")
+                "File not found: \(filename)"
             case let .networkError(error):
-                String(localized: "Network error: \(error.localizedDescription)")
+                "Network error: \(error.localizedDescription)"
             case let .resourceNotFound(resource):
-                String(localized: "Resource not found: \(resource)")
+                "Resource not found: \(resource)"
             case let .configurationMissing(file):
-                String(localized: "Required configuration file missing: \(file)")
+                "Required configuration file missing: \(file)"
             case let .fileSystemError(error):
-                String(localized: "File system error: \(error.localizedDescription)")
+                "File system error: \(error.localizedDescription)"
             case let .parseError(message):
-                String(localized: "Parse error: \(message)")
+                "Parse error: \(message)"
             }
         }
     }
@@ -318,9 +318,22 @@ public final class LanguageModelConfigurationFromHub: Sendable {
 
     static func fallbackTokenizerConfig(for modelType: String) -> Config? {
         // Fallback tokenizer configuration files are located in the `Sources/Hub/Resources` directory
+        // On Linux, Bundle.module may not be available if resources aren't properly bundled
+        #if canImport(Darwin)
         guard let url = Bundle.module.url(forResource: "\(modelType)_tokenizer_config", withExtension: "json") else {
             return nil
         }
+        #else
+        // On non-Darwin platforms, try to locate resources relative to the executable
+        let executableURL = URL(filePath: CommandLine.arguments[0]).deletingLastPathComponent()
+        let possiblePaths = [
+            executableURL.appending(path: "swift-transformers_Hub.resources/\(modelType)_tokenizer_config.json"),
+            executableURL.appending(path: "../share/swift-transformers/\(modelType)_tokenizer_config.json"),
+        ]
+        guard let url = possiblePaths.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+            return nil
+        }
+        #endif
 
         do {
             let data = try Data(contentsOf: url)

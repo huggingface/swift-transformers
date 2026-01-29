@@ -234,31 +234,41 @@ public struct Config: Hashable, Sendable,
 
     private static func convertToBinaryDistinctKeys(_ object: Any) -> Config {
         if let dict = object as? [NSString: Any] {
-            Config(Dictionary(uniqueKeysWithValues: dict.map { (BinaryDistinctString($0.key), convertToBinaryDistinctKeys($0.value)) }))
+            return Config(Dictionary(uniqueKeysWithValues: dict.map { (BinaryDistinctString($0.key), convertToBinaryDistinctKeys($0.value)) }))
         } else if let array = object as? [Any] {
-            Config(array.map { convertToBinaryDistinctKeys($0) })
+            return Config(array.map { convertToBinaryDistinctKeys($0) })
         } else {
             switch object {
             case let obj as String:
-                Config(obj)
+                return Config(obj)
             case let obj as Int:
-                Config(obj)
+                return Config(obj)
             case let obj as Float:
-                Config(obj)
+                return Config(obj)
             case let obj as Bool:
-                Config(obj)
+                return Config(obj)
             case let obj as NSNumber:
+                #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
                 if CFNumberIsFloatType(obj) {
-                    Config(obj.floatValue)
+                    return Config(obj.floatValue)
                 } else {
-                    Config(obj.intValue)
+                    return Config(obj.intValue)
                 }
+                #else
+                // On Linux, check objCType to determine if it's a floating point number
+                let type = String(cString: obj.objCType)
+                if type == "f" || type == "d" {
+                    return Config(obj.floatValue)
+                } else {
+                    return Config(obj.intValue)
+                }
+                #endif
             case _ as NSNull:
-                Config()
+                return Config()
             case let obj as Config:
-                obj
+                return obj
             case let obj as (UInt, String):
-                Config((obj.0, BinaryDistinctString(obj.1)))
+                return Config((obj.0, BinaryDistinctString(obj.1)))
             default:
                 fatalError("unknown type: \(type(of: object)) \(object)")
             }
