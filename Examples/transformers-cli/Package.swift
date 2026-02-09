@@ -28,6 +28,6 @@ let package = Package(
                 .product(name: "Tokenizers", package: "swift-transformers"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
-        )
+        ),
     ]
 )

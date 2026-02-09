@@ -7,6 +7,7 @@
 
 import Crypto
 import Foundation
+
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -320,13 +321,13 @@ public extension HubApi {
         public var errorDescription: String? {
             switch self {
             case let .invalidMetadataError(message):
-                ( "Invalid metadata: \(message)")
+                ("Invalid metadata: \(message)")
             case let .offlineModeError(message):
-                ( "Offline mode error: \(message)")
+                ("Offline mode error: \(message)")
             case let .fileIntegrityError(message):
-                ( "File integrity check failed: \(message)")
+                ("File integrity check failed: \(message)")
             case let .fileWriteError(message):
-                ( "Failed to write file: \(message)")
+                ("Failed to write file: \(message)")
             }
         }
     }
@@ -389,14 +390,14 @@ public extension HubApi {
                 let lines = contents.components(separatedBy: .newlines)
 
                 guard lines.count >= 3 else {
-                    throw EnvironmentError.invalidMetadataError(( "Metadata file is missing required fields"))
+                    throw EnvironmentError.invalidMetadataError(("Metadata file is missing required fields"))
                 }
 
                 let commitHash = lines[0].trimmingCharacters(in: .whitespacesAndNewlines)
                 let etag = lines[1].trimmingCharacters(in: .whitespacesAndNewlines)
 
                 guard let timestamp = Double(lines[2].trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                    throw EnvironmentError.invalidMetadataError(( "Invalid timestamp format"))
+                    throw EnvironmentError.invalidMetadataError(("Invalid timestamp format"))
                 }
 
                 let timestampDate = Date(timeIntervalSince1970: timestamp)
@@ -408,7 +409,7 @@ public extension HubApi {
                     HubApi.logger.warning("Invalid metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
                     try FileManager.default.removeItem(at: metadataPath)
                 } catch {
-                    throw EnvironmentError.invalidMetadataError(( "Could not remove corrupted metadata file: \(error.localizedDescription)"))
+                    throw EnvironmentError.invalidMetadataError(("Could not remove corrupted metadata file: \(error.localizedDescription)"))
                 }
                 return nil
             } catch {
@@ -416,7 +417,7 @@ public extension HubApi {
                     HubApi.logger.warning("Error reading metadata file \(metadataPath): \(error.localizedDescription). Removing it from disk and continuing.")
                     try FileManager.default.removeItem(at: metadataPath)
                 } catch {
-                    throw EnvironmentError.invalidMetadataError(( "Could not remove corrupted metadata file: \(error.localizedDescription)"))
+                    throw EnvironmentError.invalidMetadataError(("Could not remove corrupted metadata file: \(error.localizedDescription)"))
                 }
                 return nil
             }
@@ -476,7 +477,7 @@ public extension HubApi {
             try FileManager.default.createDirectory(at: metadataPath.deletingLastPathComponent(), withIntermediateDirectories: true)
             try metadataContent.write(to: metadataPath, atomically: true, encoding: .utf8)
         } catch {
-            throw EnvironmentError.fileWriteError(( "Failed to write metadata to \(metadataPath.path): \(error.localizedDescription)"))
+            throw EnvironmentError.fileWriteError(("Failed to write metadata to \(metadataPath.path): \(error.localizedDescription)"))
         }
     }
 
@@ -621,12 +622,12 @@ public extension HubApi {
 
         if useOfflineMode ?? shouldUseOfflineMode {
             if !FileManager.default.fileExists(atPath: repoDestination.path) {
-                throw EnvironmentError.offlineModeError(( "Repository not available locally"))
+                throw EnvironmentError.offlineModeError(("Repository not available locally"))
             }
 
             let fileUrls = try FileManager.default.getFileUrls(at: repoDestination)
             if fileUrls.isEmpty {
-                throw EnvironmentError.offlineModeError(( "No files available locally for this repository"))
+                throw EnvironmentError.offlineModeError(("No files available locally for this repository"))
             }
 
             for fileUrl in fileUrls {
@@ -640,7 +641,7 @@ public extension HubApi {
                 let localMetadata = try readDownloadMetadata(metadataPath: metadataPath)
 
                 guard let localMetadata else {
-                    throw EnvironmentError.offlineModeError(( "Metadata not available for \(fileUrl.lastPathComponent)"))
+                    throw EnvironmentError.offlineModeError(("Metadata not available for \(fileUrl.lastPathComponent)"))
                 }
                 let localEtag = localMetadata.etag
 
@@ -648,7 +649,7 @@ public extension HubApi {
                 if isValidHash(hash: localEtag, pattern: sha256Pattern) {
                     let fileHash = try computeFileHash(file: fileUrl)
                     if fileHash != localEtag {
-                        throw EnvironmentError.fileIntegrityError(( "Hash mismatch for \(fileUrl.lastPathComponent)"))
+                        throw EnvironmentError.fileIntegrityError(("Hash mismatch for \(fileUrl.lastPathComponent)"))
                     }
                 }
             }
