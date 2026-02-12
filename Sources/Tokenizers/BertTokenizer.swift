@@ -61,7 +61,9 @@ public final class BertTokenizer: Sendable {
         doLowerCase: Bool = true
     ) {
         self.vocab = vocab
-        ids_to_tokens = Utils.invert(vocab)
+        ids_to_tokens = vocab.reduce(into: [Int: String]()) { result, element in
+            result[element.value] = element.key
+        }
         basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
         wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
         self.tokenizeChineseChars = tokenizeChineseChars

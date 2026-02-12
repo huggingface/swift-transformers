@@ -20,15 +20,6 @@ struct Utils {
         return String(s[startIndex..<endIndex])
     }
 
-    /// Invert a (k, v) dictionary
-    static func invert<K, V>(_ dict: [K: V]) -> [V: K] {
-        var inverted: [V: K] = [:]
-        for (k, v) in dict {
-            inverted[v] = k
-        }
-        return inverted
-    }
-
     /// Checks if a character is considered Chinese
     /// https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
     static func isChineseChar(_ c: UnicodeScalar) -> Bool {

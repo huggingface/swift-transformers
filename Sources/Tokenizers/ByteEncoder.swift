@@ -267,4 +267,6 @@ let byteEncoder: [UTF8.CodeUnit: String] = [
     173: "\u{0143}",
 ]
 
-let byteDecoder = Utils.invert(byteEncoder)
+let byteDecoder = byteEncoder.reduce(into: [String: UTF8.CodeUnit]()) { result, element in
+    result[element.value] = element.key
+}
