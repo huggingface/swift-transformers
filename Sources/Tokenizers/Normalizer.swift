@@ -226,7 +226,7 @@ class BertNormalizer: Normalizer {
 
     private func handleChineseChars(text: String) -> String {
         text.map { c in
-            if let scalar = c.unicodeScalars.first, scalar.isChineseCharacter {
+            if let scalar = c.unicodeScalars.first, scalar.isCJKUnifiedIdeograph {
                 " \(c) "
             } else {
                 "\(c)"
@@ -246,7 +246,7 @@ class BertNormalizer: Normalizer {
 
 extension UnicodeScalar {
     /// https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
-    var isChineseCharacter: Bool {
+    var isCJKUnifiedIdeograph: Bool {
         (value >= 0x4E00 && value <= 0x9FFF)
             || (value >= 0x3400 && value <= 0x4DBF)
             || (value >= 0x20000 && value <= 0x2A6DF)
