@@ -187,7 +187,7 @@ public final class BertTokenizer: Sendable {
         }
 
         return text.map { c in
-            if let scalar = c.unicodeScalars.first, Utils.isChineseChar(scalar) {
+            if let scalar = c.unicodeScalars.first, scalar.isChineseCharacter {
                 " \(c) "
             } else {
                 "\(c)"
