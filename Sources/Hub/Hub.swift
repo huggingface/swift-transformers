@@ -49,29 +49,29 @@ public extension Hub {
         public var errorDescription: String? {
             switch self {
             case .authorizationRequired:
-                "Authentication required. Please provide a valid Hugging Face token."
+                String(localized: "Authentication required. Please provide a valid Hugging Face token.")
             case let .httpStatusCode(code):
-                "HTTP error with status code: \(code)"
+                String(localized: "HTTP error with status code: \(code)")
             case .parse:
-                "Failed to parse server response."
+                String(localized: "Failed to parse server response.")
             case .jsonSerialization(_, let message):
                 message
             case .unexpectedError:
-                "An unexpected error occurred."
+                String(localized: "An unexpected error occurred.")
             case let .downloadError(message):
-                "Download failed: \(message)"
+                String(localized: "Download failed: \(message)")
             case let .fileNotFound(filename):
-                "File not found: \(filename)"
+                String(localized: "File not found: \(filename)")
             case let .networkError(error):
-                "Network error: \(error.localizedDescription)"
+                String(localized: "Network error: \(error.localizedDescription)")
             case let .resourceNotFound(resource):
-                "Resource not found: \(resource)"
+                String(localized: "Resource not found: \(resource)")
             case let .configurationMissing(file):
-                "Required configuration file missing: \(file)"
+                String(localized: "Required configuration file missing: \(file)")
             case let .fileSystemError(error):
-                "File system error: \(error.localizedDescription)"
+                String(localized: "File system error: \(error.localizedDescription)")
             case let .parseError(message):
-                "Parse error: \(message)"
+                String(localized: "Parse error: \(message)")
             }
         }
     }
@@ -351,3 +351,11 @@ public final class LanguageModelConfigurationFromHub: Sendable {
         }
     }
 }
+
+#if !canImport(Darwin)
+fileprivate extension String {
+    init(localized key: String) {
+        self = key
+    }
+}
+#endif
