@@ -9,17 +9,6 @@
 import Foundation
 
 struct Utils {
-    /// Substring
-    static func substr(_ s: String, _ r: Range<Int>) -> String? {
-        let stringCount = s.count
-        if stringCount < r.upperBound || stringCount < r.lowerBound {
-            return nil
-        }
-        let startIndex = s.index(s.startIndex, offsetBy: r.lowerBound)
-        let endIndex = s.index(startIndex, offsetBy: r.upperBound - r.lowerBound)
-        return String(s[startIndex..<endIndex])
-    }
-
     /// Checks if a character is considered Chinese
     /// https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
     static func isChineseChar(_ c: UnicodeScalar) -> Bool {

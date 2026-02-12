@@ -317,7 +317,9 @@ final class WordpieceTokenizer: Sendable {
             var end = word.count
             var cur_substr: String?
             while start < end {
-                var substr = Utils.substr(word, start..<end)!
+                let startIndex = word.index(word.startIndex, offsetBy: start)
+                let endIndex = word.index(word.startIndex, offsetBy: end)
+                var substr = String(word[startIndex..<endIndex])
                 if start > 0 {
                     substr = "##\(substr)"
                 }
