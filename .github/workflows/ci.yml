@@ -25,7 +25,15 @@ jobs:
         runs-on: ubuntu-latest
         container: swift:6.2.3
         steps:
-            - name: Checkout
+            - name: Checkout PR merge ref if called from PR
+              if: ${{ github.event.pull_request.number }}
+              uses: actions/checkout@v6
+              with:
+                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
+                  fetch-depth: 0
+
+            - name: Checkout fallback
+              if: ${{ !github.event.pull_request.number }}
               uses: actions/checkout@v6
 
             - name: Build
