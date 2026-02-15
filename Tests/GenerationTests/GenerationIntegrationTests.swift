@@ -1,3 +1,4 @@
+#if canImport(CoreML)
 import CoreML
 import Tokenizers
 import XCTest
@@ -356,3 +357,5 @@ struct TestGeneration: Generation {
         return ""
     }
 }
+
+#endif

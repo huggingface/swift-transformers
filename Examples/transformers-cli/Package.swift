@@ -11,21 +11,12 @@ let package = Package(
         // If you copy this manifest as a template, use the following line instead
         //.package(url: "https://github.com/huggingface/swift-transformers", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
-        .package(url: "https://github.com/apple/swift-container-plugin", from: "1.0.0"),
     ],
     targets: [
         .executableTarget(
             name: "transformers-cli",
             dependencies: [
                 .product(name: "Transformers", package: "swift-transformers"),
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
-        ),
-        .executableTarget(
-            name: "transformers-cli-linux",
-            dependencies: [
-                .product(name: "Hub", package: "swift-transformers"),
-                .product(name: "Tokenizers", package: "swift-transformers"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),

@@ -20,6 +20,23 @@ jobs:
         secrets:
             HF_HUB_READ_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
 
+    test-linux:
+        name: Test (Linux)
+        runs-on: ubuntu-latest
+        container: swift:6.2.3
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Build
+              run: swift build
+
+            - name: Run tests
+              env:
+                  CI_DISABLE_NETWORK_MONITOR: "1"
+                  HF_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
+              run: swift test
+
     lint:
         name: Lint
         runs-on: macos-latest

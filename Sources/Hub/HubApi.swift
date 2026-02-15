@@ -77,7 +77,7 @@ extension HTTPURLResponse {
 /// and handling authentication with the Hugging Face Hub. It supports offline mode,
 /// background downloads, and automatic retry mechanisms for robust file transfers.
 public struct HubApi: Sendable {
-    public var downloadBase: URL
+    var downloadBase: URL
     var hfToken: String?
     var endpoint: String
     var useBackgroundSession: Bool
@@ -321,13 +321,13 @@ public extension HubApi {
         public var errorDescription: String? {
             switch self {
             case let .invalidMetadataError(message):
-                ("Invalid metadata: \(message)")
+                String(localized: "Invalid metadata: \(message)")
             case let .offlineModeError(message):
-                ("Offline mode error: \(message)")
+                String(localized: "Offline mode error: \(message)")
             case let .fileIntegrityError(message):
-                ("File integrity check failed: \(message)")
+                String(localized: "File integrity check failed: \(message)")
             case let .fileWriteError(message):
-                ("Failed to write file: \(message)")
+                String(localized: "Failed to write file: \(message)")
             }
         }
     }

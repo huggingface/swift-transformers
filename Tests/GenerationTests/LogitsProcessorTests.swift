@@ -1,3 +1,4 @@
+#if canImport(CoreML)
 import CoreML
 import XCTest
 
@@ -333,3 +334,4 @@ func assertMLTensorEqual(
         XCTAssertEqual(a, e, accuracy: accuracy, file: file, line: line)
     }
 }
+#endif
