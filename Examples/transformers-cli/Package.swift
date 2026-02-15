@@ -19,6 +19,6 @@ let package = Package(
                 .product(name: "Transformers", package: "swift-transformers"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
-        ),
+        )
     ]
 )

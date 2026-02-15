@@ -8,6 +8,9 @@
 import Foundation
 import Hub
 
+/// Character class used by punctuation-based pre-tokenizers.
+private let punctuationRegex = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
+
 /// Options that can be passed to pre-tokenization operations.
 public enum PreTokenizerOption: String {
     /// Indicates this is the first section of text being processed.
@@ -113,7 +116,7 @@ class BertPreTokenizer: PreTokenizer {
 
     required init(config: Config) {
         // Ref: https://github.com/huggingface/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1002
-        re = "[^\\s\(Constants.PUNCTUATION_REGEX)]+|[\(Constants.PUNCTUATION_REGEX)]"
+        re = "[^\\s\(punctuationRegex)]+|[\(punctuationRegex)]"
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
@@ -240,7 +243,7 @@ class PunctuationPreTokenizer: PreTokenizer {
     let re: String
 
     required init(config: Config) {
-        re = "[^\(Constants.PUNCTUATION_REGEX)]+|[\(Constants.PUNCTUATION_REGEX)]+"
+        re = "[^\(punctuationRegex)]+|[\(punctuationRegex)]+"
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {

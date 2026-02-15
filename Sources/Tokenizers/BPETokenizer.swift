@@ -110,7 +110,9 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             result[element.key.nsString] = element.value.integer()
         }
 
-        idsToTokens = Utils.invert(tokensToIds)
+        idsToTokens = tokensToIds.reduce(into: [Int: NSString]()) { result, element in
+            result[element.value] = element.key
+        }
 
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {

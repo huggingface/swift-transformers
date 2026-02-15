@@ -61,7 +61,9 @@ public final class BertTokenizer: Sendable {
         doLowerCase: Bool = true
     ) {
         self.vocab = vocab
-        ids_to_tokens = Utils.invert(vocab)
+        ids_to_tokens = vocab.reduce(into: [Int: String]()) { result, element in
+            result[element.value] = element.key
+        }
         basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
         wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
         self.tokenizeChineseChars = tokenizeChineseChars
@@ -185,7 +187,7 @@ public final class BertTokenizer: Sendable {
         }
 
         return text.map { c in
-            if let scalar = c.unicodeScalars.first, Utils.isChineseChar(scalar) {
+            if let scalar = c.unicodeScalars.first, scalar.isCJKUnifiedIdeograph {
                 " \(c) "
             } else {
                 "\(c)"
@@ -315,7 +317,9 @@ final class WordpieceTokenizer: Sendable {
             var end = word.count
             var cur_substr: String?
             while start < end {
-                var substr = Utils.substr(word, start..<end)!
+                let startIndex = word.index(word.startIndex, offsetBy: start)
+                let endIndex = word.index(word.startIndex, offsetBy: end)
+                var substr = String(word[startIndex..<endIndex])
                 if start > 0 {
                     substr = "##\(substr)"
                 }
