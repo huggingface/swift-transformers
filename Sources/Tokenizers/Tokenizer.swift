@@ -1014,7 +1014,7 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
 
 #if !canImport(Darwin)
 fileprivate extension String {
-    init(localized key: String) {
+    init(localized key: String, comment: String? = nil) {
         self = key
     }
 }
