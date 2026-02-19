@@ -136,12 +136,6 @@ public struct HubApi: Sendable {
         } else {
             self.client = HubClient(host: host, tokenProvider: .environment)
         }
-        if useBackgroundSession {
-            HubApi.logger.warning(
-                "useBackgroundSession is currently ignored by HubClient-backed downloads; using the default session."
-            )
-        }
-
         NetworkMonitor.shared.startMonitoring()
     }
 
@@ -516,7 +510,7 @@ public extension HubApi {
         return url
     }
 
-    /// Downloads a single file using HubClient with metadata tracking for offline mode support.
+    /// Downloads a single file with metadata tracking for offline mode support.
     private func downloadFile(
         filename: String,
         repo: Repo,
@@ -595,16 +589,45 @@ public extension HubApi {
             withIntermediateDirectories: true
         )
 
-        // Download the file using HubClient
-        _ = try await client.downloadFile(
-            at: filename,
-            from: repo.repoID,
-            to: destination,
-            kind: repo.type.repoKind,
-            revision: revision,
-            cachePolicy: forceDownload ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
-            progress: downloadProgress
-        )
+        if useBackgroundSession {
+            #if canImport(FoundationNetworking)
+            HubApi.logger.warning("Background URLSession is unavailable on this platform; using HubClient download path.")
+            _ = try await client.downloadFile(
+                at: filename,
+                from: repo.repoID,
+                to: destination,
+                kind: repo.type.repoKind,
+                revision: revision,
+                cachePolicy: forceDownload ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
+                progress: downloadProgress
+            )
+            #else
+            var request = URLRequest(url: source)
+            request.cachePolicy = forceDownload ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy
+            if let hfToken, !hfToken.isEmpty {
+                request.setValue("Bearer \(hfToken)", forHTTPHeaderField: "Authorization")
+            }
+            try await downloadFileInBackground(
+                request: request,
+                destination: destination,
+                expectedSize: remoteMetadata.size,
+                fileProgress: fileProgress,
+                parentProgress: parentProgress,
+                progressHandler: progressHandler
+            )
+            #endif
+        } else {
+            // Download the file using HubClient
+            _ = try await client.downloadFile(
+                at: filename,
+                from: repo.repoID,
+                to: destination,
+                kind: repo.type.repoKind,
+                revision: revision,
+                cachePolicy: forceDownload ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
+                progress: downloadProgress
+            )
+        }
 
         // Update parent progress with throughput info from the download
         if let throughput = downloadProgress.userInfo[.throughputKey] as? Double {
@@ -616,6 +639,46 @@ public extension HubApi {
         // Write metadata for offline mode support
         try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
     }
+
+    #if !canImport(FoundationNetworking)
+    private func downloadFileInBackground(
+        request: URLRequest,
+        destination: URL,
+        expectedSize: Int?,
+        fileProgress: Progress,
+        parentProgress: Progress,
+        progressHandler: @escaping (Progress) -> Void
+    ) async throws {
+        let state = BackgroundDownloadState()
+        let delegate = BackgroundDownloadDelegate(
+            state: state,
+            expectedSize: expectedSize,
+            fileProgress: fileProgress,
+            parentProgress: parentProgress,
+            progressHandler: progressHandler
+        )
+        let sessionIdentifier = "swift-transformers.hub.background.\(destination.path.hashValue)"
+        let config = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
+        config.isDiscretionary = false
+        config.sessionSendsLaunchEvents = true
+
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        let task = session.downloadTask(with: request)
+        task.resume()
+
+        let result = await state.waitForCompletion()
+        session.finishTasksAndInvalidate()
+
+        switch result {
+        case let .success(tempURL):
+            try FileManager.default.moveDownloadedFile(from: tempURL, to: destination)
+            fileProgress.completedUnitCount = fileProgress.totalUnitCount
+            progressHandler(parentProgress)
+        case let .failure(message):
+            throw Hub.HubClientError.downloadError(message)
+        }
+    }
+    #endif
 
     @discardableResult
     func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress) -> Void = { _ in })
@@ -1047,6 +1110,17 @@ private extension [String] {
 }
 
 private extension FileManager {
+    func moveDownloadedFile(from srcURL: URL, to dstURL: URL) throws {
+        if fileExists(atPath: dstURL.path) {
+            try removeItem(at: dstURL)
+        }
+
+        let directoryURL = dstURL.deletingLastPathComponent()
+        try createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+
+        try moveItem(at: srcURL, to: dstURL)
+    }
+
     func getFileUrls(at directoryUrl: URL) throws -> [URL] {
         var fileUrls = [URL]()
 
@@ -1144,3 +1218,124 @@ private actor RedirectSessionActor {
         return session
     }
 }
+
+#if !canImport(FoundationNetworking)
+private enum BackgroundDownloadResult {
+    case success(URL)
+    case failure(String)
+}
+
+private actor BackgroundDownloadState {
+    private var continuation: CheckedContinuation<BackgroundDownloadResult, Never>?
+    private var result: BackgroundDownloadResult?
+
+    func waitForCompletion() async -> BackgroundDownloadResult {
+        if let result {
+            return result
+        }
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func complete(with result: BackgroundDownloadResult) {
+        self.result = result
+        if let continuation {
+            continuation.resume(returning: result)
+            self.continuation = nil
+        }
+    }
+}
+
+private final class BackgroundDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let state: BackgroundDownloadState
+    private let expectedSize: Int?
+    private let fileProgress: Progress
+    private let parentProgress: Progress
+    private let progressHandler: (Progress) -> Void
+
+    private var lastSampleTime = Date()
+    private var lastSampleBytes: Int64 = 0
+
+    init(
+        state: BackgroundDownloadState,
+        expectedSize: Int?,
+        fileProgress: Progress,
+        parentProgress: Progress,
+        progressHandler: @escaping (Progress) -> Void
+    ) {
+        self.state = state
+        self.expectedSize = expectedSize
+        self.fileProgress = fileProgress
+        self.parentProgress = parentProgress
+        self.progressHandler = progressHandler
+        super.init()
+    }
+
+    func urlSession(
+        _: URLSession,
+        downloadTask _: URLSessionDownloadTask,
+        didWriteData _: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let denominator = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : Int64(expectedSize ?? 0)
+        if denominator > 0 {
+            let fraction = min(1.0, max(0.0, Double(totalBytesWritten) / Double(denominator)))
+            fileProgress.completedUnitCount = Int64(fraction * Double(fileProgress.totalUnitCount))
+        }
+
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastSampleTime)
+        if elapsed > 0 {
+            let deltaBytes = totalBytesWritten - lastSampleBytes
+            let throughput = Double(deltaBytes) / elapsed
+            parentProgress.setUserInfoObject(throughput, forKey: .throughputKey)
+            lastSampleTime = now
+            lastSampleBytes = totalBytesWritten
+        }
+        progressHandler(parentProgress)
+    }
+
+    func urlSession(
+        _: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        guard let response = downloadTask.response as? HTTPURLResponse else {
+            Task {
+                await state.complete(with: .failure("Unexpected non-HTTP response"))
+            }
+            return
+        }
+
+        guard (200..<300).contains(response.statusCode) else {
+            Task {
+                await state.complete(with: .failure("HTTP status code \(response.statusCode)"))
+            }
+            return
+        }
+
+        // Copy to a stable temp file before URLSession cleanup.
+        let tempDirectory = FileManager.default.temporaryDirectory
+        let safeTempURL = tempDirectory.appendingPathComponent(UUID().uuidString + "_" + location.lastPathComponent)
+        do {
+            try FileManager.default.copyItem(at: location, to: safeTempURL)
+            Task {
+                await state.complete(with: .success(safeTempURL))
+            }
+        } catch {
+            Task {
+                await state.complete(with: .failure(error.localizedDescription))
+            }
+        }
+    }
+
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error else { return }
+        Task {
+            await state.complete(with: .failure(error.localizedDescription))
+        }
+    }
+}
+#endif
