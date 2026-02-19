@@ -582,8 +582,7 @@ public extension HubApi {
             to: destination,
             kind: repo.type.repoKind,
             revision: revision,
-            inBackground: useBackgroundSession,
-            forceDownload: forceDownload,
+            cachePolicy: forceDownload ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
             progress: downloadProgress
         )
 
