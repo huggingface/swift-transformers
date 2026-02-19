@@ -19,11 +19,11 @@ import Network
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking
+#endif
 
 extension ProgressUserInfoKey {
     static let throughputKey = ProgressUserInfoKey(rawValue: "throughput")
 }
-#endif
 
 /// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
 /// `requests` in Python leaves headers as their original casing,
