@@ -7,6 +7,7 @@
 
 import Crypto
 import Foundation
+import HuggingFace
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -82,6 +83,12 @@ public struct HubApi: Sendable {
     var endpoint: String
     var useBackgroundSession: Bool
     var useOfflineMode: Bool?
+    private let foregroundCachedClient: HubClient
+    private let foregroundUncachedClient: HubClient
+    #if !canImport(FoundationNetworking)
+    private let backgroundCachedClient: HubClient
+    private let backgroundUncachedClient: HubClient
+    #endif
 
     private let networkMonitor = NetworkMonitor()
     public typealias RepoType = Hub.RepoType
@@ -92,6 +99,7 @@ public struct HubApi: Sendable {
     /// Static to share a single URLSession across all HubApi instances, preventing resource
     /// exhaustion when many instances are created. Persists for process lifetime.
     private static let redirectSession: RedirectSessionActor = .init()
+    private static let hubRepoIdCache: HubRepoIDCacheActor = .init()
 
     /// Initializes a new Hub API client.
     ///
@@ -123,6 +131,33 @@ public struct HubApi: Sendable {
         self.endpoint = endpoint ?? Self.hfEndpointfromEnv()
         self.useBackgroundSession = useBackgroundSession
         self.useOfflineMode = useOfflineMode
+        let host = URL(string: self.endpoint) ?? HubClient.defaultHost
+        self.foregroundCachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: .default,
+            useBackgroundSession: false
+        )
+        self.foregroundUncachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: nil,
+            useBackgroundSession: false
+        )
+        #if !canImport(FoundationNetworking)
+        self.backgroundCachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: .default,
+            useBackgroundSession: true
+        )
+        self.backgroundUncachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: nil,
+            useBackgroundSession: true
+        )
+        #endif
         NetworkMonitor.shared.startMonitoring()
     }
 
@@ -149,6 +184,27 @@ private struct PrintLogger {
 #endif
 
 private extension HubApi {
+    static func buildHubClient(
+        host: URL,
+        bearerToken: String?,
+        cache: HubCache?,
+        useBackgroundSession: Bool
+    ) -> HubClient {
+        #if canImport(FoundationNetworking)
+        return HubClient(host: host, bearerToken: bearerToken, cache: cache)
+        #else
+        if useBackgroundSession {
+            let identifier = "swift-transformers.hub.hubclient"
+            let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
+            configuration.isDiscretionary = false
+            configuration.sessionSendsLaunchEvents = true
+            let session = URLSession(configuration: configuration)
+            return HubClient(session: session, host: host, bearerToken: bearerToken, cache: cache)
+        }
+        return HubClient(host: host, bearerToken: bearerToken, cache: cache)
+        #endif
+    }
+
     static func hfEndpointfromEnv() -> String {
         ProcessInfo.processInfo.environment["HF_ENDPOINT"] ?? "https://huggingface.co"
     }
@@ -182,10 +238,160 @@ private extension HubApi {
             .filter { !$0.isEmpty }
             .first
     }
+
+    func resolveHubClientRepoID(for repo: Repo) async throws -> HuggingFace.Repo.ID {
+        if let parsed = HuggingFace.Repo.ID(rawValue: repo.id) {
+            return parsed
+        }
+
+        // Legacy compatibility: resolve unqualified model IDs (e.g. "t5-base")
+        // to canonical namespace-qualified IDs via the Hub models API.
+        if repo.type == .models {
+            if let cached = await Self.hubRepoIdCache.get(repo.id) {
+                return cached
+            }
+
+            let url = URL(string: endpoint)!
+                .appending(path: "api")
+                .appending(path: "models")
+                .appending(path: repo.id)
+            let (data, _) = try await httpGet(for: url)
+            let response = try JSONDecoder().decode(ModelInfoResponse.self, from: data)
+            if let canonical = HuggingFace.Repo.ID(rawValue: response.id) {
+                await Self.hubRepoIdCache.set(repo.id, value: canonical)
+                return canonical
+            }
+        }
+
+        // Keep historical behavior for non-qualified IDs when canonicalization fails.
+        return HuggingFace.Repo.ID(namespace: "", name: repo.id)
+    }
+
+    func makeHubClient(useBackgroundSession: Bool, enableCache: Bool = true) -> HubClient {
+        #if canImport(FoundationNetworking)
+        return enableCache ? foregroundCachedClient : foregroundUncachedClient
+        #else
+        if useBackgroundSession, enableCache {
+            return backgroundCachedClient
+        }
+        if useBackgroundSession, !enableCache {
+            return backgroundUncachedClient
+        }
+        return enableCache ? foregroundCachedClient : foregroundUncachedClient
+        #endif
+    }
+}
+
+private extension Hub.RepoType {
+    var hubClientKind: HuggingFace.Repo.Kind {
+        switch self {
+        case .models:
+            return .model
+        case .datasets:
+            return .dataset
+        case .spaces:
+            return .space
+        }
+    }
+}
+
+private final class DownloadProgressBridge: @unchecked Sendable {
+    private let progress: Progress
+    private let handler: (Double, Double?) -> Void
+    private let lock = NSLock()
+    private var hasCompleted = false
+    private var lastFractionCompleted: Double = -1
+    private var lastCompletedUnitCount: Int64 = 0
+    private var lastSampleDate: Date = .init()
+
+    #if canImport(FoundationNetworking)
+    private var pollTask: Task<Void, Never>?
+    #else
+    private var observation: NSKeyValueObservation?
+    #endif
+
+    init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
+        self.progress = progress
+        self.handler = handler
+        lastCompletedUnitCount = progress.completedUnitCount
+    }
+
+    func start() {
+        emitIfNeeded(force: true)
+
+        #if canImport(FoundationNetworking)
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.emitIfNeeded(force: false)
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+        #else
+        observation = progress.observe(\.fractionCompleted, options: [.new]) { [weak self] _, _ in
+            self?.emitIfNeeded(force: false)
+        }
+        #endif
+    }
+
+    func complete() {
+        if progress.totalUnitCount <= 0 {
+            progress.totalUnitCount = 1
+        }
+        progress.completedUnitCount = progress.totalUnitCount
+        hasCompleted = true
+        emitIfNeeded(force: true)
+        stop()
+    }
+
+    func stop() {
+        #if canImport(FoundationNetworking)
+        pollTask?.cancel()
+        pollTask = nil
+        #else
+        observation?.invalidate()
+        observation = nil
+        #endif
+    }
+
+    private func emitIfNeeded(force: Bool) {
+        lock.lock()
+        let fraction = min(max(progress.fractionCompleted, 0), 1)
+        if fraction >= 1, !hasCompleted {
+            lock.unlock()
+            return
+        }
+        if !force, abs(fraction - lastFractionCompleted) < 0.001 {
+            lock.unlock()
+            return
+        }
+
+        let now = Date()
+        let deltaBytes = progress.completedUnitCount - lastCompletedUnitCount
+        let deltaTime = now.timeIntervalSince(lastSampleDate)
+        let speed: Double?
+        if deltaBytes > 0 {
+            speed = deltaTime > 0 ? Double(deltaBytes) / deltaTime : 0
+        } else if fraction > 0 {
+            speed = 0
+        } else {
+            speed = nil
+        }
+
+        lastCompletedUnitCount = progress.completedUnitCount
+        lastSampleDate = now
+        lastFractionCompleted = fraction
+        lock.unlock()
+
+        handler(fraction, speed)
+    }
 }
 
 /// File retrieval
 public extension HubApi {
+    private struct ModelInfoResponse: Decodable {
+        let id: String
+    }
+
     /// Represents a file in a repository.
     ///
     /// Contains metadata about files available in a Hub repository,
@@ -532,7 +738,7 @@ public extension HubApi {
         /// Downloads the file with progress tracking.
         /// - Parameter progressHandler: Called with download progress (0.0-1.0) and speed in bytes/sec, if available.
         /// - Returns: Local file URL (uses cached file if commit hash matches).
-        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Downloader.DownloadError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
+        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Hub.HubClientError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
@@ -581,30 +787,35 @@ public extension HubApi {
             // Otherwise, let's download the file!
             let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
             try prepareCacheDestination(incompleteDestination)
-
-            let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination, inBackground: backgroundSession)
+            if FileManager.default.fileExists(atPath: incompleteDestination.path) {
+                try? FileManager.default.removeItem(at: incompleteDestination)
+            }
+            let forceDownload = downloaded
+            let downloadProgress = Progress(totalUnitCount: Int64(max(remoteSize, 1)))
+            let progressBridge = DownloadProgressBridge(progress: downloadProgress, handler: progressHandler)
+            progressBridge.start()
+            defer { progressBridge.stop() }
 
             try await withTaskCancellationHandler {
-                let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
-                listen: for await state in sub {
-                    switch state {
-                    case .notStarted:
-                        continue
-                    case let .downloading(progress, speed):
-                        progressHandler(progress, speed)
-                    case let .failed(error):
-                        throw error
-                    case .completed:
-                        break listen
-                    }
-                }
-            } onCancel: {
-                Task {
-                    await downloader.cancel()
-                }
-            }
+                let client = hub.makeHubClient(
+                    useBackgroundSession: backgroundSession,
+                    enableCache: !forceDownload
+                )
+                let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
+                _ = try await client.downloadFile(
+                    at: relativeFilename,
+                    from: hubRepoID,
+                    to: destination,
+                    kind: repo.type.hubClientKind,
+                    revision: revision,
+                    progress: downloadProgress
+                )
 
-            try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                progressBridge.complete()
+            } onCancel: {
+                progressBridge.stop()
+            }
 
             return destination
         }
@@ -1143,6 +1354,18 @@ private actor RedirectSessionActor {
         let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
         self.urlSession = session
         return session
+    }
+}
+
+private actor HubRepoIDCacheActor {
+    private var values: [String: HuggingFace.Repo.ID] = [:]
+
+    func get(_ key: String) -> HuggingFace.Repo.ID? {
+        values[key]
+    }
+
+    func set(_ key: String, value: HuggingFace.Repo.ID) {
+        values[key] = value
     }
 }
 
