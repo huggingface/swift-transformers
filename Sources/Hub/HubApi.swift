@@ -13,6 +13,10 @@ import HuggingFace
 import Network
 #endif
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 #if canImport(os)
 import os
 #endif
