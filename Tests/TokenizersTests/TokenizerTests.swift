@@ -20,7 +20,10 @@ private let downloadDestination: URL = {
 
 private let hubApiForTests = HubApi(downloadBase: downloadDestination)
 
-private enum TestError: Error { case unsupportedTokenizer }
+private enum TestError: Error {
+    case tokenizerConfigNotFound
+    case unsupportedTokenizer
+}
 
 private struct Dataset: Decodable {
     let text: String
@@ -63,7 +66,7 @@ private func loadEdgeCases(for hubModelName: String) throws -> [EdgeCase]? {
 private func makeTokenizer(hubModelName: String, hubApi: HubApi) async throws -> PreTrainedTokenizer {
     let config = LanguageModelConfigurationFromHub(modelName: hubModelName, hubApi: hubApi)
     guard let tokenizerConfig = try await config.tokenizerConfig else {
-        throw TokenizerError.tokenizerConfigNotFound
+        throw TestError.tokenizerConfigNotFound
     }
     let tokenizerData = try await config.tokenizerData
     let tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
