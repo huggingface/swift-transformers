@@ -412,7 +412,7 @@ public final class LanguageModelConfigurationFromHub: Sendable {
 
 #if !canImport(Darwin)
 extension String {
-    init(localized key: String) {
+    init(localized key: String, comment: String? = nil) {
         self = key
     }
 }
