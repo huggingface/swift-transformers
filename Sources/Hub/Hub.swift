@@ -411,7 +411,8 @@ public final class LanguageModelConfigurationFromHub: Sendable {
 }
 
 #if !canImport(Darwin)
-extension String {
+// Linux Foundation may not provide String(localized:comment:), so keep call sites portable.
+private extension String {
     init(localized key: String, comment: String? = nil) {
         self = key
     }

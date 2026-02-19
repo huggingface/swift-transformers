@@ -1357,3 +1357,12 @@ private final class BackgroundDownloadDelegate: NSObject, URLSessionDownloadDele
     }
 }
 #endif
+
+#if !canImport(Darwin)
+// Linux Foundation may not provide String(localized:comment:), so keep call sites portable.
+private extension String {
+    init(localized key: String, comment: String? = nil) {
+        self = key
+    }
+}
+#endif
