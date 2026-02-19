@@ -1115,12 +1115,14 @@ class SnapshotDownloadTests: XCTestCase {
 
         // Create expectation for first progress update
         let progressExpectation = expectation(description: "First progress update received")
+        var didFulfillFirstProgress = false
 
         // Create a task for the download
         let downloadTask = Task {
             try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
                 print("Progress reached 1 \(progress.fractionCompleted * 100)%")
-                if progress.fractionCompleted > 0 {
+                if progress.fractionCompleted > 0, !didFulfillFirstProgress {
+                    didFulfillFirstProgress = true
                     progressExpectation.fulfill()
                 }
             }
