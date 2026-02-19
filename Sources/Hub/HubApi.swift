@@ -460,9 +460,15 @@ public extension HubApi {
         }
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
 
-        // Use shared session with redirect handling to avoid creating multiple URLSession instances
+        let response: URLResponse
+        #if canImport(FoundationNetworking)
+        // Linux: let URLSession handle redirects with default behavior.
+        (_, response) = try await URLSession.shared.data(for: request)
+        #else
+        // Apple platforms: use shared session with custom relative-redirect handling.
         let session = await Self.redirectSession.get()
-        let (_, response) = try await session.data(for: request)
+        (_, response) = try await session.data(for: request)
+        #endif
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
