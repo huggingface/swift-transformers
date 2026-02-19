@@ -200,6 +200,7 @@ private extension HubApi {
         return possibleTokens
             .lazy
             .compactMap { $0() }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .first
     }
@@ -1200,6 +1201,7 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
                         // Create new request with the resolved URL
                         if let resolvedUrl = components.url {
                             var newRequest = URLRequest(url: resolvedUrl)
+                            newRequest.httpMethod = task.originalRequest?.httpMethod
                             // Copy headers from original request
                             if let headers = task.originalRequest?.allHTTPHeaderFields {
                                 for (key, value) in headers {
