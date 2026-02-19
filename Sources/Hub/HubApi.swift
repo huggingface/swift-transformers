@@ -139,7 +139,7 @@ public struct HubApi: Sendable {
 
         // Create the underlying HubClient with matching configuration
         let host = URL(string: self.endpoint) ?? HubClient.defaultHost
-        if let token = self.hfToken {
+        if let token = self.hfToken, !token.isEmpty {
             self.client = HubClient(host: host, bearerToken: token)
         } else {
             self.client = HubClient(host: host, tokenProvider: .environment)
@@ -602,6 +602,15 @@ public extension HubApi {
         if useBackgroundSession {
             #if canImport(FoundationNetworking)
             HubApi.logger.warning("Background URLSession is unavailable on this platform; using HubClient download path.")
+            let reporter = ProgressReporter(
+                fileProgress: fileProgress,
+                parentProgress: parentProgress,
+                progressHandler: progressHandler
+            )
+            let progressObservation = downloadProgress.observe(\.fractionCompleted, options: [.new]) { progress, _ in
+                reporter.report(fraction: progress.fractionCompleted)
+            }
+            defer { progressObservation.invalidate() }
             _ = try await client.downloadFile(
                 at: filename,
                 from: repo.repoID,
@@ -628,6 +637,15 @@ public extension HubApi {
             #endif
         } else {
             // Download the file using HubClient
+            let reporter = ProgressReporter(
+                fileProgress: fileProgress,
+                parentProgress: parentProgress,
+                progressHandler: progressHandler
+            )
+            let progressObservation = downloadProgress.observe(\.fractionCompleted, options: [.new]) { progress, _ in
+                reporter.report(fraction: progress.fractionCompleted)
+            }
+            defer { progressObservation.invalidate() }
             _ = try await client.downloadFile(
                 at: filename,
                 from: repo.repoID,
@@ -1238,6 +1256,28 @@ private actor RedirectSessionActor {
         let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
         self.urlSession = session
         return session
+    }
+}
+
+private final class ProgressReporter: @unchecked Sendable {
+    private let fileProgress: Progress
+    private let parentProgress: Progress
+    private let progressHandler: (Progress) -> Void
+
+    init(
+        fileProgress: Progress,
+        parentProgress: Progress,
+        progressHandler: @escaping (Progress) -> Void
+    ) {
+        self.fileProgress = fileProgress
+        self.parentProgress = parentProgress
+        self.progressHandler = progressHandler
+    }
+
+    func report(fraction: Double) {
+        let clampedFraction = min(1.0, max(0.0, fraction))
+        fileProgress.completedUnitCount = Int64(clampedFraction * Double(fileProgress.totalUnitCount))
+        progressHandler(parentProgress)
     }
 }
 

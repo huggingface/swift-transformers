@@ -1,4 +1,5 @@
 #if canImport(CoreML)
+import CoreML
 import Foundation
 import Testing
 

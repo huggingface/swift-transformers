@@ -1062,15 +1062,27 @@ class SnapshotDownloadTests: XCTestCase {
         let url = URL(string: "https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/config.json")!
         let etag = try await Hub.getFileMetadata(fileURL: url).etag!
 
-        // Create incomplete file in HubClient's cache location
-        // This simulates a previous interrupted download
-        let normalizedEtag = etag.replacingOccurrences(of: "\"", with: "")
-        let incompleteDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".cache/huggingface/hub/models--coreml-projects--Llama-2-7b-chat-coreml/.incomplete")
-        let incompleteFile = incompleteDir.appendingPathComponent("\(normalizedEtag).config.json")
+        // This simulates a previous interrupted download.
+        // Use a temporary HF_HOME so we don't write into the real user home directory.
+        let tempHFHome = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempHFHome, withIntermediateDirectories: true, attributes: nil)
+        let previousHFHome = ProcessInfo.processInfo.environment["HF_HOME"]
+        setenv("HF_HOME", tempHFHome.path, 1)
         defer {
-            try? FileManager.default.removeItem(at: incompleteFile)
+            if let previousHFHome {
+                setenv("HF_HOME", previousHFHome, 1)
+            } else {
+                unsetenv("HF_HOME")
+            }
+            try? FileManager.default.removeItem(at: tempHFHome)
         }
+
+        let normalizedEtag = etag.replacingOccurrences(of: "\"", with: "")
+        // HF_HOME is used as the root; within it, the hub cache layout matches the standard one.
+        let incompleteDir =
+            tempHFHome
+            .appendingPathComponent("hub/models--coreml-projects--Llama-2-7b-chat-coreml/.incomplete")
+        let incompleteFile = incompleteDir.appendingPathComponent("\(normalizedEtag).config.json")
 
         try FileManager.default.createDirectory(at: incompleteDir, withIntermediateDirectories: true, attributes: nil)
         try "X".write(to: incompleteFile, atomically: true, encoding: .utf8)
