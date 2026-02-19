@@ -1013,8 +1013,9 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
 }
 
 #if !canImport(Darwin)
-fileprivate extension String {
-    init(localized key: String) {
+// Linux Foundation may not provide String(localized:comment:), so keep call sites portable.
+private extension String {
+    init(localized key: String, comment: String? = nil) {
         self = key
     }
 }
