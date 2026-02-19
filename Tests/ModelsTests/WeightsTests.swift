@@ -1,3 +1,4 @@
+#if canImport(CoreML)
 import Foundation
 import Testing
 
@@ -107,3 +108,4 @@ struct WeightsTests {
         #expect(tensor[[1, 0, 2, 2]] == 19)
     }
 }
+#endif // canImport(CoreML)
