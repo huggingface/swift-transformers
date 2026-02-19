@@ -4,6 +4,9 @@ import Testing
 @testable import Hub
 @testable import Models
 
+#if canImport(CoreML)
+import CoreML
+
 @Suite("Weights Tests")
 struct WeightsTests {
     let downloadDestination: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appending(component: "huggingface-tests")
@@ -107,3 +110,4 @@ struct WeightsTests {
         #expect(tensor[[1, 0, 2, 2]] == 19)
     }
 }
+#endif // canImport(CoreML)
