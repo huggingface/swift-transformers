@@ -1120,6 +1120,10 @@ class SnapshotDownloadTests: XCTestCase {
     }
 
     func testRealDownloadInterruptionAndResumption() async throws {
+        #if canImport(FoundationNetworking)
+        throw XCTSkip("Requires incremental progress callbacks, which are not emitted in the Linux HubClient path.")
+        #endif
+
         // Use the DepthPro model weights file
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
