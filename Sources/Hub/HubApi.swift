@@ -1206,7 +1206,6 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
                                     newRequest.setValue(value, forHTTPHeaderField: key)
                                 }
                             }
-                            newRequest.setValue(resolvedUrl.absoluteString, forHTTPHeaderField: "Location")
                             completionHandler(newRequest)
                             return
                         }
