@@ -136,6 +136,11 @@ public struct HubApi: Sendable {
         } else {
             self.client = HubClient(host: host, tokenProvider: .environment)
         }
+        if useBackgroundSession {
+            HubApi.logger.warning(
+                "useBackgroundSession is currently ignored by HubClient-backed downloads; using the default session."
+            )
+        }
 
         NetworkMonitor.shared.startMonitoring()
     }
@@ -526,6 +531,10 @@ public extension HubApi {
         let metadataDestination = repoMetadataDestination.appending(path: filename + ".metadata")
         let source = sourceURL(for: repo, revision: revision, filename: filename)
         let downloaded = FileManager.default.fileExists(atPath: destination.path)
+        let reportParentProgress = {
+            fileProgress.completedUnitCount = fileProgress.totalUnitCount
+            progressHandler(parentProgress)
+        }
 
         let localMetadata = try readDownloadMetadata(metadataPath: metadataDestination)
         let remoteMetadata = try await getFileMetadata(url: source)
@@ -539,6 +548,7 @@ public extension HubApi {
             localMetadata != nil,
             localCommitHash == remoteCommitHash
         {
+            reportParentProgress()
             return
         }
 
@@ -555,6 +565,7 @@ public extension HubApi {
             // etag matches => update metadata and skip download
             if localMetadata?.etag == remoteEtag {
                 try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                reportParentProgress()
                 return
             }
 
@@ -565,18 +576,24 @@ public extension HubApi {
                 let fileHash = try computeFileHash(file: destination)
                 if fileHash == remoteEtag {
                     try writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    reportParentProgress()
                     return
                 }
             }
         }
 
-        // Create a separate progress for the download (not linked to parent)
-        // to avoid issues with HubClient modifying totalUnitCount
+        // Keep HubClient progress isolated from parent-linked fileProgress to avoid
+        // totalUnitCount mutations affecting snapshot's aggregate progress tree.
         let downloadProgress = Progress()
 
         // If the file exists locally but metadata check failed, force a re-download
         // to skip HubClient's cache (which may have the old/wrong version)
         let forceDownload = downloaded
+
+        try FileManager.default.createDirectory(
+            at: destination.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
 
         // Download the file using HubClient
         _ = try await client.downloadFile(
@@ -593,6 +610,7 @@ public extension HubApi {
         if let throughput = downloadProgress.userInfo[.throughputKey] as? Double {
             parentProgress.setUserInfoObject(throughput, forKey: .throughputKey)
         }
+        fileProgress.completedUnitCount = fileProgress.totalUnitCount
         progressHandler(parentProgress)
 
         // Write metadata for offline mode support

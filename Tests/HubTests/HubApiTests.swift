@@ -1083,11 +1083,18 @@ class SnapshotDownloadTests: XCTestCase {
         // Verify the file was downloaded correctly (either from cache or fresh download)
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
 
-        // The file should contain valid JSON with the expected structure
+        // The file should contain complete config.json content
         let expected = """
+            {
               "architectures": [
                 "LlamaForCausalLM"
               ],
+              "bos_token_id": 1,
+              "eos_token_id": 2,
+              "model_type": "llama",
+              "pad_token_id": 0,
+              "vocab_size": 32000
+            }
             """
         XCTAssertTrue(fileContents.contains(expected), "Downloaded file should contain valid config.json content")
 
