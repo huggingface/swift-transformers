@@ -9,16 +9,20 @@ import Crypto
 import Foundation
 import HuggingFace
 
+#if canImport(os)
+import os
+#endif
+
 #if canImport(Network)
 import Network
 #endif
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking
-#endif
 
-#if canImport(os)
-import os
+extension ProgressUserInfoKey {
+    static let throughputKey = ProgressUserInfoKey(rawValue: "throughput")
+}
 #endif
 
 /// https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2
@@ -582,7 +586,8 @@ public extension HubApi {
 
         // Keep HubClient progress isolated from parent-linked fileProgress to avoid
         // totalUnitCount mutations affecting snapshot's aggregate progress tree.
-        let downloadProgress = Progress()
+        let downloadProgress = Progress(totalUnitCount: 1)
+        let downloadStartTime = Date()
 
         // If the file exists locally but metadata check failed, force a re-download
         // to skip HubClient's cache (which may have the old/wrong version)
@@ -634,9 +639,18 @@ public extension HubApi {
         }
 
         // Update parent progress with throughput info from the download
-        if let throughput = downloadProgress.userInfo[.throughputKey] as? Double {
-            parentProgress.setUserInfoObject(throughput, forKey: .throughputKey)
+        if let throughput = downloadProgress.userInfo[ProgressUserInfoKey.throughputKey] as? Double {
+            parentProgress.setUserInfoObject(throughput, forKey: ProgressUserInfoKey.throughputKey)
+        } else if let expectedSize = remoteMetadata.size, expectedSize > 0 {
+            let elapsed = Date().timeIntervalSince(downloadStartTime)
+            if elapsed > 0 {
+                let fallbackThroughput = Double(expectedSize) / elapsed
+                parentProgress.setUserInfoObject(fallbackThroughput, forKey: ProgressUserInfoKey.throughputKey)
+            }
         }
+
+        // When a file is re-downloaded, ensure the local file timestamp reflects this write.
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: destination.path)
         fileProgress.completedUnitCount = fileProgress.totalUnitCount
         progressHandler(parentProgress)
 
@@ -764,7 +778,7 @@ public extension HubApi {
     /// New overloads exposing speed directly in the snapshot progress handler
     @discardableResult func snapshot(from repo: Repo, revision: String = "main", matching globs: [String] = [], progressHandler: @escaping (Progress, Double?) -> Void) async throws -> URL {
         try await snapshot(from: repo, revision: revision, matching: globs) { progress in
-            let speed = progress.userInfo[.throughputKey] as? Double
+            let speed = progress.userInfo[ProgressUserInfoKey.throughputKey] as? Double
             progressHandler(progress, speed)
         }
     }
@@ -1294,7 +1308,7 @@ private final class BackgroundDownloadDelegate: NSObject, URLSessionDownloadDele
         if elapsed > 0 {
             let deltaBytes = totalBytesWritten - lastSampleBytes
             let throughput = Double(deltaBytes) / elapsed
-            parentProgress.setUserInfoObject(throughput, forKey: .throughputKey)
+            parentProgress.setUserInfoObject(throughput, forKey: ProgressUserInfoKey.throughputKey)
             lastSampleTime = now
             lastSampleBytes = totalBytesWritten
         }
