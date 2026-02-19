@@ -1049,11 +1049,12 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(fileContents.contains(expected))
     }
 
-    func testResumeDownloadFromNonEmptyIncomplete() async throws {
+    func testDownloadWithStaleNonEmptyIncompleteFile() async throws {
         // This test verifies that the download completes successfully even when
-        // there's a stale incomplete file from a previous download attempt.
-        // Note: With HubClient, small files may be served from cache rather than
-        // using the incomplete file for resume.
+        // there's a stale non-empty .incomplete file from a previous download attempt.
+        // Note: With HubClient, small files may be served from cache, so this test
+        // only guarantees that the final downloaded file is correct, not that the
+        // resume-from-incomplete code path was exercised.
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
 
@@ -1067,6 +1068,9 @@ class SnapshotDownloadTests: XCTestCase {
         let incompleteDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".cache/huggingface/hub/models--coreml-projects--Llama-2-7b-chat-coreml/.incomplete")
         let incompleteFile = incompleteDir.appendingPathComponent("\(normalizedEtag).config.json")
+        defer {
+            try? FileManager.default.removeItem(at: incompleteFile)
+        }
 
         try FileManager.default.createDirectory(at: incompleteDir, withIntermediateDirectories: true, attributes: nil)
         try "X".write(to: incompleteFile, atomically: true, encoding: .utf8)
