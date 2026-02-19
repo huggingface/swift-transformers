@@ -8,7 +8,10 @@
 import Crypto
 import Foundation
 import HuggingFace
+
+#if canImport(Network)
 import Network
+#endif
 
 #if canImport(os)
 import os
