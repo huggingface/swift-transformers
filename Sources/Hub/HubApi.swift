@@ -675,7 +675,10 @@ public extension HubApi {
             parentProgress: parentProgress,
             progressHandler: progressHandler
         )
-        let sessionIdentifier = "swift-transformers.hub.background.\(destination.path.hashValue)"
+        let pathData = Data(destination.standardized.path.utf8)
+        let digest = SHA256.hash(data: pathData)
+        let hexDigest = digest.map { String(format: "%02x", $0) }.joined()
+        let sessionIdentifier = "swift-transformers.hub.background.\(hexDigest)"
         let config = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
         config.isDiscretionary = false
         config.sessionSendsLaunchEvents = true
