@@ -348,9 +348,8 @@ struct ConfigTests {
     @Test("Unicode keys remain distinct (\"à\" vs \"à\")")
     func unicodeKeysAreDistinct() throws {
         let json = "{\"vocab\": {\"à\": 1, \"à\": 2}}"
-        let data = json.data(using: .utf8)
-        let dict = try JSONSerialization.jsonObject(with: data!, options: []) as! [NSString: Any]
-        let config = Config(dict)
+        let data = try #require(json.data(using: .utf8))
+        let config = try YYJSONParser.parseToConfig(data)
         let vocab = config["vocab"].dictionary(or: [:])
         #expect(vocab.count == 2)
     }
