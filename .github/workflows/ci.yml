@@ -43,8 +43,10 @@ jobs:
               env:
                   CI_DISABLE_NETWORK_MONITOR: "1"
                   HF_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
-              run: swift test
-
+              # Skip test targets that use URLSession on Linux due to a
+              # FoundationNetworking race condition that crashes during teardown.
+              # See: https://github.com/swiftlang/swift-corelibs-foundation/issues/3675
+              run: swift test --skip HubTests --skip TokenizersTests
     lint:
         name: Lint
         runs-on: macos-latest
