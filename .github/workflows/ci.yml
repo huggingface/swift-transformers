@@ -1,18 +1,22 @@
 name: CI
 
 on:
-    # This runs in the context of the base of the pull request,
-    # rather than in the context of the merge commit.
-    # Maintainers must approve and we tighten permissions below.
-    pull_request_target:
+    pull_request:
         types: [opened, synchronize, reopened]
+    push:
+        branches: [main]
+    workflow_dispatch:
 
 permissions:
     contents: read
 
 jobs:
     test:
-        name: Test
+        name: Test (macOS)
+        # The reusable workflow consumes secrets,
+        # which are not available to fork PRs.
+        # Limit this job to trusted, same-repo PRs.
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
         with:
             # Use the PR merge ref, not the head.
@@ -42,11 +46,11 @@ jobs:
             - name: Run tests
               env:
                   CI_DISABLE_NETWORK_MONITOR: "1"
-                  HF_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
               # Skip test targets that use URLSession on Linux due to a
               # FoundationNetworking race condition that crashes during teardown.
               # See: https://github.com/swiftlang/swift-corelibs-foundation/issues/3675
-              run: swift test --skip HubTests --skip TokenizersTests
+              run: |
+                  swift test --skip HubTests --skip TokenizersTests
     lint:
         name: Lint
         runs-on: macos-latest
