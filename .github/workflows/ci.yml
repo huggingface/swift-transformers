@@ -13,10 +13,9 @@ permissions:
 jobs:
     test:
         name: Test (macOS)
-        # The reusable workflow consumes secrets,
-        # which are not available to fork PRs.
-        # Limit this job to trusted, same-repo PRs.
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        # Skip fork PRs — they can't access the secrets this reusable workflow needs.
+        # Runs on push, workflow_dispatch, and same-repo PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
         with:
             # Use the PR merge ref, not the head.
