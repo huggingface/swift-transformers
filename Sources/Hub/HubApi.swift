@@ -194,7 +194,7 @@ private extension HubApi {
         return HubClient(host: host, bearerToken: bearerToken, cache: cache)
         #else
         if useBackgroundSession {
-            let identifier = "swift-transformers.hub.hubclient"
+            let identifier = "swift-transformers.hub.hubclient.\(UUID().uuidString.lowercased())"
             let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
             configuration.isDiscretionary = false
             configuration.sessionSendsLaunchEvents = true
