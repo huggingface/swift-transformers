@@ -343,6 +343,19 @@ private final class DownloadProgressBridge: @unchecked Sendable {
         stop()
     }
 
+    func emitCompletionIfFinished() {
+        lock.lock()
+        let isFinished = progress.fractionCompleted >= 1
+        if isFinished {
+            hasCompleted = true
+        }
+        lock.unlock()
+
+        if isFinished {
+            emitIfNeeded(force: true)
+        }
+    }
+
     func stop() {
         #if canImport(FoundationNetworking)
         pollTask?.cancel()
@@ -820,6 +833,7 @@ public extension HubApi {
                 try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                 progressBridge.complete()
             } onCancel: {
+                progressBridge.emitCompletionIfFinished()
                 progressBridge.stop()
             }
 
