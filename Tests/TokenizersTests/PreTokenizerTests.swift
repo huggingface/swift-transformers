@@ -252,6 +252,170 @@ struct PreTokenizerTests {
         )
     }
 
+    @Test("Metaspace prepend_scheme 'always' without add_prefix_space (XLM-RoBERTa case)")
+    func metaspacePrependSchemeAlwaysWithoutAddPrefixSpace() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "always",
+            ]))
+
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["▁Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["▁Hello", "▁world"]
+        )
+        // Already starts with replacement — no double prepend
+        #expect(
+            preTokenizer.preTokenize(text: "▁Hello") == ["▁Hello"]
+        )
+    }
+
+    @Test("Metaspace prepend_scheme 'first' only prepends on first section")
+    func metaspacePrependSchemeFirst() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "first",
+            ]))
+
+        // First section (default options include .firstSection)
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["▁Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["▁Hello", "▁world"]
+        )
+
+        // Non-first section (empty options)
+        #expect(
+            preTokenizer.preTokenize(text: "Hello", options: []) == ["Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world", options: []) == ["Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace prepend_scheme 'never' never prepends")
+    func metaspacePrependSchemeNever() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "never",
+            ]))
+
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace legacy add_prefix_space without prepend_scheme")
+    func metaspaceLegacyAddPrefixSpace() {
+        // add_prefix_space: true, no prepend_scheme → behaves like "always"
+        let alwaysTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "add_prefix_space": true,
+            ]))
+
+        #expect(
+            alwaysTokenizer.preTokenize(text: "Hello") == ["▁Hello"]
+        )
+        #expect(
+            alwaysTokenizer.preTokenize(text: "Hello world") == ["▁Hello", "▁world"]
+        )
+
+        // add_prefix_space: false, no prepend_scheme → behaves like "never"
+        let neverTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "add_prefix_space": false,
+            ]))
+
+        #expect(
+            neverTokenizer.preTokenize(text: "Hello") == ["Hello"]
+        )
+        #expect(
+            neverTokenizer.preTokenize(text: "Hello world") == ["Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace default config (no add_prefix_space, no prepend_scheme) defaults to always")
+    func metaspaceDefaultConfig() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁"
+            ]))
+
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["▁Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["▁Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace prepend_scheme supersedes add_prefix_space")
+    func metaspacePrependSchemeSupersedesAddPrefixSpace() {
+        // prepend_scheme: "always" wins even when add_prefix_space is false
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "add_prefix_space": false,
+                "prepend_scheme": "always",
+            ]))
+
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["▁Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["▁Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace prepend_scheme 'never' supersedes add_prefix_space true")
+    func metaspacePrependSchemeNeverSupersedesAddPrefixSpace() {
+        // prepend_scheme: "never" wins even when add_prefix_space is true
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "add_prefix_space": true,
+                "prepend_scheme": "never",
+            ]))
+
+        #expect(
+            preTokenizer.preTokenize(text: "Hello") == ["Hello"]
+        )
+        #expect(
+            preTokenizer.preTokenize(text: "Hello world") == ["Hello", "▁world"]
+        )
+    }
+
+    @Test("Metaspace handles empty string input")
+    func metaspaceEmptyString() {
+        let always = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "always",
+            ]))
+        #expect(
+            always.preTokenize(text: "") == ["▁"]
+        )
+
+        let never = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "never",
+            ]))
+        #expect(
+            never.preTokenize(text: "") == []
+        )
+    }
+
     @Test("BERT pre-tokenizer performs basic splitting")
     func bertPreTokenizer() {
         let preTokenizer1 = BertPreTokenizer(config: Config([String: Config]()))

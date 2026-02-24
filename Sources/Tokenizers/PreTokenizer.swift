@@ -181,7 +181,16 @@ class MetaspacePreTokenizer: PreTokenizer {
         addPrefixSpace = config.addPrefixSpace.boolean(or: false)
         replacement = config.replacement.string(or: " ")
         stringReplacement = config.strRep.string(or: replacement)
-        prependScheme = PrependScheme.from(rawValue: config.prependScheme.string())
+
+        // prepend_scheme supersedes add_prefix_space per tokenizers PR #1357.
+        // When prepend_scheme is explicit, use it directly.
+        // Otherwise, derive from add_prefix_space for backward compatibility
+        // (defaulting to .always when both are absent, matching canonical behavior).
+        if let schemeStr = config.prependScheme.string() {
+            prependScheme = PrependScheme(rawValue: schemeStr) ?? .always
+        } else {
+            prependScheme = config.addPrefixSpace.boolean(or: true) ? .always : .never
+        }
     }
 
     /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
@@ -189,21 +198,19 @@ class MetaspacePreTokenizer: PreTokenizer {
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
         let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
 
-        // We add a prefix space if:
-        //  (1) The addPrefixSpace option is enabled and the normalized
-        //      token does not already start with the replacement character.
-        //  and (2) either:
-        //  (a) prependScheme is 'always'
-        //  (b) prependScheme is 'first' and this is the first section
-        // FIXME: (2b) always prepends, we are not passing section info
-
+        // Prepend the replacement character based on the prepend scheme.
+        // prepend_scheme is the sole authority (add_prefix_space is resolved in init).
         var prepend = ""
-        if addPrefixSpace, !normalized.hasPrefix(replacement) {
-            if prependScheme == .always {
+        if !normalized.hasPrefix(replacement) {
+            switch prependScheme {
+            case .always:
                 prepend = stringReplacement
-            }
-            if prependScheme == .first, options.contains(.firstSection) {
-                prepend = stringReplacement
+            case .first:
+                if options.contains(.firstSection) {
+                    prepend = stringReplacement
+                }
+            case .never:
+                break
             }
         }
 
