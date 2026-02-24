@@ -1074,6 +1074,7 @@ class SnapshotDownloadTests: XCTestCase {
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
 
+        XCTAssertFalse(fileContents.hasPrefix("X"), "Downloaded config.json should not keep incomplete-file prefix content")
         XCTAssertTrue(fileContents.contains("\"model_type\": \"llama\""))
     }
 
@@ -1129,6 +1130,7 @@ class SnapshotDownloadTests: XCTestCase {
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
         let hubApi = HubApi(downloadBase: downloadDestination)
+        var sawNonNilSpeed = false
 
         // Add debug prints
         print("Download destination before: \(downloadDestination.path)")
@@ -1136,6 +1138,7 @@ class SnapshotDownloadTests: XCTestCase {
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
             if let speed {
                 print("Current speed: \(speed)")
+                sawNonNilSpeed = true
             }
             _ = progress
         }
@@ -1154,6 +1157,7 @@ class SnapshotDownloadTests: XCTestCase {
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
+        XCTAssertTrue(sawNonNilSpeed, "Expected at least one non-nil speed sample during download")
     }
 
     func testDownloadWithRevision() async throws {

@@ -100,6 +100,16 @@ public struct HubApi: Sendable {
     /// exhaustion when many instances are created. Persists for process lifetime.
     private static let redirectSession: RedirectSessionActor = .init()
     private static let hubRepoIdCache: HubRepoIDCacheActor = .init()
+    #if !canImport(FoundationNetworking)
+    private static let backgroundHubSession: URLSession = {
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "swift-transformers"
+        let identifier = "\(bundleIdentifier).hub.hubclient.background"
+        let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
+        configuration.isDiscretionary = false
+        configuration.sessionSendsLaunchEvents = true
+        return URLSession(configuration: configuration)
+    }()
+    #endif
 
     /// Initializes a new Hub API client.
     ///
@@ -194,12 +204,7 @@ private extension HubApi {
         return HubClient(host: host, bearerToken: bearerToken, cache: cache)
         #else
         if useBackgroundSession {
-            let identifier = "swift-transformers.hub.hubclient.\(UUID().uuidString.lowercased())"
-            let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
-            configuration.isDiscretionary = false
-            configuration.sessionSendsLaunchEvents = true
-            let session = URLSession(configuration: configuration)
-            return HubClient(session: session, host: host, bearerToken: bearerToken, cache: cache)
+            return HubClient(session: Self.backgroundHubSession, host: host, bearerToken: bearerToken, cache: cache)
         }
         return HubClient(host: host, bearerToken: bearerToken, cache: cache)
         #endif
@@ -334,11 +339,13 @@ private final class DownloadProgressBridge: @unchecked Sendable {
     }
 
     func complete() {
+        lock.lock()
         if progress.totalUnitCount <= 0 {
             progress.totalUnitCount = 1
         }
         progress.completedUnitCount = progress.totalUnitCount
         hasCompleted = true
+        lock.unlock()
         emitIfNeeded(force: true)
         stop()
     }
@@ -749,9 +756,6 @@ public extension HubApi {
         func prepareCacheDestination(_ incompleteDestination: URL) throws {
             let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-            if !FileManager.default.fileExists(atPath: incompleteDestination.path) {
-                try "".write(to: incompleteDestination, atomically: true, encoding: .utf8)
-            }
         }
 
         /// Downloads the file with progress tracking.
