@@ -828,7 +828,7 @@ public extension HubApi {
                 _ = try await client.downloadFile(
                     at: relativeFilename,
                     from: hubRepoID,
-                    to: destination,
+                    to: repoDestination,
                     kind: repo.type.hubClientKind,
                     revision: revision,
                     progress: downloadProgress
