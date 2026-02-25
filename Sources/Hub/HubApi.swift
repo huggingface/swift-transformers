@@ -343,9 +343,9 @@ private final class DownloadProgressBridge: @unchecked Sendable {
         if progress.totalUnitCount <= 0 {
             progress.totalUnitCount = 1
         }
-        progress.completedUnitCount = progress.totalUnitCount
         hasCompleted = true
         lock.unlock()
+        progress.completedUnitCount = progress.totalUnitCount
         emitIfNeeded(force: true)
         stop()
     }
