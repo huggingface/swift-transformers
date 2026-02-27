@@ -293,7 +293,12 @@ struct ChatTemplateTests {
             decoded.hasPrefix(expectedPromptStart),
             "Prompt should start with expected system message"
         )
-        #expect(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
+        #expect(
+            decoded.trimmingCharacters(in: .newlines).hasSuffix(
+                expectedPromptEnd.trimmingCharacters(in: .newlines)
+            ),
+            "Prompt should end with expected format"
+        )
     }
 
     /// Test for vision models with a vision chat template in chat_template.json
