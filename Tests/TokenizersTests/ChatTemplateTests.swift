@@ -163,6 +163,33 @@ struct ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
+    /// https://github.com/huggingface/swift-transformers/issues/322
+    @Test("Jinja block whitespace control")
+    func jinjaBlockWhitespaceControl() async throws {
+        let tokenizer = try await Self.sharedPhiTokenizer()
+        let whitespaceSensitiveTemplate = """
+            {% for message in messages %}
+                {% if message['role'] == 'user' %}
+            {{ message['content'] }}
+                {% endif %}
+            {% endfor %}
+            {% if add_generation_prompt %}
+            assistant
+            {% endif %}
+            """
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: whitespaceSensitiveTemplate
+        )
+        let decoded = tokenizer.decode(tokens: encoded)
+        let expected = """
+            Describe the Swift programming language.
+            assistant
+            """
+        #expect(decoded == expected)
+        #expect(!decoded.hasPrefix("\n"))
+        #expect(!decoded.contains("\n\n"))
+    }
+
     @Test("Qwen 2.5 with tools functionality")
     func qwen2_5WithTools() async throws {
         let tokenizer = try await AutoTokenizer.from(
