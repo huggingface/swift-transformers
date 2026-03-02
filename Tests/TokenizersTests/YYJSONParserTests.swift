@@ -78,4 +78,15 @@ struct YYJSONParserTests {
             try YYJSONParser.parseToConfig(invalidJSON)
         }
     }
+
+    @Test
+    func parsesInfinityAndNaN() throws {
+        // YYJSON_READ_ALLOW_INF_AND_NAN enables Infinity, -Infinity, and NaN
+        let json = #"{"limit": [0, Infinity], "neg": -Infinity, "nan_val": NaN}"#
+        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
+        let limit = config["limit"].array()
+        #expect(limit?[1].floating() == Float.infinity)
+        #expect(config["neg"].floating() == -Float.infinity)
+        #expect(config["nan_val"].floating()?.isNaN == true)
+    }
 }

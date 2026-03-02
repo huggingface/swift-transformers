@@ -102,4 +102,22 @@ class HubTests: XCTestCase {
             XCTFail("Cannot download test configuration from the Hub: \(error)")
         }
     }
+
+    func testNemotronInfinity() async throws {
+        do {
+            let configLoader = LanguageModelConfigurationFromHub(modelName: "mlx-community/NVIDIA-Nemotron-3-Nano-30B-A3B-4bit", hubApi: hubApi)
+            guard let config = try await configLoader.modelConfig else {
+                XCTFail("Test repo is expected to have a config.json file")
+                return
+            }
+
+            guard let timeStepLimit = config["timeStepLimit"].array() else {
+                XCTFail("timeStepLimit could not be read")
+                return
+            }
+            XCTAssertEqual(timeStepLimit[1].floating(), Float.infinity)
+        } catch {
+            XCTFail("Cannot download test configuration from the Hub: \(error)")
+        }
+    }
 }
