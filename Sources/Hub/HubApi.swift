@@ -456,8 +456,9 @@ public extension HubApi {
 
     /// Performs an HTTP HEAD request to retrieve metadata without downloading content.
     ///
-    /// Uses a shared URLSession with custom redirect handling that only allows relative redirects
-    /// and blocks absolute redirects (important for LFS file security).
+    /// Uses platform-specific redirect handling:
+    /// - Apple platforms: custom session that only allows relative redirects and blocks absolute redirects.
+    /// - Linux: default URLSession redirect handling.
     ///
     /// - Parameter url: The URL to request
     /// - Returns: The HTTP response containing headers and status code
