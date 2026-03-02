@@ -80,24 +80,13 @@ struct YYJSONParserTests {
     }
 
     @Test
-    func parsesJSON5Features() throws {
-        // Infinity and NaN (the primary motivation for enabling JSON5)
-        let jsonInfinity = #"{"limit": [0, Infinity], "neg": -Infinity, "nan_val": NaN}"#
-        let config = try YYJSONParser.parseToConfig(Data(jsonInfinity.utf8))
+    func parsesInfinityAndNaN() throws {
+        // YYJSON_READ_ALLOW_INF_AND_NAN enables Infinity, -Infinity, and NaN
+        let json = #"{"limit": [0, Infinity], "neg": -Infinity, "nan_val": NaN}"#
+        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
         let limit = config["limit"].array()
         #expect(limit?[1].floating() == Float.infinity)
         #expect(config["neg"].floating() == -Float.infinity)
         #expect(config["nan_val"].floating()?.isNaN == true)
-
-        // Trailing commas in object and array
-        let jsonTrailing = #"{"a": 1, "b": [1, 2,],}"#
-        let config2 = try YYJSONParser.parseToConfig(Data(jsonTrailing.utf8))
-        #expect(config2["a"].integer() == 1)
-        #expect(config2["b"].array()?.count == 2)
-
-        // Single-line comments
-        let jsonComment = "{\"a\": 1 // comment\n}"
-        let config3 = try YYJSONParser.parseToConfig(Data(jsonComment.utf8))
-        #expect(config3["a"].integer() == 1)
     }
 }
