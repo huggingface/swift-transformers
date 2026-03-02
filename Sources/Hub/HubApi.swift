@@ -256,7 +256,11 @@ private extension HubApi {
                 return cached
             }
 
-            let url = URL(string: endpoint)!
+            guard let baseURL = URL(string: endpoint) else {
+                throw URLError(.badURL)
+            }
+            let url =
+                baseURL
                 .appending(path: "api")
                 .appending(path: "models")
                 .appending(path: repo.id)
@@ -497,7 +501,11 @@ public extension HubApi {
     /// - Throws: HubClientError if the repository cannot be accessed or parsed
     func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: "api")
             .appending(path: repo.type.rawValue)
             .appending(path: repo.id)
@@ -580,7 +588,11 @@ public extension HubApi {
     func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
 
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: "api")
             .appending(path: "whoami-v2")
         let (data, _) = try await httpGet(for: url)
@@ -1064,7 +1076,11 @@ public extension HubApi {
 
     func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         let files = try await getFilenames(from: repo, matching: globs)
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: repo.id)
             .appending(path: "resolve")
             .appending(component: revision) // Encode slashes (e.g., "pr/1" -> "pr%2F1")
