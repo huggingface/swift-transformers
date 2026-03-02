@@ -761,7 +761,7 @@ public extension HubApi {
         /// Downloads the file with progress tracking.
         /// - Parameter progressHandler: Called with download progress (0.0-1.0) and speed in bytes/sec, if available.
         /// - Returns: Local file URL (uses cached file if commit hash matches).
-        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Hub.HubClientError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
+        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Downloader.DownloadError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
@@ -820,22 +820,26 @@ public extension HubApi {
             defer { progressBridge.stop() }
 
             try await withTaskCancellationHandler {
-                let client = hub.makeHubClient(
-                    useBackgroundSession: backgroundSession,
-                    enableCache: !forceDownload
-                )
-                let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
-                _ = try await client.downloadFile(
-                    at: relativeFilename,
-                    from: hubRepoID,
-                    to: repoDestination,
-                    kind: repo.type.hubClientKind,
-                    revision: revision,
-                    progress: downloadProgress
-                )
+                do {
+                    let client = hub.makeHubClient(
+                        useBackgroundSession: backgroundSession,
+                        enableCache: !forceDownload
+                    )
+                    let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
+                    _ = try await client.downloadFile(
+                        at: relativeFilename,
+                        from: hubRepoID,
+                        to: repoDestination,
+                        kind: repo.type.hubClientKind,
+                        revision: revision,
+                        progress: downloadProgress
+                    )
 
-                try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
-                progressBridge.complete()
+                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    progressBridge.complete()
+                } catch is Hub.HubClientError {
+                    throw Downloader.DownloadError.unexpectedError
+                }
             } onCancel: {
                 progressBridge.emitCompletionIfFinished()
                 progressBridge.stop()
