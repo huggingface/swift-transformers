@@ -271,20 +271,6 @@ private extension HubApi {
         // Keep historical behavior for non-qualified IDs when canonicalization fails.
         return HuggingFace.Repo.ID(namespace: "", name: repo.id)
     }
-
-    func makeHubClient(useBackgroundSession: Bool, enableCache: Bool = true) -> HubClient {
-        #if canImport(FoundationNetworking)
-        return enableCache ? foregroundCachedClient : foregroundUncachedClient
-        #else
-        if useBackgroundSession, enableCache {
-            return backgroundCachedClient
-        }
-        if useBackgroundSession, !enableCache {
-            return backgroundUncachedClient
-        }
-        return enableCache ? foregroundCachedClient : foregroundUncachedClient
-        #endif
-    }
 }
 
 private extension Hub.RepoType {
@@ -821,10 +807,19 @@ public extension HubApi {
 
             try await withTaskCancellationHandler {
                 do {
-                    let client = hub.makeHubClient(
-                        useBackgroundSession: backgroundSession,
-                        enableCache: !forceDownload
-                    )
+                    let client: HubClient
+                    #if canImport(FoundationNetworking)
+                    client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
+                    #else
+                    if backgroundSession, !forceDownload {
+                        client = hub.backgroundCachedClient
+                    } else if backgroundSession {
+                        client = hub.backgroundUncachedClient
+                    } else {
+                        client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
+                    }
+                    #endif
+
                     let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
                     _ = try await client.downloadFile(
                         at: relativeFilename,
