@@ -47,7 +47,7 @@ enum YYJSONParser {
             }
 
             var err = yyjson_read_err()
-            let flags: yyjson_read_flag = YYJSON_READ_JSON5
+            let flags: yyjson_read_flag = YYJSON_READ_ALLOW_INF_AND_NAN
             let doc = yyjson_read_opts(
                 UnsafeMutableRawPointer(mutating: baseAddress).assumingMemoryBound(to: CChar.self),
                 buffer.count,
