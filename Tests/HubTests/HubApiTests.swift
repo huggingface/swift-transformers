@@ -1130,7 +1130,8 @@ class SnapshotDownloadTests: XCTestCase {
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
         let hubApi = HubApi(downloadBase: downloadDestination)
-        var sawNonNilSpeed = false
+        let speedExpectation = expectation(description: "At least one non-nil speed sample")
+        speedExpectation.assertForOverFulfill = false
 
         // Add debug prints
         print("Download destination before: \(downloadDestination.path)")
@@ -1138,7 +1139,7 @@ class SnapshotDownloadTests: XCTestCase {
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
             if let speed {
                 print("Current speed: \(speed)")
-                sawNonNilSpeed = true
+                speedExpectation.fulfill()
             }
             _ = progress
         }
@@ -1157,7 +1158,7 @@ class SnapshotDownloadTests: XCTestCase {
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
-        XCTAssertTrue(sawNonNilSpeed, "Expected at least one non-nil speed sample during download")
+        await fulfillment(of: [speedExpectation], timeout: 1.0)
     }
 
     func testDownloadWithRevision() async throws {
