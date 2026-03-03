@@ -408,9 +408,16 @@ extension Downloader: URLSessionDownloadDelegate {
     }
 
     func urlSession(_: URLSession, downloadTask _: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        let fileManager = FileManager.default
+
+        // Persist to a safe temporary path before leaving this delegate callback
+        let tempDir = fileManager.temporaryDirectory
+        let safeTempURL = tempDir.appendingPathComponent(UUID().uuidString + "_" + location.lastPathComponent)
+
         do {
+            try fileManager.copyItem(at: location, to: safeTempURL)
             // If the downloaded file already exists on the filesystem, overwrite it
-            try FileManager.default.moveDownloadedFile(from: location, to: destination)
+            try fileManager.moveDownloadedFile(from: safeTempURL, to: destination)
             Task {
                 await self.broadcaster.broadcast(state: .completed(destination))
             }
