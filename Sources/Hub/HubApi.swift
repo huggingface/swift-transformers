@@ -866,26 +866,23 @@ public extension HubApi {
                     progressBridge.complete()
                 } catch let error as Hub.HubClientError {
                     let context = "\(repo.id)@\(revision)/\(relativeFilename) (\(source.absoluteString) -> \(destination.path))"
+                    let missingPath = "\(repo.id)@\(revision)/\(relativeFilename)"
                     switch error {
-                    case let .networkError(urlError):
-                        throw Hub.HubClientError.networkError(urlError)
                     case let .httpStatusCode(statusCode):
                         switch statusCode {
                         case 401, 403:
                             throw Hub.HubClientError.authorizationRequired
                         case 404:
-                            throw Hub.HubClientError.fileNotFound(relativeFilename)
+                            throw Hub.HubClientError.fileNotFound(missingPath)
                         case 429:
                             throw Hub.HubClientError.downloadError("Rate limited while downloading \(context)")
                         default:
-                            throw Hub.HubClientError.httpStatusCode(statusCode)
+                            throw error
                         }
-                    case .authorizationRequired:
-                        throw Hub.HubClientError.authorizationRequired
                     case .fileNotFound:
-                        throw Hub.HubClientError.fileNotFound(relativeFilename)
+                        throw Hub.HubClientError.fileNotFound(missingPath)
                     default:
-                        throw Hub.HubClientError.downloadError("Download failed for \(context): \(error.localizedDescription)")
+                        throw error
                     }
                 }
             } onCancel: {
