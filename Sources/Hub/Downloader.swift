@@ -398,8 +398,12 @@ final class Downloader: NSObject, Sendable {
 
 extension Downloader: URLSessionDownloadDelegate {
     func urlSession(_: URLSession, downloadTask: URLSessionDownloadTask, didWriteData _: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        let progress =
+            totalBytesExpectedToWrite > 0
+            ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+            : 0
         Task {
-            await self.broadcaster.broadcast(state: .downloading(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite), nil))
+            await self.broadcaster.broadcast(state: .downloading(progress, nil))
         }
     }
 
