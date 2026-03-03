@@ -163,6 +163,33 @@ struct ChatTemplateTests {
         #expect(decoded == decodedTarget)
     }
 
+    /// https://github.com/huggingface/swift-transformers/issues/322
+    @Test("Jinja block whitespace control")
+    func jinjaBlockWhitespaceControl() async throws {
+        let tokenizer = try await Self.sharedPhiTokenizer()
+        let whitespaceSensitiveTemplate = """
+            {% for message in messages %}
+                {% if message['role'] == 'user' %}
+            {{ message['content'] }}
+                {% endif %}
+            {% endfor %}
+            {% if add_generation_prompt %}
+            assistant
+            {% endif %}
+            """
+        let encoded = try tokenizer.applyChatTemplate(
+            messages: messages, chatTemplate: whitespaceSensitiveTemplate
+        )
+        let decoded = tokenizer.decode(tokens: encoded)
+        let expected = """
+            Describe the Swift programming language.
+            assistant
+            """
+        #expect(decoded == expected)
+        #expect(!decoded.hasPrefix("\n"))
+        #expect(!decoded.contains("\n\n"))
+    }
+
     @Test("Qwen 2.5 with tools functionality")
     func qwen2_5WithTools() async throws {
         let tokenizer = try await AutoTokenizer.from(
@@ -266,7 +293,12 @@ struct ChatTemplateTests {
             decoded.hasPrefix(expectedPromptStart),
             "Prompt should start with expected system message"
         )
-        #expect(decoded.hasSuffix(expectedPromptEnd), "Prompt should end with expected format")
+        #expect(
+            decoded.trimmingCharacters(in: .newlines).hasSuffix(
+                expectedPromptEnd.trimmingCharacters(in: .newlines)
+            ),
+            "Prompt should end with expected format"
+        )
     }
 
     /// Test for vision models with a vision chat template in chat_template.json
