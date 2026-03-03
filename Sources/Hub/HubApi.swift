@@ -760,7 +760,7 @@ public extension HubApi {
         /// Downloads the file with progress tracking.
         /// - Parameter progressHandler: Called with download progress (0.0-1.0) and speed in bytes/sec, if available.
         /// - Returns: Local file URL (uses cached file if commit hash matches).
-        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Downloader.DownloadError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
+        /// - Throws: ``EnvironmentError`` errors for file and metadata validation failures, ``Hub.HubClientError`` errors during transfer, or ``CancellationError`` if the task is cancelled.
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
@@ -845,8 +845,29 @@ public extension HubApi {
 
                     try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
                     progressBridge.complete()
-                } catch is Hub.HubClientError {
-                    throw Downloader.DownloadError.unexpectedError
+                } catch let error as Hub.HubClientError {
+                    let context = "\(repo.id)@\(revision)/\(relativeFilename) (\(source.absoluteString) -> \(destination.path))"
+                    switch error {
+                    case let .networkError(urlError):
+                        throw Hub.HubClientError.networkError(urlError)
+                    case let .httpStatusCode(statusCode):
+                        switch statusCode {
+                        case 401, 403:
+                            throw Hub.HubClientError.authorizationRequired
+                        case 404:
+                            throw Hub.HubClientError.fileNotFound(relativeFilename)
+                        case 429:
+                            throw Hub.HubClientError.downloadError("Rate limited while downloading \(context)")
+                        default:
+                            throw Hub.HubClientError.httpStatusCode(statusCode)
+                        }
+                    case .authorizationRequired:
+                        throw Hub.HubClientError.authorizationRequired
+                    case .fileNotFound:
+                        throw Hub.HubClientError.fileNotFound(relativeFilename)
+                    default:
+                        throw Hub.HubClientError.downloadError("Download failed for \(context): \(error.localizedDescription)")
+                    }
                 }
             } onCancel: {
                 progressBridge.emitCompletionIfFinished()
