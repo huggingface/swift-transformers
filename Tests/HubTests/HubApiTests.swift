@@ -11,6 +11,18 @@ import XCTest
 class HubApiTests: XCTestCase {
     // TODO: use a specific revision for these tests
 
+    func testInvalidEndpointFallsBackToDefaultHost() {
+        let hubApi = HubApi(endpoint: "://invalid-endpoint")
+        let url = URL(string: hubApi.endpoint)
+        XCTAssertEqual(url?.scheme, "https")
+        XCTAssertEqual(url?.host, "huggingface.co")
+    }
+
+    func testExplicitEndpointOverrideIsUsed() {
+        let hubApi = HubApi(endpoint: "https://hf-mirror.com")
+        XCTAssertEqual(hubApi.endpoint, "https://hf-mirror.com")
+    }
+
     /// Test that revision values containing slashes (like "pr/1") are properly URL encoded.
     /// The Hub API requires "pr/1" to be encoded as "pr%2F1" - otherwise it returns 404.
     func testGetFilenamesWithPRRevision() async throws {
