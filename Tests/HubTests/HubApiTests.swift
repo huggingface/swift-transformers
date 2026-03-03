@@ -662,7 +662,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(metadataString.contains(expected))
     }
 
-    func testRegexValidation() async throws {
+    func testHexHashValidation() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
@@ -692,11 +692,14 @@ class SnapshotDownloadTests: XCTestCase {
         let commitHash = metadataArr[0]
         let etag = metadataArr[1]
 
-        XCTAssertTrue(hubApi.isValidHash(hash: commitHash, pattern: hubApi.commitHashPattern))
-        XCTAssertTrue(hubApi.isValidHash(hash: etag, pattern: hubApi.sha256Pattern))
+        XCTAssertTrue(hubApi.isValidCommitHash(commitHash))
+        XCTAssertTrue(hubApi.isValidSHA256(etag))
 
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(commitHash)a", pattern: hubApi.commitHashPattern))
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(etag)a", pattern: hubApi.sha256Pattern))
+        XCTAssertFalse(hubApi.isValidCommitHash("\(commitHash)a"))
+        XCTAssertFalse(hubApi.isValidSHA256("\(etag)a"))
+        XCTAssertFalse(hubApi.isValidCommitHash(commitHash.uppercased()))
+        XCTAssertFalse(hubApi.isValidSHA256(etag.uppercased()))
+        XCTAssertFalse(hubApi.isValidSHA256("g" + etag.dropFirst()))
     }
 
     func testLFSFileNoMetadata() async throws {

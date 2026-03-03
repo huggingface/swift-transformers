@@ -186,9 +186,6 @@ public struct HubApi: Sendable {
         NetworkMonitor.shared.startMonitoring()
     }
 
-    let sha256Pattern = "^[0-9a-f]{64}$"
-    let commitHashPattern = "^[0-9a-f]{40}$"
-
     /// The shared Hub API instance with default configuration.
     public static let shared = HubApi()
 
@@ -680,10 +677,16 @@ public extension HubApi {
         return nil
     }
 
-    func isValidHash(hash: String, pattern: String) -> Bool {
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let range = NSRange(location: 0, length: hash.utf16.count)
-        return regex?.firstMatch(in: hash, options: [], range: range) != nil
+    func isValidCommitHash(_ hash: String) -> Bool {
+        guard hash.count == 40 else { return false }
+        guard hash.lowercased() == hash else { return false }
+        return hash.allSatisfy { $0.isHexDigit }
+    }
+
+    func isValidSHA256(_ hash: String) -> Bool {
+        guard hash.count == 64 else { return false }
+        guard hash.lowercased() == hash else { return false }
+        return hash.allSatisfy { $0.isHexDigit }
     }
 
     func computeFileHash(file url: URL) throws -> String {
@@ -789,7 +792,7 @@ public extension HubApi {
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
 
             // Local file exists + metadata exists + commit_hash matches => return file
-            if hub.isValidHash(hash: remoteCommitHash, pattern: hub.commitHashPattern), downloaded, localMetadata != nil,
+            if hub.isValidCommitHash(remoteCommitHash), downloaded, localMetadata != nil,
                 localCommitHash == remoteCommitHash
             {
                 return destination
@@ -816,7 +819,7 @@ public extension HubApi {
                 // => means it's an LFS file (large)
                 // => let's compute local hash and compare
                 // => if match, update metadata and return file
-                if hub.isValidHash(hash: remoteEtag, pattern: hub.sha256Pattern) {
+                if hub.isValidSHA256(remoteEtag) {
                     let fileHash = try hub.computeFileHash(file: destination)
                     if fileHash == remoteEtag {
                         try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
@@ -933,7 +936,7 @@ public extension HubApi {
                 let localEtag = localMetadata.etag
 
                 // LFS file so check file integrity
-                if isValidHash(hash: localEtag, pattern: sha256Pattern) {
+                if isValidSHA256(localEtag) {
                     let fileHash = try computeFileHash(file: fileUrl)
                     if fileHash != localEtag {
                         throw EnvironmentError.fileIntegrityError(("Hash mismatch for \(fileUrl.lastPathComponent)"))
