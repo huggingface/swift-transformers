@@ -433,10 +433,6 @@ extension Downloader: URLSessionDownloadDelegate {
             Task {
                 await self.broadcaster.broadcast(state: .failed(error))
             }
-            //        } else if let response = task.response as? HTTPURLResponse {
-            //            print("HTTP response status code: \(response.statusCode)")
-            //            let headers = response.allHeaderFields
-            //            print("HTTP response headers: \(headers)")
         }
     }
 }
