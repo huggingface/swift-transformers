@@ -77,6 +77,18 @@ extension HTTPURLResponse {
 /// HubApi provides methods for downloading files, retrieving metadata, managing repositories,
 /// and handling authentication with the Hugging Face Hub. It supports offline mode,
 /// background downloads, and automatic retry mechanisms for robust file transfers.
+///
+/// ## Storage model
+///
+/// `HubApi` uses two related but distinct local storage locations:
+///
+/// - `downloadBase`: materialized snapshot output returned by `snapshot(...)`.
+///   Offline-mode validation and per-file metadata checks are performed here.
+/// - `HubCache` (via `HubClient(cache: .default)`): shared content-addressed cache used for
+///   deduplicated downloads and cache reuse across clients/tools.
+///
+/// During downloads, data may be sourced from `HubCache` and copied into `downloadBase`.
+/// The two locations are intentionally independent for backward compatibility.
 public struct HubApi: Sendable {
     var downloadBase: URL
     var hfToken: String?
@@ -114,7 +126,10 @@ public struct HubApi: Sendable {
     /// Initializes a new Hub API client.
     ///
     /// - Parameters:
-    ///   - downloadBase: The base directory for downloads (defaults to Documents/huggingface)
+    ///   - downloadBase: The base directory for local snapshot outputs.
+    ///     Defaults to `Documents/huggingface` to preserve historical behavior.
+    ///     This location is independent from `HubCache` storage used by cached
+    ///     `HubClient` requests, and is the location used by offline snapshot checks.
     ///   - hfToken: The Hugging Face authentication token (defaults to environment variable)
     ///   - endpoint: The Hub endpoint URL (defaults to https://huggingface.co)
     ///   - useBackgroundSession: Whether to use background URL sessions for downloads
@@ -606,6 +621,10 @@ public extension HubApi {
 
 /// Snaphsot download
 public extension HubApi {
+    /// Returns the on-disk snapshot root for a repository under `downloadBase`.
+    ///
+    /// This path is the materialized repository location used by `snapshot(...)`
+    /// and offline-mode checks. It is separate from the internal `HubCache` directory.
     func localRepoLocation(_ repo: Repo) -> URL {
         downloadBase.appending(component: repo.type.rawValue).appending(component: repo.id)
     }
