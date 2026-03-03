@@ -1,15 +1,16 @@
 #if canImport(CoreML)
 import CoreML
-import XCTest
+import Testing
 
 @testable import Generation
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-final class LogitsProcessorTests: XCTestCase {
+@Suite
+final class LogitsProcessorTests {
     private let accuracy: Float = 0.0001
 
     // MARK: - Temperature Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTemperatureWarper() async throws {
         let warper = try TemperatureLogitsWarper(temperature: 2.0)
 
@@ -23,7 +24,8 @@ final class LogitsProcessorTests: XCTestCase {
 
         await assertMLTensorEqual(result, expected: expected, accuracy: accuracy)
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTemperatureWarperWithDifferentValues() async throws {
         // Test temperature < 1 (sharper distribution)
         let sharper = try TemperatureLogitsWarper(temperature: 0.5)
@@ -37,7 +39,8 @@ final class LogitsProcessorTests: XCTestCase {
     }
 
     // MARK: - Top-K Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopKWarper() async throws {
         let warper = try TopKLogitsWarper(topK: 3)
 
@@ -48,13 +51,14 @@ final class LogitsProcessorTests: XCTestCase {
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
         // Top 3 tokens (5, 4, 3) should remain, others should be -inf
-        XCTAssertTrue(resultArray[0].isInfinite && resultArray[0] < 0, "Token 0 should be -inf")
-        XCTAssertTrue(resultArray[1].isInfinite && resultArray[1] < 0, "Token 1 should be -inf")
-        XCTAssertEqual(resultArray[2], 3.0, accuracy: accuracy, "Token 2 should be kept")
-        XCTAssertEqual(resultArray[3], 4.0, accuracy: accuracy, "Token 3 should be kept")
-        XCTAssertEqual(resultArray[4], 5.0, accuracy: accuracy, "Token 4 should be kept")
+        #expect(resultArray[0].isInfinite && resultArray[0] < 0, "Token 0 should be -inf")
+        #expect(resultArray[1].isInfinite && resultArray[1] < 0, "Token 1 should be -inf")
+        #expect(abs(resultArray[2] - 3.0) <= accuracy, "Token 2 should be kept")
+        #expect(abs(resultArray[3] - 4.0) <= accuracy, "Token 3 should be kept")
+        #expect(abs(resultArray[4] - 5.0) <= accuracy, "Token 4 should be kept")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopKWarperWithSmallK() async throws {
         let warper = try TopKLogitsWarper(topK: 1)
 
@@ -65,13 +69,14 @@ final class LogitsProcessorTests: XCTestCase {
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
         // Only token with score 5.0 should remain
-        XCTAssertTrue(resultArray[0].isInfinite && resultArray[0] < 0)
-        XCTAssertEqual(resultArray[1], 5.0, accuracy: accuracy)
-        XCTAssertTrue(resultArray[2].isInfinite && resultArray[2] < 0)
+        #expect(resultArray[0].isInfinite && resultArray[0] < 0)
+        #expect(abs(resultArray[1] - 5.0) <= accuracy)
+        #expect(resultArray[2].isInfinite && resultArray[2] < 0)
     }
 
     // MARK: - Top-P Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopPWarper() async throws {
         let warper = try TopPLogitsWarper(topP: 0.9)
 
@@ -84,13 +89,14 @@ final class LogitsProcessorTests: XCTestCase {
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
         // Token 4 (score 10.0) should definitely be kept (highest probability)
-        XCTAssertFalse(resultArray[4].isInfinite, "Highest probability token should be kept")
+        #expect(!(resultArray[4].isInfinite), "Highest probability token should be kept")
 
         // Some lower tokens should be filtered to -inf
         let filteredCount = resultArray.filter { $0.isInfinite && $0 < 0 }.count
-        XCTAssertTrue(filteredCount > 0, "Top-P should filter some low-probability tokens")
+        #expect(filteredCount > 0, "Top-P should filter some low-probability tokens")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopPWarperWithHighThreshold() async throws {
         // With topP=0.99, almost all tokens should be kept
         let warper = try TopPLogitsWarper(topP: 0.99)
@@ -103,11 +109,12 @@ final class LogitsProcessorTests: XCTestCase {
 
         // With high topP and relatively uniform distribution, most tokens should be kept
         let keptCount = resultArray.filter { !($0.isInfinite && $0 < 0) }.count
-        XCTAssertTrue(keptCount >= 4, "High topP should keep most tokens")
+        #expect(keptCount >= 4, "High topP should keep most tokens")
     }
 
     // MARK: - Repetition Penalty Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testRepetitionPenaltyProcessor() async throws {
         let processor = try RepetitionPenaltyLogitsProcessor(penalty: 2.0)
 
@@ -121,21 +128,22 @@ final class LogitsProcessorTests: XCTestCase {
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
         // Token 0: not in sequence, unchanged
-        XCTAssertEqual(resultArray[0], 0.5, accuracy: accuracy, "Token 0 should be unchanged")
+        #expect(abs(resultArray[0] - 0.5) <= accuracy, "Token 0 should be unchanged")
 
         // Token 1 (score -0.5 < 0): multiplied by penalty = -1.0
-        XCTAssertEqual(resultArray[1], -1.0, accuracy: accuracy, "Token 1 should be penalized (negative)")
+        #expect(abs(resultArray[1] - -1.0) <= accuracy, "Token 1 should be penalized (negative)")
 
         // Token 2 (score 1.0 > 0): divided by penalty = 0.5
-        XCTAssertEqual(resultArray[2], 0.5, accuracy: accuracy, "Token 2 should be penalized (positive)")
+        #expect(abs(resultArray[2] - 0.5) <= accuracy, "Token 2 should be penalized (positive)")
 
         // Token 3 (score -1.0 < 0): multiplied by penalty = -2.0
-        XCTAssertEqual(resultArray[3], -2.0, accuracy: accuracy, "Token 3 should be penalized (negative)")
+        #expect(abs(resultArray[3] - -2.0) <= accuracy, "Token 3 should be penalized (negative)")
 
         // Token 4: not in sequence, unchanged
-        XCTAssertEqual(resultArray[4], 2.0, accuracy: accuracy, "Token 4 should be unchanged")
+        #expect(abs(resultArray[4] - 2.0) <= accuracy, "Token 4 should be unchanged")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testRepetitionPenaltyWithNoPenalty() async throws {
         let processor = try RepetitionPenaltyLogitsProcessor(penalty: 1.0)
 
@@ -147,9 +155,10 @@ final class LogitsProcessorTests: XCTestCase {
         let expectedArray = await scores.shapedArray(of: Float.self).scalars
 
         // With penalty=1.0, scores should be unchanged
-        XCTAssertEqual(resultArray, expectedArray, "Penalty of 1.0 should not change scores")
+        #expect(resultArray == expectedArray, "Penalty of 1.0 should not change scores")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testRepetitionPenaltyWithRank3Scores() async throws {
         let processor = try RepetitionPenaltyLogitsProcessor(penalty: 2.0)
 
@@ -167,14 +176,15 @@ final class LogitsProcessorTests: XCTestCase {
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
         let expected: [Float] = [0.5, -1.0, 0.5, -2.0, 2.0]
-        XCTAssertEqual(resultArray.count, expected.count, "Flattened tensor mismatch")
+        #expect(resultArray.count == expected.count, "Flattened tensor mismatch")
         for (value, exp) in zip(resultArray, expected) {
-            XCTAssertEqual(value, exp, accuracy: accuracy)
+            #expect(abs(value - exp) <= accuracy)
         }
     }
 
     // MARK: - Processor List Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testLogitsProcessorList() async throws {
         let temp = try TemperatureLogitsWarper(temperature: 2.0)
         let topK = try TopKLogitsWarper(topK: 3)
@@ -188,13 +198,14 @@ final class LogitsProcessorTests: XCTestCase {
         let result = await processorList(inputIds, scores)
         let resultArray = await result.shapedArray(of: Float.self).scalars
 
-        XCTAssertTrue(resultArray[0].isInfinite && resultArray[0] < 0)
-        XCTAssertTrue(resultArray[1].isInfinite && resultArray[1] < 0)
-        XCTAssertEqual(resultArray[2], 3.0, accuracy: accuracy)
-        XCTAssertEqual(resultArray[3], 4.0, accuracy: accuracy)
-        XCTAssertEqual(resultArray[4], 5.0, accuracy: accuracy)
+        #expect(resultArray[0].isInfinite && resultArray[0] < 0)
+        #expect(resultArray[1].isInfinite && resultArray[1] < 0)
+        #expect(abs(resultArray[2] - 3.0) <= accuracy)
+        #expect(abs(resultArray[3] - 4.0) <= accuracy)
+        #expect(abs(resultArray[4] - 5.0) <= accuracy)
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testEmptyProcessorList() async throws {
         let processorList = LogitsProcessorList(processors: [])
 
@@ -206,11 +217,12 @@ final class LogitsProcessorTests: XCTestCase {
         let expectedArray = await scores.shapedArray(of: Float.self).scalars
 
         // Should be unchanged
-        XCTAssertEqual(resultArray, expectedArray)
+        #expect(resultArray == expectedArray)
     }
 
     // MARK: - Min-P Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testMinPWarper() async throws {
         let warper = try MinPLogitsWarper(minP: 0.1)
 
@@ -236,13 +248,14 @@ final class LogitsProcessorTests: XCTestCase {
         // Check that low probability tokens are filtered
         for (idx, prob) in probs.enumerated() {
             if prob < threshold {
-                XCTAssertTrue(resultArray[idx].isInfinite && resultArray[idx] < 0, "Token \(idx) with prob \(prob) should be filtered")
+                #expect(resultArray[idx].isInfinite && resultArray[idx] < 0, "Token \(idx) with prob \(prob) should be filtered")
             } else {
-                XCTAssertEqual(resultArray[idx], scoresArray[idx], accuracy: accuracy, "Token \(idx) should not be filtered")
+                #expect(abs(resultArray[idx] - scoresArray[idx]) <= accuracy, "Token \(idx) should not be filtered")
             }
         }
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testMinPWarperKeepsMinTokens() async throws {
         // Even with aggressive minP, should keep at least minTokensToKeep tokens
         let warper = try MinPLogitsWarper(minP: 0.99, minTokensToKeep: 2)
@@ -255,9 +268,10 @@ final class LogitsProcessorTests: XCTestCase {
 
         // Count non-infinite values
         let nonInfiniteCount = resultArray.filter { !$0.isInfinite }.count
-        XCTAssertGreaterThanOrEqual(nonInfiniteCount, 2, "Should keep at least 2 tokens")
+        #expect(nonInfiniteCount >= 2, "Should keep at least 2 tokens")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testMinPWarperWithLowThreshold() async throws {
         // With very low minP, most tokens should pass
         let warper = try MinPLogitsWarper(minP: 0.001)
@@ -270,51 +284,104 @@ final class LogitsProcessorTests: XCTestCase {
 
         // Most or all tokens should remain
         let nonInfiniteCount = resultArray.filter { !$0.isInfinite }.count
-        XCTAssertGreaterThanOrEqual(nonInfiniteCount, 4, "With low minP, most tokens should pass")
+        #expect(nonInfiniteCount >= 4, "With low minP, most tokens should pass")
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testMinPWarperInvalidParameters() {
         // Test invalid minP
-        XCTAssertThrowsError(try MinPLogitsWarper(minP: -0.1))
-        XCTAssertThrowsError(try MinPLogitsWarper(minP: 1.5))
+        do {
+            _ = try MinPLogitsWarper(minP: -0.1)
+            Issue.record("Expected MinPLogitsWarper(minP: -0.1) to throw")
+        } catch {}
+        do {
+            _ = try MinPLogitsWarper(minP: 1.5)
+            Issue.record("Expected MinPLogitsWarper(minP: 1.5) to throw")
+        } catch {}
 
         // Test invalid minTokensToKeep
-        XCTAssertThrowsError(try MinPLogitsWarper(minP: 0.1, minTokensToKeep: 0))
-        XCTAssertThrowsError(try MinPLogitsWarper(minP: 0.1, minTokensToKeep: -1))
+        do {
+            _ = try MinPLogitsWarper(minP: 0.1, minTokensToKeep: 0)
+            Issue.record("Expected MinPLogitsWarper(minTokensToKeep: 0) to throw")
+        } catch {}
+        do {
+            _ = try MinPLogitsWarper(minP: 0.1, minTokensToKeep: -1)
+            Issue.record("Expected MinPLogitsWarper(minTokensToKeep: -1) to throw")
+        } catch {}
     }
 
     // MARK: - Parameter Validation Tests
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTemperatureWarperInvalidParameters() {
         // Test invalid temperature values
-        XCTAssertThrowsError(try TemperatureLogitsWarper(temperature: 0.0))
-        XCTAssertThrowsError(try TemperatureLogitsWarper(temperature: -1.0))
+        do {
+            _ = try TemperatureLogitsWarper(temperature: 0.0)
+            Issue.record("Expected TemperatureLogitsWarper(temperature: 0.0) to throw")
+        } catch {}
+        do {
+            _ = try TemperatureLogitsWarper(temperature: -1.0)
+            Issue.record("Expected TemperatureLogitsWarper(temperature: -1.0) to throw")
+        } catch {}
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopKWarperInvalidParameters() {
         // Test invalid topK values
-        XCTAssertThrowsError(try TopKLogitsWarper(topK: 0))
-        XCTAssertThrowsError(try TopKLogitsWarper(topK: -1))
+        do {
+            _ = try TopKLogitsWarper(topK: 0)
+            Issue.record("Expected TopKLogitsWarper(topK: 0) to throw")
+        } catch {}
+        do {
+            _ = try TopKLogitsWarper(topK: -1)
+            Issue.record("Expected TopKLogitsWarper(topK: -1) to throw")
+        } catch {}
 
         // Test invalid minTokensToKeep
-        XCTAssertThrowsError(try TopKLogitsWarper(topK: 5, minTokensToKeep: 0))
-        XCTAssertThrowsError(try TopKLogitsWarper(topK: 5, minTokensToKeep: -1))
+        do {
+            _ = try TopKLogitsWarper(topK: 5, minTokensToKeep: 0)
+            Issue.record("Expected TopKLogitsWarper(minTokensToKeep: 0) to throw")
+        } catch {}
+        do {
+            _ = try TopKLogitsWarper(topK: 5, minTokensToKeep: -1)
+            Issue.record("Expected TopKLogitsWarper(minTokensToKeep: -1) to throw")
+        } catch {}
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopPWarperInvalidParameters() {
         // Test invalid topP values
-        XCTAssertThrowsError(try TopPLogitsWarper(topP: -0.1))
-        XCTAssertThrowsError(try TopPLogitsWarper(topP: 1.5))
+        do {
+            _ = try TopPLogitsWarper(topP: -0.1)
+            Issue.record("Expected TopPLogitsWarper(topP: -0.1) to throw")
+        } catch {}
+        do {
+            _ = try TopPLogitsWarper(topP: 1.5)
+            Issue.record("Expected TopPLogitsWarper(topP: 1.5) to throw")
+        } catch {}
 
         // Test invalid minTokensToKeep
-        XCTAssertThrowsError(try TopPLogitsWarper(topP: 0.9, minTokensToKeep: 0))
-        XCTAssertThrowsError(try TopPLogitsWarper(topP: 0.9, minTokensToKeep: -1))
+        do {
+            _ = try TopPLogitsWarper(topP: 0.9, minTokensToKeep: 0)
+            Issue.record("Expected TopPLogitsWarper(minTokensToKeep: 0) to throw")
+        } catch {}
+        do {
+            _ = try TopPLogitsWarper(topP: 0.9, minTokensToKeep: -1)
+            Issue.record("Expected TopPLogitsWarper(minTokensToKeep: -1) to throw")
+        } catch {}
     }
-
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testRepetitionPenaltyInvalidParameters() {
         // Test invalid penalty values
-        XCTAssertThrowsError(try RepetitionPenaltyLogitsProcessor(penalty: 0.0))
-        XCTAssertThrowsError(try RepetitionPenaltyLogitsProcessor(penalty: -1.0))
+        do {
+            _ = try RepetitionPenaltyLogitsProcessor(penalty: 0.0)
+            Issue.record("Expected RepetitionPenaltyLogitsProcessor(penalty: 0.0) to throw")
+        } catch {}
+        do {
+            _ = try RepetitionPenaltyLogitsProcessor(penalty: -1.0)
+            Issue.record("Expected RepetitionPenaltyLogitsProcessor(penalty: -1.0) to throw")
+        } catch {}
     }
 }
 
@@ -324,14 +391,12 @@ final class LogitsProcessorTests: XCTestCase {
 func assertMLTensorEqual(
     _ tensor: MLTensor,
     expected: [Float],
-    accuracy: Float,
-    file: StaticString = #filePath,
-    line: UInt = #line
+    accuracy: Float
 ) async {
     let actual = await tensor.shapedArray(of: Float.self).scalars
-    XCTAssertEqual(actual.count, expected.count, "Tensor size mismatch", file: file, line: line)
+    #expect(actual.count == expected.count, "Tensor size mismatch")
     for (a, e) in zip(actual, expected) {
-        XCTAssertEqual(a, e, accuracy: accuracy, file: file, line: line)
+        #expect(abs(a - e) <= accuracy)
     }
 }
 #endif

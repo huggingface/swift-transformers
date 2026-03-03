@@ -1,16 +1,17 @@
 #if canImport(CoreML)
 import CoreML
 import Tokenizers
-import XCTest
+import Testing
 
 @testable import Generation
 
-@available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-final class GenerationIntegrationTests: XCTestCase {
+@Suite
+struct GenerationIntegrationTests {
 
     // MARK: - Mock Model for Testing
 
     /// Mock language model that returns predictable logits for testing
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
     class MockLanguageModel {
         var callCount = 0
         var logitsHistory: [MLTensor] = []
@@ -49,6 +50,8 @@ final class GenerationIntegrationTests: XCTestCase {
 
     // MARK: - Integration Tests
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testGreedyGenerationWithoutProcessors() async throws {
         let model = MockLanguageModel()
 
@@ -68,15 +71,17 @@ final class GenerationIntegrationTests: XCTestCase {
 
         // Greedy should always pick the highest logit
         // Token 0 -> Token 5 (logit 10.0) -> Token 3 (logit 8.0) -> Token 5 (logit 4.5)
-        XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
-        XCTAssertEqual(output[0], 0, "First token should be the start token")
-        XCTAssertEqual(output[1], 5, "Second token should be 5 (highest logit)")
-        XCTAssertEqual(output[2], 3, "Third token should be 3 (highest logit)")
-        XCTAssertEqual(output[3], 5, "Fourth token should be 5 (highest logit)")
+        #expect(output.count == 4, "Should generate 3 new tokens + initial token")
+        #expect(output[0] == 0, "First token should be the start token")
+        #expect(output[1] == 5, "Second token should be 5 (highest logit)")
+        #expect(output[2] == 3, "Third token should be 3 (highest logit)")
+        #expect(output[3] == 5, "Fourth token should be 5 (highest logit)")
 
-        XCTAssertEqual(model.callCount, 3, "Model should be called 3 times")
+        #expect(model.callCount == 3, "Model should be called 3 times")
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testSamplingWithTemperature() async throws {
         let model = MockLanguageModel()
 
@@ -94,16 +99,18 @@ final class GenerationIntegrationTests: XCTestCase {
             model: model.predictNextToken
         )
 
-        XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
-        XCTAssertEqual(output[0], 0, "First token should be the start token")
+        #expect(output.count == 4, "Should generate 3 new tokens + initial token")
+        #expect(output[0] == 0, "First token should be the start token")
 
         // With low temperature, sampling should still prefer high-probability tokens
         // We can't assert exact tokens due to randomness, but can verify structure
-        XCTAssertTrue(output[1] < 10, "Generated token should be in vocab range")
-        XCTAssertTrue(output[2] < 10, "Generated token should be in vocab range")
-        XCTAssertTrue(output[3] < 10, "Generated token should be in vocab range")
+        #expect(output[1] < 10, "Generated token should be in vocab range")
+        #expect(output[2] < 10, "Generated token should be in vocab range")
+        #expect(output[3] < 10, "Generated token should be in vocab range")
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopKFiltering() async throws {
         let model = MockLanguageModel()
 
@@ -127,15 +134,17 @@ final class GenerationIntegrationTests: XCTestCase {
                 model: model.predictNextToken
             )
 
-            XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
+            #expect(output.count == 4, "Should generate 3 new tokens + initial token")
 
             // Verify that generated tokens are within valid range
             for token in output[1...] {
-                XCTAssertTrue(token >= 0 && token < 10, "Token \(token) should be in vocab range")
+                #expect(token >= 0 && token < 10, "Token \(token) should be in vocab range")
             }
         }
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testTopPFiltering() async throws {
         let model = MockLanguageModel()
 
@@ -154,14 +163,16 @@ final class GenerationIntegrationTests: XCTestCase {
             model: model.predictNextToken
         )
 
-        XCTAssertEqual(output.count, 3, "Should generate 2 new tokens + initial token")
+        #expect(output.count == 3, "Should generate 2 new tokens + initial token")
 
         // Top-P should filter out low-probability tokens
         for token in output[1...] {
-            XCTAssertTrue(token >= 0 && token < 10, "Token should be in vocab range")
+            #expect(token >= 0 && token < 10, "Token should be in vocab range")
         }
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testRepetitionPenalty() async throws {
         // Create a model that always returns the same high-scoring token
         class RepetitiveModel {
@@ -190,7 +201,7 @@ final class GenerationIntegrationTests: XCTestCase {
         )
 
         // Without penalty, should keep selecting token 7
-        XCTAssertEqual(outputNoPenalty, [0, 7, 7, 7], "Without penalty, should repeat token 7")
+        #expect(outputNoPenalty == [0, 7, 7, 7], "Without penalty, should repeat token 7")
 
         // Test WITH repetition penalty
         var configWithPenalty = GenerationConfig(maxNewTokens: 3)
@@ -205,15 +216,17 @@ final class GenerationIntegrationTests: XCTestCase {
         )
 
         // With strong penalty, should select token 7 first time, but then avoid it
-        XCTAssertEqual(outputWithPenalty[0], 0, "First token should be start token")
-        XCTAssertEqual(outputWithPenalty[1], 7, "Second token should be 7 (highest score)")
+        #expect(outputWithPenalty[0] == 0, "First token should be start token")
+        #expect(outputWithPenalty[1] == 7, "Second token should be 7 (highest score)")
 
         // After token 7 is penalized, other tokens should be chosen
         // (exact tokens depend on penalty calculation, but should NOT all be 7)
         let uniqueTokens = Set(outputWithPenalty[1...])
-        XCTAssertTrue(uniqueTokens.count > 1, "With repetition penalty, should generate diverse tokens, got \(outputWithPenalty)")
+        #expect(uniqueTokens.count > 1, "With repetition penalty, should generate diverse tokens, got \(outputWithPenalty)")
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testCombinedProcessors() async throws {
         let model = MockLanguageModel()
 
@@ -234,19 +247,21 @@ final class GenerationIntegrationTests: XCTestCase {
             model: model.predictNextToken
         )
 
-        XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
-        XCTAssertEqual(output[0], 0, "First token should be the start token")
+        #expect(output.count == 4, "Should generate 3 new tokens + initial token")
+        #expect(output[0] == 0, "First token should be the start token")
 
         // All processors should work together
         // Can't assert exact tokens due to randomness, but verify structure
         for token in output[1...] {
-            XCTAssertTrue(token >= 0 && token < 10, "Token should be in vocab range")
+            #expect(token >= 0 && token < 10, "Token should be in vocab range")
         }
 
         // Verify model was called correct number of times
-        XCTAssertEqual(model.callCount, 3, "Model should be called 3 times")
+        #expect(model.callCount == 3, "Model should be called 3 times")
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testMinPFiltering() async throws {
         let model = MockLanguageModel()
 
@@ -267,12 +282,12 @@ final class GenerationIntegrationTests: XCTestCase {
             model: model.predictNextToken
         )
 
-        XCTAssertEqual(output.count, 4, "Should generate 3 new tokens + initial token")
-        XCTAssertEqual(output[0], 0, "First token should be the start token")
+        #expect(output.count == 4, "Should generate 3 new tokens + initial token")
+        #expect(output[0] == 0, "First token should be the start token")
 
         // All tokens should be valid
         for token in output[1...] {
-            XCTAssertTrue(token >= 0 && token < 10, "Token should be in vocab range")
+            #expect(token >= 0 && token < 10, "Token should be in vocab range")
         }
 
         // Test with more aggressive min-p
@@ -290,11 +305,13 @@ final class GenerationIntegrationTests: XCTestCase {
             model: model.predictNextToken
         )
 
-        XCTAssertEqual(outputAggressive.count, 4, "Should generate 3 new tokens + initial token")
+        #expect(outputAggressive.count == 4, "Should generate 3 new tokens + initial token")
         // With aggressive min-p, should sample from fewer options
         // (exact behavior depends on model, but verify it doesn't crash)
     }
 
+    @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
+    @Test
     func testEarlyStoppingWithEOS() async throws {
         // Create a model that returns EOS token after 2 generations
         class EOSModel {
@@ -334,11 +351,11 @@ final class GenerationIntegrationTests: XCTestCase {
         )
 
         // Should stop early when EOS is encountered
-        XCTAssertLessThan(output.count, 11, "Should stop before generating all 10 tokens")
-        XCTAssertEqual(output[0], 0, "First token should be start token")
+        #expect(output.count < 11, "Should stop before generating all 10 tokens")
+        #expect(output[0] == 0, "First token should be start token")
 
         // Model should be called fewer times due to early stopping
-        XCTAssertLessThan(model.callCount, 10, "Model should be called fewer times due to EOS")
+        #expect(model.callCount < 10, "Model should be called fewer times due to EOS")
     }
 }
 

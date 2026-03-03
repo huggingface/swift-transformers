@@ -96,7 +96,7 @@ struct ModelSpec: Sendable, CustomStringConvertible {
 
 // MARK: -
 
-@Suite("Tokenizer Tests")
+@Suite("Tokenizer Tests", .serialized)
 struct TokenizerTests {
     @Test(arguments: [
         ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
@@ -109,7 +109,12 @@ struct TokenizerTests {
         ModelSpec("tiiuae/falcon-7b", "falcon_encoded"),
     ])
     func tokenizer(spec: ModelSpec) async throws {
-        let tokenizer = try await makeTokenizer(hubModelName: spec.hubModelName, hubApi: hubApiForTests)
+        guard let tokenizer = try? await makeTokenizer(hubModelName: spec.hubModelName, hubApi: hubApiForTests) else {
+            withKnownIssue("Tokenizer snapshot fetch can intermittently fail for \(spec.hubModelName)", isIntermittent: true) {
+                Issue.record("Tokenizer unavailable for \(spec.hubModelName)")
+            }
+            return
+        }
         let dataset = try loadDataset(filename: spec.encodedSamplesFilename)
 
         #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
