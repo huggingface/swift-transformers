@@ -302,14 +302,18 @@ struct TokenizerTests {
             let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             return base.appending(component: "hf-local-pretrained-tests-downloads")
         }()
+        if FileManager.default.fileExists(atPath: downloadDestination.path) {
+            try FileManager.default.removeItem(at: downloadDestination)
+        }
+        defer {
+            try? FileManager.default.removeItem(at: downloadDestination)
+        }
 
         let hubApi = HubApi(downloadBase: downloadDestination)
         let downloadedTo = try await hubApi.snapshot(from: "pcuenq/gemma-tokenizer")
 
         let tokenizerOpt = try await AutoTokenizer.from(modelFolder: downloadedTo) as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
-
-        try FileManager.default.removeItem(at: downloadDestination)
     }
 
     @Test

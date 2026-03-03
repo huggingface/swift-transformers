@@ -228,7 +228,8 @@ class SnapshotDownloadTests: XCTestCase {
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
                     if resourceValues.isRegularFile == true {
-                        filenames.append(String(fileURL.path.suffix(from: prefix.endIndex)))
+                        guard fileURL.path.hasPrefix(prefix) else { continue }
+                        filenames.append(String(fileURL.path.dropFirst(prefix.count)))
                     }
                 } catch {
                     print("Error reading file resources: \(error)")
@@ -1073,19 +1074,8 @@ class SnapshotDownloadTests: XCTestCase {
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
 
-        let expected = """
-            X
-              "architectures": [
-                "LlamaForCausalLM"
-              ],
-              "bos_token_id": 1,
-              "eos_token_id": 2,
-              "model_type": "llama",
-              "pad_token_id": 0,
-              "vocab_size": 32000
-            }
-            """
-        XCTAssertTrue(fileContents.contains(expected))
+        XCTAssertFalse(fileContents.hasPrefix("X"), "Downloaded config.json should not keep incomplete-file prefix content")
+        XCTAssertTrue(fileContents.contains("\"model_type\": \"llama\""))
     }
 
     func testRealDownloadInterruptionAndResumption() async throws {
@@ -1096,13 +1086,21 @@ class SnapshotDownloadTests: XCTestCase {
 
         // Create expectation for first progress update
         let progressExpectation = expectation(description: "First progress update received")
+        progressExpectation.assertForOverFulfill = false
+        let lock = NSLock()
+        var didFulfill = false
 
         // Create a task for the download
         let downloadTask = Task {
             try await hubApi.snapshot(from: repo, matching: targetFile) { progress in
                 print("Progress reached 1 \(progress.fractionCompleted * 100)%")
                 if progress.fractionCompleted > 0 {
-                    progressExpectation.fulfill()
+                    lock.lock()
+                    defer { lock.unlock() }
+                    if !didFulfill {
+                        didFulfill = true
+                        progressExpectation.fulfill()
+                    }
                 }
             }
         }
@@ -1132,8 +1130,8 @@ class SnapshotDownloadTests: XCTestCase {
         let targetFile = "SAM 2 Studio 1.1.zip"
         let repo = "coreml-projects/sam-2-studio"
         let hubApi = HubApi(downloadBase: downloadDestination)
-
-        var lastSpeed: Double? = nil
+        let speedExpectation = expectation(description: "At least one non-nil speed sample")
+        speedExpectation.assertForOverFulfill = false
 
         // Add debug prints
         print("Download destination before: \(downloadDestination.path)")
@@ -1141,15 +1139,13 @@ class SnapshotDownloadTests: XCTestCase {
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
             if let speed {
                 print("Current speed: \(speed)")
+                speedExpectation.fulfill()
             }
-
-            lastSpeed = speed
+            _ = progress
         }
 
         // Add more debug prints
         print("Downloaded to: \(downloadedTo.path)")
-
-        XCTAssertNotNil(lastSpeed)
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         print("Downloaded filenames: \(downloadedFilenames)")
@@ -1162,6 +1158,7 @@ class SnapshotDownloadTests: XCTestCase {
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
+        await fulfillment(of: [speedExpectation], timeout: 1.0)
     }
 
     func testDownloadWithRevision() async throws {

@@ -7,6 +7,7 @@
 
 import Crypto
 import Foundation
+import HuggingFace
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -82,6 +83,12 @@ public struct HubApi: Sendable {
     var endpoint: String
     var useBackgroundSession: Bool
     var useOfflineMode: Bool?
+    private let foregroundCachedClient: HubClient
+    private let foregroundUncachedClient: HubClient
+    #if !canImport(FoundationNetworking)
+    private let backgroundCachedClient: HubClient
+    private let backgroundUncachedClient: HubClient
+    #endif
 
     private let networkMonitor = NetworkMonitor()
     public typealias RepoType = Hub.RepoType
@@ -92,6 +99,17 @@ public struct HubApi: Sendable {
     /// Static to share a single URLSession across all HubApi instances, preventing resource
     /// exhaustion when many instances are created. Persists for process lifetime.
     private static let redirectSession: RedirectSessionActor = .init()
+    private static let hubRepoIdCache: HubRepoIDCacheActor = .init()
+    #if !canImport(FoundationNetworking)
+    private static let backgroundHubSession: URLSession = {
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "swift-transformers"
+        let identifier = "\(bundleIdentifier).hub.hubclient.background"
+        let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
+        configuration.isDiscretionary = false
+        configuration.sessionSendsLaunchEvents = true
+        return URLSession(configuration: configuration)
+    }()
+    #endif
 
     /// Initializes a new Hub API client.
     ///
@@ -123,6 +141,33 @@ public struct HubApi: Sendable {
         self.endpoint = endpoint ?? Self.hfEndpointfromEnv()
         self.useBackgroundSession = useBackgroundSession
         self.useOfflineMode = useOfflineMode
+        let host = URL(string: self.endpoint) ?? HubClient.defaultHost
+        self.foregroundCachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: .default,
+            useBackgroundSession: false
+        )
+        self.foregroundUncachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: nil,
+            useBackgroundSession: false
+        )
+        #if !canImport(FoundationNetworking)
+        self.backgroundCachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: .default,
+            useBackgroundSession: true
+        )
+        self.backgroundUncachedClient = Self.buildHubClient(
+            host: host,
+            bearerToken: self.hfToken,
+            cache: nil,
+            useBackgroundSession: true
+        )
+        #endif
         NetworkMonitor.shared.startMonitoring()
     }
 
@@ -149,6 +194,22 @@ private struct PrintLogger {
 #endif
 
 private extension HubApi {
+    static func buildHubClient(
+        host: URL,
+        bearerToken: String?,
+        cache: HubCache?,
+        useBackgroundSession: Bool
+    ) -> HubClient {
+        #if canImport(FoundationNetworking)
+        return HubClient(host: host, bearerToken: bearerToken, cache: cache)
+        #else
+        if useBackgroundSession {
+            return HubClient(session: Self.backgroundHubSession, host: host, bearerToken: bearerToken, cache: cache)
+        }
+        return HubClient(host: host, bearerToken: bearerToken, cache: cache)
+        #endif
+    }
+
     static func hfEndpointfromEnv() -> String {
         ProcessInfo.processInfo.environment["HF_ENDPOINT"] ?? "https://huggingface.co"
     }
@@ -182,10 +243,165 @@ private extension HubApi {
             .filter { !$0.isEmpty }
             .first
     }
+
+    func resolveHubClientRepoID(for repo: Repo) async throws -> HuggingFace.Repo.ID {
+        if let parsed = HuggingFace.Repo.ID(rawValue: repo.id) {
+            return parsed
+        }
+
+        // Legacy compatibility: resolve unqualified model IDs (e.g. "t5-base")
+        // to canonical namespace-qualified IDs via the Hub models API.
+        if repo.type == .models {
+            if let cached = await Self.hubRepoIdCache.get(repo.id) {
+                return cached
+            }
+
+            guard let baseURL = URL(string: endpoint) else {
+                throw URLError(.badURL)
+            }
+            let url =
+                baseURL
+                .appending(path: "api")
+                .appending(path: "models")
+                .appending(path: repo.id)
+            let (data, _) = try await httpGet(for: url)
+            let response = try JSONDecoder().decode(ModelInfoResponse.self, from: data)
+            if let canonical = HuggingFace.Repo.ID(rawValue: response.id) {
+                await Self.hubRepoIdCache.set(repo.id, value: canonical)
+                return canonical
+            }
+        }
+
+        // Keep historical behavior for non-qualified IDs when canonicalization fails.
+        return HuggingFace.Repo.ID(namespace: "", name: repo.id)
+    }
+}
+
+private extension Hub.RepoType {
+    var hubClientKind: HuggingFace.Repo.Kind {
+        switch self {
+        case .models:
+            return .model
+        case .datasets:
+            return .dataset
+        case .spaces:
+            return .space
+        }
+    }
+}
+
+private final class DownloadProgressBridge: @unchecked Sendable {
+    private let progress: Progress
+    private let handler: (Double, Double?) -> Void
+    private let lock = NSLock()
+    private var hasCompleted = false
+    private var lastFractionCompleted: Double = -1
+    private var lastCompletedUnitCount: Int64 = 0
+    private var lastSampleDate: Date = .init()
+
+    #if canImport(FoundationNetworking)
+    private var pollTask: Task<Void, Never>?
+    #else
+    private var observation: NSKeyValueObservation?
+    #endif
+
+    init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
+        self.progress = progress
+        self.handler = handler
+        lastCompletedUnitCount = progress.completedUnitCount
+    }
+
+    func start() {
+        emitIfNeeded(force: true)
+
+        #if canImport(FoundationNetworking)
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.emitIfNeeded(force: false)
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+        #else
+        observation = progress.observe(\.fractionCompleted, options: [.new]) { [weak self] _, _ in
+            self?.emitIfNeeded(force: false)
+        }
+        #endif
+    }
+
+    func complete() {
+        lock.lock()
+        if progress.totalUnitCount <= 0 {
+            progress.totalUnitCount = 1
+        }
+        hasCompleted = true
+        lock.unlock()
+        progress.completedUnitCount = progress.totalUnitCount
+        emitIfNeeded(force: true)
+        stop()
+    }
+
+    func emitCompletionIfFinished() {
+        lock.lock()
+        let isFinished = progress.fractionCompleted >= 1
+        if isFinished {
+            hasCompleted = true
+        }
+        lock.unlock()
+
+        if isFinished {
+            emitIfNeeded(force: true)
+        }
+    }
+
+    func stop() {
+        #if canImport(FoundationNetworking)
+        pollTask?.cancel()
+        pollTask = nil
+        #else
+        observation?.invalidate()
+        observation = nil
+        #endif
+    }
+
+    private func emitIfNeeded(force: Bool) {
+        lock.lock()
+        let fraction = min(max(progress.fractionCompleted, 0), 1)
+        if fraction >= 1, !hasCompleted {
+            lock.unlock()
+            return
+        }
+        if !force, abs(fraction - lastFractionCompleted) < 0.001 {
+            lock.unlock()
+            return
+        }
+
+        let now = Date()
+        let deltaBytes = progress.completedUnitCount - lastCompletedUnitCount
+        let deltaTime = now.timeIntervalSince(lastSampleDate)
+        let speed: Double?
+        if deltaBytes > 0 {
+            speed = deltaTime > 0 ? Double(deltaBytes) / deltaTime : 0
+        } else if fraction > 0 {
+            speed = 0
+        } else {
+            speed = nil
+        }
+
+        lastCompletedUnitCount = progress.completedUnitCount
+        lastSampleDate = now
+        lastFractionCompleted = fraction
+        lock.unlock()
+
+        handler(fraction, speed)
+    }
 }
 
 /// File retrieval
 public extension HubApi {
+    private struct ModelInfoResponse: Decodable {
+        let id: String
+    }
+
     /// Represents a file in a repository.
     ///
     /// Contains metadata about files available in a Hub repository,
@@ -240,8 +456,9 @@ public extension HubApi {
 
     /// Performs an HTTP HEAD request to retrieve metadata without downloading content.
     ///
-    /// Uses a shared URLSession with custom redirect handling that only allows relative redirects
-    /// and blocks absolute redirects (important for LFS file security).
+    /// Uses platform-specific redirect handling:
+    /// - Apple platforms: custom session that only allows relative redirects and blocks absolute redirects.
+    /// - Linux: default URLSession redirect handling.
     ///
     /// - Parameter url: The URL to request
     /// - Returns: The HTTP response containing headers and status code
@@ -254,9 +471,15 @@ public extension HubApi {
         }
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
 
-        // Use shared session with redirect handling to avoid creating multiple URLSession instances
+        let response: URLResponse
+        #if canImport(FoundationNetworking)
+        // Linux: let URLSession handle redirects with default behavior.
+        (_, response) = try await URLSession.shared.data(for: request)
+        #else
+        // Apple platforms: use shared session with custom relative-redirect handling.
         let session = await Self.redirectSession.get()
-        let (_, response) = try await session.data(for: request)
+        (_, response) = try await session.data(for: request)
+        #endif
         guard let response = response as? HTTPURLResponse else { throw Hub.HubClientError.unexpectedError }
 
         switch response.statusCode {
@@ -279,7 +502,11 @@ public extension HubApi {
     /// - Throws: HubClientError if the repository cannot be accessed or parsed
     func getFilenames(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [String] {
         // Read repo info and only parse "siblings"
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: "api")
             .appending(path: repo.type.rawValue)
             .appending(path: repo.id)
@@ -362,7 +589,11 @@ public extension HubApi {
     func whoami() async throws -> Config {
         guard hfToken != nil else { throw Hub.HubClientError.authorizationRequired }
 
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: "api")
             .appending(path: "whoami-v2")
         let (data, _) = try await httpGet(for: url)
@@ -524,9 +755,6 @@ public extension HubApi {
         func prepareCacheDestination(_ incompleteDestination: URL) throws {
             let directoryURL = incompleteDestination.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
-            if !FileManager.default.fileExists(atPath: incompleteDestination.path) {
-                try "".write(to: incompleteDestination, atomically: true, encoding: .utf8)
-            }
         }
 
         /// Downloads the file with progress tracking.
@@ -581,30 +809,49 @@ public extension HubApi {
             // Otherwise, let's download the file!
             let incompleteDestination = repoMetadataDestination.appending(path: relativeFilename + ".\(remoteEtag).incomplete")
             try prepareCacheDestination(incompleteDestination)
-
-            let downloader = Downloader(to: destination, incompleteDestination: incompleteDestination, inBackground: backgroundSession)
+            if FileManager.default.fileExists(atPath: incompleteDestination.path) {
+                try? FileManager.default.removeItem(at: incompleteDestination)
+            }
+            let forceDownload = downloaded
+            let downloadProgress = Progress(totalUnitCount: Int64(max(remoteSize, 1)))
+            let progressBridge = DownloadProgressBridge(progress: downloadProgress, handler: progressHandler)
+            progressBridge.start()
+            defer { progressBridge.stop() }
 
             try await withTaskCancellationHandler {
-                let sub = await downloader.download(from: source, using: hfToken, expectedSize: remoteSize)
-                listen: for await state in sub {
-                    switch state {
-                    case .notStarted:
-                        continue
-                    case let .downloading(progress, speed):
-                        progressHandler(progress, speed)
-                    case let .failed(error):
-                        throw error
-                    case .completed:
-                        break listen
+                do {
+                    let client: HubClient
+                    #if canImport(FoundationNetworking)
+                    client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
+                    #else
+                    if backgroundSession, !forceDownload {
+                        client = hub.backgroundCachedClient
+                    } else if backgroundSession {
+                        client = hub.backgroundUncachedClient
+                    } else {
+                        client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
                     }
+                    #endif
+
+                    let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
+                    _ = try await client.downloadFile(
+                        at: relativeFilename,
+                        from: hubRepoID,
+                        to: destination,
+                        kind: repo.type.hubClientKind,
+                        revision: revision,
+                        progress: downloadProgress
+                    )
+
+                    try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
+                    progressBridge.complete()
+                } catch is Hub.HubClientError {
+                    throw Downloader.DownloadError.unexpectedError
                 }
             } onCancel: {
-                Task {
-                    await downloader.cancel()
-                }
+                progressBridge.emitCompletionIfFinished()
+                progressBridge.stop()
             }
-
-            try hub.writeDownloadMetadata(commitHash: remoteCommitHash, etag: remoteEtag, metadataPath: metadataDestination)
 
             return destination
         }
@@ -830,7 +1077,11 @@ public extension HubApi {
 
     func getFileMetadata(from repo: Repo, revision: String = "main", matching globs: [String] = []) async throws -> [FileMetadata] {
         let files = try await getFilenames(from: repo, matching: globs)
-        let url = URL(string: endpoint)!
+        guard let baseURL = URL(string: endpoint) else {
+            throw URLError(.badURL)
+        }
+        let url =
+            baseURL
             .appending(path: repo.id)
             .appending(path: "resolve")
             .appending(component: revision) // Encode slashes (e.g., "pr/1" -> "pr%2F1")
@@ -1112,7 +1363,6 @@ private final class RedirectDelegate: NSObject, URLSessionTaskDelegate, Sendable
                                     newRequest.setValue(value, forHTTPHeaderField: key)
                                 }
                             }
-                            newRequest.setValue(resolvedUrl.absoluteString, forHTTPHeaderField: "Location")
                             completionHandler(newRequest)
                             return
                         }
@@ -1143,6 +1393,18 @@ private actor RedirectSessionActor {
         let session = URLSession(configuration: .default, delegate: redirectDelegate, delegateQueue: nil)
         self.urlSession = session
         return session
+    }
+}
+
+private actor HubRepoIDCacheActor {
+    private var values: [String: HuggingFace.Repo.ID] = [:]
+
+    func get(_ key: String) -> HuggingFace.Repo.ID? {
+        values[key]
+    }
+
+    func set(_ key: String, value: HuggingFace.Repo.ID) {
+        values[key] = value
     }
 }
 
