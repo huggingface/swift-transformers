@@ -71,7 +71,7 @@ final class Downloader: NSObject, Sendable {
         self.incompleteDestination = incompleteDestination
         self.chunkSize = chunkSize
 
-        let sessionIdentifier = "swift-transformers.hub.downloader"
+        let sessionIdentifier = "swift-transformers.hub.downloader.\(destination.lastPathComponent.hashValue)"
 
         var config = URLSessionConfiguration.default
         #if !canImport(FoundationNetworking)
