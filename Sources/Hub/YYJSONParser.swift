@@ -47,7 +47,11 @@ enum YYJSONParser {
             }
 
             var err = yyjson_read_err()
-            let flags: yyjson_read_flag = YYJSON_READ_ALLOW_INF_AND_NAN
+            let flags: yyjson_read_flag =
+                YYJSON_READ_ALLOW_INF_AND_NAN
+                | YYJSON_READ_ALLOW_TRAILING_COMMAS
+                | YYJSON_READ_ALLOW_BOM
+                | YYJSON_READ_ALLOW_COMMENTS
             let doc = yyjson_read_opts(
                 UnsafeMutableRawPointer(mutating: baseAddress).assumingMemoryBound(to: CChar.self),
                 buffer.count,
@@ -94,7 +98,10 @@ enum YYJSONParser {
             return Config(Float(yyjson_get_real(val)))
         } else if yyjson_is_str(val) {
             guard let str = yyjson_get_str(val) else { return Config("") }
-            return Config(String(cString: str))
+            let length = yyjson_get_len(val)
+            let utf8Buffer = UnsafeRawBufferPointer(start: str, count: length)
+            let stringValue = String(decoding: utf8Buffer, as: UTF8.self)
+            return Config(stringValue)
         } else if yyjson_is_arr(val) {
             return convertArrayToConfig(val)
         } else if yyjson_is_obj(val) {
@@ -118,7 +125,9 @@ enum YYJSONParser {
                 continue
             }
 
-            let keyString = String(cString: keyPtr)
+            let keyLength = yyjson_get_len(key)
+            let keyBuffer = UnsafeRawBufferPointer(start: keyPtr, count: keyLength)
+            let keyString = String(decoding: keyBuffer, as: UTF8.self)
             result[BinaryDistinctString(keyString)] = convertToConfig(val)
         }
 
