@@ -189,10 +189,12 @@ struct YYJSONParserTests {
     }
 }
 
-// MARK: - Foundation / YYJSONParser parity tests
+// MARK: - Foundation / YYJSONParser comparison tests
+// Tests that both parsers produce identical Config output for standard JSON,
+// and documents known behavioral differences (e.g., BOM in string values).
 
-@Suite("YYJSONParser parity with Foundation JSONSerialization")
-struct YYJSONParserParityTests {
+@Suite("YYJSONParser comparison with Foundation JSONSerialization")
+struct YYJSONParserComparisonTests {
 
     /// Parses JSON data through JSONSerialization -> Config path
     private func parseWithFoundation(_ data: Data) throws -> Config {
@@ -320,22 +322,6 @@ struct YYJSONParserParityTests {
     }
 
     @Test
-    func bomInsideStringPreservedByYYJSON() throws {
-        // Foundation's JSONSerialization strips BOM (U+FEFF) from string values,
-        // but yyjson preserves it. yyjson's behavior is correct per the spec --
-        // BOM inside a string value is part of the content, not a document marker.
-        let json = "{\"token\": \"\u{feff}#\", \"normal\": \"#\"}"
-        let data = Data(json.utf8)
-
-        let foundationConfig = try parseWithFoundation(data)
-        let yyjsonConfig = try YYJSONParser.parseToConfig(data)
-
-        #expect(yyjsonConfig["token"].string() == "\u{feff}#", "yyjson preserves BOM in string values")
-        #expect(foundationConfig["token"].string() == "#", "Foundation strips BOM from string values")
-        #expect(foundationConfig["normal"] == yyjsonConfig["normal"])
-    }
-
-    @Test
     func deeplyNestedStructuresMatch() throws {
         let json = #"{"l1": {"l2": {"l3": {"l4": {"value": "deep"}}}}}"#
         let data = Data(json.utf8)
@@ -377,5 +363,24 @@ struct YYJSONParserParityTests {
         #expect(foundationConfig["big"] == yyjsonConfig["big"])
         #expect(foundationConfig["negative"] == yyjsonConfig["negative"])
         #expect(foundationConfig["small"] == yyjsonConfig["small"])
+    }
+
+    // MARK: Known differences
+
+    @Test
+    func bomInsideStringPreservedByYYJSON() throws {
+        // Foundation strips BOM (U+FEFF) from string values,
+        // yyjson preserves it. yyjson's behavior is correct per the spec --
+        // BOM inside a string value is part of the content, not a document marker.
+        // The previous Foundation path required a bomPreservingJsonObject workaround.
+        let json = "{\"token\": \"\u{feff}#\", \"normal\": \"#\"}"
+        let data = Data(json.utf8)
+
+        let foundationConfig = try parseWithFoundation(data)
+        let yyjsonConfig = try YYJSONParser.parseToConfig(data)
+
+        #expect(yyjsonConfig["token"].string() == "\u{feff}#", "yyjson preserves BOM in string values")
+        #expect(foundationConfig["token"].string() == "#", "Foundation strips BOM from string values")
+        #expect(foundationConfig["normal"] == yyjsonConfig["normal"])
     }
 }

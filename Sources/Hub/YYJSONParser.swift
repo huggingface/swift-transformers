@@ -47,6 +47,12 @@ enum YYJSONParser {
             }
 
             var err = yyjson_read_err()
+            // Relaxed parsing to handle real-world config and
+            // tokenizer files that may contain non-standard JSON constructs:
+            //  - Inf/NaN literals in numeric fields
+            //  - Trailing commas after the last element in objects/arrays
+            //  - UTF-8 BOM prefix from files served over the network
+            //  - C-style single-line (//) and block (/* */) comments
             let flags: yyjson_read_flag =
                 YYJSON_READ_ALLOW_INF_AND_NAN
                 | YYJSON_READ_ALLOW_TRAILING_COMMAS
