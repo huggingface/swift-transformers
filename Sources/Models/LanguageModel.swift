@@ -139,6 +139,8 @@ extension LanguageModel {
         static let inputIds = "inputIds"
         static let attentionMask = "attentionMask"
         static let causalMask = "causalMask"
+        static let fullAttentionMask = "fullAttentionMask"
+        static let slidingAttentionMask = "slidingAttentionMask"
         static let keyCache = "keyCache"
         static let valueCache = "valueCache"
         // Output keys
@@ -260,6 +262,16 @@ public extension LanguageModel {
     /// Whether the model requires a causal attention mask.
     var isRequiringCausalMask: Bool {
         modelDescription.inputDescriptionsByName[Keys.causalMask] != nil
+    }
+
+    /// Whether the model requires a full-attention mask.
+    var isRequiringFullAttentionMask: Bool {
+        modelDescription.inputDescriptionsByName[Keys.fullAttentionMask] != nil
+    }
+
+    /// Whether the model requires a sliding-window attention mask.
+    var isRequiringSlidingAttentionMask: Bool {
+        modelDescription.inputDescriptionsByName[Keys.slidingAttentionMask] != nil
     }
 
     /// Determines the type of KV Cache available for the model, if any.
@@ -412,6 +424,27 @@ public extension LanguageModel {
         }
     }
 
+    /// Sliding window size for mixed-attention models, if present.
+    var slidingWindowSize: Int? {
+        get async throws {
+            if let userFields = metadata[MLModelMetadataKey.creatorDefinedKey] as? [String: String],
+                let value = userFields["co.huggingface.exporters.sliding_window"],
+                let parsed = Int(value)
+            {
+                return parsed
+            }
+
+            let modelConfig = try await modelConfig
+            if let direct = modelConfig?.slidingWindow.integer() {
+                return direct
+            }
+            if let nested = modelConfig?.textConfig.slidingWindow.integer() {
+                return nested
+            }
+            return nil
+        }
+    }
+
     /// The tokenizer associated with this model.
     ///
     /// Lazily loads and caches the tokenizer on first access.
@@ -454,6 +487,36 @@ extension LanguageModel: TextGenerationModel {
 
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
 extension LanguageModel {
+    static func additiveAttentionMask(
+        queryLength: Int,
+        totalLength: Int,
+        slidingWindow: Int? = nil
+    ) -> MLTensor {
+        precondition(queryLength > 0)
+        precondition(totalLength >= queryLength)
+
+        let negativeValue = -Float16.greatestFiniteMagnitude
+        let zeroValue: Float16 = 0
+        let pastLength = totalLength - queryLength
+        var scalars = [Float16]()
+        scalars.reserveCapacity(queryLength * totalLength)
+
+        for queryIndex in 0..<queryLength {
+            let queryPosition = pastLength + queryIndex
+            for keyIndex in 0..<totalLength {
+                let isCausal = keyIndex <= queryPosition
+                let isInsideWindow = slidingWindow == nil || keyIndex > (queryPosition - slidingWindow!)
+                scalars.append(isCausal && isInsideWindow ? zeroValue : negativeValue)
+            }
+        }
+
+        return MLTensor(
+            shape: [1, 1, queryLength, totalLength],
+            scalars: scalars,
+            scalarType: Float16.self
+        )
+    }
+
     /// Generates tokens from input tokens.
     ///
     /// - Parameters:
@@ -531,6 +594,7 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
         var inputDictionary = [
             Keys.inputIds: inputIds
         ]
+        let queryLength = inputIds.shape[1]
         if isRequiringAttentionMask {
             #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
             // TODO: Infer scalar type from cache or model I/O descriptors
@@ -548,6 +612,29 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
             #else
             fatalError()
             #endif
+        }
+        if isRequiringFullAttentionMask {
+            let fullAttentionMask = Self.additiveAttentionMask(
+                queryLength: queryLength,
+                totalLength: tokenCount
+            )
+            inputDictionary[Keys.fullAttentionMask] = fullAttentionMask
+        }
+        if isRequiringSlidingAttentionMask {
+            guard let slidingWindow = try? await slidingWindowSize, let slidingWindow else {
+                fatalError(
+                    """
+                    Encountered a model requiring `slidingAttentionMask` but no sliding window \
+                    size was available in metadata or config.
+                    """
+                )
+            }
+            let slidingAttentionMask = Self.additiveAttentionMask(
+                queryLength: queryLength,
+                totalLength: tokenCount,
+                slidingWindow: slidingWindow
+            )
+            inputDictionary[Keys.slidingAttentionMask] = slidingAttentionMask
         }
         let outputs = try! await model.prediction(from: inputDictionary, using: state)
 
