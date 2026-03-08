@@ -10,6 +10,9 @@ import CoreML
 struct LanguageModelCoreMLMaskTests {
     @Test("Build full attention mask for prefill")
     func buildFullAttentionMaskForPrefill() async {
+        guard #available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *) else {
+            return
+        }
         let mask = LanguageModel.additiveAttentionMask(queryLength: 3, totalLength: 3)
         let values = await mask.shapedArray(of: Float16.self).scalars
         let blocked = -Float16.greatestFiniteMagnitude
@@ -23,6 +26,9 @@ struct LanguageModelCoreMLMaskTests {
 
     @Test("Build sliding attention mask for decode")
     func buildSlidingAttentionMaskForDecode() async {
+        guard #available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *) else {
+            return
+        }
         let mask = LanguageModel.additiveAttentionMask(queryLength: 1, totalLength: 6, slidingWindow: 4)
         let values = await mask.shapedArray(of: Float16.self).scalars
         let blocked = -Float16.greatestFiniteMagnitude
@@ -34,6 +40,9 @@ struct LanguageModelCoreMLMaskTests {
 
     @Test("Build sliding attention mask for prefill with past offset")
     func buildSlidingAttentionMaskForPrefillWithPastOffset() async {
+        guard #available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *) else {
+            return
+        }
         let mask = LanguageModel.additiveAttentionMask(queryLength: 2, totalLength: 5, slidingWindow: 2)
         let values = await mask.shapedArray(of: Float16.self).scalars
         let blocked = -Float16.greatestFiniteMagnitude

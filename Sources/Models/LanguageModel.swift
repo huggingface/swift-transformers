@@ -621,7 +621,7 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
             inputDictionary[Keys.fullAttentionMask] = fullAttentionMask
         }
         if isRequiringSlidingAttentionMask {
-            guard let slidingWindow = try? await slidingWindowSize, let slidingWindow else {
+            guard let slidingWindow = try? await slidingWindowSize else {
                 fatalError(
                     """
                     Encountered a model requiring `slidingAttentionMask` but no sliding window \
