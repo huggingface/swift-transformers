@@ -517,6 +517,57 @@ extension LanguageModel {
         )
     }
 
+    static func statefulGenerationInputs(
+        inputIds: MLTensor,
+        tokenCount: Int,
+        includeAttentionMask: Bool,
+        includeCausalMask: Bool,
+        includeFullAttentionMask: Bool,
+        includeSlidingAttentionMask: Bool,
+        slidingWindow: Int? = nil
+    ) -> [String: MLTensor] {
+        var inputDictionary = [
+            Keys.inputIds: inputIds
+        ]
+        let queryLength = inputIds.shape[1]
+
+        if includeAttentionMask {
+            inputDictionary[Keys.attentionMask] = MLTensor(
+                zeros: [1, 1, 1, tokenCount + 1],
+                scalarType: Float16.self
+            )
+        }
+        if includeCausalMask {
+            inputDictionary[Keys.causalMask] = MLTensor(
+                zeros: [1, 1, 1, tokenCount + 1],
+                scalarType: Float16.self
+            )
+        }
+        if includeFullAttentionMask {
+            inputDictionary[Keys.fullAttentionMask] = Self.additiveAttentionMask(
+                queryLength: queryLength,
+                totalLength: tokenCount
+            )
+        }
+        if includeSlidingAttentionMask {
+            guard let slidingWindow else {
+                fatalError(
+                    """
+                    Encountered a model requiring `slidingAttentionMask` but no sliding window \
+                    size was available in metadata or config.
+                    """
+                )
+            }
+            inputDictionary[Keys.slidingAttentionMask] = Self.additiveAttentionMask(
+                queryLength: queryLength,
+                totalLength: tokenCount,
+                slidingWindow: slidingWindow
+            )
+        }
+
+        return inputDictionary
+    }
+
     /// Generates tokens from input tokens.
     ///
     /// - Parameters:
@@ -591,51 +642,20 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
             }
         mode = .extending
 
-        var inputDictionary = [
-            Keys.inputIds: inputIds
-        ]
-        let queryLength = inputIds.shape[1]
-        if isRequiringAttentionMask {
-            #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
-            // TODO: Infer scalar type from cache or model I/O descriptors
-            let attentionMask = MLTensor(zeros: [1, 1, 1, tokenCount + 1], scalarType: Float16.self)
-            inputDictionary[Keys.attentionMask] = attentionMask
-            #else
-            fatalError()
-            #endif
+        let slidingWindow: Int? = if isRequiringSlidingAttentionMask {
+            try? await slidingWindowSize
+        } else {
+            nil
         }
-        if isRequiringCausalMask {
-            #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
-            // TODO: Infer scalar type from cache or model I/O descriptors
-            let causalMask = MLTensor(zeros: [1, 1, 1, tokenCount + 1], scalarType: Float16.self)
-            inputDictionary[Keys.causalMask] = causalMask
-            #else
-            fatalError()
-            #endif
-        }
-        if isRequiringFullAttentionMask {
-            let fullAttentionMask = Self.additiveAttentionMask(
-                queryLength: queryLength,
-                totalLength: tokenCount
-            )
-            inputDictionary[Keys.fullAttentionMask] = fullAttentionMask
-        }
-        if isRequiringSlidingAttentionMask {
-            guard let slidingWindow = try? await slidingWindowSize else {
-                fatalError(
-                    """
-                    Encountered a model requiring `slidingAttentionMask` but no sliding window \
-                    size was available in metadata or config.
-                    """
-                )
-            }
-            let slidingAttentionMask = Self.additiveAttentionMask(
-                queryLength: queryLength,
-                totalLength: tokenCount,
-                slidingWindow: slidingWindow
-            )
-            inputDictionary[Keys.slidingAttentionMask] = slidingAttentionMask
-        }
+        let inputDictionary = Self.statefulGenerationInputs(
+            inputIds: inputIds,
+            tokenCount: tokenCount,
+            includeAttentionMask: isRequiringAttentionMask,
+            includeCausalMask: isRequiringCausalMask,
+            includeFullAttentionMask: isRequiringFullAttentionMask,
+            includeSlidingAttentionMask: isRequiringSlidingAttentionMask,
+            slidingWindow: slidingWindow
+        )
         let outputs = try! await model.prediction(from: inputDictionary, using: state)
 
         assert(outputs.keys.contains(Keys.logits))
