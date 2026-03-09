@@ -303,15 +303,6 @@ public protocol Tokenizer: Sendable {
     /// - Returns: An array of token IDs
     func encode(text: String, addSpecialTokens: Bool) -> [Int]
 
-    /// Encodes text into a view of token IDs, token strings, and source spans.
-    ///
-    /// - Parameters:
-    ///   - text: The input text to encode
-    ///   - addSpecialTokens: Whether to add special tokens (e.g., BOS, EOS)
-    /// - Returns: A token encoding view. Spans are `nil` for synthetic/special tokens
-    ///   or when offset mapping is unavailable.
-    func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView
-
     /// Function call syntax for encoding text.
     ///
     /// - Parameters:
@@ -466,6 +457,19 @@ public protocol Tokenizer: Sendable {
     ) throws -> [Int]
 }
 
+/// A tokenizer that can return source spans for encoded tokens.
+public protocol OffsetMappingTokenizer: Tokenizer {
+    /// Encodes text into a view of token IDs, token strings, and source spans.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to encode
+    ///   - addSpecialTokens: Whether to add special tokens (e.g., BOS, EOS)
+    /// - Returns: A token encoding view.
+    ///            Spans are `nil` for synthetic/special tokens
+    ///            or when offset mapping is unavailable.
+    func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView
+}
+
 extension Tokenizer {
     public var hasChatTemplate: Bool { false }
 
@@ -494,18 +498,6 @@ extension Tokenizer {
 public extension Tokenizer {
     func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
-    }
-
-    func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView {
-        let ids = encode(text: text, addSpecialTokens: addSpecialTokens)
-        let elements = ids.map { id in
-            TokenEncodingView.Element(id: id, token: convertIdToToken(id) ?? "", span: nil)
-        }
-        return TokenEncodingView(text: text, storage: elements)
-    }
-
-    func encodeWithOffsets(text: String) -> TokenEncodingView {
-        encodeWithOffsets(text: text, addSpecialTokens: true)
     }
 
     func decode(tokens: [Int]) -> String {
@@ -537,7 +529,7 @@ let specialTokenAttributes: [String] = [
 /// This class provides a complete tokenizer implementation that can be initialized from
 /// Hugging Face Hub configuration files and supports all standard tokenization operations
 /// including chat template application, normalization, pre-tokenization, and post-processing.
-public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
+public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer, OffsetMappingTokenizer {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }
@@ -780,7 +772,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
                         TokenWithOffset(token: $0.0, offset: $0.1)
                     }
                 }
-                return subtokens.map { TokenWithOffset(token: $0, offset: offset) }
+                return subtokens.map { TokenWithOffset(token: $0, offset: nil) }
             }
         }
         return fuseUnknown(tokens)
