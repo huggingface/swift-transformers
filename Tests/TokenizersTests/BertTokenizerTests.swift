@@ -269,7 +269,7 @@ struct BertTokenizerTests {
         #expect(sourceBacked.allSatisfy { $0.span != nil })
 
         if let johnSpan = encoding.first(where: { $0.token == "john" })?.span {
-            #expect(String(input[johnSpan]) == "John")
+            #expect(String(encoding.text[johnSpan]) == "John")
         } else {
             Issue.record("Expected token 'john' with a source span")
         }

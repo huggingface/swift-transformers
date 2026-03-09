@@ -23,7 +23,8 @@ public struct TokenEncodingView: RandomAccessCollection, Sendable {
         public let id: Int
         /// Token text.
         public let token: String
-        /// Span in the original input text. Special or synthetic tokens have `nil`.
+        /// Span in the original input text when available.
+        /// Special/synthetic tokens or tokens without reliable offset mapping have `nil`.
         public let span: Range<String.Index>?
     }
 
@@ -307,7 +308,8 @@ public protocol Tokenizer: Sendable {
     /// - Parameters:
     ///   - text: The input text to encode
     ///   - addSpecialTokens: Whether to add special tokens (e.g., BOS, EOS)
-    /// - Returns: A token encoding view. Spans are `nil` for synthetic/special tokens.
+    /// - Returns: A token encoding view. Spans are `nil` for synthetic/special tokens
+    ///   or when offset mapping is unavailable.
     func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView
 
     /// Function call syntax for encoding text.
@@ -492,6 +494,14 @@ extension Tokenizer {
 public extension Tokenizer {
     func callAsFunction(_ text: String, addSpecialTokens: Bool = true) -> [Int] {
         encode(text: text, addSpecialTokens: addSpecialTokens)
+    }
+
+    func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView {
+        let ids = encode(text: text, addSpecialTokens: addSpecialTokens)
+        let elements = ids.map { id in
+            TokenEncodingView.Element(id: id, token: convertIdToToken(id) ?? "", span: nil)
+        }
+        return TokenEncodingView(text: text, storage: elements)
     }
 
     func encodeWithOffsets(text: String) -> TokenEncodingView {
