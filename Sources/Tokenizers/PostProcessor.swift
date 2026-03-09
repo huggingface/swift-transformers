@@ -212,3 +212,30 @@ class SequenceProcessing: PostProcessor {
         return currentTokens
     }
 }
+
+struct PostProcessedToken {
+    let text: String
+    let offset: Range<Int>?
+}
+
+func postProcessWithOffsets(postProcessor: PostProcessor?, tokens: [PostProcessedToken], addSpecialTokens: Bool = true) -> [PostProcessedToken] {
+    guard let postProcessor else { return tokens }
+
+    let tokenStrings = tokens.map(\.text)
+    let processedStrings = postProcessor.postProcess(tokens: tokenStrings, tokensPair: nil, addSpecialTokens: addSpecialTokens)
+
+    var spanQueues: [String: [Range<Int>?]] = [:]
+    for token in tokens {
+        spanQueues[token.text, default: []].append(token.offset)
+    }
+
+    return processedStrings.map { token in
+        if var queue = spanQueues[token], !queue.isEmpty {
+            let offset = queue.removeFirst()
+            spanQueues[token] = queue
+            return PostProcessedToken(text: token, offset: offset)
+        }
+        // Synthetic/special tokens added by post-processing have no source span.
+        return PostProcessedToken(text: token, offset: nil)
+    }
+}

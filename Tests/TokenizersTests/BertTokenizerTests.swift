@@ -251,4 +251,27 @@ struct BertTokenizerTests {
             #expect(decoded == String(expected))
         }
     }
+
+    @Test("BERT offset mapping aligns simple spans")
+    func bertOffsetMapping() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-bert/bert-base-uncased") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        let input = "John Smith works at Google"
+        let encoding = tokenizer.encodeWithOffsets(text: input)
+        #expect(encoding.map(\.id) == tokenizer.encode(text: input))
+        #expect(encoding.first?.token == "[CLS]")
+        #expect(encoding.first?.span == nil)
+        #expect(encoding.last?.token == "[SEP]")
+        #expect(encoding.last?.span == nil)
+        let sourceBacked = encoding.dropFirst().dropLast()
+        #expect(sourceBacked.allSatisfy { $0.span != nil })
+
+        if let johnSpan = encoding.first(where: { $0.token == "john" })?.span {
+            #expect(String(input[johnSpan]) == "John")
+        } else {
+            Issue.record("Expected token 'john' with a source span")
+        }
+    }
 }

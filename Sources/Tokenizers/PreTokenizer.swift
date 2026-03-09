@@ -286,3 +286,51 @@ class SplitPreTokenizer: PreTokenizer {
         return pattern.split(text, invert: invert)
     }
 }
+
+struct PreTokenizedText {
+    let text: String
+    let offset: Range<Int>?
+}
+
+func preTokenizeWithOffsets(preTokenizer: PreTokenizer?, text: String, options: PreTokenizerOptions = [.firstSection], baseOffset: Int = 0) -> [PreTokenizedText] {
+    guard let preTokenizer else {
+        return [PreTokenizedText(text: text, offset: baseOffset..<(baseOffset + text.count))]
+    }
+
+    if let sequence = preTokenizer as? PreTokenizerSequence {
+        var current = [PreTokenizedText(text: text, offset: baseOffset..<(baseOffset + text.count))]
+        for nextTokenizer in sequence.preTokenizers {
+            current = current.flatMap { item in
+                guard let offset = item.offset else {
+                    return nextTokenizer.preTokenize(text: item.text, options: options).map { PreTokenizedText(text: $0, offset: nil) }
+                }
+                return preTokenizeWithOffsets(preTokenizer: nextTokenizer, text: item.text, options: options, baseOffset: offset.lowerBound)
+            }
+        }
+        return current
+    }
+
+    let ranges: [Range<String.Index>]?
+    switch preTokenizer {
+    case let tokenizer as BertPreTokenizer:
+        ranges = text.ranges(of: tokenizer.re)
+    case let tokenizer as WhitespacePreTokenizer:
+        ranges = text.ranges(of: tokenizer.re)
+    case let tokenizer as PunctuationPreTokenizer:
+        ranges = text.ranges(of: tokenizer.re)
+    case let tokenizer as DigitsPreTokenizer:
+        ranges = text.ranges(of: tokenizer.re)
+    default:
+        ranges = nil
+    }
+
+    if let ranges {
+        return ranges.map { range in
+            let lower = baseOffset + text.distance(from: text.startIndex, to: range.lowerBound)
+            let upper = baseOffset + text.distance(from: text.startIndex, to: range.upperBound)
+            return PreTokenizedText(text: String(text[range]), offset: lower..<upper)
+        }
+    }
+
+    return preTokenizer.preTokenize(text: text, options: options).map { PreTokenizedText(text: $0, offset: nil) }
+}
