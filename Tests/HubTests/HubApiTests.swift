@@ -11,6 +11,18 @@ import XCTest
 class HubApiTests: XCTestCase {
     // TODO: use a specific revision for these tests
 
+    func testInvalidEndpointFallsBackToDefaultHost() {
+        let hubApi = HubApi(endpoint: "://invalid-endpoint")
+        let url = URL(string: hubApi.endpoint)
+        XCTAssertEqual(url?.scheme, "https")
+        XCTAssertEqual(url?.host, "huggingface.co")
+    }
+
+    func testExplicitEndpointOverrideIsUsed() {
+        let hubApi = HubApi(endpoint: "https://hf-mirror.com")
+        XCTAssertEqual(hubApi.endpoint, "https://hf-mirror.com")
+    }
+
     /// Test that revision values containing slashes (like "pr/1") are properly URL encoded.
     /// The Hub API requires "pr/1" to be encoded as "pr%2F1" - otherwise it returns 404.
     func testGetFilenamesWithPRRevision() async throws {
@@ -662,7 +674,7 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertTrue(metadataString.contains(expected))
     }
 
-    func testRegexValidation() async throws {
+    func testHexHashValidation() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
         let downloadedTo = try await hubApi.snapshot(from: lfsRepo, matching: "x.bin") { progress in
@@ -692,11 +704,14 @@ class SnapshotDownloadTests: XCTestCase {
         let commitHash = metadataArr[0]
         let etag = metadataArr[1]
 
-        XCTAssertTrue(hubApi.isValidHash(hash: commitHash, pattern: hubApi.commitHashPattern))
-        XCTAssertTrue(hubApi.isValidHash(hash: etag, pattern: hubApi.sha256Pattern))
+        XCTAssertTrue(hubApi.isValidCommitHash(commitHash))
+        XCTAssertTrue(hubApi.isValidSHA256(etag))
 
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(commitHash)a", pattern: hubApi.commitHashPattern))
-        XCTAssertFalse(hubApi.isValidHash(hash: "\(etag)a", pattern: hubApi.sha256Pattern))
+        XCTAssertFalse(hubApi.isValidCommitHash("\(commitHash)a"))
+        XCTAssertFalse(hubApi.isValidSHA256("\(etag)a"))
+        XCTAssertFalse(hubApi.isValidCommitHash(commitHash.uppercased()))
+        XCTAssertFalse(hubApi.isValidSHA256(etag.uppercased()))
+        XCTAssertFalse(hubApi.isValidSHA256("g" + etag.dropFirst()))
     }
 
     func testLFSFileNoMetadata() async throws {
