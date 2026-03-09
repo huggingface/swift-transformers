@@ -52,12 +52,10 @@ enum YYJSONParser {
             //  - Inf/NaN literals in numeric fields
             //  - Trailing commas after the last element in objects/arrays
             //  - UTF-8 BOM prefix from files served over the network
-            //  - C-style single-line (//) and block (/* */) comments
             let flags: yyjson_read_flag =
                 YYJSON_READ_ALLOW_INF_AND_NAN
                 | YYJSON_READ_ALLOW_TRAILING_COMMAS
                 | YYJSON_READ_ALLOW_BOM
-                | YYJSON_READ_ALLOW_COMMENTS
             let doc = yyjson_read_opts(
                 UnsafeMutableRawPointer(mutating: baseAddress).assumingMemoryBound(to: CChar.self),
                 buffer.count,

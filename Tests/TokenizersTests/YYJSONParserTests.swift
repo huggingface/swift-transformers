@@ -139,54 +139,6 @@ struct YYJSONParserTests {
         let array = config["b"].array()
         #expect(array?.count == 2)
     }
-
-    @Test
-    func allowsSingleLineComments() throws {
-        let json = """
-            {
-                // this is a comment
-                "key": "value",
-                "number": 42
-            }
-            """
-        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
-
-        #expect(config["key"].string() == "value")
-        #expect(config["number"].integer() == 42)
-    }
-
-    @Test
-    func allowsMultiLineComments() throws {
-        let json = """
-            {
-                /* block comment
-                   spanning multiple lines */
-                "key": "value"
-            }
-            """
-        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
-
-        #expect(config["key"].string() == "value")
-    }
-
-    @Test
-    func allowsCommentsWithTrailingCommas() throws {
-        let json = """
-            {
-                "a": 1, // inline comment
-                "b": [
-                    2, /* another comment */
-                    3,
-                ],
-            }
-            """
-        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
-
-        #expect(config["a"].integer() == 1)
-        let array = config["b"].array()
-        #expect(array?.count == 2)
-        #expect(array?[1].integer() == 3)
-    }
 }
 
 // MARK: - Foundation / YYJSONParser comparison tests
