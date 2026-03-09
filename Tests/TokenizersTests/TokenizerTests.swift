@@ -116,7 +116,7 @@ struct TokenizerTests {
         #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
         let encoding = tokenizer.encodeWithOffsets(text: dataset.text)
         #expect(encoding.map(\.id) == dataset.token_ids)
-        #expect(encoding.count == encoding.map(\.token).count)
+        #expect(encoding.allSatisfy { tokenizer.convertTokenToId($0.token) == $0.id })
         if let span = encoding.first(where: { $0.span != nil })?.span {
             #expect(!String(dataset.text[span]).isEmpty)
         }

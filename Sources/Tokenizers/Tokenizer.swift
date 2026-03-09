@@ -173,6 +173,20 @@ private func splitByAddedTokensRegex(text: String, regex: NSRegularExpression) -
     return result
 }
 
+private func canShareCharacterOffsets(original: String, normalized: String) -> Bool {
+    guard original.count == normalized.count else { return false }
+    for (lhs, rhs) in zip(original, normalized) {
+        if lhs == rhs { continue }
+        // Allow one-to-one case changes (e.g. "John" -> "john") while rejecting
+        // transformations that may change grapheme boundary alignment.
+        if String(lhs).lowercased() == String(rhs) || String(rhs).lowercased() == String(lhs) {
+            continue
+        }
+        return false
+    }
+    return true
+}
+
 public extension TokenizingModel {
     func callAsFunction(_ text: String) -> [String] {
         tokenize(text: text)
@@ -708,16 +722,19 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         return fused
     }
 
-    private func rangeInText(from offset: Range<Int>, text: String) -> Range<String.Index>? {
-        guard offset.lowerBound >= 0, offset.upperBound >= offset.lowerBound, offset.upperBound <= text.count else {
-            return nil
+    private struct TextIndexLookup {
+        let indices: [String.Index]
+
+        init(text: String) {
+            indices = Array(text.indices) + [text.endIndex]
         }
-        guard let lower = text.index(text.startIndex, offsetBy: offset.lowerBound, limitedBy: text.endIndex),
-            let upper = text.index(text.startIndex, offsetBy: offset.upperBound, limitedBy: text.endIndex)
-        else {
-            return nil
+
+        func range(from offset: Range<Int>) -> Range<String.Index>? {
+            guard offset.lowerBound >= 0, offset.upperBound >= offset.lowerBound, offset.upperBound < indices.count else {
+                return nil
+            }
+            return indices[offset.lowerBound]..<indices[offset.upperBound]
         }
-        return lower..<upper
     }
 
     private func tokenizeWithOffsets(text: String) -> [TokenWithOffset] {
@@ -736,7 +753,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
 
             let normalized = normalize(sectionText)
             let preTokenized: [PreTokenizedText] =
-                if let sectionRange, normalized.count == sectionText.count {
+                if let sectionRange, canShareCharacterOffsets(original: sectionText, normalized: normalized) {
                     preTokenizeWithOffsets(preTokenizer: preTokenizer, text: normalized, options: section == 0 ? [.firstSection] : [], baseOffset: sectionRange.lowerBound)
                 } else {
                     preTokenize(normalized, options: section == 0 ? [.firstSection] : []).map { PreTokenizedText(text: $0, offset: nil) }
@@ -803,7 +820,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     ///   - addSpecialTokens: Whether to add special tokens during post-processing
     /// - Returns: An array of token IDs
     public func encode(text: String, addSpecialTokens: Bool = true) -> [Int] {
-        encodeWithOffsets(text: text, addSpecialTokens: addSpecialTokens).map(\.id)
+        postProcess(tokenize(text: text), addSpecialTokens: addSpecialTokens).map { model.convertTokenToId($0)! }
     }
 
     /// Encodes input text into token IDs with special tokens included by default.
@@ -815,6 +832,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     }
 
     public func encodeWithOffsets(text: String, addSpecialTokens: Bool = true) -> TokenEncodingView {
+        let indexLookup = TextIndexLookup(text: text)
         let tokenized = tokenizeWithOffsets(text: text)
         let processed = postProcessWithOffsets(
             postProcessor: postProcessor,
@@ -825,7 +843,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
             TokenEncodingView.Element(
                 id: model.convertTokenToId(token.text)!,
                 token: token.text,
-                span: token.offset.flatMap { rangeInText(from: $0, text: text) }
+                span: token.offset.flatMap { indexLookup.range(from: $0) }
             )
         }
         return TokenEncodingView(text: text, storage: storage)
