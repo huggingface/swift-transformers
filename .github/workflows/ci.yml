@@ -26,7 +26,11 @@ jobs:
     test-linux:
         name: Test (Linux)
         runs-on: ubuntu-latest
-        container: swift:6.2.3
+        strategy:
+            matrix:
+                swift-version:
+                    - "6.2.3"
+        container: swift:${{ matrix.swift-version }}
         steps:
             - name: Checkout PR merge ref if called from PR
               if: ${{ github.event.pull_request.number }}
@@ -38,6 +42,18 @@ jobs:
             - name: Checkout fallback
               if: ${{ !github.event.pull_request.number }}
               uses: actions/checkout@v6
+
+            - name: Cache Swift Package Manager Build Artifacts
+              uses: actions/cache@v5
+              with:
+                  path: |
+                      .build/artifacts
+                      .build/checkouts
+                      .build/debug
+                      .build/repositories
+                  key: ${{ runner.os }}-swiftpm-swift-${{ matrix.swift-version }}-${{ hashFiles('Package.swift') }}
+                  restore-keys: |
+                      ${{ runner.os }}-swiftpm-swift-${{ matrix.swift-version }}-
 
             - name: Build
               run: swift build
