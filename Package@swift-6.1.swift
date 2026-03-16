@@ -28,7 +28,8 @@ let package = Package(
             url: "https://github.com/huggingface/swift-huggingface.git",
             from: "0.8.1",
             traits: [
-                .trait(name: "Xet", condition: .when(traits: ["Xet"]))
+                .defaults,
+                .trait(name: "Xet", condition: .when(traits: ["Xet"])),
             ]
         ),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
