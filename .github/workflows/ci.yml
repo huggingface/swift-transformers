@@ -24,9 +24,15 @@ jobs:
             HF_HUB_READ_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
 
     test-linux:
-        name: Test (Linux)
+        name: Test (Linux)${{ matrix.traits != '' && format(' with --traits {0}', matrix.traits) || '' }}
         runs-on: ubuntu-latest
         container: swift:6.2.3
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - traits: ""
+                    - traits: "Xet"
         steps:
             - name: Checkout PR merge ref if called from PR
               if: ${{ github.event.pull_request.number }}
@@ -40,7 +46,7 @@ jobs:
               uses: actions/checkout@v6
 
             - name: Build
-              run: swift build
+              run: swift build${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
 
             - name: Run tests
               env:
@@ -49,7 +55,7 @@ jobs:
               # FoundationNetworking race condition that crashes during teardown.
               # See: https://github.com/swiftlang/swift-corelibs-foundation/issues/3675
               run: |
-                  swift test --skip HubTests --skip TokenizersTests
+                  swift test --skip HubTests --skip TokenizersTests${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
     lint:
         name: Lint
         runs-on: macos-latest
