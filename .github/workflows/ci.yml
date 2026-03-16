@@ -26,13 +26,15 @@ jobs:
     test-linux:
         name: Test (Linux)${{ matrix.traits != '' && format(' with --traits {0}', matrix.traits) || '' }}
         runs-on: ubuntu-latest
-        container: swift:6.2.3
+        container: swift:${{ matrix.swift }}
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - traits: ""
-                    - traits: "Xet"
+                    - swift: "6.2.3"
+                      traits: ""
+                    - swift: "6.2.3"
+                      traits: "Xet"
         steps:
             - name: Checkout PR merge ref if called from PR
               if: ${{ github.event.pull_request.number }}
@@ -44,6 +46,14 @@ jobs:
             - name: Checkout fallback
               if: ${{ !github.event.pull_request.number }}
               uses: actions/checkout@v6
+
+            - name: Cache Swift Package Manager dependencies
+              uses: actions/cache@v5
+              with:
+                  path: ~/.cache/org.swift.swiftpm
+                  key: ${{ runner.os }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-${{ hashFiles('Package.swift', 'Package@swift-6.1.swift', '**/Package.resolved') }}
+                  restore-keys: |
+                      ${{ runner.os }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-
 
             - name: Build
               run: swift build${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
