@@ -45,6 +45,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Jinja", package: "swift-jinja"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),
+                .product(name: "Xet", package: "swift-xet", condition: .when(traits: ["Xet"])),
                 .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "yyjson", package: "yyjson"),
