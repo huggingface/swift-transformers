@@ -46,6 +46,36 @@ class HubApiTests: XCTestCase {
         XCTAssertFalse(metadata.isEmpty, "Should retrieve file metadata from PR revision")
     }
 
+    func testDownloadProgressBridgeEmitsForByteDeltaBelowFractionThreshold() {
+        let progress = Progress(totalUnitCount: 10_000_000)
+        var fractions: [Double] = []
+
+        let bridge = DownloadProgressBridge(progress: progress) { fraction, _ in
+            fractions.append(fraction)
+        }
+
+        bridge.emitIfNeeded(force: true)
+
+        // Change fraction by 0.00001 (< 0.001 threshold) while bytes do change.
+        progress.completedUnitCount += 100
+        XCTAssertEqual(progress.completedUnitCount, 100)
+        XCTAssertGreaterThan(progress.fractionCompleted, 0)
+        bridge.emitIfNeeded(force: false)
+
+        let capturedFractions = fractions
+
+        XCTAssertGreaterThanOrEqual(
+            capturedFractions.count,
+            2,
+            "Expected at least one additional callback beyond the initial emission"
+        )
+        XCTAssertGreaterThan(
+            capturedFractions.last ?? 0,
+            0,
+            "Expected progress to advance when bytes are downloaded"
+        )
+    }
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
