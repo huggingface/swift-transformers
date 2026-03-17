@@ -1147,16 +1147,19 @@ class SnapshotDownloadTests: XCTestCase {
         let hubApi = HubApi(downloadBase: downloadDestination)
         let speedExpectation = expectation(description: "At least one non-nil speed sample")
         speedExpectation.assertForOverFulfill = false
+        var progressSamples: [Double] = []
+        var speedSamples: [Double?] = []
 
         // Add debug prints
         print("Download destination before: \(downloadDestination.path)")
 
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
+            progressSamples.append(progress.fractionCompleted)
+            speedSamples.append(speed)
             if let speed {
                 print("Current speed: \(speed)")
                 speedExpectation.fulfill()
             }
-            _ = progress
         }
 
         // Add more debug prints
@@ -1173,6 +1176,14 @@ class SnapshotDownloadTests: XCTestCase {
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
+        XCTAssertGreaterThanOrEqual(progressSamples.count, 2, "Expected multiple progress callbacks during download")
+        XCTAssertEqual(progressSamples.last ?? -1, 1, accuracy: 0.000_001)
+        XCTAssertTrue(
+            zip(progressSamples, progressSamples.dropFirst()).allSatisfy { prev, next in next + 0.000_001 >= prev },
+            "Progress samples should be monotonic"
+        )
+        XCTAssertTrue(speedSamples.contains(where: { $0 == nil }), "Expected at least one nil speed sample")
+        XCTAssertTrue(speedSamples.contains(where: { $0 != nil }), "Expected at least one non-nil speed sample")
         await fulfillment(of: [speedExpectation], timeout: 1.0)
     }
 
