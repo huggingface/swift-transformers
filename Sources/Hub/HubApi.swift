@@ -292,11 +292,7 @@ final class DownloadProgressBridge: @unchecked Sendable {
     private var lastCompletedUnitCount: Int64 = 0
     private var lastSampleDate: Date = .init()
 
-    #if canImport(FoundationNetworking)
     private var pollTask: Task<Void, Never>?
-    #else
-    private var observation: NSKeyValueObservation?
-    #endif
 
     init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
         self.progress = progress
@@ -306,19 +302,12 @@ final class DownloadProgressBridge: @unchecked Sendable {
 
     func start() {
         emitIfNeeded(force: true)
-
-        #if canImport(FoundationNetworking)
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.emitIfNeeded(force: false)
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
         }
-        #else
-        observation = progress.observe(\.fractionCompleted, options: [.new]) { [weak self] _, _ in
-            self?.emitIfNeeded(force: false)
-        }
-        #endif
     }
 
     func complete() {
@@ -347,46 +336,43 @@ final class DownloadProgressBridge: @unchecked Sendable {
     }
 
     func stop() {
-        #if canImport(FoundationNetworking)
         pollTask?.cancel()
         pollTask = nil
-        #else
-        observation?.invalidate()
-        observation = nil
-        #endif
     }
 
     func emitIfNeeded(force: Bool) {
         lock.lock()
+        let completedUnitCount = progress.completedUnitCount
         let fraction = min(max(progress.fractionCompleted, 0), 1)
         if fraction >= 1, !hasCompleted {
             lock.unlock()
             return
         }
-        if !force, abs(fraction - lastFractionCompleted) < 0.001 {
+        let fractionChanged = abs(fraction - lastFractionCompleted) >= 0.001
+        let bytesChanged = completedUnitCount != lastCompletedUnitCount
+        if !force, !fractionChanged, !bytesChanged {
             lock.unlock()
             return
         }
 
         let now = Date()
-        let deltaBytes = progress.completedUnitCount - lastCompletedUnitCount
+        let deltaBytes = completedUnitCount - lastCompletedUnitCount
         let deltaTime = now.timeIntervalSince(lastSampleDate)
         let speed: Double?
         if deltaBytes > 0 {
             speed = deltaTime > 0 ? Double(deltaBytes) / deltaTime : 0
-        } else if fraction > 0 {
-            speed = 0
         } else {
             speed = nil
         }
 
-        lastCompletedUnitCount = progress.completedUnitCount
+        lastCompletedUnitCount = completedUnitCount
         lastSampleDate = now
         lastFractionCompleted = fraction
         lock.unlock()
 
         handler(fraction, speed)
     }
+
 }
 
 /// File retrieval
@@ -935,10 +921,9 @@ public extension HubApi {
 
             try await downloader.download { fractionDownloaded, speed in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
-                if let speed {
-                    fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
-                    progress.setUserInfoObject(speed, forKey: .throughputKey)
-                }
+                let throughputValue: Any = speed ?? NSNull()
+                fileProgress.setUserInfoObject(throughputValue, forKey: .throughputKey)
+                progress.setUserInfoObject(throughputValue, forKey: .throughputKey)
                 progressHandler(progress)
             }
             if Task.isCancelled {
