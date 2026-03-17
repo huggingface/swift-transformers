@@ -283,7 +283,7 @@ private extension Hub.RepoType {
     }
 }
 
-private final class DownloadProgressBridge: @unchecked Sendable {
+final class DownloadProgressBridge: @unchecked Sendable {
     private let progress: Progress
     private let handler: (Double, Double?) -> Void
     private let lock = NSLock()
