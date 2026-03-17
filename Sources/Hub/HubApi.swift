@@ -356,7 +356,7 @@ final class DownloadProgressBridge: @unchecked Sendable {
         #endif
     }
 
-    private func emitIfNeeded(force: Bool) {
+    func emitIfNeeded(force: Bool) {
         lock.lock()
         let fraction = min(max(progress.fractionCompleted, 0), 1)
         if fraction >= 1, !hasCompleted {
