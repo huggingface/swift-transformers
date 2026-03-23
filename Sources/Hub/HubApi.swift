@@ -107,7 +107,7 @@ public struct HubApi: Sendable {
     private let backgroundUncachedClient: HubClient
     #endif
 
-    private let networkMonitor = NetworkMonitor()
+    private let networkMonitor = NetworkMonitor.shared
     public typealias RepoType = Hub.RepoType
     public typealias Repo = Hub.Repo
 
@@ -188,20 +188,23 @@ public struct HubApi: Sendable {
             useBackgroundSession: false
         )
         #if !canImport(FoundationNetworking)
-        self.backgroundCachedClient = Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: cache,
-            useBackgroundSession: true
-        )
-        self.backgroundUncachedClient = Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: nil,
-            useBackgroundSession: true
-        )
+        self.backgroundCachedClient =
+            useBackgroundSession
+            ? Self.buildHubClient(
+                host: hostURL,
+                tokenProvider: tokenProvider,
+                cache: cache,
+                useBackgroundSession: true
+            ) : self.foregroundCachedClient
+        self.backgroundUncachedClient =
+            useBackgroundSession
+            ? Self.buildHubClient(
+                host: hostURL,
+                tokenProvider: tokenProvider,
+                cache: nil,
+                useBackgroundSession: true
+            ) : self.foregroundUncachedClient
         #endif
-        NetworkMonitor.shared.startMonitoring()
     }
 
     /// The shared Hub API instance with default configuration.
@@ -1144,7 +1147,7 @@ extension HubApi {
 
         static let shared = NetworkMonitor()
 
-        init() {
+        private init() {
             #if canImport(Network)
             monitor = NWPathMonitor()
             queue = DispatchQueue(label: "HubApi.NetworkMonitor")
