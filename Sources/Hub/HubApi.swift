@@ -951,9 +951,13 @@ public extension HubApi {
 
             try await downloader.download { fractionDownloaded, speed in
                 fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
-                let throughputValue: Any = speed ?? NSNull()
-                fileProgress.setUserInfoObject(throughputValue, forKey: .throughputKey)
-                progress.setUserInfoObject(throughputValue, forKey: .throughputKey)
+                if let speed {
+                    fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
+                    progress.setUserInfoObject(speed, forKey: .throughputKey)
+                } else {
+                    fileProgress.setUserInfoObject(nil, forKey: .throughputKey)
+                    progress.setUserInfoObject(nil, forKey: .throughputKey)
+                }
                 progressHandler(progress)
             }
             if Task.isCancelled {
