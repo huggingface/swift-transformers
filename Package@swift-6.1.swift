@@ -1,0 +1,67 @@
+// swift-tools-version: 6.1
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+/// Define the strict concurrency settings to be applied to all targets.
+let swiftSettings: [SwiftSetting] = [
+    .enableExperimentalFeature("StrictConcurrency")
+]
+
+let package = Package(
+    name: "swift-transformers",
+    platforms: [.iOS(.v16), .macOS(.v13)],
+    products: [
+        .library(name: "Hub", targets: ["Hub"]),
+        .library(name: "Tokenizers", targets: ["Tokenizers"]),
+        .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
+    ],
+    traits: [
+        .trait(
+            name: "Xet",
+            description: "Enable Xet transport support in swift-huggingface."
+        )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0"),
+        // Work around SwiftPM trait resolution issue for transitive Xet dependency.
+        .package(url: "https://github.com/huggingface/swift-xet.git", from: "0.2.0"),
+        .package(
+            url: "https://github.com/huggingface/swift-huggingface.git",
+            from: "0.9.0",
+            traits: [
+                .defaults,
+                .trait(name: "Xet", condition: .when(traits: ["Xet"])),
+            ]
+        ),
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", "3.0.0"..<"5.0.0"),
+        .package(url: "https://github.com/ibireme/yyjson.git", exact: "0.12.0"),
+    ],
+    targets: [
+        .target(name: "Generation", dependencies: ["Tokenizers"]),
+        .target(
+            name: "Hub",
+            dependencies: [
+                .product(name: "Jinja", package: "swift-jinja"),
+                .product(name: "HuggingFace", package: "swift-huggingface"),
+                .product(name: "Xet", package: "swift-xet", condition: .when(traits: ["Xet"])),
+                .product(name: "OrderedCollections", package: "swift-collections"),
+                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "yyjson", package: "yyjson"),
+            ],
+            resources: [
+                .process("Resources")
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
+        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")]),
+        .testTarget(name: "Benchmarks", dependencies: ["Hub", "Tokenizers", .product(name: "yyjson", package: "yyjson")]),
+        .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
+        .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")], swiftSettings: swiftSettings),
+        .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
+    ],
+    swiftLanguageModes: [.v5]
+)
