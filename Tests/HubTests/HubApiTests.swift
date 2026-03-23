@@ -76,6 +76,42 @@ class HubApiTests: XCTestCase {
         )
     }
 
+    func testDownloadProgressBridgeDoesNotEmitWithoutStateChange() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var callbackCount = 0
+
+        let bridge = DownloadProgressBridge(progress: progress) { _, _ in
+            callbackCount += 1
+        }
+
+        bridge.emitIfNeeded(force: false)
+
+        XCTAssertEqual(
+            callbackCount,
+            0,
+            "Expected no callback when neither fraction nor byte count changed"
+        )
+    }
+
+    func testDownloadProgressBridgeDoesNotEmitDuplicateOnComplete() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var samples: [(Double, Double?)] = []
+
+        let bridge = DownloadProgressBridge(progress: progress) { fraction, speed in
+            samples.append((fraction, speed))
+        }
+
+        bridge.complete()
+        let afterFirstComplete = samples.count
+        bridge.complete()
+
+        XCTAssertEqual(
+            samples.count,
+            afterFirstComplete,
+            "Expected complete() not to emit duplicate callbacks after completion"
+        )
+    }
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
@@ -1212,7 +1248,6 @@ class SnapshotDownloadTests: XCTestCase {
             zip(progressSamples, progressSamples.dropFirst()).allSatisfy { prev, next in next + 0.000_001 >= prev },
             "Progress samples should be monotonic"
         )
-        XCTAssertTrue(speedSamples.contains(where: { $0 == nil }), "Expected at least one nil speed sample")
         XCTAssertTrue(speedSamples.contains(where: { $0 != nil }), "Expected at least one non-nil speed sample")
         await fulfillment(of: [speedExpectation], timeout: 1.0)
     }

@@ -297,11 +297,11 @@ final class DownloadProgressBridge: @unchecked Sendable {
     init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
         self.progress = progress
         self.handler = handler
+        lastFractionCompleted = min(max(progress.fractionCompleted, 0), 1)
         lastCompletedUnitCount = progress.completedUnitCount
     }
 
     func start() {
-        emitIfNeeded(force: true)
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.emitIfNeeded(force: false)
@@ -318,7 +318,7 @@ final class DownloadProgressBridge: @unchecked Sendable {
         hasCompleted = true
         lock.unlock()
         progress.completedUnitCount = progress.totalUnitCount
-        emitIfNeeded(force: true)
+        emitIfNeeded(force: false)
         stop()
     }
 
@@ -331,7 +331,7 @@ final class DownloadProgressBridge: @unchecked Sendable {
         lock.unlock()
 
         if isFinished {
-            emitIfNeeded(force: true)
+            emitIfNeeded(force: false)
         }
     }
 
@@ -365,8 +365,10 @@ final class DownloadProgressBridge: @unchecked Sendable {
             speed = nil
         }
 
-        lastCompletedUnitCount = completedUnitCount
-        lastSampleDate = now
+        if deltaBytes > 0 {
+            lastCompletedUnitCount = completedUnitCount
+            lastSampleDate = now
+        }
         lastFractionCompleted = fraction
         lock.unlock()
 
