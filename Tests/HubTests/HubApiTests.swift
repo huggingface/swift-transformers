@@ -46,6 +46,124 @@ class HubApiTests: XCTestCase {
         XCTAssertFalse(metadata.isEmpty, "Should retrieve file metadata from PR revision")
     }
 
+    func testDownloadProgressBridgeEmitsForByteDeltaBelowFractionThreshold() {
+        let progress = Progress(totalUnitCount: 10_000_000)
+        var fractions: [Double] = []
+
+        let bridge = DownloadProgressBridge(progress: progress) { fraction, _ in
+            fractions.append(fraction)
+        }
+
+        bridge.emitIfNeeded(force: true)
+
+        // Change fraction by 0.00001 (< 0.001 threshold) while bytes do change.
+        progress.completedUnitCount += 100
+        XCTAssertEqual(progress.completedUnitCount, 100)
+        XCTAssertGreaterThan(progress.fractionCompleted, 0)
+        bridge.emitIfNeeded(force: false)
+
+        let capturedFractions = fractions
+
+        XCTAssertGreaterThanOrEqual(
+            capturedFractions.count,
+            2,
+            "Expected at least one additional callback beyond the initial emission"
+        )
+        XCTAssertGreaterThan(
+            capturedFractions.last ?? 0,
+            0,
+            "Expected progress to advance when bytes are downloaded"
+        )
+    }
+
+    func testDownloadProgressBridgeDoesNotEmitWithoutStateChange() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var callbackCount = 0
+
+        let bridge = DownloadProgressBridge(progress: progress) { _, _ in
+            callbackCount += 1
+        }
+
+        bridge.emitIfNeeded(force: false)
+
+        XCTAssertEqual(
+            callbackCount,
+            0,
+            "Expected no callback when neither fraction nor byte count changed"
+        )
+    }
+
+    func testDownloadProgressBridgeDoesNotEmitDuplicateOnComplete() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var samples: [(Double, Double?)] = []
+
+        let bridge = DownloadProgressBridge(progress: progress) { fraction, speed in
+            samples.append((fraction, speed))
+        }
+
+        bridge.complete()
+        let afterFirstComplete = samples.count
+        bridge.complete()
+
+        XCTAssertEqual(
+            samples.count,
+            afterFirstComplete,
+            "Expected complete() not to emit duplicate callbacks after completion"
+        )
+    }
+
+    func testDownloadProgressBridgeEmitsSingleStallTransition() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var speedSamples: [Double?] = []
+
+        let bridge = DownloadProgressBridge(progress: progress, stallHeartbeatInterval: 0.2) { _, speed in
+            speedSamples.append(speed)
+        }
+
+        progress.completedUnitCount = 100
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 1)
+        guard let firstSpeed = speedSamples.last else {
+            return XCTFail("Expected an initial progress sample")
+        }
+        XCTAssertNotNil(firstSpeed)
+
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 1, "Expected no immediate stall callback after progress update")
+
+        Thread.sleep(forTimeInterval: 0.4)
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 2, "Expected exactly one stall transition callback")
+        guard let lastSpeed = speedSamples.last else {
+            return XCTFail("Expected a stall transition sample")
+        }
+        XCTAssertNil(lastSpeed)
+
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 2, "Expected no duplicate stall transition callback")
+    }
+
+    func testDownloadProgressBridgeEmitsStallHeartbeat() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var speedSamples: [Double?] = []
+
+        let bridge = DownloadProgressBridge(progress: progress, stallHeartbeatInterval: 0.1) { _, speed in
+            speedSamples.append(speed)
+        }
+
+        progress.completedUnitCount = 100
+        bridge.emitIfNeeded(force: false)
+
+        Thread.sleep(forTimeInterval: 0.25)
+        bridge.emitIfNeeded(force: false) // Stall transition
+
+        Thread.sleep(forTimeInterval: 0.25)
+        bridge.emitIfNeeded(force: false) // Stall heartbeat
+
+        let nilSpeedCount = speedSamples.filter { $0 == nil }.count
+        XCTAssertEqual(nilSpeedCount, 2, "Expected transition + heartbeat callbacks while stalled")
+    }
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
@@ -1147,16 +1265,19 @@ class SnapshotDownloadTests: XCTestCase {
         let hubApi = HubApi(downloadBase: downloadDestination)
         let speedExpectation = expectation(description: "At least one non-nil speed sample")
         speedExpectation.assertForOverFulfill = false
+        var progressSamples: [Double] = []
+        var speedSamples: [Double?] = []
 
         // Add debug prints
         print("Download destination before: \(downloadDestination.path)")
 
         let downloadedTo = try await hubApi.snapshot(from: repo, matching: targetFile) { progress, speed in
+            progressSamples.append(progress.fractionCompleted)
+            speedSamples.append(speed)
             if let speed {
                 print("Current speed: \(speed)")
                 speedExpectation.fulfill()
             }
-            _ = progress
         }
 
         // Add more debug prints
@@ -1173,6 +1294,15 @@ class SnapshotDownloadTests: XCTestCase {
             FileManager.default.fileExists(atPath: filePath.path),
             "Downloaded file should exist at \(filePath.path)"
         )
+        XCTAssertGreaterThanOrEqual(progressSamples.count, 1, "Expected at least one progress callback during download")
+        XCTAssertEqual(progressSamples.last ?? -1, 1, accuracy: 0.000_001)
+        if progressSamples.count >= 2 {
+            XCTAssertTrue(
+                zip(progressSamples, progressSamples.dropFirst()).allSatisfy { prev, next in next + 0.000_001 >= prev },
+                "Progress samples should be monotonic"
+            )
+        }
+        XCTAssertTrue(speedSamples.contains(where: { $0 != nil }), "Expected at least one non-nil speed sample")
         await fulfillment(of: [speedExpectation], timeout: 1.0)
     }
 

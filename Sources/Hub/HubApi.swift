@@ -286,42 +286,48 @@ private extension Hub.RepoType {
     }
 }
 
-private final class DownloadProgressBridge: @unchecked Sendable {
+final class DownloadProgressBridge: @unchecked Sendable {
     private let progress: Progress
     private let handler: (Double, Double?) -> Void
+    private let stallHeartbeatInterval: TimeInterval
+    private let clock = ContinuousClock()
     private let lock = NSLock()
     private var hasCompleted = false
     private var lastFractionCompleted: Double = -1
     private var lastCompletedUnitCount: Int64 = 0
-    private var lastSampleDate: Date = .init()
+    private var lastSampleTime: ContinuousClock.Instant
+    private var hasSeenByteProgress = false
+    private var isStalled = false
+    private var lastStallEmissionTime: ContinuousClock.Instant?
 
-    #if canImport(FoundationNetworking)
     private var pollTask: Task<Void, Never>?
-    #else
-    private var observation: NSKeyValueObservation?
-    #endif
 
-    init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
+    private static func seconds(_ duration: Duration) -> Double {
+        let components = duration.components
+        return Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
+    }
+
+    init(
+        progress: Progress,
+        stallHeartbeatInterval: TimeInterval = 1.0,
+        handler: @escaping (Double, Double?) -> Void
+    ) {
         self.progress = progress
         self.handler = handler
+        self.stallHeartbeatInterval = stallHeartbeatInterval
+        self.lastSampleTime = clock.now
+        lastFractionCompleted = min(max(progress.fractionCompleted, 0), 1)
         lastCompletedUnitCount = progress.completedUnitCount
+        hasSeenByteProgress = progress.completedUnitCount > 0
     }
 
     func start() {
-        emitIfNeeded(force: true)
-
-        #if canImport(FoundationNetworking)
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 self?.emitIfNeeded(force: false)
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
         }
-        #else
-        observation = progress.observe(\.fractionCompleted, options: [.new]) { [weak self] _, _ in
-            self?.emitIfNeeded(force: false)
-        }
-        #endif
     }
 
     func complete() {
@@ -332,7 +338,7 @@ private final class DownloadProgressBridge: @unchecked Sendable {
         hasCompleted = true
         lock.unlock()
         progress.completedUnitCount = progress.totalUnitCount
-        emitIfNeeded(force: true)
+        emitIfNeeded(force: false)
         stop()
     }
 
@@ -345,51 +351,61 @@ private final class DownloadProgressBridge: @unchecked Sendable {
         lock.unlock()
 
         if isFinished {
-            emitIfNeeded(force: true)
+            emitIfNeeded(force: false)
         }
     }
 
     func stop() {
-        #if canImport(FoundationNetworking)
         pollTask?.cancel()
         pollTask = nil
-        #else
-        observation?.invalidate()
-        observation = nil
-        #endif
     }
 
-    private func emitIfNeeded(force: Bool) {
+    func emitIfNeeded(force: Bool) {
         lock.lock()
+        let completedUnitCount = progress.completedUnitCount
         let fraction = min(max(progress.fractionCompleted, 0), 1)
         if fraction >= 1, !hasCompleted {
             lock.unlock()
             return
         }
-        if !force, abs(fraction - lastFractionCompleted) < 0.001 {
+        let now = clock.now
+        let fractionChanged = abs(fraction - lastFractionCompleted) >= 0.001
+        let bytesChanged = completedUnitCount != lastCompletedUnitCount
+        let stalledLongEnough =
+            hasSeenByteProgress && lastSampleTime.duration(to: now) >= .seconds(stallHeartbeatInterval)
+        let shouldEmitStallTransition = !force && !bytesChanged && !fractionChanged && !isStalled && stalledLongEnough
+        let shouldEmitStallHeartbeat =
+            !force && !bytesChanged && !fractionChanged && isStalled
+            && (lastStallEmissionTime.map { $0.duration(to: now) >= .seconds(stallHeartbeatInterval) } ?? false)
+        if !force, !fractionChanged, !bytesChanged, !shouldEmitStallTransition, !shouldEmitStallHeartbeat {
             lock.unlock()
             return
         }
 
-        let now = Date()
-        let deltaBytes = progress.completedUnitCount - lastCompletedUnitCount
-        let deltaTime = now.timeIntervalSince(lastSampleDate)
+        let deltaBytes = completedUnitCount - lastCompletedUnitCount
+        let deltaTime = Self.seconds(lastSampleTime.duration(to: now))
         let speed: Double?
         if deltaBytes > 0 {
             speed = deltaTime > 0 ? Double(deltaBytes) / deltaTime : 0
-        } else if fraction > 0 {
-            speed = 0
         } else {
             speed = nil
         }
 
-        lastCompletedUnitCount = progress.completedUnitCount
-        lastSampleDate = now
+        if deltaBytes > 0 {
+            hasSeenByteProgress = true
+            isStalled = false
+            lastCompletedUnitCount = completedUnitCount
+            lastSampleTime = now
+        } else if shouldEmitStallTransition || shouldEmitStallHeartbeat {
+            isStalled = true
+            lastStallEmissionTime = now
+        }
         lastFractionCompleted = fraction
         lock.unlock()
 
         handler(fraction, speed)
     }
+
 }
 
 /// File retrieval
@@ -941,6 +957,9 @@ public extension HubApi {
                 if let speed {
                     fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
                     progress.setUserInfoObject(speed, forKey: .throughputKey)
+                } else {
+                    fileProgress.setUserInfoObject(nil, forKey: .throughputKey)
+                    progress.setUserInfoObject(nil, forKey: .throughputKey)
                 }
                 progressHandler(progress)
             }
