@@ -124,7 +124,7 @@ To use `swift-transformers` with SwiftPM, you can add this to your `Package.swif
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/huggingface/swift-transformers", from: "0.1.17")
+    .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0")
 ]
 ```
 
@@ -140,6 +140,46 @@ targets: [
     )
 ]
 ```
+
+### Optional Xet trait
+
+`swift-transformers` includes an `Xet` [package trait](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0450-swiftpm-package-traits.md)
+that enables fast, parallel downloads from the Hugging Face Hub
+via [swift-xet](https://github.com/huggingface/swift-xet).
+Because Xet introduces additional transitive dependencies
+(including [AsyncHTTPClient](https://github.com/swift-server/async-http-client)),
+it is opt-in.
+
+On Swift 6.1+, enable it in your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(
+        url: "https://github.com/huggingface/swift-transformers",
+        from: "1.3.0",
+        traits: ["Xet"]
+    )
+]
+```
+
+Or from the command line:
+
+```bash
+swift build --traits Xet
+swift test --traits Xet
+```
+
+When the trait is not enabled,
+Hub downloads use the default `URLSession`-based transport.
+
+On Swift versions earlier than 6.1,
+package traits are unavailable and Xet transport cannot be enabled.
+
+> [!NOTE]
+> Xcode doesn't yet provide a built-in way to declare package dependencies with traits.
+> As a workaround, you can create an internal Swift package
+> that re-exports `swift-transformers` with the `Xet` trait enabled,
+> then add that package as a local dependency in your Xcode project.
 
 ## Projects that use swift-transformers ❤️ 
 
