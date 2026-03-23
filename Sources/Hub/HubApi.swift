@@ -188,18 +188,22 @@ public struct HubApi: Sendable {
             useBackgroundSession: false
         )
         #if !canImport(FoundationNetworking)
-        self.backgroundCachedClient = useBackgroundSession ? Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: cache,
-            useBackgroundSession: true
-        ) : self.foregroundCachedClient
-        self.backgroundUncachedClient = useBackgroundSession ? Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: nil,
-            useBackgroundSession: true
-        ) : self.foregroundUncachedClient
+        self.backgroundCachedClient =
+            useBackgroundSession
+            ? Self.buildHubClient(
+                host: hostURL,
+                tokenProvider: tokenProvider,
+                cache: cache,
+                useBackgroundSession: true
+            ) : self.foregroundCachedClient
+        self.backgroundUncachedClient =
+            useBackgroundSession
+            ? Self.buildHubClient(
+                host: hostURL,
+                tokenProvider: tokenProvider,
+                cache: nil,
+                useBackgroundSession: true
+            ) : self.foregroundUncachedClient
         #endif
     }
 
