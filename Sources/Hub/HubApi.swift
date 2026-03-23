@@ -286,19 +286,36 @@ private extension Hub.RepoType {
 final class DownloadProgressBridge: @unchecked Sendable {
     private let progress: Progress
     private let handler: (Double, Double?) -> Void
+    private let stallHeartbeatInterval: TimeInterval
+    private let clock = ContinuousClock()
     private let lock = NSLock()
     private var hasCompleted = false
     private var lastFractionCompleted: Double = -1
     private var lastCompletedUnitCount: Int64 = 0
-    private var lastSampleDate: Date = .init()
+    private var lastSampleTime: ContinuousClock.Instant
+    private var hasSeenByteProgress = false
+    private var isStalled = false
+    private var lastStallEmissionTime: ContinuousClock.Instant?
 
     private var pollTask: Task<Void, Never>?
 
-    init(progress: Progress, handler: @escaping (Double, Double?) -> Void) {
+    private static func seconds(_ duration: Duration) -> Double {
+        let components = duration.components
+        return Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
+    }
+
+    init(
+        progress: Progress,
+        stallHeartbeatInterval: TimeInterval = 1.0,
+        handler: @escaping (Double, Double?) -> Void
+    ) {
         self.progress = progress
         self.handler = handler
+        self.stallHeartbeatInterval = stallHeartbeatInterval
+        self.lastSampleTime = clock.now
         lastFractionCompleted = min(max(progress.fractionCompleted, 0), 1)
         lastCompletedUnitCount = progress.completedUnitCount
+        hasSeenByteProgress = progress.completedUnitCount > 0
     }
 
     func start() {
@@ -348,16 +365,22 @@ final class DownloadProgressBridge: @unchecked Sendable {
             lock.unlock()
             return
         }
+        let now = clock.now
         let fractionChanged = abs(fraction - lastFractionCompleted) >= 0.001
         let bytesChanged = completedUnitCount != lastCompletedUnitCount
-        if !force, !fractionChanged, !bytesChanged {
+        let stalledLongEnough =
+            hasSeenByteProgress && lastSampleTime.duration(to: now) >= .seconds(stallHeartbeatInterval)
+        let shouldEmitStallTransition = !force && !bytesChanged && !fractionChanged && !isStalled && stalledLongEnough
+        let shouldEmitStallHeartbeat =
+            !force && !bytesChanged && !fractionChanged && isStalled
+            && (lastStallEmissionTime.map { $0.duration(to: now) >= .seconds(stallHeartbeatInterval) } ?? false)
+        if !force, !fractionChanged, !bytesChanged, !shouldEmitStallTransition, !shouldEmitStallHeartbeat {
             lock.unlock()
             return
         }
 
-        let now = Date()
         let deltaBytes = completedUnitCount - lastCompletedUnitCount
-        let deltaTime = now.timeIntervalSince(lastSampleDate)
+        let deltaTime = Self.seconds(lastSampleTime.duration(to: now))
         let speed: Double?
         if deltaBytes > 0 {
             speed = deltaTime > 0 ? Double(deltaBytes) / deltaTime : 0
@@ -366,8 +389,13 @@ final class DownloadProgressBridge: @unchecked Sendable {
         }
 
         if deltaBytes > 0 {
+            hasSeenByteProgress = true
+            isStalled = false
             lastCompletedUnitCount = completedUnitCount
-            lastSampleDate = now
+            lastSampleTime = now
+        } else if shouldEmitStallTransition || shouldEmitStallHeartbeat {
+            isStalled = true
+            lastStallEmissionTime = now
         }
         lastFractionCompleted = fraction
         lock.unlock()

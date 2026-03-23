@@ -112,6 +112,58 @@ class HubApiTests: XCTestCase {
         )
     }
 
+    func testDownloadProgressBridgeEmitsSingleStallTransition() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var speedSamples: [Double?] = []
+
+        let bridge = DownloadProgressBridge(progress: progress, stallHeartbeatInterval: 0.2) { _, speed in
+            speedSamples.append(speed)
+        }
+
+        progress.completedUnitCount = 100
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 1)
+        guard let firstSpeed = speedSamples.last else {
+            return XCTFail("Expected an initial progress sample")
+        }
+        XCTAssertNotNil(firstSpeed)
+
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 1, "Expected no immediate stall callback after progress update")
+
+        Thread.sleep(forTimeInterval: 0.22)
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 2, "Expected exactly one stall transition callback")
+        guard let lastSpeed = speedSamples.last else {
+            return XCTFail("Expected a stall transition sample")
+        }
+        XCTAssertNil(lastSpeed)
+
+        bridge.emitIfNeeded(force: false)
+        XCTAssertEqual(speedSamples.count, 2, "Expected no duplicate stall transition callback")
+    }
+
+    func testDownloadProgressBridgeEmitsStallHeartbeat() {
+        let progress = Progress(totalUnitCount: 1_000)
+        var speedSamples: [Double?] = []
+
+        let bridge = DownloadProgressBridge(progress: progress, stallHeartbeatInterval: 0.1) { _, speed in
+            speedSamples.append(speed)
+        }
+
+        progress.completedUnitCount = 100
+        bridge.emitIfNeeded(force: false)
+
+        Thread.sleep(forTimeInterval: 0.12)
+        bridge.emitIfNeeded(force: false) // Stall transition
+
+        Thread.sleep(forTimeInterval: 0.12)
+        bridge.emitIfNeeded(force: false) // Stall heartbeat
+
+        let nilSpeedCount = speedSamples.filter { $0 == nil }.count
+        XCTAssertEqual(nilSpeedCount, 2, "Expected transition + heartbeat callbacks while stalled")
+    }
+
     func testFilenameRetrieval() async {
         do {
             let filenames = try await Hub.getFilenames(from: "coreml-projects/Llama-2-7b-chat-coreml")
