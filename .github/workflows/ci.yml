@@ -16,7 +16,7 @@ jobs:
         # Skip fork PRs — they can't access the secrets this reusable workflow needs.
         # Runs on push, workflow_dispatch, and same-repo PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@main
+        uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@a88e7fa2eaee28de5a4d6142381b1fb792349b67  # main
         with:
             # Use the PR merge ref, not the head.
             pr_number: ${{ github.event.pull_request.number }}
@@ -38,17 +38,17 @@ jobs:
         steps:
             - name: Checkout PR merge ref if called from PR
               if: ${{ github.event.pull_request.number }}
-              uses: actions/checkout@v6
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
               with:
                   ref: refs/pull/${{ github.event.pull_request.number }}/merge
                   fetch-depth: 0
 
             - name: Checkout fallback
               if: ${{ !github.event.pull_request.number }}
-              uses: actions/checkout@v6
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
             - name: Cache Swift Package Manager dependencies
-              uses: actions/cache@v5
+              uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
               with:
                   path: ~/.cache/org.swift.swiftpm
                   key: ${{ runner.os }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-${{ hashFiles('Package*.swift') }}-${{ hashFiles('Package.resolved') }}
@@ -73,14 +73,14 @@ jobs:
         steps:
             - name: Checkout PR merge ref if called from PR
               if: ${{ github.event.pull_request.number }}
-              uses: actions/checkout@v6
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
               with:
                   ref: refs/pull/${{ github.event.pull_request.number }}/merge
                   fetch-depth: 0
 
             - name: Checkout fallback
               if: ${{ !github.event.pull_request.number }}
-              uses: actions/checkout@v6
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
             - run: |
                   swift format lint --strict --recursive .
