@@ -545,7 +545,12 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         cacheLock.unlock()
 
         // Compile template outside of lock to avoid holding lock during expensive operation
-        let compiled = try Template(templateString, with: .init(lstripBlocks: true, trimBlocks: true))
+        let compiled: Template
+        do {
+            compiled = try Template(templateString, with: .init(lstripBlocks: true, trimBlocks: true))
+        } catch let jinjaError as JinjaError {
+            throw TokenizerError.chatTemplate("Failed to compile chat template: \(jinjaError)")
+        }
 
         // Insert into cache under lock (using double-checked locking pattern)
         cacheLock.lock()
