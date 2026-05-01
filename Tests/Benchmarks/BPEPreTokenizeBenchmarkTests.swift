@@ -38,27 +38,27 @@ struct BPEPreTokenizeBenchmarkTests {
         shortText = "Explain the BPE tokenization algorithm in three short bullet points."
 
         let para = """
-        Byte-pair encoding (BPE) is a tokenization algorithm originally proposed for data \
-        compression by Philip Gage in 1994. It was later adapted for use in neural machine \
-        translation by Sennrich, Haddow, and Birch in 2015, and is now the dominant \
-        sub-word tokenization scheme for modern large language models including the GPT, \
-        Llama, Qwen, and Mistral families. The algorithm operates by iteratively replacing \
-        the most frequent adjacent pair of bytes in a corpus with a new symbol, building up \
-        a vocabulary of merges that compactly represents both common words and rare strings.
-        """
+            Byte-pair encoding (BPE) is a tokenization algorithm originally proposed for data \
+            compression by Philip Gage in 1994. It was later adapted for use in neural machine \
+            translation by Sennrich, Haddow, and Birch in 2015, and is now the dominant \
+            sub-word tokenization scheme for modern large language models including the GPT, \
+            Llama, Qwen, and Mistral families. The algorithm operates by iteratively replacing \
+            the most frequent adjacent pair of bytes in a corpus with a new symbol, building up \
+            a vocabulary of merges that compactly represents both common words and rare strings.
+            """
         mediumText = String(repeating: para + "\n\n", count: 2)
         longText = String(repeating: para + "\n\n", count: 20)
 
         codeText = """
-        public final class GPT2BytePairEncoderConfiguration: Codable, Sendable {
-            public let vocabularyIdentifierToTokenStringMap: [Int: String]
-            public let bytePairMergeRanksByPairOfStrings: [BytePair: Int]
-            public let unknownTokenIdentifierForOutOfVocabularyByteSequences: Int?
-            public let beginningOfSequenceSpecialTokenIdentifier: Int?
-            public let endOfSequenceSpecialTokenIdentifier: Int?
-            public let shouldFuseConsecutiveUnknownTokenSequencesIntoASingleUnknownToken: Bool
-        }
-        """
+            public final class GPT2BytePairEncoderConfiguration: Codable, Sendable {
+                public let vocabularyIdentifierToTokenStringMap: [Int: String]
+                public let bytePairMergeRanksByPairOfStrings: [BytePair: Int]
+                public let unknownTokenIdentifierForOutOfVocabularyByteSequences: Int?
+                public let beginningOfSequenceSpecialTokenIdentifier: Int?
+                public let endOfSequenceSpecialTokenIdentifier: Int?
+                public let shouldFuseConsecutiveUnknownTokenSequencesIntoASingleUnknownToken: Bool
+            }
+            """
     }
 
     // MARK: - Measurement helpers
