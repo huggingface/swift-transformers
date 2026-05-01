@@ -224,7 +224,6 @@ class ByteLevelPreTokenizer: PreTokenizer {
     let addPrefixSpace: Bool
     let trimOffsets: Bool
     let useRegex: Bool
-    let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
 
     required init(config: Config) {
         addPrefixSpace = config.addPrefixSpace.boolean(or: false)
@@ -232,17 +231,36 @@ class ByteLevelPreTokenizer: PreTokenizer {
         useRegex = config.useRegex.boolean(or: true)
     }
 
-    func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        // Split on whitespace and punctuation
-        let tokens = useRegex ? text.ranges(of: RE).map { String(text[$0]) } : [text]
-        return tokens.map { token in
-            if addPrefixSpace, !token.hasPrefix(" ") {
-                return " " + token
-            }
-            return token
-        }.map { token in
-            Array(token.utf8).map { byteEncoder[$0]! }.joined()
+    /// Byte-level encode a single token (no pre-tokenization split). Hot inner
+    /// loop: indexes the cached 256-entry table once per UTF-8 byte and appends
+    /// directly into a single output string.
+    private func byteEncodeToken(_ token: String) -> String {
+        var encoded = ""
+        encoded.reserveCapacity(token.utf8.count)
+        for byte in token.utf8 {
+            encoded.append(byteEncoderTable[Int(byte)])
         }
+        return encoded
+    }
+
+    func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
+        guard useRegex else {
+            let token = (addPrefixSpace && !text.hasPrefix(" ")) ? " " + text : text
+            return [byteEncodeToken(token)]
+        }
+
+        let nsText = text as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+        var result: [String] = []
+        byteLevelPreTokenizeRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+            guard let match else { return }
+            var token = nsText.substring(with: match.range)
+            if self.addPrefixSpace, !token.hasPrefix(" ") {
+                token = " " + token
+            }
+            result.append(self.byteEncodeToken(token))
+        }
+        return result
     }
 }
 

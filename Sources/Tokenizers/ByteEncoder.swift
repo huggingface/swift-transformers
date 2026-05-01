@@ -270,3 +270,33 @@ let byteEncoder: [UTF8.CodeUnit: String] = [
 let byteDecoder = byteEncoder.reduce(into: [String: UTF8.CodeUnit]()) { result, element in
     result[element.value] = element.key
 }
+
+/// Fixed-size byte → unicode-character lookup, derived from ``byteEncoder``.
+///
+/// On the byte-level pre-tokenization hot path every input byte is encoded
+/// via this map, and a `[UInt8: String]` dictionary lookup costs roughly an
+/// order of magnitude more than indexing into a contiguous array. The byte
+/// alphabet covers the full 0...255 range, so a 256-element array is dense.
+let byteEncoderTable: [String] = {
+    var arr = [String](repeating: "", count: 256)
+    for (byte, str) in byteEncoder {
+        arr[Int(byte)] = str
+    }
+    return arr
+}()
+
+/// Pre-compiled GPT-2 / Llama / Qwen / Gemma byte-level pre-tokenization regex.
+///
+/// The same pattern is used by ``BPETokenizer/byteEncode(text:)``,
+/// ``BPETokenizer/hexaEncode(text:)`` and ``ByteLevelPreTokenizer/preTokenize(text:options:)``.
+/// Foundation's `String.range(of:options:.regularExpression)` re-parses the pattern on every
+/// call, so caching a single `NSRegularExpression` removes the dominant cost of
+/// short-input `encode` and lets us iterate matches via `enumerateMatches` without
+/// allocating an intermediate range array.
+let byteLevelPreTokenizeRegex: NSRegularExpression = {
+    let pattern = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
+    // The pattern is a compile-time constant and has been used in production for
+    // years; treating compilation failure as a programmer error matches every
+    // other in-tree regex.
+    return try! NSRegularExpression(pattern: pattern)
+}()
