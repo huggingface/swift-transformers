@@ -132,21 +132,33 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of token strings representing the most probable segmentation
     func tokenize(text: String) -> [String] {
-        var lattice = TokenLattice(sentence: text, bosTokenId: bosTokenId ?? 0, eosTokenId: eosTokenId ?? 0)
+        // Materialize the `Character` view exactly once. Both the trie walk
+        // below and `TokenLattice.piece(_:)` need character-level random
+        // access; the previous implementation reached for it via
+        // `String.index(_:offsetBy:)` and `String.count`, both O(N), inside
+        // a per-character loop -> overall O(N^2) on long inputs.
+        let chars = Array(text)
+        let charsCount = chars.count
+        var lattice = TokenLattice(
+            sentence: text,
+            chars: chars,
+            bosTokenId: bosTokenId ?? 0,
+            eosTokenId: eosTokenId ?? 0
+        )
 
-        // Populate nodes
-        let sentence = lattice.sentence
         var beginPos = 0
-        while beginPos < sentence.count {
+        while beginPos < charsCount {
             let mblen = 1
             var hasSingleNode = false
 
-            let beginIndex = sentence.index(sentence.startIndex, offsetBy: beginPos)
-            for token in trie.commonPrefixSearchIterator(sentence[beginIndex...]).map({ String($0) }) {
+            let suffix = chars[beginPos...]
+            for tokenChars in trie.commonPrefixSearchIterator(suffix) {
+                let tokenLength = tokenChars.count
+                let token = String(tokenChars)
                 guard let tokenId = tokensToIds[token as NSString] else { fatalError("Token not in vocab: \(token)") }
                 let tokenScore = vocab[tokenId].score
-                lattice.insert(startOffset: beginPos, length: token.count, score: tokenScore, tokenId: tokenId)
-                if !hasSingleNode, token.count == mblen {
+                lattice.insert(startOffset: beginPos, length: tokenLength, score: tokenScore, tokenId: tokenId)
+                if !hasSingleNode, tokenLength == mblen {
                     hasSingleNode = true
                 }
             }
