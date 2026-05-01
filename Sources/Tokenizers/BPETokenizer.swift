@@ -164,62 +164,139 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         }
     }
 
-    private func getPairs(word: [String]) -> Set<BytePair> {
-        var s = Set<BytePair>()
-        for i in 0..<word.count - 1 {
-            let bp = BytePair(
-                word[i],
-                word[i + 1]
-            )
-            s.insert(bp)
-        }
-        return s
-    }
-
+    /// Applies the BPE merge sequence to `token` and returns the merged pieces
+    /// joined by a single space.
+    ///
+    /// Equivalent to the canonical greedy "lowest-rank merge first" BPE algorithm
+    /// (e.g. `tiktoken`, `huggingface/tokenizers`). The previous implementation
+    /// rebuilt the entire pair set and scanned the full word on every iteration,
+    /// which is O(N² · M). This version maintains the symbols as an in-place
+    /// linked list and tracks candidate merges in a min-heap keyed by rank, so
+    /// the work per merge step is O(log N) heap ops + O(1) list surgery.
     func bpe(token: String) -> String {
         if token.count <= 1 {
             return token
         }
 
-        var word = Array(token).map { String($0) }
-        var pairs = Array(getPairs(word: word))
+        // Initial symbols: one entry per Character of `token`. We keep these as
+        // a doubly linked list embedded in parallel arrays of indices.
+        var symbols = Array(token).map { String($0) }
+        let initialCount = symbols.count
+        var prevIndex = Array(repeating: -1, count: initialCount)
+        var nextIndex = Array(repeating: -1, count: initialCount)
+        var alive = Array(repeating: true, count: initialCount)
+        for i in 0..<initialCount {
+            prevIndex[i] = i - 1
+            nextIndex[i] = (i == initialCount - 1) ? -1 : i + 1
+        }
 
-        while true {
-            let bigrams = pairs.filter { bp -> Bool in bpeRanks[bp] != nil }
-            if bigrams.count == 0 {
-                break
-            }
-            let bigram = bigrams.min { bp1, bp2 -> Bool in
-                return bpeRanks[bp1]! < bpeRanks[bp2]!
-            }!
-            let first = bigram.a
-            let second = bigram.b
-            var newWord: [String] = []
-            var i = 0
-            while i < word.count {
-                if let j = word[i..<word.count].firstIndex(of: first) {
-                    newWord.append(contentsOf: word[i..<j])
-                    i = j
-                } else {
-                    newWord.append(contentsOf: word[i..<word.count])
-                    break
-                }
-                if word[i] == first, i < word.count - 1, word[i + 1] == second {
-                    newWord.append(first + second)
-                    i += 2
-                } else {
-                    newWord.append(word[i])
-                    i += 1
-                }
-            }
-            word = newWord
-            if word.count == 1 {
-                break
-            } else {
-                pairs = Array(getPairs(word: word))
+        // Min-heap of `(rank, leftSymbolIndex)`. We never remove entries on
+        // merge; instead, when an entry is popped we re-check that the pair at
+        // `(left, next[left])` is still the same and still has the recorded
+        // rank — stale entries are simply skipped (lazy deletion).
+        var heap: [(rank: Int, left: Int)] = []
+        heap.reserveCapacity(initialCount)
+
+        func heapPush(_ entry: (rank: Int, left: Int)) {
+            heap.append(entry)
+            var i = heap.count - 1
+            while i > 0 {
+                let parent = (i - 1) / 2
+                let p = heap[parent]
+                let c = heap[i]
+                if p.rank < c.rank || (p.rank == c.rank && p.left <= c.left) { break }
+                heap[parent] = c
+                heap[i] = p
+                i = parent
             }
         }
-        return word.joined(separator: " ")
+
+        func heapPop() -> (rank: Int, left: Int)? {
+            guard !heap.isEmpty else { return nil }
+            let top = heap[0]
+            let last = heap.removeLast()
+            if heap.isEmpty { return top }
+            heap[0] = last
+            var i = 0
+            let count = heap.count
+            while true {
+                let l = 2 * i + 1
+                let r = 2 * i + 2
+                var smallest = i
+                if l < count {
+                    let cur = heap[smallest]
+                    let cand = heap[l]
+                    if cand.rank < cur.rank || (cand.rank == cur.rank && cand.left < cur.left) {
+                        smallest = l
+                    }
+                }
+                if r < count {
+                    let cur = heap[smallest]
+                    let cand = heap[r]
+                    if cand.rank < cur.rank || (cand.rank == cur.rank && cand.left < cur.left) {
+                        smallest = r
+                    }
+                }
+                if smallest == i { break }
+                heap.swapAt(i, smallest)
+                i = smallest
+            }
+            return top
+        }
+
+        // Enqueue the candidate merge at position `left -> next[left]`, if any.
+        @inline(__always) func enqueue(left: Int) {
+            let right = nextIndex[left]
+            guard right != -1, alive[left], alive[right] else { return }
+            if let rank = bpeRanks[BytePair(symbols[left], symbols[right])] {
+                heapPush((rank, left))
+            }
+        }
+
+        for i in 0..<(initialCount - 1) {
+            enqueue(left: i)
+        }
+
+        while let top = heapPop() {
+            let i = top.left
+            guard alive[i] else { continue }
+            let j = nextIndex[i]
+            guard j != -1, alive[j] else { continue }
+            // Validate the entry is not stale: the pair at (i, j) must still
+            // have exactly the rank we recorded when we enqueued it.
+            guard let actualRank = bpeRanks[BytePair(symbols[i], symbols[j])], actualRank == top.rank else {
+                continue
+            }
+
+            // Absorb symbol j into symbol i.
+            symbols[i] = symbols[i] + symbols[j]
+            let k = nextIndex[j]
+            nextIndex[i] = k
+            if k != -1 { prevIndex[k] = i }
+            alive[j] = false
+
+            // The merge invalidates the pairs (prev, i) and (j, k); the new
+            // candidates to consider are (prev, i) (now spanning the merged
+            // text on the right) and (i, k) (now spanning the merged text on
+            // the left). Stale entries left over for the old pairs in the
+            // heap will be discarded when popped.
+            if prevIndex[i] != -1 {
+                enqueue(left: prevIndex[i])
+            }
+            enqueue(left: i)
+        }
+
+        // Walk the surviving symbols from the head (index 0 is never absorbed:
+        // merges always move text from `next` into `current`, so position 0
+        // remains alive throughout).
+        var pieces: [String] = []
+        pieces.reserveCapacity(initialCount)
+        var cursor = 0
+        while cursor != -1 {
+            pieces.append(symbols[cursor])
+            cursor = nextIndex[cursor]
+        }
+        return pieces.joined(separator: " ")
     }
 
     /// Tokenizes input text using the BPE algorithm.
