@@ -11,6 +11,58 @@ import Hub
 /// Character class used by punctuation-based pre-tokenizers.
 private let punctuationRegex = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
 
+/// Pre-compiled regex shared by ``BertPreTokenizer``.
+///
+/// Foundation's `String.range(of:options:.regularExpression)` re-parses the
+/// pattern on every call. Compiling once removes the dominant cost of
+/// per-call pre-tokenization for short inputs.
+private let bertPreTokenizeRegex: NSRegularExpression = {
+    let pattern = "[^\\s\(punctuationRegex)]+|[\(punctuationRegex)]"
+    return try! NSRegularExpression(pattern: pattern)
+}()
+
+/// Pre-compiled regex shared by ``WhitespacePreTokenizer`` (also used for
+/// ``PreTokenizerType/WhitespaceSplit``).
+private let whitespacePreTokenizeRegex: NSRegularExpression = {
+    try! NSRegularExpression(pattern: #"\S+"#)
+}()
+
+/// Pre-compiled regex shared by ``PunctuationPreTokenizer``.
+private let punctuationPreTokenizeRegex: NSRegularExpression = {
+    let pattern = "[^\(punctuationRegex)]+|[\(punctuationRegex)]+"
+    return try! NSRegularExpression(pattern: pattern)
+}()
+
+/// Pre-compiled regex used by ``DigitsPreTokenizer`` when each digit should be
+/// emitted as its own token (`individualDigits == true`).
+private let digitsPreTokenizeIndividualRegex: NSRegularExpression = {
+    try! NSRegularExpression(pattern: "[^\\d]+|\\d")
+}()
+
+/// Pre-compiled regex used by ``DigitsPreTokenizer`` when consecutive digits
+/// should be grouped into a single token (`individualDigits == false`).
+private let digitsPreTokenizeGroupedRegex: NSRegularExpression = {
+    try! NSRegularExpression(pattern: "[^\\d]+|\\d+")
+}()
+
+/// Apply `regex` to `text` and return the substring of every match.
+///
+/// Equivalent to `text.ranges(of: pattern).map { String(text[$0]) }`, but
+/// uses `enumerateMatches` against an already-compiled regex and avoids the
+/// intermediate `[Range<String.Index>]` allocation. The bridge to `NSString`
+/// is cheap on `String` instances and lets `substring(with:)` slice on the
+/// UTF-16 ranges that `NSRegularExpression` returns.
+private func splitMatches(in text: String, with regex: NSRegularExpression) -> [String] {
+    let nsText = text as NSString
+    let fullRange = NSRange(location: 0, length: nsText.length)
+    var result: [String] = []
+    regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+        guard let match else { return }
+        result.append(nsText.substring(with: match.range))
+    }
+    return result
+}
+
 /// Options that can be passed to pre-tokenization operations.
 public enum PreTokenizerOption: String {
     /// Indicates this is the first section of text being processed.
@@ -112,15 +164,11 @@ struct PreTokenizerFactory {
 }
 
 class BertPreTokenizer: PreTokenizer {
-    let re: String
-
-    required init(config: Config) {
-        // Ref: https://github.com/huggingface/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1002
-        re = "[^\\s\(punctuationRegex)]+|[\(punctuationRegex)]"
-    }
+    // Ref: https://github.com/huggingface/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1002
+    required init(config: Config) {}
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        text.ranges(of: re).map { String(text[$0]) }
+        splitMatches(in: text, with: bertPreTokenizeRegex)
     }
 }
 
@@ -140,14 +188,10 @@ class PreTokenizerSequence: PreTokenizer {
 }
 
 class WhitespacePreTokenizer: PreTokenizer {
-    let re: String
-
-    required init(config: Config) {
-        re = #"\S+"#
-    }
+    required init(config: Config) {}
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        text.ranges(of: re).map { String(text[$0]) }
+        splitMatches(in: text, with: whitespacePreTokenizeRegex)
     }
 }
 
@@ -247,28 +291,24 @@ class ByteLevelPreTokenizer: PreTokenizer {
 }
 
 class PunctuationPreTokenizer: PreTokenizer {
-    let re: String
-
-    required init(config: Config) {
-        re = "[^\(punctuationRegex)]+|[\(punctuationRegex)]+"
-    }
+    required init(config: Config) {}
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
         // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
-        text.ranges(of: re).map { String(text[$0]) }
+        splitMatches(in: text, with: punctuationPreTokenizeRegex)
     }
 }
 
 class DigitsPreTokenizer: PreTokenizer {
-    let re: String
+    let regex: NSRegularExpression
 
     required init(config: Config) {
         let individualDigits = config.individualDigits.boolean(or: false)
-        re = "[^\\d]+|\\d\(individualDigits ? "" : "+")"
+        regex = individualDigits ? digitsPreTokenizeIndividualRegex : digitsPreTokenizeGroupedRegex
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        text.ranges(of: re).map { String(text[$0]) }
+        splitMatches(in: text, with: regex)
     }
 }
 
