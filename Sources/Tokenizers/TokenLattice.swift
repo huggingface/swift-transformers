@@ -15,27 +15,45 @@ struct TokenLattice {
     let bosTokenId: Int
     let eosTokenId: Int
 
+    /// `Character` view of `sentence`, materialized once at init.
+    /// Lattice offsets and lengths are in `Character` units, so resolving
+    /// `piece(_:)` through this array is O(1) instead of paying the
+    /// `String.index(_:offsetBy:)` traversal that scaled as O(N) per token.
+    private let chars: [Character]
+
+    /// Pre-computed `chars.count`. The previous `var count: Int { sentence.count }`
+    /// scanned grapheme clusters on every access, which made `count` O(N) and
+    /// callers that hit it inside a per-character loop O(N²).
+    let count: Int
+
     var nodes: [TokenLatticeNode] = []
     var beginNodes: [[TokenLatticeNode]]
     var endNodes: [[TokenLatticeNode]]
 
-    var count: Int { sentence.count }
-
     init(sentence: String, bosTokenId: Int, eosTokenId: Int) {
+        self.init(sentence: sentence, chars: Array(sentence), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
+    }
+
+    /// Internal initializer that lets callers reuse a `[Character]` they have
+    /// already materialized (e.g. `UnigramTokenizer.tokenize` walks the same
+    /// array to drive trie lookups).
+    init(sentence: String, chars: [Character], bosTokenId: Int, eosTokenId: Int) {
         self.sentence = sentence
+        self.chars = chars
+        self.count = chars.count
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
 
-        beginNodes = Array(repeating: [], count: sentence.count + 1)
-        endNodes = Array(repeating: [], count: sentence.count + 1)
+        beginNodes = Array(repeating: [], count: count + 1)
+        endNodes = Array(repeating: [], count: count + 1)
 
         let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
-        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: sentence.count, length: 0, score: 0)
+        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: count, length: 0, score: 0)
 
         nodes.append(bos)
         nodes.append(eos)
 
-        beginNodes[sentence.count].append(eos)
+        beginNodes[count].append(eos)
         endNodes[0].append(bos)
     }
 }
@@ -96,15 +114,16 @@ extension TokenLattice {
         return result.reversed()
     }
 
-    /// Returns the substring of the sentence to be tokenized associated to the specified node
+    /// Returns the string for the token associated to the specified node.
     ///
-    /// - Parameter node: The node defining the token to be extracted
+    /// - Parameter node: The node defining the token to be extracted.
     ///
-    /// - Returns: A **Substring** – i.e., a reference to the original positions, not a copy of the characters.
+    /// - Returns: A `String` reconstructed from the cached `Character` array.
+    ///   The previous implementation called `String.index(_:offsetBy:)` twice
+    ///   per node, which is O(N) over the sentence and dominated tokenization
+    ///   for inputs longer than a few hundred characters.
     func piece(_ node: TokenLatticeNode) -> any StringProtocol {
-        let start = sentence.index(sentence.startIndex, offsetBy: node.startOffset)
-        let end = sentence.index(start, offsetBy: node.length)
-        return sentence[start..<end]
+        String(chars[node.startOffset..<(node.startOffset + node.length)])
     }
 }
 
