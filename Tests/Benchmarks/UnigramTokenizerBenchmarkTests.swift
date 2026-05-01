@@ -40,7 +40,7 @@ struct UnigramTokenizerBenchmarkTests {
         tokenizer = try await AutoTokenizer.from(modelFolder: modelFolder, hubApi: offlineHubApi)
 
         guard let pretrained = tokenizer as? PreTrainedTokenizer,
-              let model = Mirror(reflecting: pretrained).descendant("model") as? UnigramTokenizer
+            let model = Mirror(reflecting: pretrained).descendant("model") as? UnigramTokenizer
         else {
             fatalError("Expected XLM-R PreTrainedTokenizer wrapping UnigramTokenizer")
         }
@@ -50,26 +50,26 @@ struct UnigramTokenizerBenchmarkTests {
         shortText = "Explain the SentencePiece tokenization algorithm in three short bullet points."
 
         let para = """
-        SentencePiece is an unsupervised text tokenizer that treats the input as a raw \
-        Unicode stream and learns sub-word units directly, without language-specific \
-        pre-tokenization. It is widely used in modern multilingual encoders such as \
-        XLM-RoBERTa and decoder-only language models such as T5 and the original Llama, \
-        where the Unigram language model variant scores each candidate piece and the \
-        Viterbi algorithm picks the most probable segmentation of the sentence.
-        """
+            SentencePiece is an unsupervised text tokenizer that treats the input as a raw \
+            Unicode stream and learns sub-word units directly, without language-specific \
+            pre-tokenization. It is widely used in modern multilingual encoders such as \
+            XLM-RoBERTa and decoder-only language models such as T5 and the original Llama, \
+            where the Unigram language model variant scores each candidate piece and the \
+            Viterbi algorithm picks the most probable segmentation of the sentence.
+            """
         mediumText = String(repeating: para + "\n\n", count: 2)
         longText = String(repeating: para + "\n\n", count: 20)
 
         codeText = """
-        public final class GPT2BytePairEncoderConfiguration: Codable, Sendable {
-            public let vocabularyIdentifierToTokenStringMap: [Int: String]
-            public let bytePairMergeRanksByPairOfStrings: [BytePair: Int]
-            public let unknownTokenIdentifierForOutOfVocabularyByteSequences: Int?
-            public let beginningOfSequenceSpecialTokenIdentifier: Int?
-            public let endOfSequenceSpecialTokenIdentifier: Int?
-            public let shouldFuseConsecutiveUnknownTokenSequencesIntoASingleUnknownToken: Bool
-        }
-        """
+            public final class GPT2BytePairEncoderConfiguration: Codable, Sendable {
+                public let vocabularyIdentifierToTokenStringMap: [Int: String]
+                public let bytePairMergeRanksByPairOfStrings: [BytePair: Int]
+                public let unknownTokenIdentifierForOutOfVocabularyByteSequences: Int?
+                public let beginningOfSequenceSpecialTokenIdentifier: Int?
+                public let endOfSequenceSpecialTokenIdentifier: Int?
+                public let shouldFuseConsecutiveUnknownTokenSequencesIntoASingleUnknownToken: Bool
+            }
+            """
     }
 
     // MARK: - Measurement helpers (matches BPEPreTokenizeBenchmarkTests)
@@ -143,10 +143,10 @@ struct UnigramTokenizerBenchmarkTests {
     func unigramTokenizeScaling() {
         print("\n=== UnigramTokenizer.tokenize scaling (\(Self.modelId)) ===")
         let para = """
-        SentencePiece is an unsupervised text tokenizer that treats the input as a raw \
-        Unicode stream and learns sub-word units directly, without language-specific \
-        pre-tokenization. The Viterbi algorithm picks the most probable segmentation.
-        """
+            SentencePiece is an unsupervised text tokenizer that treats the input as a raw \
+            Unicode stream and learns sub-word units directly, without language-specific \
+            pre-tokenization. The Viterbi algorithm picks the most probable segmentation.
+            """
         let factors = [1, 4, 16, 64]
         let iterationsByFactor = [1: 100, 4: 30, 16: 8, 64: 2]
         for f in factors {
