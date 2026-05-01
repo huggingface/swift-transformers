@@ -237,7 +237,16 @@ class MetaspaceDecoder: Decoder {
     let replacement: String
 
     required init(config: Config) {
-        addPrefixSpace = config.addPrefixSpace.boolean(or: false)
+        // `prepend_scheme` supersedes `add_prefix_space` per huggingface/tokenizers#1357.
+        // Newer python tokenizer.json files emitted by transformers ≥ 5 (e.g. T5 saved
+        // via `save_pretrained`) drop `add_prefix_space` and only set `prepend_scheme`.
+        // Treat "always" / "first" as having prepended a leading space at encode time
+        // so the decoder strips it from the first token; "never" leaves it intact.
+        if let schemeStr = config.prependScheme.string() {
+            addPrefixSpace = (schemeStr != "never")
+        } else {
+            addPrefixSpace = config.addPrefixSpace.boolean(or: false)
+        }
         replacement = config.replacement.string(or: "_")
     }
 
