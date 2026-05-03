@@ -237,23 +237,13 @@ class MetaspaceDecoder: Decoder {
     let replacement: String
 
     required init(config: Config) {
-        // `prepend_scheme` supersedes `add_prefix_space` per huggingface/tokenizers#1357.
-        // Newer python tokenizer.json files emitted by transformers ≥ 5 (e.g. T5 saved
-        // via `save_pretrained`) drop `add_prefix_space` and only set `prepend_scheme`.
-        // The Rust reference implementation uses the same `Metaspace` struct for both
-        // pre-tokenize and decode, so its defaults are symmetric by construction. Since
-        // Swift has separate types we mirror `MetaspacePreTokenizer`'s resolution here
-        // so encode and decode agree even when the config sets neither key (in that
-        // case both default to `.always`).
+        // See MetaspacePreTokenizer.init
         let scheme: MetaspacePreTokenizer.PrependScheme
         if let schemeStr = config.prependScheme.string() {
             scheme = MetaspacePreTokenizer.PrependScheme(rawValue: schemeStr) ?? .always
         } else {
             scheme = config.addPrefixSpace.boolean(or: true) ? .always : .never
         }
-        // For decode, both `.always` and `.first` mean a leading space was prepended
-        // at encode time and should be stripped from the first token; `.never` leaves
-        // the input untouched.
         addPrefixSpace = (scheme != .never)
         replacement = config.replacement.string(or: "_")
     }
