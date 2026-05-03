@@ -237,7 +237,14 @@ class MetaspaceDecoder: Decoder {
     let replacement: String
 
     required init(config: Config) {
-        addPrefixSpace = config.addPrefixSpace.boolean(or: false)
+        // See MetaspacePreTokenizer.init
+        let scheme: MetaspacePreTokenizer.PrependScheme
+        if let schemeStr = config.prependScheme.string() {
+            scheme = MetaspacePreTokenizer.PrependScheme(rawValue: schemeStr) ?? .always
+        } else {
+            scheme = config.addPrefixSpace.boolean(or: true) ? .always : .never
+        }
+        addPrefixSpace = (scheme != .never)
         replacement = config.replacement.string(or: "_")
     }
 
