@@ -270,3 +270,17 @@ let byteEncoder: [UTF8.CodeUnit: String] = [
 let byteDecoder = byteEncoder.reduce(into: [String: UTF8.CodeUnit]()) { result, element in
     result[element.value] = element.key
 }
+
+/// Fixed-size byte → unicode-character lookup, derived from ``byteEncoder``.
+///
+/// On the byte-level pre-tokenization hot path every input byte is encoded
+/// via this map, and a `[UInt8: String]` dictionary lookup costs roughly an
+/// order of magnitude more than indexing into a contiguous array. The byte
+/// alphabet covers the full 0...255 range, so a 256-element array is dense.
+let byteEncoderTable: [String] = {
+    var arr = [String](repeating: "", count: 256)
+    for (byte, str) in byteEncoder {
+        arr[Int(byte)] = str
+    }
+    return arr
+}()
