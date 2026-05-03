@@ -284,19 +284,3 @@ let byteEncoderTable: [String] = {
     }
     return arr
 }()
-
-/// Pre-compiled GPT-2 / Llama / Qwen / Gemma byte-level pre-tokenization regex.
-///
-/// The same pattern is used by ``BPETokenizer/byteEncode(text:)``,
-/// ``BPETokenizer/hexaEncode(text:)`` and ``ByteLevelPreTokenizer/preTokenize(text:options:)``.
-/// Foundation's `String.range(of:options:.regularExpression)` re-parses the pattern on every
-/// call, so caching a single `NSRegularExpression` removes the dominant cost of
-/// short-input `encode` and lets us iterate matches via `enumerateMatches` without
-/// allocating an intermediate range array.
-let byteLevelPreTokenizeRegex: NSRegularExpression = {
-    let pattern = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
-    // The pattern is a compile-time constant and has been used in production for
-    // years; treating compilation failure as a programmer error matches every
-    // other in-tree regex.
-    return try! NSRegularExpression(pattern: pattern)
-}()

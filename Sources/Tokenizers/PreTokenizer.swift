@@ -220,6 +220,38 @@ class MetaspacePreTokenizer: PreTokenizer {
     }
 }
 
+/// Pre-compiled GPT-2 / Llama / Qwen / Gemma byte-level pre-tokenization regex.
+///
+/// The same pattern is used by ``BPETokenizer/byteEncode(text:)``,
+/// ``BPETokenizer/hexaEncode(text:)`` and ``ByteLevelPreTokenizer/preTokenize(text:options:)``.
+/// Foundation's `String.range(of:options:.regularExpression)` re-parses the pattern on every
+/// call, so caching a single `NSRegularExpression` removes the dominant cost of
+/// short-input `encode` and lets us iterate matches via `enumerateMatches` without
+/// allocating an intermediate range array.
+let byteLevelPreTokenizeRegex: NSRegularExpression = {
+    let pattern = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
+    // The pattern is a compile-time constant and has been used in production for
+    // years; treating compilation failure as a programmer error matches every
+    // other in-tree regex.
+    return try! NSRegularExpression(pattern: pattern)
+}()
+
+/// Apply `regex` to `text` and call `body` once per match with the matched
+/// substring. Wraps the boilerplate of bridging through `NSString` /
+/// `NSRange` / `enumerateMatches` so call sites only express the per-token
+/// logic. Used by the byte-level pre-tokenizer and by `BPETokenizer`'s
+/// byte / hex encode helpers.
+func enumerateRegexTokens(
+    in text: String, with regex: NSRegularExpression, _ body: (String) -> Void
+) {
+    let nsText = text as NSString
+    let fullRange = NSRange(location: 0, length: nsText.length)
+    regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+        guard let match else { return }
+        body(nsText.substring(with: match.range))
+    }
+}
+
 class ByteLevelPreTokenizer: PreTokenizer {
     let addPrefixSpace: Bool
     let trimOffsets: Bool
@@ -231,9 +263,7 @@ class ByteLevelPreTokenizer: PreTokenizer {
         useRegex = config.useRegex.boolean(or: true)
     }
 
-    /// Byte-level encode a single token (no pre-tokenization split). Hot inner
-    /// loop: indexes the cached 256-entry table once per UTF-8 byte and appends
-    /// directly into a single output string.
+    /// Byte-level encode a single token (no pre-tokenization split).
     private func byteEncodeToken(_ token: String) -> String {
         var encoded = ""
         encoded.reserveCapacity(token.utf8.count)
@@ -249,16 +279,11 @@ class ByteLevelPreTokenizer: PreTokenizer {
             return [byteEncodeToken(token)]
         }
 
-        let nsText = text as NSString
-        let fullRange = NSRange(location: 0, length: nsText.length)
         var result: [String] = []
-        byteLevelPreTokenizeRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-            guard let match else { return }
-            var token = nsText.substring(with: match.range)
-            if self.addPrefixSpace, !token.hasPrefix(" ") {
-                token = " " + token
-            }
-            result.append(self.byteEncodeToken(token))
+        enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
+            let prefixed =
+                (self.addPrefixSpace && !token.hasPrefix(" ")) ? " " + token : token
+            result.append(self.byteEncodeToken(prefixed))
         }
         return result
     }

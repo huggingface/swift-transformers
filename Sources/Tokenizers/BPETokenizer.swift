@@ -152,12 +152,8 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     private static let hexaEncoderTable: [String] = (0..<256).map { String(format: "<0x%02X>", $0) }
 
     func byteEncode(text: String) -> [String] {
-        let nsText = text as NSString
-        let fullRange = NSRange(location: 0, length: nsText.length)
         var result: [String] = []
-        byteLevelPreTokenizeRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-            guard let match else { return }
-            let token = nsText.substring(with: match.range)
+        enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
             var encoded = ""
             encoded.reserveCapacity(token.utf8.count)
             for byte in token.utf8 {
@@ -169,12 +165,8 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     }
 
     func hexaEncode(text: String) -> [String] {
-        let nsText = text as NSString
-        let fullRange = NSRange(location: 0, length: nsText.length)
         var result: [String] = []
-        byteLevelPreTokenizeRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-            guard let match else { return }
-            let token = nsText.substring(with: match.range)
+        enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
             for byte in token.utf8 {
                 result.append(Self.hexaEncoderTable[Int(byte)])
             }
