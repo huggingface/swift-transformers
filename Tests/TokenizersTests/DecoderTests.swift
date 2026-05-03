@@ -97,6 +97,23 @@ struct DecoderTests {
         #expect(decoded == [" How", " are"])
     }
 
+    /// When neither `prepend_scheme` nor `add_prefix_space` is in the config,
+    /// `MetaspacePreTokenizer` defaults to `.always` (prepend a space at encode
+    /// time). The decoder therefore has to strip the leading space from the
+    /// first token so encode/decode round-trip cleanly. Without the symmetric
+    /// default this asserted on `[" How", " are", " you", "?"]` instead.
+    @Test("Metaspace decoder default (neither key set) matches PreTokenizer")
+    func metaspaceDecoderDefaultMatchesPreTokenizer() {
+        let decoder = MetaspaceDecoder(
+            config: Config(["replacement": "▁"]))
+
+        let tokens = ["▁How", "▁are", "▁you", "?"]
+        let decoded = decoder.decode(tokens: tokens)
+
+        #expect(decoded == ["How", " are", " you", "?"])
+        #expect(decoded.joined() == "How are you?")
+    }
+
     @Test("WordPiece decoder with prefix and cleanup")
     func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
