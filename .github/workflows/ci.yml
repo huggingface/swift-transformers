@@ -18,8 +18,8 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         uses: huggingface/hf-workflows/.github/workflows/swift_transformers_unit_tests.yml@a88e7fa2eaee28de5a4d6142381b1fb792349b67  # main
         with:
-            # Use the PR merge ref, not the head.
-            pr_number: ${{ github.event.pull_request.number }}
+            # Use the PR merge ref, not the head. Use 0 for push events.
+            pr_number: ${{ github.event.pull_request.number || 0 }}
         secrets:
             HF_HUB_READ_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
 
