@@ -222,7 +222,7 @@ struct ConfigTests {
             #expect(cfg.string() == "a")
             #expect(cfg.string(or: "b") == "a")
             #expect(cfg.get() == BinaryDistinctString("a"))
-            #expect(cfg.get(or: "b") == BinaryDistinctString("a"))
+            #expect(cfg.get(or: BinaryDistinctString("b")) == BinaryDistinctString("a"))
             #expect(cfg.binaryDistinctString() == "a")
             #expect(cfg.binaryDistinctString(or: "b") == "a")
         }
