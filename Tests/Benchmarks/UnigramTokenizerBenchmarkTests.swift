@@ -12,7 +12,6 @@
 //  a rising curve indicates O(N^2) String-API misuse.
 //
 
-import Dispatch
 import Foundation
 import Hub
 import Testing
@@ -72,46 +71,6 @@ struct UnigramTokenizerBenchmarkTests {
             """
     }
 
-    // MARK: - Measurement helpers (matches BPEPreTokenizeBenchmarkTests)
-
-    struct Stats {
-        let mean: Double
-        let stdDev: Double
-        let p50: Double
-        let p95: Double
-        let min: Double
-        let max: Double
-
-        var formatted: String {
-            String(format: "%8.3f ms (± %5.3f, p50 %7.3f, p95 %7.3f)", mean, stdDev, p50, p95)
-        }
-    }
-
-    private static func stats(_ times: [Double]) -> Stats {
-        let sorted = times.sorted()
-        let mean = sorted.reduce(0, +) / Double(sorted.count)
-        let variance = sorted.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(sorted.count)
-        let stdDev = sqrt(variance)
-        let p50 = sorted[sorted.count / 2]
-        let p95 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))]
-        return Stats(mean: mean, stdDev: stdDev, p50: p50, p95: p95, min: sorted.first ?? 0, max: sorted.last ?? 0)
-    }
-
-    private static func measure(label: String, iterations: Int, warmup: Int = 3, _ block: () -> Void) -> Stats {
-        for _ in 0..<warmup { block() }
-        var times: [Double] = []
-        times.reserveCapacity(iterations)
-        for _ in 0..<iterations {
-            let start = DispatchTime.now()
-            block()
-            let end = DispatchTime.now()
-            times.append(Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000)
-        }
-        let s = stats(times)
-        print("  \(label.padding(toLength: 30, withPad: " ", startingAt: 0)) \(s.formatted)")
-        return s
-    }
-
     // MARK: - Benchmarks
 
     /// Direct micro-benchmark of `UnigramTokenizer.tokenize`. Bypasses
@@ -128,7 +87,7 @@ struct UnigramTokenizerBenchmarkTests {
         ]
         for (label, text, iterations) in cases {
             let bytes = text.utf8.count
-            let stats = Self.measure(label: label, iterations: iterations) {
+            let stats = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = unigramModel.tokenize(text: text)
             }
             let usPerByte = stats.mean * 1_000.0 / Double(bytes)
@@ -153,7 +112,7 @@ struct UnigramTokenizerBenchmarkTests {
             let text = String(repeating: para + "\n", count: f)
             let bytes = text.utf8.count
             let iters = iterationsByFactor[f] ?? 5
-            let stats = Self.measure(label: "x\(f) (\(bytes) B)", iterations: iters) {
+            let stats = benchmarkMeasure(label: "x\(f) (\(bytes) B)", iterations: iters) {
                 _ = unigramModel.tokenize(text: text)
             }
             let usPerByte = stats.mean * 1_000.0 / Double(bytes)
@@ -176,7 +135,7 @@ struct UnigramTokenizerBenchmarkTests {
             ("long ascii", String(repeating: "the quick brown fox jumps over the lazy dog ", count: 4)),
         ]
         for (label, q) in queries {
-            _ = Self.measure(label: "search \(label)", iterations: 10_000) {
+            _ = benchmarkMeasure(label: "search \(label)", iterations: 10_000) {
                 _ = trie.commonPrefixSearch(q)
             }
         }
@@ -196,7 +155,7 @@ struct UnigramTokenizerBenchmarkTests {
         ]
         for (label, text, iterations) in cases {
             let bytes = text.utf8.count
-            let stats = Self.measure(label: label, iterations: iterations) {
+            let stats = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = tokenizer.encode(text: text, addSpecialTokens: false)
             }
             let mbPerSec = (Double(bytes) / 1_048_576.0) / (stats.mean / 1_000.0)
