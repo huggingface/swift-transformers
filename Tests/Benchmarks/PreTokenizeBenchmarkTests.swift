@@ -8,7 +8,6 @@
 //  Run with `RUN_BENCHMARKS=1`.
 //
 
-import Dispatch
 import Foundation
 import Hub
 import Testing
@@ -59,46 +58,6 @@ struct PreTokenizeBenchmarkTests {
             """
     }
 
-    // MARK: - Measurement helpers
-
-    struct Stats {
-        let mean: Double
-        let stdDev: Double
-        let p50: Double
-        let p95: Double
-        let min: Double
-        let max: Double
-
-        var formatted: String {
-            String(format: "%7.3f ms (± %5.3f, p50 %6.3f, p95 %6.3f)", mean, stdDev, p50, p95)
-        }
-    }
-
-    private static func stats(_ times: [Double]) -> Stats {
-        let sorted = times.sorted()
-        let mean = sorted.reduce(0, +) / Double(sorted.count)
-        let variance = sorted.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(sorted.count)
-        let stdDev = sqrt(variance)
-        let p50 = sorted[sorted.count / 2]
-        let p95 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))]
-        return Stats(mean: mean, stdDev: stdDev, p50: p50, p95: p95, min: sorted.first ?? 0, max: sorted.last ?? 0)
-    }
-
-    private static func measure(label: String, iterations: Int, warmup: Int = 3, _ block: () -> Void) -> Stats {
-        for _ in 0..<warmup { block() }
-        var times: [Double] = []
-        times.reserveCapacity(iterations)
-        for _ in 0..<iterations {
-            let start = DispatchTime.now()
-            block()
-            let end = DispatchTime.now()
-            times.append(Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000)
-        }
-        let s = stats(times)
-        print("  \(label.padding(toLength: 26, withPad: " ", startingAt: 0)) \(s.formatted)")
-        return s
-    }
-
     // MARK: - Benchmarks
 
     @Test("BertPreTokenizer micro-benchmark")
@@ -112,7 +71,7 @@ struct PreTokenizeBenchmarkTests {
             ("long (~30 KB)", longText, 20),
         ]
         for (label, text, iterations) in cases {
-            _ = Self.measure(label: label, iterations: iterations) {
+            _ = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = preTokenizer.preTokenize(text: text)
             }
         }
@@ -129,7 +88,7 @@ struct PreTokenizeBenchmarkTests {
             ("long (~30 KB)", longText, 20),
         ]
         for (label, text, iterations) in cases {
-            _ = Self.measure(label: label, iterations: iterations) {
+            _ = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = preTokenizer.preTokenize(text: text)
             }
         }
@@ -146,7 +105,7 @@ struct PreTokenizeBenchmarkTests {
             ("long (~30 KB)", longText, 20),
         ]
         for (label, text, iterations) in cases {
-            _ = Self.measure(label: label, iterations: iterations) {
+            _ = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = preTokenizer.preTokenize(text: text)
             }
         }
@@ -166,14 +125,14 @@ struct PreTokenizeBenchmarkTests {
             ("long (~30 KB)", longText, 20),
         ]
         for (label, text, iterations) in cases {
-            _ = Self.measure(label: label, iterations: iterations) {
+            _ = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = groupedTokenizer.preTokenize(text: text)
             }
         }
 
         print("\n=== DigitsPreTokenizer.preTokenize (individual) ===")
         for (label, text, iterations) in cases {
-            _ = Self.measure(label: label, iterations: iterations) {
+            _ = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = individualTokenizer.preTokenize(text: text)
             }
         }
