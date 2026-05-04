@@ -148,20 +148,30 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         idsToTokens[id] as String?
     }
 
+    /// Cached `<0x%02X>` byte fallback strings, indexed by byte value.
+    private static let hexaEncoderTable: [String] = (0..<256).map { String(format: "<0x%02X>", $0) }
+
     func byteEncode(text: String) -> [String] {
-        let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
-        let tokens = text.ranges(of: RE).map { String(text[$0]) }
-        return tokens.map { token -> String in
-            return Array(token.utf8).compactMap { byteEncoder[$0] }.joined()
+        var result: [String] = []
+        enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
+            var encoded = ""
+            encoded.reserveCapacity(token.utf8.count)
+            for byte in token.utf8 {
+                encoded.append(byteEncoderTable[Int(byte)])
+            }
+            result.append(encoded)
         }
+        return result
     }
 
     func hexaEncode(text: String) -> [String] {
-        let RE = #"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"#
-        let tokens = text.ranges(of: RE).map { String(text[$0]) }
-        return tokens.flatMap { token -> [String] in
-            return Array(token.utf8).map { String(format: "<0x%02X>", $0) }
+        var result: [String] = []
+        enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
+            for byte in token.utf8 {
+                result.append(Self.hexaEncoderTable[Int(byte)])
+            }
         }
+        return result
     }
 
     private func getPairs(word: [String]) -> Set<BytePair> {
