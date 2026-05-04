@@ -246,9 +246,11 @@ func enumerateRegexTokens(
 ) {
     let nsText = text as NSString
     let fullRange = NSRange(location: 0, length: nsText.length)
-    regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-        guard let match else { return }
-        body(nsText.substring(with: match.range))
+    withoutActuallyEscaping(body) { escapableBody in
+        regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+            guard let match else { return }
+            escapableBody(nsText.substring(with: match.range))
+        }
     }
 }
 
