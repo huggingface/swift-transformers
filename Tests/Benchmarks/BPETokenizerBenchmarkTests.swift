@@ -5,7 +5,6 @@
 //  Benchmarks for the BPE tokenization hot path. Run with `RUN_BENCHMARKS=1`.
 //
 
-import Dispatch
 import Foundation
 import Hub
 import Testing
@@ -64,46 +63,6 @@ struct BPETokenizerBenchmarkTests {
             """
     }
 
-    // MARK: - Measurement helpers
-
-    struct Stats {
-        let mean: Double
-        let stdDev: Double
-        let p50: Double
-        let p95: Double
-        let min: Double
-        let max: Double
-
-        var formatted: String {
-            String(format: "%7.2f ms (± %5.2f, p50 %6.2f, p95 %6.2f)", mean, stdDev, p50, p95)
-        }
-    }
-
-    private static func stats(_ times: [Double]) -> Stats {
-        let sorted = times.sorted()
-        let mean = sorted.reduce(0, +) / Double(sorted.count)
-        let variance = sorted.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(sorted.count)
-        let stdDev = sqrt(variance)
-        let p50 = sorted[sorted.count / 2]
-        let p95 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))]
-        return Stats(mean: mean, stdDev: stdDev, p50: p50, p95: p95, min: sorted.first ?? 0, max: sorted.last ?? 0)
-    }
-
-    private static func measure(label: String, iterations: Int, warmup: Int = 3, _ block: () -> Void) -> Stats {
-        for _ in 0..<warmup { block() }
-        var times: [Double] = []
-        times.reserveCapacity(iterations)
-        for _ in 0..<iterations {
-            let start = DispatchTime.now()
-            block()
-            let end = DispatchTime.now()
-            times.append(Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000)
-        }
-        let s = stats(times)
-        print("  \(label.padding(toLength: 20, withPad: " ", startingAt: 0)) \(s.formatted)")
-        return s
-    }
-
     // MARK: - Benchmarks
 
     @Test("BPE encode throughput across input sizes")
@@ -118,7 +77,7 @@ struct BPETokenizerBenchmarkTests {
 
         for (label, text, iterations) in cases {
             let bytes = text.utf8.count
-            let stats = Self.measure(label: label, iterations: iterations) {
+            let stats = benchmarkMeasure(label: label, iterations: iterations) {
                 _ = tokenizer.encode(text: text, addSpecialTokens: false)
             }
             let mbPerSec = (Double(bytes) / 1_048_576.0) / (stats.mean / 1_000.0)
@@ -152,7 +111,7 @@ struct BPETokenizerBenchmarkTests {
         for word in words {
             // Match what BPETokenizer.tokenize does: byte-encode first, then BPE.
             let encoded = model.byteEncode(text: word).first ?? word
-            let stats = Self.measure(label: "len=\(encoded.count)", iterations: 1000) {
+            let stats = benchmarkMeasure(label: "len=\(encoded.count)", iterations: 1000) {
                 _ = model.bpe(token: encoded)
             }
             print(String(format: "    word=\"%@\" mean %.3f ms", word, stats.mean))
