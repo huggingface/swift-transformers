@@ -12,17 +12,12 @@ import Hub
 private let punctuationRegex = #"\p{P}\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E"#
 
 /// Pre-compiled regex shared by ``BertPreTokenizer``.
-///
-/// Foundation's `String.range(of:options:.regularExpression)` re-parses the
-/// pattern on every call. Compiling once removes the dominant cost of
-/// per-call pre-tokenization for short inputs.
 private let bertPreTokenizeRegex: NSRegularExpression = {
     let pattern = "[^\\s\(punctuationRegex)]+|[\(punctuationRegex)]"
     return try! NSRegularExpression(pattern: pattern)
 }()
 
-/// Pre-compiled regex shared by ``WhitespacePreTokenizer`` (also used for
-/// ``PreTokenizerType/WhitespaceSplit``).
+/// Pre-compiled regex shared by ``WhitespacePreTokenizer``, ``PreTokenizerType/WhitespaceSplit``.
 private let whitespacePreTokenizeRegex: NSRegularExpression = {
     try! NSRegularExpression(pattern: #"\S+"#)
 }()
@@ -164,7 +159,6 @@ struct PreTokenizerFactory {
 }
 
 class BertPreTokenizer: PreTokenizer {
-    // Ref: https://github.com/huggingface/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1002
     required init(config: Config) {}
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
