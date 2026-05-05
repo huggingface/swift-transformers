@@ -132,15 +132,9 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of token strings representing the most probable segmentation
     func tokenize(text: String) -> [String] {
-        // Materialize the `Character` view exactly once. Both the trie walk
-        // below and `TokenLattice.piece(_:)` need character-level random
-        // access; the previous implementation reached for it via
-        // `String.index(_:offsetBy:)` and `String.count`, both O(N), inside
-        // a per-character loop -> overall O(N^2) on long inputs.
         let chars = Array(text)
         let charsCount = chars.count
         var lattice = TokenLattice(
-            sentence: text,
             chars: chars,
             bosTokenId: bosTokenId ?? 0,
             eosTokenId: eosTokenId ?? 0
