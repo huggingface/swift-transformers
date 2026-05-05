@@ -333,7 +333,6 @@ class PunctuationPreTokenizer: PreTokenizer {
     required init(config: Config) {}
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        // Ref: https://github.com/xenova/transformers.js/blob/27920d84831e323275b38f0b5186644b7936e1a2/src/tokenizers.js#L1138
         splitMatches(in: text, with: punctuationPreTokenizeRegex)
     }
 }
