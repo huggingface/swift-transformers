@@ -11,31 +11,39 @@
 /// Based on https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/models/unigram/lattice.rs#L137
 /// and https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/utils/data-structures.js#L269C28-L269C28
 struct TokenLattice {
-    let sentence: String
     let bosTokenId: Int
     let eosTokenId: Int
+
+    /// `Character` view of the input String for performance.
+    /// Lattice offsets and lengths are in `Character` units, so direct
+    /// access through the array does not pay the cost of
+    /// `String.index(_:offsetBy:)` traversal (O(N) per token, quadratic for sequences).
+    private let chars: [Character]
 
     var nodes: [TokenLatticeNode] = []
     var beginNodes: [[TokenLatticeNode]]
     var endNodes: [[TokenLatticeNode]]
 
-    var count: Int { sentence.count }
-
     init(sentence: String, bosTokenId: Int, eosTokenId: Int) {
-        self.sentence = sentence
+        self.init(chars: Array(sentence), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
+    }
+
+    init(chars: [Character], bosTokenId: Int, eosTokenId: Int) {
+        self.chars = chars
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
 
-        beginNodes = Array(repeating: [], count: sentence.count + 1)
-        endNodes = Array(repeating: [], count: sentence.count + 1)
+        let count = chars.count
+        beginNodes = Array(repeating: [], count: count + 1)
+        endNodes = Array(repeating: [], count: count + 1)
 
         let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
-        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: sentence.count, length: 0, score: 0)
+        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: count, length: 0, score: 0)
 
         nodes.append(bos)
         nodes.append(eos)
 
-        beginNodes[sentence.count].append(eos)
+        beginNodes[count].append(eos)
         endNodes[0].append(bos)
     }
 }
@@ -61,6 +69,7 @@ extension TokenLattice {
     /// It's unfortunate that it can't be lazy or cached as the node arrays are not immutable.
     /// We could create another type that holds the nodes and use it as an immutable var  in TokenLattice.
     func viterbi() -> [TokenLatticeNode] {
+        let count = chars.count
         for offset in 0...count {
             guard beginNodes[offset].count > 0 else { return [] }
 
@@ -96,15 +105,13 @@ extension TokenLattice {
         return result.reversed()
     }
 
-    /// Returns the substring of the sentence to be tokenized associated to the specified node
+    /// Returns the string for the token associated to the specified node.
     ///
-    /// - Parameter node: The node defining the token to be extracted
+    /// - Parameter node: The node defining the token to be extracted.
     ///
-    /// - Returns: A **Substring** – i.e., a reference to the original positions, not a copy of the characters.
+    /// - Returns: A `String` reconstructed from the cached `Character` array.
     func piece(_ node: TokenLatticeNode) -> any StringProtocol {
-        let start = sentence.index(sentence.startIndex, offsetBy: node.startOffset)
-        let end = sentence.index(start, offsetBy: node.length)
-        return sentence[start..<end]
+        String(chars[node.startOffset..<(node.startOffset + node.length)])
     }
 }
 
