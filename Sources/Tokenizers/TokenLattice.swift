@@ -33,17 +33,17 @@ struct TokenLattice {
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
 
-        let n = chars.count
-        beginNodes = Array(repeating: [], count: n + 1)
-        endNodes = Array(repeating: [], count: n + 1)
+        let count = chars.count
+        beginNodes = Array(repeating: [], count: count + 1)
+        endNodes = Array(repeating: [], count: count + 1)
 
         let bos = TokenLatticeNode(tokenId: bosTokenId, startOffset: 0, length: 0, score: 0)
-        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: n, length: 0, score: 0)
+        let eos = TokenLatticeNode(tokenId: eosTokenId, startOffset: count, length: 0, score: 0)
 
         nodes.append(bos)
         nodes.append(eos)
 
-        beginNodes[n].append(eos)
+        beginNodes[count].append(eos)
         endNodes[0].append(bos)
     }
 }
@@ -69,8 +69,8 @@ extension TokenLattice {
     /// It's unfortunate that it can't be lazy or cached as the node arrays are not immutable.
     /// We could create another type that holds the nodes and use it as an immutable var  in TokenLattice.
     func viterbi() -> [TokenLatticeNode] {
-        let n = chars.count
-        for offset in 0...n {
+        let count = chars.count
+        for offset in 0...count {
             guard beginNodes[offset].count > 0 else { return [] }
 
             for rnode in beginNodes[offset] {
@@ -92,7 +92,7 @@ extension TokenLattice {
             }
         }
 
-        let root = beginNodes[n][0]
+        let root = beginNodes[count][0]
         guard let prev = root.prev else { return [] }
 
         // TODO: the reference implementations have a few more clones here: verify
