@@ -33,6 +33,63 @@ struct BytePair: Hashable, Sendable {
     }
 }
 
+/// Minimal binary min-heap. `push` and `pop` are O(log n).
+/// Used by `BPETokenizer.bpe(token:)` for the priority-queue BPE merge loop,
+/// as the reference implementation does, see https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/models/bpe/word.rs
+private struct MinHeap<Element: Comparable> {
+    private var storage: [Element] = []
+
+    var isEmpty: Bool { storage.isEmpty }
+
+    mutating func reserveCapacity(_ n: Int) {
+        storage.reserveCapacity(n)
+    }
+
+    mutating func push(_ element: Element) {
+        storage.append(element)
+        var i = storage.count - 1
+        while i > 0 {
+            let parent = (i - 1) / 2
+            if storage[parent] <= storage[i] { break }
+            storage.swapAt(parent, i)
+            i = parent
+        }
+    }
+
+    mutating func pop() -> Element? {
+        guard !storage.isEmpty else { return nil }
+        let top = storage[0]
+        let last = storage.removeLast()
+        if storage.isEmpty { return top }
+        storage[0] = last
+        var i = 0
+        let n = storage.count
+        while true {
+            let l = 2 * i + 1
+            let r = 2 * i + 2
+            var smallest = i
+            if l < n, storage[l] < storage[smallest] { smallest = l }
+            if r < n, storage[r] < storage[smallest] { smallest = r }
+            if smallest == i { break }
+            storage.swapAt(i, smallest)
+            i = smallest
+        }
+        return top
+    }
+}
+
+/// Heap entry for the BPE merge priority queue. Lower `rank` wins; ties break
+/// on leftmost `left` index, matching `huggingface/tokenizers` semantics.
+private struct BPEMergeCandidate: Comparable {
+    let rank: Int
+    let left: Int
+
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        if lhs.rank != rhs.rank { return lhs.rank < rhs.rank }
+        return lhs.left < rhs.left
+    }
+}
+
 /// A Byte-Pair Encoding (BPE) tokenizer implementation.
 ///
 /// BPE tokenizers learn to merge the most frequently occurring pairs of characters
@@ -200,66 +257,19 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             nextIndex[i] = (i == initialCount - 1) ? -1 : i + 1
         }
 
-        // Min-heap of `(rank, leftSymbolIndex)`. We never remove entries on
-        // merge; instead, when an entry is popped we re-check that the pair at
+        // Min-heap of merge candidates. We never remove entries on merge;
+        // instead, when an entry is popped we re-check that the pair at
         // `(left, next[left])` is still the same and still has the recorded
         // rank — stale entries are simply skipped (lazy deletion).
-        var heap: [(rank: Int, left: Int)] = []
+        var heap = MinHeap<BPEMergeCandidate>()
         heap.reserveCapacity(initialCount)
 
-        func heapPush(_ entry: (rank: Int, left: Int)) {
-            heap.append(entry)
-            var i = heap.count - 1
-            while i > 0 {
-                let parent = (i - 1) / 2
-                let p = heap[parent]
-                let c = heap[i]
-                if p.rank < c.rank || (p.rank == c.rank && p.left <= c.left) { break }
-                heap[parent] = c
-                heap[i] = p
-                i = parent
-            }
-        }
-
-        func heapPop() -> (rank: Int, left: Int)? {
-            guard !heap.isEmpty else { return nil }
-            let top = heap[0]
-            let last = heap.removeLast()
-            if heap.isEmpty { return top }
-            heap[0] = last
-            var i = 0
-            let count = heap.count
-            while true {
-                let l = 2 * i + 1
-                let r = 2 * i + 2
-                var smallest = i
-                if l < count {
-                    let cur = heap[smallest]
-                    let cand = heap[l]
-                    if cand.rank < cur.rank || (cand.rank == cur.rank && cand.left < cur.left) {
-                        smallest = l
-                    }
-                }
-                if r < count {
-                    let cur = heap[smallest]
-                    let cand = heap[r]
-                    if cand.rank < cur.rank || (cand.rank == cur.rank && cand.left < cur.left) {
-                        smallest = r
-                    }
-                }
-                if smallest == i { break }
-                heap.swapAt(i, smallest)
-                i = smallest
-            }
-            return top
-        }
-
         // Enqueue the candidate merge at position `left -> next[left]`, if any.
-        @inline(__always) func enqueue(left: Int) {
+        func enqueue(left: Int) {
             let right = nextIndex[left]
             guard right != -1, alive[left], alive[right] else { return }
             if let rank = bpeRanks[BytePair(symbols[left], symbols[right])] {
-                heapPush((rank, left))
+                heap.push(BPEMergeCandidate(rank: rank, left: left))
             }
         }
 
@@ -267,7 +277,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             enqueue(left: i)
         }
 
-        while let top = heapPop() {
+        while let top = heap.pop() {
             let i = top.left
             guard alive[i] else { continue }
             let j = nextIndex[i]
