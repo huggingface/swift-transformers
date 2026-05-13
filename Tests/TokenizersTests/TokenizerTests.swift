@@ -368,6 +368,15 @@ struct TokenizerTests {
     }
 
     @Test
+    func bertHangul() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "BAAI/bge-small-en-v1.5") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "안") == [101, 1463, 30006, 30021, 102])
+    }
+
+    @Test
     func robertaEncodeDecode() async throws {
         let tokenizerOpt = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
