@@ -108,9 +108,6 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
         trie = Trie()
-        // SentencePiece vocabularies are scalar-indexed; iterating the token
-        // strings by `Unicode.Scalar` keeps the trie keys aligned with the
-        // scalar-level traversal used in `tokenize(text:)` below.
         trie.append(contentsOf: vocab.map { $0.token.unicodeScalars })
     }
 
@@ -135,12 +132,6 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of token strings representing the most probable segmentation
     func tokenize(text: String) -> [String] {
-        // Walk the input by `Unicode.Scalar` rather than by grapheme cluster.
-        // SentencePiece vocabularies are scalar-indexed (a keycap "1️⃣" is three
-        // separate vocab lookup targets: U+0031, U+FE0F, U+20E3), so iterating
-        // `Character` would silently swallow scalars that belong to combined
-        // graphemes — including the digit at the start of an emoji keycap.
-        // Reference: https://github.com/huggingface/swift-transformers/issues/352
         let chars = Array(text.unicodeScalars)
         let charsCount = chars.count
         var lattice = TokenLattice(

@@ -14,15 +14,9 @@ struct TokenLattice {
     let bosTokenId: Int
     let eosTokenId: Int
 
-    /// `Unicode.Scalar` view of the input String for performance.
-    /// Lattice offsets and lengths are in `Unicode.Scalar` units, so direct
-    /// access through the array does not pay the cost of
-    /// `String.index(_:offsetBy:)` traversal (O(N) per token, quadratic for
-    /// sequences). Scalars rather than `Character` so the lattice positions
-    /// align 1:1 with the per-scalar vocab lookup used by SentencePiece
-    /// Unigram for inputs whose graphemes span multiple scalars (e.g. emoji
-    /// keycaps, combining-mark scripts).
-    /// Reference: https://github.com/huggingface/swift-transformers/issues/352
+    /// `Unicode.Scalar` view of the input String. Lattice offsets and lengths are in
+    /// scalar units so multi-scalar grapheme clusters are addressable at the same
+    /// granularity the SentencePiece vocab uses.
     private let chars: [Unicode.Scalar]
 
     var nodes: [TokenLatticeNode] = []
