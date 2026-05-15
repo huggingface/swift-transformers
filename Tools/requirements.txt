@@ -1,0 +1,7 @@
+# Versions pinned for reproducible baselines. Bump the `transformers` pin in
+# the same commit that re-generates the bundled baselines so the parity values
+# stay aligned with a known reference.
+transformers==4.57.1
+tokenizers>=0.20,<0.23
+sentencepiece>=0.2
+protobuf>=4,<8
