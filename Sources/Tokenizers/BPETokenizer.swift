@@ -250,14 +250,11 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         // grouping them prevents merges and forces spurious byte-fallback even
         // when both scalars are direct vocab entries.
         // Reference: https://github.com/huggingface/swift-transformers/issues/352
-        let initialSymbols = token.unicodeScalars.map { String($0) }
-        if initialSymbols.count <= 1 {
-            return [token]
+        var symbols = token.unicodeScalars.map { String($0) }
+        if symbols.count <= 1 {
+            return symbols.isEmpty ? [] : [token]
         }
 
-        // Initial symbols: one entry per Unicode scalar of `token`. We keep these
-        // as a doubly linked list embedded in parallel arrays of indices.
-        var symbols = initialSymbols
         let initialCount = symbols.count
         var prevIndex = Array(repeating: -1, count: initialCount)
         var nextIndex = Array(repeating: -1, count: initialCount)
