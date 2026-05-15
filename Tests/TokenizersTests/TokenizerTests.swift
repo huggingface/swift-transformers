@@ -377,6 +377,28 @@ struct TokenizerTests {
     }
 
     @Test
+    func bertJapaneseDakuten() async throws {
+        // Regression for https://github.com/huggingface/swift-transformers/issues/352 (Bug 2).
+        // Japanese voiced-kana characters (`ザ`, `で`, …) carry a dakuten that BERT-family
+        // vocabularies expect stripped: `##サ` and `##て` are vocab entries; `##ザ` and `##で`
+        // are not. `BasicTokenizer.maybeStripAccents` previously used
+        // `.folding(options: .diacriticInsensitive)`, which strips Latin diacritics but not the
+        // U+3099/U+309A combining sound marks, so precomposed `ザ`/`で` survived intact through
+        // WordPiece. One missing continuation forced the greedy match to UNK the whole word.
+        // Switching to NFD-then-Mn-filter (matching HF Python's `_run_strip_accents`) restores
+        // byte-identity to the reference output.
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "BAAI/bge-small-en-v1.5") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "こんにちは、世界。トークナイザーのテストです。") == [
+            101, 1655, 30217, 30194, 30188, 30198, 1635, 1745, 100, 1636,
+            1714, 30265, 30228, 30241, 30221, 30231, 30265, 30197, 30239,
+            30233, 30240, 30191, 30184, 1636, 102,
+        ])
+    }
+
+    @Test
     func robertaEncodeDecode() async throws {
         let tokenizerOpt = try await AutoTokenizer.from(pretrained: "FacebookAI/roberta-base") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)

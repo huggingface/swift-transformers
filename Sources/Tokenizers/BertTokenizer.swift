@@ -240,7 +240,23 @@ final class BasicTokenizer: Sendable {
 
     func maybeStripAccents(_ text: String) -> String {
         guard doLowerCase else { return text }
-        return text.folding(options: .diacriticInsensitive, locale: nil)
+        // Equivalent of HF Python's `_run_strip_accents`: NFD-decompose then drop every
+        // nonspacing-mark scalar (Unicode general category Mn). The standard Foundation
+        // API `.folding(options: .diacriticInsensitive, locale: nil)` strips Latin
+        // diacritics but does NOT strip Japanese voiced-kana combining marks (U+3099,
+        // U+309A), so precomposed `ザ`/`で` survived intact even though the BERT-family
+        // vocabularies only carry the dakuten-stripped forms (`##サ`, `##て`). One missing
+        // continuation entry forced WordPiece to UNK out the whole word.
+        // Reference: https://github.com/huggingface/swift-transformers/issues/352
+        // Conceptual reference:
+        // https://github.com/huggingface/transformers/blob/542e65fae2fe9cc7ddeb816e540162bc5a8bff77/src/transformers/models/bert/tokenization_bert.py#L382
+        return String(
+            String.UnicodeScalarView(
+                text.decomposedStringWithCanonicalMapping.unicodeScalars.filter {
+                    $0.properties.generalCategory != .nonspacingMark
+                }
+            )
+        )
     }
 
     func maybeLowercase(_ text: String) -> String {
