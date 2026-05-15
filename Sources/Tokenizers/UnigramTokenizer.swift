@@ -57,7 +57,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether consecutive unknown tokens should be fused (always true for Unigram).
     let fuseUnknownTokens: Bool = true
 
-    private let trie: Trie<Character>
+    private let trie: Trie<Unicode.Scalar>
 
     /// Initializes a Unigram tokenizer from configuration data.
     ///
@@ -108,7 +108,10 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
 
         trie = Trie()
-        trie.append(contentsOf: vocab.map { $0.token })
+        // SentencePiece vocabularies are scalar-indexed; iterating the token
+        // strings by `Unicode.Scalar` keeps the trie keys aligned with the
+        // scalar-level traversal used in `tokenize(text:)` below.
+        trie.append(contentsOf: vocab.map { $0.token.unicodeScalars })
     }
 
     /// Converts a token string to its corresponding numeric ID.
@@ -132,7 +135,13 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of token strings representing the most probable segmentation
     func tokenize(text: String) -> [String] {
-        let chars = Array(text)
+        // Walk the input by `Unicode.Scalar` rather than by grapheme cluster.
+        // SentencePiece vocabularies are scalar-indexed (a keycap "1️⃣" is three
+        // separate vocab lookup targets: U+0031, U+FE0F, U+20E3), so iterating
+        // `Character` would silently swallow scalars that belong to combined
+        // graphemes — including the digit at the start of an emoji keycap.
+        // Reference: https://github.com/huggingface/swift-transformers/issues/352
+        let chars = Array(text.unicodeScalars)
         let charsCount = chars.count
         var lattice = TokenLattice(
             chars: chars,
@@ -148,7 +157,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             let suffix = chars[beginPos...]
             for tokenChars in trie.commonPrefixSearchIterator(suffix) {
                 let tokenLength = tokenChars.count
-                let token = String(tokenChars)
+                let token = String(String.UnicodeScalarView(tokenChars))
                 guard let tokenId = tokensToIds[token as NSString] else { fatalError("Token not in vocab: \(token)") }
                 let tokenScore = vocab[tokenId].score
                 lattice.insert(startOffset: beginPos, length: tokenLength, score: tokenScore, tokenId: tokenId)

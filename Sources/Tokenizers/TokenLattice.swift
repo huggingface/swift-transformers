@@ -14,21 +14,26 @@ struct TokenLattice {
     let bosTokenId: Int
     let eosTokenId: Int
 
-    /// `Character` view of the input String for performance.
-    /// Lattice offsets and lengths are in `Character` units, so direct
+    /// `Unicode.Scalar` view of the input String for performance.
+    /// Lattice offsets and lengths are in `Unicode.Scalar` units, so direct
     /// access through the array does not pay the cost of
-    /// `String.index(_:offsetBy:)` traversal (O(N) per token, quadratic for sequences).
-    private let chars: [Character]
+    /// `String.index(_:offsetBy:)` traversal (O(N) per token, quadratic for
+    /// sequences). Scalars rather than `Character` so the lattice positions
+    /// align 1:1 with the per-scalar vocab lookup used by SentencePiece
+    /// Unigram for inputs whose graphemes span multiple scalars (e.g. emoji
+    /// keycaps, combining-mark scripts).
+    /// Reference: https://github.com/huggingface/swift-transformers/issues/352
+    private let chars: [Unicode.Scalar]
 
     var nodes: [TokenLatticeNode] = []
     var beginNodes: [[TokenLatticeNode]]
     var endNodes: [[TokenLatticeNode]]
 
     init(sentence: String, bosTokenId: Int, eosTokenId: Int) {
-        self.init(chars: Array(sentence), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
+        self.init(chars: Array(sentence.unicodeScalars), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
     }
 
-    init(chars: [Character], bosTokenId: Int, eosTokenId: Int) {
+    init(chars: [Unicode.Scalar], bosTokenId: Int, eosTokenId: Int) {
         self.chars = chars
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
@@ -109,9 +114,9 @@ extension TokenLattice {
     ///
     /// - Parameter node: The node defining the token to be extracted.
     ///
-    /// - Returns: A `String` reconstructed from the cached `Character` array.
+    /// - Returns: A `String` reconstructed from the cached `Unicode.Scalar` array.
     func piece(_ node: TokenLatticeNode) -> any StringProtocol {
-        String(chars[node.startOffset..<(node.startOffset + node.length)])
+        String(String.UnicodeScalarView(chars[node.startOffset..<(node.startOffset + node.length)]))
     }
 }
 
