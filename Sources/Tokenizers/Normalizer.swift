@@ -236,11 +236,21 @@ class BertNormalizer: Normalizer {
     }
 
     private func stripAccents(text: String) -> String {
-        // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
+        // Equivalent of HF Python's `_run_strip_accents`: NFD-decompose then drop every
+        // nonspacing-mark scalar (Unicode general category Mn). Filtering only
+        // U+0300..U+036F handled Latin diacritics but missed marks in other blocks —
+        // notably the Japanese voiced-kana combining marks U+3099/U+309A — so
+        // precomposed `ザ`/`で` survived intact while BERT-family vocabularies only
+        // carry the dakuten-stripped forms (`##サ`, `##て`). This matches Rust
+        // `tokenizers` (`normalizers/bert.rs#strip_accents`) and HF Python.
+        // Reference: https://github.com/huggingface/swift-transformers/issues/352
         String(
-            text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
-                !(scalar.value >= 0x0300 && scalar.value <= 0x036F)
-            })
+            String.UnicodeScalarView(
+                text.decomposedStringWithCanonicalMapping.unicodeScalars.filter {
+                    $0.properties.generalCategory != .nonspacingMark
+                }
+            )
+        )
     }
 }
 

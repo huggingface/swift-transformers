@@ -380,17 +380,22 @@ struct TokenizerTests {
     func bertJapaneseDakuten() async throws {
         // Regression for https://github.com/huggingface/swift-transformers/issues/352 (Bug 2).
         // Japanese voiced-kana characters (`ザ`, `で`, …) carry a dakuten that BERT-family
-        // vocabularies expect stripped: `##サ` and `##て` are vocab entries; `##ザ` and `##で`
-        // are not. `BasicTokenizer.maybeStripAccents` previously used
-        // `.folding(options: .diacriticInsensitive)`, which strips Latin diacritics but not the
-        // U+3099/U+309A combining sound marks, so precomposed `ザ`/`で` survived intact through
-        // WordPiece. One missing continuation forced the greedy match to UNK the whole word.
-        // Switching to NFD-then-Mn-filter (matching HF Python's `_run_strip_accents`) restores
+        // vocabularies expect stripped: `サ` and `##て` are vocab entries; `ザ` and `##で`
+        // are not. `BertNormalizer.stripAccents` previously filtered only U+0300..U+036F,
+        // so the U+3099/U+309A combining sound marks survived NFD and precomposed `ザ`/`で`
+        // reached WordPiece intact. One missing continuation forced the greedy match to
+        // UNK the whole word. Widening the filter to all Mn (matching HF Python's
+        // `_run_strip_accents` and Rust `tokenizers` normalizers/bert.rs) restores
         // byte-identity to the reference output.
         let tokenizerOpt = try await AutoTokenizer.from(pretrained: "BAAI/bge-small-en-v1.5") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!
 
+        // Minimal repro: a single voiced-kana character.
+        #expect(tokenizer.encode(text: "ザ") == [101, 1705, 102])
+
+        // Long form covering hiragana, ideographs, punctuation, and katakana with
+        // multiple voiced kana (`ザ` and `で`).
         #expect(tokenizer.encode(text: "こんにちは、世界。トークナイザーのテストです。") == [
             101, 1655, 30217, 30194, 30188, 30198, 1635, 1745, 100, 1636,
             1714, 30265, 30228, 30241, 30221, 30231, 30265, 30197, 30239,
