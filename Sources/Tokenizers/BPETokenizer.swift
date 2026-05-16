@@ -243,13 +243,6 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// non-spacing mark, because the mark forms a single grapheme cluster with the
     /// preceding space and the split silently swallows the boundary.
     func bpe(token: String) -> [String] {
-        // Iterate Unicode scalars rather than grapheme clusters. Combining marks
-        // (e.g. Thai vowel U+0E31, Devanagari halant U+094D, the variation selector
-        // and combining keycap U+FE0F + U+20E3) form a single Swift `Character`
-        // with their base, but the BPE vocab and merge table are scalar-indexed —
-        // grouping them prevents merges and forces spurious byte-fallback even
-        // when both scalars are direct vocab entries.
-        // Reference: https://github.com/huggingface/swift-transformers/issues/352
         var symbols = token.unicodeScalars.map { String($0) }
         if symbols.count <= 1 {
             return symbols.isEmpty ? [] : [token]
