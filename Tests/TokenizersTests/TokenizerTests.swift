@@ -224,6 +224,16 @@ struct TokenizerTests {
         #expect(inputIds == [1, 29871, 6324])
     }
 
+    /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 4)
+    @Test
+    func llama7bCombiningMarks() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "huggyllama/llama-7b") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "สวัส") == [1, 29871, 30547, 30492, 30510, 30547])
+    }
+
     /// https://github.com/huggingface/swift-transformers/issues/99
     @Test
     func robertaXLMTokenizer() async throws {
