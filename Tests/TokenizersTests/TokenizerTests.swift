@@ -224,6 +224,24 @@ struct TokenizerTests {
         #expect(inputIds == [1, 29871, 6324])
     }
 
+    /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 3)
+    @Test
+    func t5UnigramKeycapEmoji() async throws {
+        // Keycap "1️⃣" is one grapheme cluster but three Unicode scalars:
+        //   U+0031 DIGIT ONE
+        //   U+FE0F VARIATION SELECTOR-16
+        //   U+20E3 COMBINING ENCLOSING KEYCAP
+        // SentencePiece Unigram lookups operate per scalar, so HF Python tokenizes
+        // this as ▁1 <unk> </s> — the digit `1` matches; the VS-16 + keycap tail UNKs.
+        // Pre-fix, the Swift tokenizer iterated by `Character`, so the whole grapheme
+        // became one lattice slot that never matched any vocab entry and the digit was
+        // silently lost (▁ <unk> </s>).
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-t5/t5-small") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "1️⃣") == [209, 2, 1])
+    }
     /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 4)
     @Test
     func llama7bCombiningMarks() async throws {
