@@ -97,105 +97,41 @@ private struct BaselineKernel: Sendable, CustomStringConvertible {
 // MARK: - Divergences known to be in flight
 
 /// (modelId, inputId) pairs whose encode output is known to diverge from the
-/// Python reference today. The cleanup-hint pattern is inspired by
-/// @john-rocky's closed #357.
-///
-/// `fixedBy` references the PR expected to land the fix so removal is
-/// mechanical. `fixedBy: 0` means "no specific PR yet — the divergence is
-/// pending investigation under #352"; those entries should carry a `note`
-/// explaining what's known about the surface.
+/// Python reference today, with a free-form note documenting the surface so
+/// follow-up triage has a starting point. Cleanup-hint pattern inspired by
+/// @john-rocky's closed #357: an unexpected match prints a hint inviting
+/// entry removal, an unexpected divergence is a hard test failure.
 private struct ExpectedDivergence: Sendable, Hashable {
     let modelId: String
     let inputId: String
-    let fixedBy: Int
-    let note: String?
-
-    init(modelId: String, inputId: String, fixedBy: Int, note: String? = nil) {
-        self.modelId = modelId
-        self.inputId = inputId
-        self.fixedBy = fixedBy
-        self.note = note
-    }
+    let note: String
 }
 
-// Bundled by `fixedBy` so removal is one delete on PR merge.
 private let expectedDivergences: Set<ExpectedDivergence> = [
     //
-    // Bug 2 (#354): `BertNormalizer.stripAccents` widens its Mn-filter from
-    // U+0300..U+036F to every nonspacing mark. Fixes precomposed `ザ`/`で`
-    // (U+3099 dakuten), Devanagari halant (U+094D), Arabic diacritics,
-    // emoji VS-16 (U+FE0F), and similar — all of which previously survived
-    // NFD and reached WordPiece intact, killing the greedy match.
-    //
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "japanese-voiced-kana-greeting", fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "japanese-voiced-kana-prose",    fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "arabic-prose",                  fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "mixed-script-katakana-code",    fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "devanagari-hindi",              fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "devanagari-sanskrit",           fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "emoji-keycap-and-flags",        fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "multiscript-greetings",         fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "multiscript-string-concat",     fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "multiscript-function-call",     fixedBy: 354),
-    .init(modelId: "BAAI/bge-small-en-v1.5", inputId: "multiscript-legacy-symbols",    fixedBy: 354),
-
-    //
-    // Bug 3 (#356): `UnigramTokenizer` + `TokenLattice` switch from `Character`
-    // (grapheme cluster) iteration to `Unicode.Scalar`. Affects T5-style Unigram
-    // wherever a vocab-relevant scalar is hidden inside a grapheme cluster: the
-    // digit inside `1️⃣`; the `TM` (U+2122) + VS-16 (U+FE0F) cluster in `™️`;
-    // the ZWJ (U+200D) sitting between two text characters in escape sequences.
-    //
-    .init(modelId: "google-t5/t5-small", inputId: "emoji-keycap-and-flags",      fixedBy: 356),
-    .init(modelId: "google-t5/t5-small", inputId: "multiscript-legacy-symbols",  fixedBy: 356),
-    .init(modelId: "google-t5/t5-small", inputId: "escape-sequences-with-zwj",   fixedBy: 356),
-
-    //
-    // Bug 4 (#355): `BPETokenizer.bpe(token:)` switches from grapheme-cluster
-    // to Unicode-scalar initial symbol decomposition and drops the space-joined
-    // round-trip. Affects SentencePiece BPE + byte-fallback (Llama family) on
-    // inputs whose graphemes span multiple vocab-relevant scalars: combining
-    // marks (Thai U+0E31, Devanagari halant U+094D, dakuten U+3099), ZWJ-joined
-    // emoji, and emoji keycap sequences.
-    //
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "thai-combining-marks-greeting", fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "thai-combining-marks-prose",    fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "devanagari-hindi",              fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "devanagari-sanskrit",           fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "emoji-zwj-family-pride-skin",   fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "emoji-zwj-with-text-prefix",    fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "emoji-keycap-and-flags",        fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "multiscript-greetings",         fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "multiscript-string-concat",     fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "multiscript-arrow-chain",       fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "multiscript-function-call",     fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "multiscript-legacy-symbols",    fixedBy: 355),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "escape-sequences-with-zwj",     fixedBy: 355),
-
-    //
-    // Pending investigation (#352): new divergences this corpus surfaces that
-    // aren't addressed by any of the four PRs in flight. Worth filing as
-    // separate follow-up issues — each `note` documents what's known.
+    // Two new bug clusters this corpus surfaces that aren't addressed by the
+    // initial fix wave (#354 / #355 / #356, all merged). Worth filing as
+    // separate follow-up issues under #352.
     //
 
     // SentencePiece-BPE leading-whitespace runs collapse to single `▁` tokens
     // instead of producing a single multi-space vocab entry (e.g. `▁▁▁▁`).
     // Suggests the Metaspace pre-tokenizer or BPE merge step isn't recognising
     // `▁▁▁▁` (id 268 in TinyLlama vocab) as a vocab-eligible merge target.
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-if",          fixedBy: 0, note: "Metaspace leading-whitespace runs"),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-return",      fixedBy: 0, note: "Metaspace leading-whitespace runs"),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-recurse",     fixedBy: 0, note: "Metaspace leading-whitespace runs"),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-runs",         fixedBy: 0, note: "Metaspace leading-whitespace runs"),
-    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-trailing-tabs", fixedBy: 0, note: "Metaspace leading-whitespace runs"),
+    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-if",          note: "Metaspace leading-whitespace runs"),
+    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-return",      note: "Metaspace leading-whitespace runs"),
+    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-recurse",     note: "Metaspace leading-whitespace runs"),
+    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-runs",         note: "Metaspace leading-whitespace runs"),
+    .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-trailing-tabs", note: "Metaspace leading-whitespace runs"),
 
     // Qwen2.5 byte-level BPE picks a different merge ordering on Thai
     // (and Thai-inside-multiscript) than HF Python. Byte-level encoding
     // means there are no combining-mark traps; this is a merge-priority
     // ordering issue in the BPE algorithm itself. Worth tracing once
     // #355's merge-loop changes have settled.
-    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "thai-combining-marks-greeting", fixedBy: 0, note: "byte-level BPE merge-ordering on Thai"),
-    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "thai-combining-marks-prose",    fixedBy: 0, note: "byte-level BPE merge-ordering on Thai"),
-    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "multiscript-greetings",         fixedBy: 0, note: "byte-level BPE merge-ordering on Thai"),
+    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "thai-combining-marks-greeting", note: "byte-level BPE merge-ordering on Thai"),
+    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "thai-combining-marks-prose",    note: "byte-level BPE merge-ordering on Thai"),
+    .init(modelId: "Qwen/Qwen2.5-0.5B", inputId: "multiscript-greetings",         note: "byte-level BPE merge-ordering on Thai"),
 ]
 
 private func divergenceExpected(model: String, input: String) -> ExpectedDivergence? {
@@ -374,7 +310,7 @@ struct MultilingualConformanceTests {
             print("""
             [\(kernel.modelId)] expectedDivergences entry no longer applies:
               input id:  \(match.inputId)
-              fixed by:  #\(match.fixedBy)
+              note:      \(match.note)
               hint:      remove this entry from expectedDivergences in MultilingualConformanceTests.swift
             """)
         }
@@ -384,8 +320,8 @@ struct MultilingualConformanceTests {
             unexpectedDivergences.isEmpty,
             """
             \(kernel.modelId): \(unexpectedDivergences.count) unexpected divergence(s) from HF Python reference.
-            If a divergence is being addressed in an open PR, add an
-            ExpectedDivergence(modelId: ..., inputId: ..., fixedBy: <pr>) entry.
+            If a divergence is being addressed in an open PR or is otherwise
+            known, add an ExpectedDivergence(modelId: …, inputId: …, note: …) entry.
 
             \(unexpectedDivergences.joined(separator: "\n\n"))
             """
