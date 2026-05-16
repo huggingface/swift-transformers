@@ -142,10 +142,13 @@ private let expectedDivergences: Set<ExpectedDivergence> = [
     //
     // Bug 3 (#356): `UnigramTokenizer` + `TokenLattice` switch from `Character`
     // (grapheme cluster) iteration to `Unicode.Scalar`. Affects T5-style Unigram
-    // on inputs where a vocab-relevant scalar is hidden inside a grapheme cluster
-    // (digit inside `1️⃣`).
+    // wherever a vocab-relevant scalar is hidden inside a grapheme cluster: the
+    // digit inside `1️⃣`; the `TM` (U+2122) + VS-16 (U+FE0F) cluster in `™️`;
+    // the ZWJ (U+200D) sitting between two text characters in escape sequences.
     //
-    .init(modelId: "google-t5/t5-small", inputId: "emoji-keycap-and-flags", fixedBy: 356),
+    .init(modelId: "google-t5/t5-small", inputId: "emoji-keycap-and-flags",      fixedBy: 356),
+    .init(modelId: "google-t5/t5-small", inputId: "multiscript-legacy-symbols",  fixedBy: 356),
+    .init(modelId: "google-t5/t5-small", inputId: "escape-sequences-with-zwj",   fixedBy: 356),
 
     //
     // Bug 4 (#355): `BPETokenizer.bpe(token:)` switches from grapheme-cluster
@@ -184,12 +187,6 @@ private let expectedDivergences: Set<ExpectedDivergence> = [
     .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "code-python-recurse",     fixedBy: 0, note: "Metaspace leading-whitespace runs"),
     .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-runs",         fixedBy: 0, note: "Metaspace leading-whitespace runs"),
     .init(modelId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0", inputId: "whitespace-trailing-tabs", fixedBy: 0, note: "Metaspace leading-whitespace runs"),
-
-    // T5 Unigram divergences not addressed by #356. Both surface different
-    // segmentation around ZWJ + VS-16 + combining-keycap shapes. Likely a
-    // second-order interaction in the Unigram lattice's UNK fusing.
-    .init(modelId: "google-t5/t5-small", inputId: "multiscript-legacy-symbols", fixedBy: 0, note: "Unigram TM trademark / VS-16 segmentation"),
-    .init(modelId: "google-t5/t5-small", inputId: "escape-sequences-with-zwj",  fixedBy: 0, note: "Unigram ZWJ-after-text edge"),
 
     // Qwen2.5 byte-level BPE picks a different merge ordering on Thai
     // (and Thai-inside-multiscript) than HF Python. Byte-level encoding
