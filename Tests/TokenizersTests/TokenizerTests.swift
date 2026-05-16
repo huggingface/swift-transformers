@@ -379,14 +379,6 @@ struct TokenizerTests {
     @Test
     func bertJapaneseDakuten() async throws {
         // Regression for https://github.com/huggingface/swift-transformers/issues/352 (Bug 2).
-        // Japanese voiced-kana characters (`ザ`, `で`, …) carry a dakuten that BERT-family
-        // vocabularies expect stripped: `サ` and `##て` are vocab entries; `ザ` and `##で`
-        // are not. `BertNormalizer.stripAccents` previously filtered only U+0300..U+036F,
-        // so the U+3099/U+309A combining sound marks survived NFD and precomposed `ザ`/`で`
-        // reached WordPiece intact. One missing continuation forced the greedy match to
-        // UNK the whole word. Widening the filter to all Mn (matching HF Python's
-        // `_run_strip_accents` and Rust `tokenizers` normalizers/bert.rs) restores
-        // byte-identity to the reference output.
         let tokenizerOpt = try await AutoTokenizer.from(pretrained: "BAAI/bge-small-en-v1.5") as? PreTrainedTokenizer
         #expect(tokenizerOpt != nil)
         let tokenizer = tokenizerOpt!

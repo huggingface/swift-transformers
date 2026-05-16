@@ -239,11 +239,8 @@ class BertNormalizer: Normalizer {
         // Equivalent of HF Python's `_run_strip_accents`: NFD-decompose then drop every
         // nonspacing-mark scalar (Unicode general category Mn). Filtering only
         // U+0300..U+036F handled Latin diacritics but missed marks in other blocks —
-        // notably the Japanese voiced-kana combining marks U+3099/U+309A — so
-        // precomposed `ザ`/`で` survived intact while BERT-family vocabularies only
-        // carry the dakuten-stripped forms (`##サ`, `##て`). This matches Rust
-        // `tokenizers` (`normalizers/bert.rs#strip_accents`) and HF Python.
-        // Reference: https://github.com/huggingface/swift-transformers/issues/352
+        // notably the Japanese voiced-kana combining marks U+3099/U+309A.
+        // This matches Rust `tokenizers` and HF Python.
         String(
             String.UnicodeScalarView(
                 text.decomposedStringWithCanonicalMapping.unicodeScalars.filter {
