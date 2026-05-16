@@ -1,0 +1,2 @@
+transformers==4.57.1
+# `tokenizers` is pulled transitively at the version transformers expects.
