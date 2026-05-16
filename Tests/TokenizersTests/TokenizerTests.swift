@@ -242,6 +242,16 @@ struct TokenizerTests {
 
         #expect(tokenizer.encode(text: "1️⃣") == [209, 2, 1])
     }
+  
+    /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 4)
+    @Test
+    func llama7bCombiningMarks() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "huggyllama/llama-7b") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        #expect(tokenizer.encode(text: "สวัส") == [1, 29871, 30547, 30492, 30510, 30547])
+    }
 
     /// https://github.com/huggingface/swift-transformers/issues/99
     @Test
@@ -393,6 +403,26 @@ struct TokenizerTests {
         let tokenizer = tokenizerOpt!
 
         #expect(tokenizer.encode(text: "안") == [101, 1463, 30006, 30021, 102])
+    }
+
+    @Test
+    func bertJapaneseDakuten() async throws {
+        // Regression for https://github.com/huggingface/swift-transformers/issues/352 (Bug 2).
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "BAAI/bge-small-en-v1.5") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        // Minimal repro: a single voiced-kana character.
+        #expect(tokenizer.encode(text: "ザ") == [101, 1705, 102])
+
+        // Long form covering hiragana, ideographs, punctuation, and katakana with
+        // multiple voiced kana (`ザ` and `で`).
+        #expect(
+            tokenizer.encode(text: "こんにちは、世界。トークナイザーのテストです。") == [
+                101, 1655, 30217, 30194, 30188, 30198, 1635, 1745, 100, 1636,
+                1714, 30265, 30228, 30241, 30221, 30231, 30265, 30197, 30239,
+                30233, 30240, 30191, 30184, 1636, 102,
+            ])
     }
 
     @Test

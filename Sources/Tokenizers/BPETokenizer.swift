@@ -231,23 +231,23 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         return result
     }
 
-    /// Applies the BPE merge sequence to `token` and returns the merged pieces
-    /// joined by a single space.
+    /// Applies the BPE merge sequence to `token` and returns the resulting pieces.
     ///
     /// Equivalent to the canonical greedy "lowest-rank merge first" BPE algorithm
-    /// (e.g. `tiktoken`, `huggingface/tokenizers`). The previous implementation
-    /// rebuilt the entire pair set and scanned the full word on every iteration,
-    /// which is O(N² · M). This version maintains the symbols as an in-place
-    /// linked list and tracks candidate merges in a min-heap keyed by rank, so
-    /// the work per merge step is O(log N) heap ops + O(1) list surgery.
-    func bpe(token: String) -> String {
-        if token.count <= 1 {
-            return token
+    /// (e.g. `tiktoken`, `huggingface/tokenizers`). Maintains the symbols as an
+    /// in-place linked list and tracks candidate merges in a min-heap keyed by
+    /// rank, so the work per merge step is O(log N) heap ops + O(1) list surgery.
+    ///
+    /// Returns an array of pieces rather than a space-joined string: a downstream
+    /// `split(separator: " ")` would be unsafe when a piece begins with a Unicode
+    /// non-spacing mark, because the mark forms a single grapheme cluster with the
+    /// preceding space and the split silently swallows the boundary.
+    func bpe(token: String) -> [String] {
+        var symbols = token.unicodeScalars.map { String($0) }
+        if symbols.count <= 1 {
+            return symbols.isEmpty ? [] : [token]
         }
 
-        // Initial symbols: one entry per Character of `token`. We keep these as
-        // a doubly linked list embedded in parallel arrays of indices.
-        var symbols = Array(token).map { String($0) }
         let initialCount = symbols.count
         var prevIndex = Array(repeating: -1, count: initialCount)
         var nextIndex = Array(repeating: -1, count: initialCount)
@@ -316,7 +316,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             pieces.append(symbols[cursor])
             cursor = nextIndex[cursor]
         }
-        return pieces.joined(separator: " ")
+        return pieces
     }
 
     /// Tokenizes input text using the BPE algorithm.
@@ -325,7 +325,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Returns: An array of BPE token strings
     func tokenize(text: String) -> [String] {
         var tokens: [String] = []
-        let bpeTokens = bpe(token: text).split(separator: " ").map { String($0) }
+        let bpeTokens = bpe(token: text)
         for token in bpeTokens {
             if convertTokenToId(token) != unknownTokenId {
                 tokens.append(token)
