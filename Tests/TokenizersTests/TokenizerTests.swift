@@ -242,7 +242,6 @@ struct TokenizerTests {
 
         #expect(tokenizer.encode(text: "1️⃣") == [209, 2, 1])
     }
-  
     /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 4)
     @Test
     func llama7bCombiningMarks() async throws {
