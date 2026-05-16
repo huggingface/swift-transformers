@@ -240,7 +240,19 @@ final class BasicTokenizer: Sendable {
 
     func maybeStripAccents(_ text: String) -> String {
         guard doLowerCase else { return text }
-        return text.folding(options: .diacriticInsensitive, locale: nil)
+        // Equivalent of HF Python's `_run_strip_accents`: NFD-decompose then drop every
+        // nonspacing-mark scalar (Unicode general category Mn). The standard Foundation
+        // API `.folding(options: .diacriticInsensitive, locale: nil)` strips Latin
+        // diacritics but does NOT strip Japanese voiced-kana combining marks.
+        // Conceptual reference:
+        // https://github.com/huggingface/transformers/blob/542e65fae2fe9cc7ddeb816e540162bc5a8bff77/src/transformers/models/bert/tokenization_bert.py#L382
+        return String(
+            String.UnicodeScalarView(
+                text.decomposedStringWithCanonicalMapping.unicodeScalars.filter {
+                    $0.properties.generalCategory != .nonspacingMark
+                }
+            )
+        )
     }
 
     func maybeLowercase(_ text: String) -> String {
