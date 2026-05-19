@@ -8,7 +8,6 @@
 //
 
 import Foundation
-import Hub
 import Testing
 
 @testable import Tokenizers
@@ -16,12 +15,7 @@ import Testing
 @Suite("Response Parser E2E Tests")
 struct ResponseParserE2ETests {
     private func loadTokenizer(_ name: String, revision: String) async throws -> PreTrainedTokenizer {
-        let config = LanguageModelConfigurationFromHub(modelName: name, revision: revision)
-        guard let tokenizerConfig = try await config.tokenizerConfig else {
-            throw TokenizerError.missingConfig
-        }
-        let tokenizerData = try await config.tokenizerData
-        let tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+        let tokenizer = try await AutoTokenizer.from(pretrained: name, revision: revision)
         guard let pretrained = tokenizer as? PreTrainedTokenizer else {
             throw TokenizerError.unsupportedTokenizer("expected PreTrainedTokenizer, got \(type(of: tokenizer))")
         }
