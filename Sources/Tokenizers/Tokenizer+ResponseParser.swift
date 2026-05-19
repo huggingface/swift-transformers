@@ -13,20 +13,6 @@ import Foundation
 import Hub
 
 public extension PreTrainedTokenizer {
-    /// The `response_template` declared in `tokenizer_config.json`, parsed
-    /// into a `ResponseTemplate`. Returns `nil` if the config doesn't declare
-    /// one. Throws if a template is present but malformed.
-    func responseTemplate() throws -> ResponseTemplate? {
-        let raw: Config = tokenizerConfig.responseTemplate
-        if raw.isNull() { return nil }
-        return try ResponseTemplate(from: raw)
-    }
-
-    /// Whether this tokenizer has a `response_template` configured.
-    var hasResponseTemplate: Bool {
-        !tokenizerConfig.responseTemplate.isNull()
-    }
-
     /// One-shot parse of a fully-buffered response.
     ///
     /// - Parameters:
