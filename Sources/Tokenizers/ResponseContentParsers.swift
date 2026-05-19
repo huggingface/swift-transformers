@@ -152,7 +152,7 @@ private func parseJSON(_ text: String, args: [String: Any], fieldName: String) t
             if let pair = entry as? [String], pair.count == 2 {
                 stringDelims.append((pair[0], pair[1]))
             } else if let pair = entry as? [Any], pair.count == 2,
-                      let open = pair[0] as? String, let close = pair[1] as? String
+                let open = pair[0] as? String, let close = pair[1] as? String
             {
                 stringDelims.append((open, close))
             }

@@ -29,12 +29,12 @@ struct ResponseParserE2ETests {
 
         // Thinking + final-answer response; no tool call, so no transform path is exercised.
         let output = """
-        <think>
-        The user wants a friendly greeting. Keep it short and welcoming.
-        </think>
+            <think>
+            The user wants a friendly greeting. Keep it short and welcoming.
+            </think>
 
-        Hello! How can I help you today?<|im_end|>
-        """
+            Hello! How can I help you today?<|im_end|>
+            """
         let parsed = try tokenizer.parseResponse(output)
 
         #expect(parsed["role"] == .string("assistant"))
@@ -56,12 +56,12 @@ struct ResponseParserE2ETests {
         #expect(tokenizer.hasResponseTemplate)
 
         let output = """
-        <think>
-        The user wants the weather. I should call the weather tool.
-        </think>
+            <think>
+            The user wants the weather. I should call the weather tool.
+            </think>
 
-        <tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>
-        """
+            <tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>
+            """
 
         let parsed = try tokenizer.parseResponse(output, transform: ResponseTransforms.builtin)
 
@@ -79,8 +79,8 @@ struct ResponseParserE2ETests {
         #expect(toolCalls.count == 1)
 
         guard case let .object(call) = toolCalls.first,
-              case .string("function") = call["type"],
-              case let .object(function) = call["function"]
+            case .string("function") = call["type"],
+            case let .object(function) = call["function"]
         else {
             Issue.record("malformed tool call: \(String(describing: toolCalls.first))")
             return
@@ -100,13 +100,13 @@ struct ResponseParserE2ETests {
 
         // Synthetic model output matching Gemma 4 chat template
         let output = """
-        <|channel>thought
-        The user is asking for the current temperature in Paris.
-        <channel|>\
-        <|tool_call>call:get_current_temperature\
-        {detail_level:0,location:<|\"|>Paris, France<|\"|>,unit:<|\"|>celsius<|\"|>}\
-        <tool_call|>
-        """
+            <|channel>thought
+            The user is asking for the current temperature in Paris.
+            <channel|>\
+            <|tool_call>call:get_current_temperature\
+            {detail_level:0,location:<|\"|>Paris, France<|\"|>,unit:<|\"|>celsius<|\"|>}\
+            <tool_call|>
+            """
 
         // The Gemma 4 response template uses a jmespath expression, but we support
         // the format via the builtin handler. Apps with unusual transforms can
@@ -127,8 +127,8 @@ struct ResponseParserE2ETests {
         #expect(toolCalls.count == 1)
 
         guard case let .object(call) = toolCalls.first,
-              case .string("function") = call["type"],
-              case let .object(function) = call["function"]
+            case .string("function") = call["type"],
+            case let .object(function) = call["function"]
         else {
             Issue.record("malformed tool call: \(String(describing: toolCalls.first))")
             return
