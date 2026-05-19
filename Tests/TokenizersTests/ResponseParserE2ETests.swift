@@ -13,8 +13,6 @@ import Testing
 
 @testable import Tokenizers
 
-private let runE2E = true || ProcessInfo.processInfo.environment["RUN_HUB_E2E_TESTS"] == "1"
-
 @Suite("Response Parser E2E Tests")
 struct ResponseParserE2ETests {
     private func loadTokenizer(_ name: String, revision: String) async throws -> PreTrainedTokenizer {
@@ -30,10 +28,7 @@ struct ResponseParserE2ETests {
         return pretrained
     }
 
-    @Test(
-        "SmolLM3 thinking+content parses without a transform",
-        .enabled(if: runE2E)
-    )
+    @Test("SmolLM3 thinking+content parses without a transform")
     func smolLM3ThinkingAndContent() async throws {
         let tokenizer = try await loadTokenizer("pcuenq/SmolLM3-3B", revision: "refs/pr/1")
         #expect(tokenizer.hasResponseTemplate)
@@ -61,10 +56,7 @@ struct ResponseParserE2ETests {
         }
     }
 
-    @Test(
-        "SmolLM3 tool-call parses with the built-in transform",
-        .enabled(if: runE2E)
-    )
+    @Test("SmolLM3 tool-call parses with the built-in handlers")
     func smolLM3ToolCall() async throws {
         let tokenizer = try await loadTokenizer("pcuenq/SmolLM3-3B", revision: "refs/pr/1")
         #expect(tokenizer.hasResponseTemplate)
@@ -107,10 +99,7 @@ struct ResponseParserE2ETests {
         }
     }
 
-    @Test(
-        "Gemma tool-call parses with the built-in transform",
-        .enabled(if: runE2E)
-    )
+    @Test("Gemma 4 tool-call parses with the built-in handlers")
     func gemmaToolCallWithTransform() async throws {
         let tokenizer = try await loadTokenizer("pcuenq/gemma-4-E2B-it", revision: "refs/pr/1")
         #expect(tokenizer.hasResponseTemplate)
