@@ -472,7 +472,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     private let normalizer: Normalizer?
     private let postProcessor: PostProcessor?
     private let decoder: Decoder?
-    private let tokenizerConfig: Config
+    let tokenizerConfig: Config
 
     private let cleanUpTokenizationSpaces: Bool
 
