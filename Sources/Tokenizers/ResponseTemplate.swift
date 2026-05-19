@@ -252,8 +252,12 @@ public struct ResponseTemplate: @unchecked Sendable {
             guard let pat = field[patKey] as? String else {
                 throw ResponseParserError.invalidSpec("\(scope): '\(patKey)' must be a string")
             }
+            // Templates are commonly authored against Python's `re`, which
+            // uses `(?P<name>...)` for named captures. ICU (NSRegularExpression)
+            // uses `(?<name>...)`. Normalize so authors can write either.
+            let normalized = Self.normalizePythonNamedGroups(pat)
             do {
-                let regex = try NSRegularExpression(pattern: pat, options: [.dotMatchesLineSeparators])
+                let regex = try NSRegularExpression(pattern: normalized, options: [.dotMatchesLineSeparators])
                 let groups = Self.namedGroupKeys(in: regex)
                 return ResponseAnchor(regex: regex, literals: nil, literalCanExtend: false, namedGroups: Array(groups))
             } catch {
@@ -261,6 +265,18 @@ public struct ResponseTemplate: @unchecked Sendable {
             }
         }
         return nil
+    }
+
+    /// Rewrite Python-style named captures `(?P<name>...)` to ICU style
+    /// `(?<name>...)`. NSRegularExpression accepts only the latter, but
+    /// templates are often authored against Python's `re`. Leaves
+    /// `(?P=name)` backreferences alone — also Python-only, but ICU has no
+    /// direct equivalent, so we'd surface that as a normal regex error.
+    private static func normalizePythonNamedGroups(_ pattern: String) -> String {
+        guard let scanner = try? NSRegularExpression(pattern: #"\(\?P<"#) else { return pattern }
+        let ns = pattern as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        return scanner.stringByReplacingMatches(in: pattern, options: [], range: range, withTemplate: "(?<")
     }
 
     /// Best-effort extraction of named capture group names from a compiled regex.
