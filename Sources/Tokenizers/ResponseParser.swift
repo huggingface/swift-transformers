@@ -16,20 +16,6 @@ public enum ResponseEvent: Sendable, Equatable {
     case regionClose(field: String, value: ParsedValue)
 }
 
-/// One-shot convenience for a fully-buffered response. Streaming consumers
-/// should use `ResponseParser` directly.
-public func parseResponse(
-    _ text: String,
-    template: ResponseTemplate,
-    prefix: String? = nil,
-    transform: ResponseTransform? = nil
-) throws -> ParsedMessage {
-    var parser = try ResponseParser(template: template, prefix: prefix, transform: transform)
-    _ = try parser.feed(text)
-    let result = try parser.finalize()
-    return result.message
-}
-
 /// Stateful streaming parser. Move-only: once `finalize()` is called, the
 /// instance is consumed and cannot be reused. This makes "finalize then
 /// continue feeding" a compile-time error rather than a runtime one.
@@ -37,7 +23,7 @@ public struct ResponseParser: ~Copyable {
     /// Events produced while consuming the `prefix` passed at init. Replay
     /// these into your renderer before feeding any model output, so any
     /// regions opened by the chat template prefill are reflected on screen.
-    public let initialEvents: [ResponseEvent]
+    public private(set) var initialEvents: [ResponseEvent]
 
     private let template: ResponseTemplate
     private let transform: ResponseTransform?
@@ -68,43 +54,42 @@ public struct ResponseParser: ~Copyable {
         self.captures = [:]
         self.body = NSMutableString()
         self.opened = false
+        self.initialEvents = []
 
-        var initial: [ResponseEvent] = []
         if let prefix, !prefix.isEmpty {
             let truncated = template.truncatePastLastAnchor(prefix)
             if !truncated.isEmpty {
-                self.buffer.append(truncated)
-                try Self.process(
-                    buffer: self.buffer, posRef: &self.pos,
-                    output: &self.output, current: &self.current,
-                    captures: &self.captures, body: self.body, opened: &self.opened,
-                    template: template, transform: transform, events: &initial, eos: false
-                )
+                buffer.append(truncated)
+                var events: [ResponseEvent] = []
+                try process(events: &events, eos: false)
+                initialEvents = events
             }
         }
-        self.initialEvents = initial
+    }
+
+    /// One-shot parse of a fully-buffered response. Streaming consumers
+    /// should construct a `ResponseParser` directly.
+    public static func parse(
+        _ text: String,
+        template: ResponseTemplate,
+        prefix: String? = nil,
+        transform: ResponseTransform? = nil
+    ) throws -> ParsedMessage {
+        var parser = try ResponseParser(template: template, prefix: prefix, transform: transform)
+        _ = try parser.feed(text)
+        return try parser.finalize().message
     }
 
     public mutating func feed(_ text: String) throws -> [ResponseEvent] {
         if !text.isEmpty { buffer.append(text) }
         var events: [ResponseEvent] = []
-        try Self.process(
-            buffer: buffer, posRef: &pos,
-            output: &output, current: &current,
-            captures: &captures, body: body, opened: &opened,
-            template: template, transform: transform, events: &events, eos: false
-        )
+        try process(events: &events, eos: false)
         return events
     }
 
     public consuming func finalize() throws -> (message: ParsedMessage, events: [ResponseEvent]) {
         var events: [ResponseEvent] = []
-        try Self.process(
-            buffer: buffer, posRef: &pos,
-            output: &output, current: &current,
-            captures: &captures, body: body, opened: &opened,
-            template: template, transform: transform, events: &events, eos: true
-        )
+        try process(events: &events, eos: true)
         var missing: [String] = []
         for (name, field) in template.fields where !field.optional && output[name] == nil {
             missing.append(name)
@@ -115,7 +100,7 @@ public struct ResponseParser: ~Copyable {
         let defaults = template.defaults
         var filtered: ParsedMessage = [:]
         for (k, v) in output {
-            if defaults[k] != nil || !Self.isEmpty(v) {
+            if defaults[k] != nil || !v.isEmpty {
                 filtered[k] = v
             }
         }
@@ -124,49 +109,33 @@ public struct ResponseParser: ~Copyable {
 
     // MARK: - Algorithm
 
-    /// The whole algorithm operates over inout state and a shared `buffer`/`body`
-    /// pair; we keep it `static` so each `mutating`/`consuming` entry point can
-    /// hand off the inout pieces without taking `self` apart for a non-Copyable
-    /// dance.
-    private static func process(
-        buffer: NSMutableString,
-        posRef: inout Int,
-        output: inout ParsedMessage,
-        current: inout String?,
-        captures: inout [String: String],
-        body: NSMutableString,
-        opened: inout Bool,
-        template: ResponseTemplate,
-        transform: ResponseTransform?,
-        events: inout [ResponseEvent],
-        eos: Bool
-    ) throws {
+    private mutating func process(events: inout [ResponseEvent], eos: Bool) throws {
         while true {
-            let watch = watchlist(template: template, current: current)
-            var best = bestMatch(watch: watch, buffer: buffer, pos: posRef)
+            let watch = watchlist()
+            var best = bestMatch(watch: watch)
             // Mid-stream, a match that reaches the end of the buffer is
             // ambiguous: zero-width alternations and pattern delimiters may
             // still extend with more input. Non-zero-width literal matches
             // can never extend, so we always commit those.
-            if let b = best, !eos, shouldDefer(field: b.field, match: b.match, bufLen: buffer.length, isOpen: b.kind == .open) {
+            if let b = best, !eos, Self.shouldDefer(field: b.field, match: b.match, bufLen: buffer.length, isOpen: b.kind == .open) {
                 best = nil
             }
 
             if let b = best {
                 let mStart = b.match.range.location
                 let mEnd = b.match.range.location + b.match.range.length
-                if mStart > posRef {
-                    let between = buffer.substring(with: NSRange(location: posRef, length: mStart - posRef))
-                    accumulate(events: &events, text: between, current: current, opened: &opened, body: body, template: template)
+                if mStart > pos {
+                    let between = buffer.substring(with: NSRange(location: pos, length: mStart - pos))
+                    accumulate(text: between, events: &events)
                 }
-                posRef = mEnd
+                pos = mEnd
                 switch b.kind {
                 case .open:
-                    try closeCurrent(events: &events, output: &output, current: &current, captures: &captures, body: body, opened: &opened, template: template, transform: transform)
-                    openExplicit(events: &events, field: b.field, match: b.match, buffer: buffer, current: &current, captures: &captures, body: body, opened: &opened)
+                    try closeCurrent(events: &events)
+                    openExplicit(field: b.field, match: b.match, events: &events)
                 case .close:
                     let hadContent = opened
-                    try closeCurrent(events: &events, output: &output, current: &current, captures: &captures, body: body, opened: &opened, template: template, transform: transform)
+                    try closeCurrent(events: &events)
                     // A zero-width close on an already-empty region would just
                     // re-fire forever — bail out so we make progress.
                     if !hadContent && mStart == mEnd { return }
@@ -175,29 +144,29 @@ public struct ResponseParser: ~Copyable {
             }
 
             if eos {
-                if posRef < buffer.length {
-                    let rest = buffer.substring(with: NSRange(location: posRef, length: buffer.length - posRef))
-                    accumulate(events: &events, text: rest, current: current, opened: &opened, body: body, template: template)
-                    posRef = buffer.length
+                if pos < buffer.length {
+                    let rest = buffer.substring(with: NSRange(location: pos, length: buffer.length - pos))
+                    accumulate(text: rest, events: &events)
+                    pos = buffer.length
                 }
-                try closeCurrent(events: &events, output: &output, current: &current, captures: &captures, body: body, opened: &opened, template: template, transform: transform)
+                try closeCurrent(events: &events)
                 return
             }
             if watch.isEmpty {
                 // Nothing to wait for — flush everything buffered into the current region.
-                if posRef < buffer.length {
-                    let rest = buffer.substring(with: NSRange(location: posRef, length: buffer.length - posRef))
-                    accumulate(events: &events, text: rest, current: current, opened: &opened, body: body, template: template)
-                    posRef = buffer.length
+                if pos < buffer.length {
+                    let rest = buffer.substring(with: NSRange(location: pos, length: buffer.length - pos))
+                    accumulate(text: rest, events: &events)
+                    pos = buffer.length
                 }
                 return
             }
-            let hold = maxHold(watch: watch, buffer: buffer, pos: posRef)
+            let hold = maxHold(watch: watch)
             let safeEnd = buffer.length - hold
-            if safeEnd > posRef {
-                let safe = buffer.substring(with: NSRange(location: posRef, length: safeEnd - posRef))
-                accumulate(events: &events, text: safe, current: current, opened: &opened, body: body, template: template)
-                posRef = safeEnd
+            if safeEnd > pos {
+                let safe = buffer.substring(with: NSRange(location: pos, length: safeEnd - pos))
+                accumulate(text: safe, events: &events)
+                pos = safeEnd
             }
             return
         }
@@ -207,8 +176,8 @@ public struct ResponseParser: ~Copyable {
     private struct Watch { let kind: WatchKind; let field: ResponseField }
     private struct Best { let kind: WatchKind; let field: ResponseField; let match: NSTextCheckingResult }
 
-    private static func watchlist(template: ResponseTemplate, current: String?) -> [Watch] {
-        if let c = current, c != template.implicit {
+    private func watchlist() -> [Watch] {
+        if let c = current, c != implicitName {
             guard let f = template.fields[c], f.close != nil else { return [] }
             return [Watch(kind: .close, field: f)]
         }
@@ -216,13 +185,13 @@ public struct ResponseParser: ~Copyable {
         for f in template.fields.values where f.open != nil {
             out.append(Watch(kind: .open, field: f))
         }
-        if let implicit = template.implicit, let f = template.fields[implicit], f.close != nil {
+        if let implicit = implicitName, let f = template.fields[implicit], f.close != nil {
             out.append(Watch(kind: .close, field: f))
         }
         return out
     }
 
-    private static func bestMatch(watch: [Watch], buffer: NSMutableString, pos: Int) -> Best? {
+    private func bestMatch(watch: [Watch]) -> Best? {
         var best: Best?
         var bestStart = Int.max
         var bestNegLen = Int.max
@@ -262,17 +231,17 @@ public struct ResponseParser: ~Copyable {
         return anchor.literals == nil || anchor.literalCanExtend || match.range.length == 0
     }
 
-    private static func maxHold(watch: [Watch], buffer: NSMutableString, pos: Int) -> Int {
+    private func maxHold(watch: [Watch]) -> Int {
         var hold = 0
         for w in watch {
             let anchor: ResponseAnchor? = (w.kind == .open) ? w.field.open : w.field.close
             guard let anchor else { continue }
-            hold = max(hold, patternHold(buffer: buffer, pos: pos, literals: anchor.literals))
+            hold = max(hold, patternHold(literals: anchor.literals))
         }
         return hold
     }
 
-    private static func patternHold(buffer: NSMutableString, pos: Int, literals: [String]?) -> Int {
+    private func patternHold(literals: [String]?) -> Int {
         let avail = buffer.length - pos
         if avail <= 0 { return 0 }
         guard let literals else { return min(avail, 64) }
@@ -295,14 +264,7 @@ public struct ResponseParser: ~Copyable {
         return best
     }
 
-    private static func accumulate(
-        events: inout [ResponseEvent],
-        text: String,
-        current: String?,
-        opened: inout Bool,
-        body: NSMutableString,
-        template: ResponseTemplate
-    ) {
+    private mutating func accumulate(text: String, events: inout [ResponseEvent]) {
         if text.isEmpty || current == nil { return }
         guard let fld = template.fields[current!] else { return }
         if !opened {
@@ -314,16 +276,7 @@ public struct ResponseParser: ~Copyable {
         events.append(.regionChunk(field: fld.name, text: text, dirty: dirty))
     }
 
-    private static func openExplicit(
-        events: inout [ResponseEvent],
-        field: ResponseField,
-        match: NSTextCheckingResult,
-        buffer: NSMutableString,
-        current: inout String?,
-        captures: inout [String: String],
-        body: NSMutableString,
-        opened: inout Bool
-    ) {
+    private mutating func openExplicit(field: ResponseField, match: NSTextCheckingResult, events: inout [ResponseEvent]) {
         current = field.name
         captures = [:]
         if let anchor = field.open {
@@ -339,18 +292,9 @@ public struct ResponseParser: ~Copyable {
         events.append(.regionOpen(field: field.name))
     }
 
-    private static func closeCurrent(
-        events: inout [ResponseEvent],
-        output: inout ParsedMessage,
-        current: inout String?,
-        captures: inout [String: String],
-        body: NSMutableString,
-        opened: inout Bool,
-        template: ResponseTemplate,
-        transform: ResponseTransform?
-    ) throws {
+    private mutating func closeCurrent(events: inout [ResponseEvent]) throws {
         guard let c = current, opened, let fld = template.fields[c] else {
-            resetToImplicit(current: &current, captures: &captures, body: body, opened: &opened, implicit: template.implicit)
+            resetToImplicit()
             return
         }
         let bodyString = body as String
@@ -367,29 +311,14 @@ public struct ResponseParser: ~Copyable {
             output[c] = value
         }
         events.append(.regionClose(field: c, value: value))
-        resetToImplicit(current: &current, captures: &captures, body: body, opened: &opened, implicit: template.implicit)
+        resetToImplicit()
     }
 
-    private static func resetToImplicit(
-        current: inout String?,
-        captures: inout [String: String],
-        body: NSMutableString,
-        opened: inout Bool,
-        implicit: String?
-    ) {
-        current = implicit
+    private mutating func resetToImplicit() {
+        current = implicitName
         captures = [:]
         body.setString("")
         opened = false
     }
 
-    private static func isEmpty(_ value: ParsedValue) -> Bool {
-        switch value {
-        case .null: return true
-        case .string(let s): return s.isEmpty
-        case .array(let arr): return arr.isEmpty
-        case .object(let dict): return dict.isEmpty
-        default: return false
-        }
-    }
 }

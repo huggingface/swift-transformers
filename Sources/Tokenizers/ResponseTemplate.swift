@@ -33,6 +33,20 @@ public enum ParsedValue: Sendable, Hashable {
     case object([String: ParsedValue])
 }
 
+public extension ParsedValue {
+    /// Structurally empty: `.null`, or an empty string / array / object.
+    /// Primitives like `.bool(false)` and `.int(0)` are not considered empty.
+    var isEmpty: Bool {
+        switch self {
+        case .null: return true
+        case .string(let s): return s.isEmpty
+        case .array(let arr): return arr.isEmpty
+        case .object(let dict): return dict.isEmpty
+        case .bool, .int, .double: return false
+        }
+    }
+}
+
 /// The structured output of a parse: keys are field names declared in the template.
 public typealias ParsedMessage = [String: ParsedValue]
 

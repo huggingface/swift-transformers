@@ -48,7 +48,7 @@ struct ResponseParserTests {
     @Test("Explicit open and close yields a text field")
     func explicitOpenClose() throws {
         let template = try basicTemplate()
-        let parsed = try parseResponse("<response>hello world</response>", template: template)
+        let parsed = try ResponseParser.parse("<response>hello world</response>", template: template)
         #expect(parsed["role"] == .string("assistant"))
         #expect(parsed["content"] == .string("hello world"))
     }
@@ -66,7 +66,7 @@ struct ResponseParserTests {
                 ] as [String: Any],
             ] as [String: Any],
         ])
-        let parsed = try parseResponse("<think>reasoning</think>actual answer", template: template)
+        let parsed = try ResponseParser.parse("<think>reasoning</think>actual answer", template: template)
         #expect(parsed["thinking"] == .string("reasoning"))
         #expect(parsed["content"] == .string("actual answer"))
     }
@@ -104,7 +104,7 @@ struct ResponseParserTests {
                 ] as [String: Any]
             ] as [String: Any],
         ])
-        let parsed = try parseResponse("<n>42</n>", template: template)
+        let parsed = try ResponseParser.parse("<n>42</n>", template: template)
         #expect(parsed["count"] == .int(42))
     }
 
@@ -115,8 +115,8 @@ struct ResponseParserTests {
                 "flag": ["open": "<f>", "close": "</f>", "content": "bool"] as [String: Any]
             ] as [String: Any]
         ])
-        #expect(try parseResponse("<f>true</f>", template: template)["flag"] == .bool(true))
-        #expect(try parseResponse("<f>false</f>", template: template)["flag"] == .bool(false))
+        #expect(try ResponseParser.parse("<f>true</f>", template: template)["flag"] == .bool(true))
+        #expect(try ResponseParser.parse("<f>false</f>", template: template)["flag"] == .bool(false))
     }
 
     @Test("JSON content parser")
@@ -126,7 +126,7 @@ struct ResponseParserTests {
                 "payload": ["open": "<j>", "close": "</j>", "content": "json"] as [String: Any]
             ] as [String: Any]
         ])
-        let parsed = try parseResponse(#"<j>{"a": 1, "b": [true, "x"]}</j>"#, template: template)
+        let parsed = try ResponseParser.parse(#"<j>{"a": 1, "b": [true, "x"]}</j>"#, template: template)
         guard case let .object(obj) = parsed["payload"] else {
             Issue.record("expected object")
             return
@@ -148,7 +148,7 @@ struct ResponseParserTests {
                 "metadata": ["open": "<meta>", "close": "</meta>", "content": "kv-lines"] as [String: Any]
             ] as [String: Any]
         ])
-        let parsed = try parseResponse("<meta>name: alice\nage: 30</meta>", template: template)
+        let parsed = try ResponseParser.parse("<meta>name: alice\nage: 30</meta>", template: template)
         if case let .object(obj) = parsed["metadata"] {
             #expect(obj["name"] == .string("alice"))
             #expect(obj["age"] == .string("30"))
@@ -171,7 +171,7 @@ struct ResponseParserTests {
                 ] as [String: Any]
             ] as [String: Any]
         ])
-        let parsed = try parseResponse("<tags><name=foo><age=10></tags>", template: template)
+        let parsed = try ResponseParser.parse("<tags><name=foo><age=10></tags>", template: template)
         if case let .object(obj) = parsed["tags"] {
             #expect(obj["name"] == .string("foo"))
             #expect(obj["age"] == .string("10"))
@@ -201,7 +201,7 @@ struct ResponseParserTests {
             }
             return .object(["name": .string(name), "args": .string(body)])
         }
-        let parsed = try parseResponse(
+        let parsed = try ResponseParser.parse(
             "<tool name=search>weather in paris</tool>",
             template: template,
             transform: transform
@@ -226,7 +226,7 @@ struct ResponseParserTests {
             ] as [String: Any]
         ])
         #expect(throws: ResponseParserError.self) {
-            _ = try parseResponse("<x v=foo>body</x>", template: template)
+            _ = try ResponseParser.parse("<x v=foo>body</x>", template: template)
         }
     }
 
@@ -244,7 +244,7 @@ struct ResponseParserTests {
             ] as [String: Any]
         ])
         for (open, close) in [("<a>", "</a>"), ("<bb>", "</bb>"), ("<a>", "</bb>")] {
-            let parsed = try parseResponse("\(open)hi\(close)", template: template)
+            let parsed = try ResponseParser.parse("\(open)hi\(close)", template: template)
             #expect(parsed["x"] == .string("hi"))
         }
     }
@@ -256,7 +256,7 @@ struct ResponseParserTests {
                 "content": ["close": "eos", "content": "text"] as [String: Any]
             ] as [String: Any]
         ])
-        let parsed = try parseResponse("just text", template: template)
+        let parsed = try ResponseParser.parse("just text", template: template)
         #expect(parsed["content"] == .string("just text"))
     }
 
@@ -306,7 +306,7 @@ struct ResponseParserTests {
     @Test("Defaults survive when field is absent")
     func defaultsSurvive() throws {
         let template = try basicTemplate()
-        let parsed = try parseResponse("nothing matching here", template: template)
+        let parsed = try ResponseParser.parse("nothing matching here", template: template)
         #expect(parsed == ["role": .string("assistant")])
     }
 
@@ -324,7 +324,7 @@ struct ResponseParserTests {
             ] as [String: Any],
         ])
         #expect(throws: ResponseParserError.self) {
-            _ = try parseResponse("nothing here", template: template)
+            _ = try ResponseParser.parse("nothing here", template: template)
         }
     }
 
@@ -340,7 +340,7 @@ struct ResponseParserTests {
                 ] as [String: Any]
             ] as [String: Any]
         ])
-        let parsed = try parseResponse("<i>a</i><i>b</i><i>c</i>", template: template)
+        let parsed = try ResponseParser.parse("<i>a</i><i>b</i><i>c</i>", template: template)
         #expect(parsed["item"] == .array([.string("a"), .string("b"), .string("c")]))
     }
 

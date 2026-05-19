@@ -36,7 +36,7 @@ public extension PreTrainedTokenizer {
         guard let template = try responseTemplate() else {
             throw ResponseParserError.invalidSpec("Tokenizer has no response_template configured")
         }
-        return try Tokenizers.parseResponse(text, template: template, prefix: prefix, transform: transform)
+        return try ResponseParser.parse(text, template: template, prefix: prefix, transform: transform)
     }
 
     /// One-shot parse with the `prefix` provided as token IDs (e.g. the output
