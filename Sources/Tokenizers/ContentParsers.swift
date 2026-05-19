@@ -40,6 +40,39 @@ let streamableParsers: Set<ContentParserKind> = [.text, .int, .float, .bool]
 /// Receives the expression source and a context dict (`{...captures, "content": value}`).
 public typealias ResponseTransform = @Sendable (_ expression: String, _ context: [String: ParsedValue]) throws -> ParsedValue
 
+/// Error thrown by transform resolvers when they don't recognize an expression.
+public struct UnsupportedTransform: Error, CustomStringConvertible {
+    public let expression: String
+    public init(_ expression: String) { self.expression = expression }
+    public var description: String { "Unsupported transform expression: \(expression)" }
+}
+
+/// A namespace for common `ResponseTransform` implementations without a jmespath evaluator.
+public enum ResponseTransforms {
+    public static let builtin: ResponseTransform = { expression, context in
+        switch expression {
+        // JSON body contains `name` and `arguments` (Hermes-like, SmolLM3)
+        case "{type: 'function', function: content}":
+            return .object([
+                "type": .string("function"),
+                "function": context["content"] ?? .null,
+            ])
+        // Gemma 4 / Qwen 3 style: function name comes from a named capture,
+        // `arguments` from parsed JSON payload.
+        case "{type: 'function', function: {name: name, arguments: content}}":
+            return .object([
+                "type": .string("function"),
+                "function": .object([
+                    "name": context["name"] ?? .null,
+                    "arguments": context["content"] ?? .null,
+                ]),
+            ])
+        default:
+            throw UnsupportedTransform(expression)
+        }
+    }
+}
+
 func parseContent(_ text: String, spec: ContentParserSpec, fieldName: String) throws -> ParsedValue {
     switch spec.kind {
     case .text: return parseText(text, args: spec.args)

@@ -62,7 +62,53 @@ struct ResponseParserE2ETests {
     }
 
     @Test(
-        "Gemma tool-call parses with a user-supplied transform callback",
+        "SmolLM3 tool-call parses with the built-in transform",
+        .enabled(if: runE2E)
+    )
+    func smolLM3ToolCall() async throws {
+        let tokenizer = try await loadTokenizer("pcuenq/SmolLM3-3B", revision: "refs/pr/1")
+        #expect(tokenizer.hasResponseTemplate)
+
+        let output = """
+        <think>
+        The user wants the weather. I should call the weather tool.
+        </think>
+
+        <tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>
+        """
+
+        let parsed = try tokenizer.parseResponse(output, transform: ResponseTransforms.builtin)
+
+        #expect(parsed["role"] == .string("assistant"))
+        if case let .string(thinking) = parsed["thinking"] {
+            #expect(thinking.contains("weather tool"))
+        } else {
+            Issue.record("expected 'thinking' string, got \(String(describing: parsed["thinking"]))")
+        }
+
+        guard case let .array(toolCalls) = parsed["tool_calls"] else {
+            Issue.record("expected 'tool_calls' array, got \(String(describing: parsed["tool_calls"]))")
+            return
+        }
+        #expect(toolCalls.count == 1)
+
+        guard case let .object(call) = toolCalls.first,
+              case .string("function") = call["type"],
+              case let .object(function) = call["function"]
+        else {
+            Issue.record("malformed tool call: \(String(describing: toolCalls.first))")
+            return
+        }
+        #expect(function["name"] == .string("get_weather"))
+        if case let .object(args) = function["arguments"] {
+            #expect(args["city"] == .string("Paris"))
+        } else {
+            Issue.record("expected arguments object, got \(String(describing: function["arguments"]))")
+        }
+    }
+
+    @Test(
+        "Gemma tool-call parses with the built-in transform",
         .enabled(if: runE2E)
     )
     func gemmaToolCallWithTransform() async throws {
@@ -79,32 +125,10 @@ struct ResponseParserE2ETests {
         <tool_call|>
         """
 
-        // The Gemma 4 response template uses a jmespath expression for tool_calls
-        // We don't support jmespath yet, but we can process it ad-hoc in a callback
-        struct UnknownTransform: Error, CustomStringConvertible {
-            let expression: String
-            var description: String { "Unknown transform expression: \(expression)" }
-        }
-
-        // save_pretrained() serialized to backticks for JSON literals,
-        // see https://huggingface.co/pcuenq/gemma-4-E2B-it/discussions/1/files
-        let toolCallExpr = "{type: `\"function\"`, function: {name: name, arguments: content}}"
-        let transform: ResponseTransform = { expression, context in
-            switch expression {
-            case toolCallExpr:
-                return .object([
-                    "type": .string("function"),
-                    "function": .object([
-                        "name": context["name"] ?? .null,
-                        "arguments": context["content"] ?? .null,
-                    ]),
-                ])
-            default:
-                throw UnknownTransform(expression: expression)
-            }
-        }
-
-        let parsed = try tokenizer.parseResponse(output, transform: transform)
+        // The Gemma 4 response template uses a jmespath expression, but we support
+        // the format via the builtin handler. Apps with unusual transforms can
+        // supply their own closure instead.
+        let parsed = try tokenizer.parseResponse(output, transform: ResponseTransforms.builtin)
 
         #expect(parsed["role"] == .string("assistant"))
         if case let .string(thinking) = parsed["thinking"] {
