@@ -50,7 +50,7 @@ struct ResponseParserE2ETests {
         }
     }
 
-    @Test("SmolLM3 tool-call parses with the built-in handlers")
+    @Test("SmolLM3 tool-call parses")
     func smolLM3ToolCall() async throws {
         let tokenizer = try await loadTokenizer("pcuenq/SmolLM3-3B", revision: "refs/pr/1")
         #expect(tokenizer.hasResponseTemplate)
@@ -63,7 +63,7 @@ struct ResponseParserE2ETests {
             <tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>
             """
 
-        let parsed = try tokenizer.parseResponse(output, transform: ResponseTransforms.builtin)
+        let parsed = try tokenizer.parseResponse(output)
 
         #expect(parsed["role"] == .string("assistant"))
         if case let .string(thinking) = parsed["thinking"] {
@@ -93,7 +93,7 @@ struct ResponseParserE2ETests {
         }
     }
 
-    @Test("Gemma 4 tool-call parses with the built-in handlers")
+    @Test("Gemma 4 tool-call parses")
     func gemmaToolCallWithTransform() async throws {
         let tokenizer = try await loadTokenizer("pcuenq/gemma-4-E2B-it", revision: "refs/pr/1")
         #expect(tokenizer.hasResponseTemplate)
@@ -108,10 +108,7 @@ struct ResponseParserE2ETests {
             <tool_call|>
             """
 
-        // The Gemma 4 response template uses a jmespath expression, but we support
-        // the format via the builtin handler. Apps with unusual transforms can
-        // supply their own closure instead.
-        let parsed = try tokenizer.parseResponse(output, transform: ResponseTransforms.builtin)
+        let parsed = try tokenizer.parseResponse(output)
 
         #expect(parsed["role"] == .string("assistant"))
         if case let .string(thinking) = parsed["thinking"] {

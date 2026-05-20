@@ -19,14 +19,13 @@ public extension ResponseParser {
     static func stream<Source: AsyncSequence & Sendable>(
         from source: Source,
         template: ResponseTemplate,
-        prefix: String? = nil,
-        transform: ResponseTransform? = nil
+        prefix: String? = nil
     ) -> (events: AsyncThrowingStream<ResponseEvent, Error>, message: Task<ParsedMessage, Error>)
     where Source.Element == String {
         let (stream, continuation) = AsyncThrowingStream<ResponseEvent, Error>.makeStream()
         let task = Task { () throws -> ParsedMessage in
             do {
-                var parser = try ResponseParser(template: template, prefix: prefix, transform: transform)
+                var parser = try ResponseParser(template: template, prefix: prefix)
                 for event in parser.initialEvents { continuation.yield(event) }
                 for try await chunk in source {
                     for event in try parser.feed(chunk) { continuation.yield(event) }

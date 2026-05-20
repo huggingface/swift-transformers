@@ -180,31 +180,26 @@ struct ResponseParserTests {
         }
     }
 
-    // MARK: - Transform closure
+    // MARK: - Transform template
 
-    @Test("Transform closure invoked with captures and content")
-    func transformClosure() throws {
+    @Test("Declarative transform resolves captures and content placeholders")
+    func transformDeclarative() throws {
         let template = try ResponseTemplate(spec: [
             "fields": [
                 "tool": [
                     "open_pattern": #"<tool name=(?<name>\w+)>"#,
                     "close": "</tool>",
                     "content": "text",
-                    "transform": "wrap",
+                    "transform": [
+                        "name": "{name}",
+                        "args": "{content}",
+                    ] as [String: Any],
                 ] as [String: Any]
             ] as [String: Any]
         ])
-        let transform: ResponseTransform = { expr, ctx in
-            #expect(expr == "wrap")
-            guard case let .string(name) = ctx["name"], case let .string(body) = ctx["content"] else {
-                return .null
-            }
-            return .object(["name": .string(name), "args": .string(body)])
-        }
         let parsed = try ResponseParser.parse(
             "<tool name=search>weather in paris</tool>",
-            template: template,
-            transform: transform
+            template: template
         )
         if case let .object(obj) = parsed["tool"] {
             #expect(obj["name"] == .string("search"))
@@ -214,19 +209,57 @@ struct ResponseParserTests {
         }
     }
 
-    @Test("Transform required but not supplied throws")
-    func transformMissingThrows() throws {
+    @Test("Mixing a placeholder with literal text is rejected at load")
+    func mixedPlaceholderRejected() {
+        #expect(throws: ResponseParserError.self) {
+            _ = try ResponseTemplate(spec: [
+                "fields": [
+                    "x": [
+                        "open_pattern": #"<x v=(?<v>\w+)>"#,
+                        "close": "</x>",
+                        "transform": ["msg": "hello {v}"] as [String: Any],
+                    ] as [String: Any]
+                ] as [String: Any]
+            ])
+        }
+    }
+
+    @Test("transform_each applies template per list element with keys in scope")
+    func transformEach() throws {
+        // Mirrors the Cohere-style template: parsed content is a list of dicts,
+        // each containing `tool_name` + `parameters` keys that get unpacked
+        // into the transform scope.
         let template = try ResponseTemplate(spec: [
             "fields": [
-                "x": [
-                    "open_pattern": #"<x v=(?<v>\w+)>"#,
-                    "close": "</x>",
-                    "transform": "v",
+                "tool_calls": [
+                    "open": "<calls>",
+                    "close": "</calls>",
+                    "content": "json",
+                    "transform_each": true,
+                    "transform": [
+                        "type": "function",
+                        "function": [
+                            "name": "{tool_name}",
+                            "arguments": "{parameters}",
+                        ] as [String: Any],
+                    ] as [String: Any],
                 ] as [String: Any]
             ] as [String: Any]
         ])
-        #expect(throws: ResponseParserError.self) {
-            _ = try ResponseParser.parse("<x v=foo>body</x>", template: template)
+        let parsed = try ResponseParser.parse(
+            #"<calls>[{"tool_name": "search", "parameters": {"q": "weather"}}, {"tool_name": "get_time", "parameters": {}}]</calls>"#,
+            template: template
+        )
+        guard case let .array(calls) = parsed["tool_calls"] else {
+            Issue.record("expected tool_calls array")
+            return
+        }
+        #expect(calls.count == 2)
+        if case let .object(first) = calls.first, case let .object(fn) = first["function"] {
+            #expect(fn["name"] == .string("search"))
+            #expect(fn["arguments"] == .object(["q": .string("weather")]))
+        } else {
+            Issue.record("malformed first tool call")
         }
     }
 

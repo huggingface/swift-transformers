@@ -23,20 +23,17 @@ public extension PreTrainedTokenizer {
     ///     is what teaches the parser the current region. Pass the prompt
     ///     string returned by `applyChatTemplate(...)` decoded back to text,
     ///     or the equivalent verbatim.
-    ///   - transform: Optional resolver for `transform` expressions in the
-    ///     template (typically a jmespath evaluator).
     /// - Returns: Parsed message dict.
     /// - Throws: `ResponseParserError.invalidSpec` if no template is configured,
     ///   or any error from parsing.
     func parseResponse(
         _ text: String,
-        prefix: String? = nil,
-        transform: ResponseTransform? = nil
+        prefix: String? = nil
     ) throws -> ParsedMessage {
         guard let template = try responseTemplate() else {
             throw ResponseParserError.invalidSpec("Tokenizer has no response_template configured")
         }
-        return try ResponseParser.parse(text, template: template, prefix: prefix, transform: transform)
+        return try ResponseParser.parse(text, template: template, prefix: prefix)
     }
 
     /// One-shot parse with the `prefix` provided as token IDs (e.g. the output
@@ -44,32 +41,25 @@ public extension PreTrainedTokenizer {
     /// being fed to the parser.
     func parseResponse(
         _ text: String,
-        prefix: [Int],
-        transform: ResponseTransform? = nil
+        prefix: [Int]
     ) throws -> ParsedMessage {
         let prefixText = decode(tokens: prefix)
-        return try parseResponse(text, prefix: prefixText, transform: transform)
+        return try parseResponse(text, prefix: prefixText)
     }
 
     /// Construct a streaming `ResponseParser` configured against this
     /// tokenizer's `response_template`. The returned parser is move-only;
     /// see `ResponseParser` for usage.
-    func responseParser(
-        prefix: String? = nil,
-        transform: ResponseTransform? = nil
-    ) throws -> ResponseParser {
+    func responseParser(prefix: String? = nil) throws -> ResponseParser {
         guard let template = try responseTemplate() else {
             throw ResponseParserError.invalidSpec("Tokenizer has no response_template configured")
         }
-        return try ResponseParser(template: template, prefix: prefix, transform: transform)
+        return try ResponseParser(template: template, prefix: prefix)
     }
 
     /// Streaming parser whose `prefix` is supplied as token IDs.
-    func responseParser(
-        prefix: [Int],
-        transform: ResponseTransform? = nil
-    ) throws -> ResponseParser {
+    func responseParser(prefix: [Int]) throws -> ResponseParser {
         let prefixText = decode(tokens: prefix)
-        return try responseParser(prefix: prefixText, transform: transform)
+        return try responseParser(prefix: prefixText)
     }
 }

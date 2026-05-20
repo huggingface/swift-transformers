@@ -26,7 +26,6 @@ public struct ResponseParser: ~Copyable {
     public private(set) var initialEvents: [ResponseEvent]
 
     private let template: ResponseTemplate
-    private let transform: ResponseTransform?
     private let implicitName: String?
 
     private var buffer: NSMutableString
@@ -41,11 +40,9 @@ public struct ResponseParser: ~Copyable {
 
     public init(
         template: ResponseTemplate,
-        prefix: String? = nil,
-        transform: ResponseTransform? = nil
+        prefix: String? = nil
     ) throws {
         self.template = template
-        self.transform = transform
         self.implicitName = template.implicit
         self.buffer = NSMutableString()
         self.pos = 0
@@ -72,10 +69,9 @@ public struct ResponseParser: ~Copyable {
     public static func parse(
         _ text: String,
         template: ResponseTemplate,
-        prefix: String? = nil,
-        transform: ResponseTransform? = nil
+        prefix: String? = nil
     ) throws -> ParsedMessage {
-        var parser = try ResponseParser(template: template, prefix: prefix, transform: transform)
+        var parser = try ResponseParser(template: template, prefix: prefix)
         _ = try parser.feed(text)
         return try parser.finalize().message
     }
@@ -298,7 +294,7 @@ public struct ResponseParser: ~Copyable {
             return
         }
         let bodyString = body as String
-        let value = try processField(body: bodyString, field: fld, captures: captures, transform: transform)
+        let value = try processField(body: bodyString, field: fld, captures: captures)
         if fld.repeats {
             switch output[c] {
             case .array(var existing):

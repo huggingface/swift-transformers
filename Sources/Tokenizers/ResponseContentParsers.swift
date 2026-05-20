@@ -36,43 +36,6 @@ public struct ContentParserSpec: @unchecked Sendable {
 /// `ParsedValue` is delivered via `region_close`.
 let streamableParsers: Set<ContentParserKind> = [.text, .int, .float, .bool]
 
-/// Closure type for resolving optional `transform` expressions (e.g. jmespath).
-/// Receives the expression source and a context dict (`{...captures, "content": value}`).
-public typealias ResponseTransform = @Sendable (_ expression: String, _ context: [String: ParsedValue]) throws -> ParsedValue
-
-/// Error thrown by transform resolvers when they don't recognize an expression.
-public struct UnsupportedTransform: Error, CustomStringConvertible {
-    public let expression: String
-    public init(_ expression: String) { self.expression = expression }
-    public var description: String { "Unsupported transform expression: \(expression)" }
-}
-
-/// A namespace for common `ResponseTransform` implementations without a jmespath evaluator.
-public enum ResponseTransforms {
-    public static let builtin: ResponseTransform = { expression, context in
-        switch expression {
-        // JSON body contains `name` and `arguments` (Hermes-like, SmolLM3)
-        case "{type: 'function', function: content}":
-            return .object([
-                "type": .string("function"),
-                "function": context["content"] ?? .null,
-            ])
-        // Gemma 4 / Qwen 3 style: function name comes from a named capture,
-        // `arguments` from parsed JSON payload.
-        case "{type: 'function', function: {name: name, arguments: content}}":
-            return .object([
-                "type": .string("function"),
-                "function": .object([
-                    "name": context["name"] ?? .null,
-                    "arguments": context["content"] ?? .null,
-                ]),
-            ])
-        default:
-            throw UnsupportedTransform(expression)
-        }
-    }
-}
-
 func parseContent(_ text: String, spec: ContentParserSpec, fieldName: String) throws -> ParsedValue {
     switch spec.kind {
     case .text: return parseText(text, args: spec.args)
@@ -88,27 +51,71 @@ func parseContent(_ text: String, spec: ContentParserSpec, fieldName: String) th
 func processField(
     body: String,
     field: ResponseField,
-    captures: [String: String],
-    transform: ResponseTransform?
+    captures: [String: String]
 ) throws -> ParsedValue {
     let value = try parseContent(body, spec: field.content, fieldName: field.name)
-    return try applyTransform(field: field, captures: captures, content: value, transform: transform)
+    guard let template = field.transform else { return value }
+
+    // Captures are always strings (regex match text).
+    var captureScope: [String: ParsedValue] = [:]
+    for (k, v) in captures { captureScope[k] = .string(v) }
+
+    if field.transformEach {
+        // transform_each: parsed content must be a list of dicts; apply the
+        // template to each element with its keys unpacked into the scope.
+        guard case .array(let items) = value else {
+            throw ResponseParserError.contentParseFailed(
+                field: field.name,
+                reason: "transform_each requires the parsed content to be a list"
+            )
+        }
+        var out: [ParsedValue] = []
+        out.reserveCapacity(items.count)
+        for item in items {
+            guard case .object(let dict) = item else {
+                throw ResponseParserError.contentParseFailed(
+                    field: field.name,
+                    reason: "transform_each requires each list element to be an object"
+                )
+            }
+            var scope = captureScope
+            for (k, v) in dict { scope[k] = v }
+            out.append(try applyTransformTemplate(template, scope: scope, fieldName: field.name))
+        }
+        return .array(out)
+    }
+
+    var scope = captureScope
+    scope["content"] = value
+    return try applyTransformTemplate(template, scope: scope, fieldName: field.name)
 }
 
-private func applyTransform(
-    field: ResponseField,
-    captures: [String: String],
-    content: ParsedValue,
-    transform: ResponseTransform?
+/// Recursive walk that resolves `.placeholder(name)` from `scope`, preserves
+/// `.literal(...)` values, and reassembles `.object` / `.array` nodes.
+private func applyTransformTemplate(
+    _ template: TransformTemplate,
+    scope: [String: ParsedValue],
+    fieldName: String
 ) throws -> ParsedValue {
-    guard let expr = field.transform else { return content }
-    guard let transform else {
-        throw ResponseParserError.transformUnavailable(field: field.name)
+    switch template {
+    case .literal(let value):
+        return value
+    case .placeholder(let name):
+        guard let value = scope[name] else {
+            throw ResponseParserError.contentParseFailed(
+                field: fieldName,
+                reason: "transform placeholder '{\(name)}' is not defined. Available: \(scope.keys.sorted())"
+            )
+        }
+        return value
+    case .object(let dict):
+        var out: [String: ParsedValue] = [:]
+        out.reserveCapacity(dict.count)
+        for (k, v) in dict { out[k] = try applyTransformTemplate(v, scope: scope, fieldName: fieldName) }
+        return .object(out)
+    case .array(let items):
+        return .array(try items.map { try applyTransformTemplate($0, scope: scope, fieldName: fieldName) })
     }
-    var context: [String: ParsedValue] = [:]
-    for (k, v) in captures { context[k] = .string(v) }
-    context["content"] = content
-    return try transform(expr, context)
 }
 
 // MARK: - text / int / float / bool

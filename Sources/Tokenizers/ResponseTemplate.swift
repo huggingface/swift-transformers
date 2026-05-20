@@ -17,8 +17,6 @@ public enum ResponseParserError: Error, Sendable, Equatable {
     case invalidRegex(field: String, pattern: String, message: String)
     case unknownContentParser(name: String, field: String)
     case missingRequiredFields([String])
-    case missingTransform(field: String)
-    case transformUnavailable(field: String)
     case contentParseFailed(field: String, reason: String)
 }
 
@@ -47,8 +45,28 @@ public extension ParsedValue {
     }
 }
 
+/// A transform template — a literal tree with `{name}` placeholders, evaluated
+/// against a scope built from regex captures and (depending on `transformEach`)
+/// either the parsed content or each element of the parsed content list.
+///
+/// Examples (in spec / JSON form):
+///   `{"type": "function", "function": "{content}"}`
+///   `{"type": "function", "function": {"name": "{name}", "arguments": "{content}"}}`
+public enum TransformTemplate: Sendable, Hashable {
+    case literal(ParsedValue)
+    case placeholder(String)
+    case object([String: TransformTemplate])
+    case array([TransformTemplate])
+}
+
 /// The structured output of a parse: keys are field names declared in the template.
 public typealias ParsedMessage = [String: ParsedValue]
+
+/// `{name}` placeholder pattern used by transform templates. Compiled once.
+let transformPlaceholderRegex: NSRegularExpression = {
+    // swiftlint:disable:next force_try
+    try! NSRegularExpression(pattern: #"\{(\w+)\}"#)
+}()
 
 /// A region boundary — either a literal alternation or a regex pattern.
 public struct ResponseAnchor: @unchecked Sendable {
@@ -73,9 +91,14 @@ public struct ResponseField: Sendable {
     public let content: ContentParserSpec
     public let repeats: Bool
     public let optional: Bool
-    /// Optional jmespath-style expression evaluated against `{...captures, "content": value}`
-    /// after the content parser runs. Resolved by a caller-supplied closure.
-    public let transform: String?
+    /// Optional declarative transform tree applied after the content parser.
+    /// Whole-string placeholders `"{name}"` are resolved from a scope of
+    /// `{...captures, "content": value}` (or each element's keys when
+    /// `transformEach` is set). See `TransformTemplate`.
+    public let transform: TransformTemplate?
+    /// When true, the parsed content must be a list; the transform template is
+    /// applied to each element with its keys unpacked into the scope.
+    public let transformEach: Bool
 }
 
 public struct ResponseTemplate: @unchecked Sendable {
@@ -119,7 +142,8 @@ public struct ResponseTemplate: @unchecked Sendable {
 
             let allowedFieldKeys: Set<String> = [
                 "open", "open_pattern", "close", "close_pattern",
-                "content", "content_args", "repeats", "optional", "transform",
+                "content", "content_args", "repeats", "optional",
+                "transform", "transform_each",
             ]
             for k in fieldDict.keys where !allowedFieldKeys.contains(k) {
                 throw ResponseParserError.invalidSpec("Field '\(name)': unknown key '\(k)'")
@@ -139,7 +163,14 @@ public struct ResponseTemplate: @unchecked Sendable {
                 implicitFields.append(name)
             }
 
-            let transform = fieldDict["transform"] as? String
+            let transformRaw = fieldDict["transform"]
+            let transformEach = (fieldDict["transform_each"] as? Bool) ?? false
+            if transformEach && transformRaw == nil {
+                throw ResponseParserError.invalidSpec("Field '\(name)': transform_each is set but no transform was provided")
+            }
+            let transform: TransformTemplate? = try transformRaw.map {
+                try Self.loadTransformTemplate(scope: "Field '\(name)'", value: $0)
+            }
             if transform == nil {
                 var capturedNames: Set<String> = []
                 if let openAnchor { capturedNames.formUnion(Self.namedGroupKeys(in: openAnchor.regex)) }
@@ -158,7 +189,8 @@ public struct ResponseTemplate: @unchecked Sendable {
                 content: contentSpec,
                 repeats: (fieldDict["repeats"] as? Bool) ?? false,
                 optional: (fieldDict["optional"] as? Bool) ?? true,
-                transform: transform
+                transform: transform,
+                transformEach: transformEach
             )
         }
 
@@ -313,6 +345,43 @@ public struct ResponseTemplate: @unchecked Sendable {
             return out
         }
         return NSNull()
+    }
+
+    /// Parse + validate a `transform` value from spec form into a `TransformTemplate`.
+    /// Strings that are exactly `"{name}"` become `.placeholder(name)`. Strings
+    /// containing `{…}` but not as a whole-string match are rejected (mixing
+    /// placeholders with literal text is not supported). Other scalars become
+    /// `.literal(...)`; dicts and arrays recurse.
+    private static func loadTransformTemplate(scope: String, value: Any) throws -> TransformTemplate {
+        if let s = value as? String {
+            let ns = s as NSString
+            let full = NSRange(location: 0, length: ns.length)
+            if let m = transformPlaceholderRegex.firstMatch(in: s, options: [], range: full),
+               m.range.location == 0 && m.range.length == ns.length
+            {
+                return .placeholder(ns.substring(with: m.range(at: 1)))
+            }
+            if transformPlaceholderRegex.firstMatch(in: s, options: [], range: full) != nil {
+                throw ResponseParserError.invalidSpec(
+                    "\(scope): transform string '\(s)' mixes a {placeholder} with literal text. " +
+                    "Use either a whole-string placeholder (e.g. \"{content}\") or a plain literal; " +
+                    "string interpolation is not supported."
+                )
+            }
+            return .literal(.string(s))
+        }
+        if let dict = value as? [String: Any] {
+            var out: [String: TransformTemplate] = [:]
+            for (k, v) in dict {
+                out[k] = try loadTransformTemplate(scope: scope, value: v)
+            }
+            return .object(out)
+        }
+        if let arr = value as? [Any] {
+            return .array(try arr.map { try loadTransformTemplate(scope: scope, value: $0) })
+        }
+        // Scalars: reuse the same any→ParsedValue conversion as defaults.
+        return .literal(anyToParsedValue(value))
     }
 
     static func anyToParsedValue(_ any: Any) -> ParsedValue {
