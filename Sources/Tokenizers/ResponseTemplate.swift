@@ -357,16 +357,12 @@ public struct ResponseTemplate: @unchecked Sendable {
             let ns = s as NSString
             let full = NSRange(location: 0, length: ns.length)
             if let m = transformPlaceholderRegex.firstMatch(in: s, options: [], range: full),
-               m.range.location == 0 && m.range.length == ns.length
+                m.range.location == 0 && m.range.length == ns.length
             {
                 return .placeholder(ns.substring(with: m.range(at: 1)))
             }
             if transformPlaceholderRegex.firstMatch(in: s, options: [], range: full) != nil {
-                throw ResponseParserError.invalidSpec(
-                    "\(scope): transform string '\(s)' mixes a {placeholder} with literal text. " +
-                    "Use either a whole-string placeholder (e.g. \"{content}\") or a plain literal; " +
-                    "string interpolation is not supported."
-                )
+                throw ResponseParserError.invalidSpec("\(scope): string interpolation not supported in transform fields.")
             }
             return .literal(.string(s))
         }
