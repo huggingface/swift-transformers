@@ -12,3 +12,6 @@ DerivedData/
 .idea
 .index-build
 *.out
+
+# Local venv for Tools/generate_tokenizer_baselines.py
+.venv*/
