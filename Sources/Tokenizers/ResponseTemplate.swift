@@ -21,7 +21,7 @@ public enum ResponseParserError: Error, Sendable, Equatable {
 }
 
 /// A JSON-shaped value tree — the type a parsed field collapses into.
-public enum ParsedValue: Sendable, Hashable {
+public enum ParsedValue: Sendable, Hashable, Codable {
     case null
     case bool(Bool)
     case int(Int64)
