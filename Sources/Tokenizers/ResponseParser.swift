@@ -25,8 +25,10 @@ public struct ResponseParser: ~Copyable {
     /// regions opened by the chat template prefill are reflected on screen.
     public private(set) var initialEvents: [ResponseEvent]
 
-    private let template: ResponseTemplate
-    private let implicitName: String?
+    // These are logically immutable but declared `var` so Swift < 6.2 compilers
+    // accept `inout self` on this `~Copyable` struct
+    private var template: ResponseTemplate
+    private var implicitName: String?
 
     private var buffer: NSMutableString
     private var pos: Int
@@ -58,7 +60,7 @@ public struct ResponseParser: ~Copyable {
             if !truncated.isEmpty {
                 buffer.append(truncated)
                 var events: [ResponseEvent] = []
-                try self.process(events: &events, eos: false)
+                try process(events: &events, eos: false)
                 initialEvents = events
             }
         }
