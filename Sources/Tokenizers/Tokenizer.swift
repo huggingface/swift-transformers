@@ -1031,6 +1031,24 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
     }
 }
 
+// Response-parser bridge that needs direct access to the private `tokenizerConfig`.
+// The rest of the response-parser API lives in `Tokenizer+ResponseParser.swift`.
+public extension PreTrainedTokenizer {
+    /// The `response_template` declared in `tokenizer_config.json`, parsed into a
+    /// `ResponseTemplate`. Returns `nil` if no template is configured; throws if a
+    /// template is present but malformed.
+    func responseTemplate() throws -> ResponseTemplate? {
+        let raw: Config = tokenizerConfig.responseTemplate
+        if raw.isNull() { return nil }
+        return try ResponseTemplate(from: raw)
+    }
+
+    /// Whether this tokenizer has a `response_template` configured.
+    var hasResponseTemplate: Bool {
+        !tokenizerConfig.responseTemplate.isNull()
+    }
+}
+
 #if !canImport(Darwin)
 // Linux Foundation may not provide String(localized:comment:), so keep call sites portable.
 private extension String {
