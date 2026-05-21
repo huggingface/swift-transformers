@@ -239,8 +239,11 @@ private func jsonEncodeString(_ s: String) -> String? {
 private func jsonObjectToParsedValue(_ object: Any) -> ParsedValue {
     if object is NSNull { return .null }
     if let n = object as? NSNumber {
-        // NSNumber doesn't preserve "was this a bool" cleanly; check the CFType.
-        if CFGetTypeID(n) == CFBooleanGetTypeID() {
+        // NSNumber doesn't preserve "was this a bool" cleanly;
+        // We can't use CFGetTypeID on Linux. objCType distinguishes
+        // bool (`c` = char/BOOL, `B` = C99 _Bool) from numerics.
+        let type = String(cString: n.objCType)
+        if type == "c" || type == "B" {
             return .bool(n.boolValue)
         }
         if let asInt = Int64(exactly: n.doubleValue), asInt == n.int64Value, Double(asInt) == n.doubleValue {
