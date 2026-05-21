@@ -84,7 +84,14 @@ class WordPieceDecoder: Decoder {
     }
 
     func decode(tokens: [String]) -> [String] {
-        let firstToken = cleanup ? cleanUpTokenization(tokens.first!) : tokens.first!
+        // An empty token list can reach this decoder when the calling chain has
+        // filtered out every input — e.g. `decode(tokens:, skipSpecialTokens: true)`
+        // on an id sequence that consisted entirely of special tokens, or after a
+        // `compactMap { convertIdToToken($0) }` drops every entry as out-of-vocab.
+        // The reference Rust implementation no-ops in that case rather than
+        // unwrapping `tokens.first!` (which previously crashed).
+        guard let first = tokens.first else { return [] }
+        let firstToken = cleanup ? cleanUpTokenization(first) : first
         return [firstToken]
             + tokens.dropFirst().map { token in
                 let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
@@ -186,19 +193,26 @@ class ByteFallbackDecoder: Decoder {
             return Int(token[startIndex..<endIndex], radix: 16)
         }
 
+        func flushPendingBytes() {
+            guard !byteTokens.isEmpty else { return }
+            let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
+            newTokens.append(String(decoding: codeUnits, as: UTF8.self))
+            byteTokens.removeAll()
+        }
+
         for token in tokens {
             if let byte = parseByte(token) {
                 byteTokens.append(byte)
             } else {
-                if !byteTokens.isEmpty {
-                    // decode as utf8 and append
-                    let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
-                    newTokens.append(String(decoding: codeUnits, as: UTF8.self))
-                    byteTokens.removeAll()
-                }
+                flushPendingBytes()
                 newTokens.append(token)
             }
         }
+        // Flush trailing byte tokens — when the input ends with a run of
+        // `<0xHH>` (e.g. multi-byte UTF-8 for a final emoji or CJK character),
+        // the previous implementation dropped them on the floor instead of
+        // appending the decoded UTF-8 string.
+        flushPendingBytes()
         return newTokens
     }
 }
