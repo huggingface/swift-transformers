@@ -44,12 +44,12 @@ public struct ResponseParser: ~Copyable {
     ) throws {
         self.template = template
         self.implicitName = template.implicit
-        self.buffer = NSMutableString()
+        self.buffer = NSMutableString(capacity: 0)
         self.pos = 0
         self.output = template.defaults
         self.current = template.implicit
         self.captures = [:]
-        self.body = NSMutableString()
+        self.body = NSMutableString(capacity: 0)
         self.opened = false
         self.initialEvents = []
 
@@ -58,7 +58,7 @@ public struct ResponseParser: ~Copyable {
             if !truncated.isEmpty {
                 buffer.append(truncated)
                 var events: [ResponseEvent] = []
-                try process(events: &events, eos: false)
+                try self.process(events: &events, eos: false)
                 initialEvents = events
             }
         }
