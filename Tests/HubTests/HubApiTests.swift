@@ -1013,6 +1013,23 @@ class SnapshotDownloadTests: XCTestCase {
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
     }
 
+    func testOfflineModeWithNonCanonicalDownloadBase() async throws {
+        // Populate the cache online with a canonical base.
+        var hubApi = HubApi(downloadBase: downloadDestination)
+        _ = try await hubApi.snapshot(from: repo, matching: "*.json")
+
+        // A downloadBase containing `..` components that resolves to the same directory.
+        // The `models` directory exists after the download above, so the `..` traversal is valid.
+        let nonCanonicalBase = downloadDestination.appending(component: "models").appending(component: "..")
+        hubApi = HubApi(downloadBase: nonCanonicalBase, useOfflineMode: true)
+
+        let downloadedTo = try await hubApi.snapshot(from: repo, matching: "*.json")
+        XCTAssertEqual(
+            downloadedTo.standardizedFileURL,
+            downloadDestination.appending(path: "models/\(repo)").standardizedFileURL
+        )
+    }
+
     func testOfflineModeThrowsError() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
 

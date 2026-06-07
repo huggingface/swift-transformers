@@ -911,11 +911,17 @@ public extension HubApi {
                 throw EnvironmentError.offlineModeError(("No files available locally for this repository"))
             }
 
+            // Standardize the paths so `..` components resolve consistently. The file URLs
+            // returned by the enumerator are already canonical, while `repoDestination` keeps
+            // whatever the caller passed via `downloadBase`; without standardizing, a
+            // non-canonical base makes the prefix replacement miss and the metadata lookup fail.
+            let standardizedRepoPath = repoDestination.standardizedFileURL.path
+            let standardizedMetadataPath = repoMetadataDestination.standardizedFileURL.path
             for fileUrl in fileUrls {
                 let metadataPath = URL(
-                    fileURLWithPath: fileUrl.path.replacingOccurrences(
-                        of: repoDestination.path,
-                        with: repoMetadataDestination.path
+                    fileURLWithPath: fileUrl.standardizedFileURL.path.replacingOccurrences(
+                        of: standardizedRepoPath,
+                        with: standardizedMetadataPath
                     ) + ".metadata"
                 )
 
