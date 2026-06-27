@@ -77,7 +77,7 @@ public extension Hub {
     }
 
     /// The type of repository on the Hugging Face Hub.
-    enum RepoType: String, Codable {
+    enum RepoType: String, Codable, Sendable {
         /// Model repositories containing machine learning models.
         case models
         /// Dataset repositories containing training and evaluation data.
@@ -90,7 +90,7 @@ public extension Hub {
     ///
     /// A repository is identified by its unique ID and type, allowing access to
     /// different kinds of resources hosted on the Hub platform.
-    struct Repo: Codable {
+    struct Repo: Codable, Sendable {
         /// The unique identifier for the repository (e.g., "microsoft/DialoGPT-medium").
         public let id: String
         /// The type of repository (models, datasets, or spaces).
