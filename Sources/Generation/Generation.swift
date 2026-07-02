@@ -42,8 +42,10 @@ import Tokenizers
 /// - Parameter tokens: Input token sequence
 /// - Parameter config: Generation configuration
 /// - Returns: Logits array for next token prediction
+/// - Throws: Any error thrown by the underlying model, including `CancellationError`
+///           when the enclosing `Task` is cancelled.
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-public typealias NextTokenModel = (MLTensor, GenerationConfig) async -> MLTensor
+public typealias NextTokenModel = (MLTensor, GenerationConfig) async throws -> MLTensor
 
 /// Protocol for text generation implementations.
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
@@ -57,7 +59,7 @@ public protocol Generation {
     ///   - tokenizer: Tokenizer for encoding/decoding
     ///   - callback: Optional callback for streaming text
     /// - Returns: Generated text string
-    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async -> String
+    func generate(config: GenerationConfig, prompt: String, model: NextTokenModel, tokenizer: Tokenizer, callback: PredictionStringCallback?) async throws -> String
 }
 
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
@@ -67,7 +69,7 @@ extension Generation {
         tokens: InputTokens,
         model: NextTokenModel,
         callback: PredictionTokensCallback? = nil
-    ) async -> GenerationOutput {
+    ) async throws -> GenerationOutput {
         let tokens = tokens.map { Int32($0) }
         var outputTokens = MLTensor(tokens).expandingShape(at: 0)
 
@@ -78,8 +80,8 @@ extension Generation {
         let maxTotalLength = min(config.maxLength, inputLength + config.maxNewTokens)
 
         while outputTokens.shape[1] < maxTotalLength {
-            // Get raw logits from model
-            let nextTokenScores = await model(outputTokens, config)
+            // Get raw logits from model — propagate CancellationError and other errors
+            let nextTokenScores = try await model(outputTokens, config)
 
             // Apply logits processors
             let processedScores = await logitsProcessorList(outputTokens, nextTokenScores)
@@ -179,13 +181,13 @@ public extension Generation {
         model: NextTokenModel,
         tokenizer: Tokenizer,
         callback: PredictionStringCallback? = nil
-    ) async -> String {
+    ) async throws -> String {
         let tokens = tokenizer.encode(text: prompt)
         var generationConfig = config
         generationConfig.maxLength = config.maxNewTokens + tokens.count
         generationConfig.eosTokenId = tokenizer.eosTokenId
         generationConfig.bosTokenId = tokenizer.bosTokenId
-        let output = await generate(
+        let output = try await generate(
             config: generationConfig,
             tokens: tokens,
             model: model
