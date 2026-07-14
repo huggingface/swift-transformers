@@ -449,9 +449,9 @@ public struct Config: Hashable, Sendable,
         case let .array(val):
             return .array(val.map { $0.jinjaValue() })
         case let .dictionary(val):
-            var result: [String: Jinja.Value] = [:]
+            var result: [ObjectKey: Jinja.Value] = [:]
             for (key, config) in val {
-                result[key.string] = config.jinjaValue()
+                result[.string(key.string)] = config.jinjaValue()
             }
             return .object(.init(uniqueKeysWithValues: result))
         case let .boolean(val):
@@ -463,7 +463,7 @@ public struct Config: Hashable, Sendable,
         case let .string(val):
             return .string(val.string)
         case let .token(val):
-            return [String(val.0): .string(val.1.string)]
+            return [.string(String(val.0)): .string(val.1.string)]
         case .null:
             return .null
         }
