@@ -17,7 +17,7 @@ let package = Package(
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0"),
+        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.4.2"),
         .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.8.1"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "3.0.0"..<"5.0.0"),
