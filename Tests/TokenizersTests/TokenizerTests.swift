@@ -102,6 +102,7 @@ struct TokenizerTests {
         ModelSpec("coreml-projects/Llama-2-7b-chat-coreml", "llama_encoded", 0),
         ModelSpec("distilbert/distilbert-base-multilingual-cased", "distilbert_cased_encoded", 100),
         ModelSpec("distilgpt2", "gpt2_encoded_tokens", 50256),
+        ModelSpec("mlx-community/OLMoE-1B-7B-0125-Instruct-4bit", "olmoe_encoded"),
         ModelSpec("openai/whisper-large-v2", "whisper_large_v2_encoded", 50257),
         ModelSpec("openai/whisper-tiny.en", "whisper_tiny_en_encoded", 50256),
         ModelSpec("pcuenq/Llama-3.2-1B-Instruct-tokenizer", "llama_3.2_encoded"),
@@ -211,6 +212,55 @@ struct TokenizerTests {
 
         let encoded = tokenizer.encode(text: "offline path")
         #expect(!encoded.isEmpty)
+    }
+
+    @Test
+    func gptNeoXTokenizerUsesBPEModel() async throws {
+        let bundle = Bundle.module
+        guard
+            let tokenizerConfigURL = bundle.url(forResource: "tokenizer_config", withExtension: "json"),
+            let tokenizerDataURL = bundle.url(forResource: "tokenizer", withExtension: "json")
+        else {
+            Issue.record("Missing offline tokenizer fixtures")
+            return
+        }
+
+        let originalConfig = try hubApiForTests.configuration(fileURL: tokenizerConfigURL)
+        var tokenizerConfig = originalConfig.dictionary()!
+        tokenizerConfig["tokenizer_class"] = Config("GPTNeoXTokenizer")
+        let tokenizerData = try hubApiForTests.configuration(fileURL: tokenizerDataURL)
+        let loaded = try AutoTokenizer.from(
+            tokenizerConfig: Config(tokenizerConfig),
+            tokenizerData: tokenizerData
+        )
+        guard let tokenizer = loaded as? PreTrainedTokenizer else {
+            Issue.record("Expected PreTrainedTokenizer")
+            return
+        }
+
+        #expect(tokenizer.model is BPETokenizer)
+        let reference = try AutoTokenizer.from(
+            tokenizerConfig: originalConfig,
+            tokenizerData: tokenizerData
+        )
+        let sample = "offline path"
+        let ids = tokenizer.encode(text: sample)
+        #expect(ids == reference.encode(text: sample))
+        #expect(tokenizer.decode(tokens: ids) == reference.decode(tokens: ids))
+    }
+
+    @Test
+    func gptNeoXOLMoEParity() async throws {
+        let tokenizer = try await makeTokenizer(
+            hubModelName: "mlx-community/OLMoE-1B-7B-0125-Instruct-4bit",
+            hubApi: hubApiForTests
+        )
+        let dataset = try loadDataset(filename: "olmoe_encoded")
+
+        #expect(tokenizer.model is BPETokenizer)
+        #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
+        #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
+        #expect(tokenizer.decode(tokens: dataset.token_ids) == dataset.decoded_text)
     }
 
     /// https://github.com/huggingface/swift-transformers/issues/96

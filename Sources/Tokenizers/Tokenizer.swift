@@ -165,6 +165,7 @@ enum TokenizerModel {
         "FalconTokenizer": BPETokenizer.self,
         "GemmaTokenizer": BPETokenizer.self,
         "GPT2Tokenizer": BPETokenizer.self,
+        "GPTNeoXTokenizer": BPETokenizer.self,
         "LlamaTokenizer": BPETokenizer.self,
         "RobertaTokenizer": BPETokenizer.self,
         "T5Tokenizer": T5Tokenizer.self,
