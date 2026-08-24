@@ -340,6 +340,22 @@ final class GenerationIntegrationTests: XCTestCase {
         // Model should be called fewer times due to early stopping
         XCTAssertLessThan(model.callCount, 10, "Model should be called fewer times due to EOS")
     }
+
+    func testSamplingWithLargeVocabulary() async throws {
+        // Regression test for #365: Bool-mask tensor ops truncate at 2^16 elements,
+        // so sampling from a vocabulary larger than 65,536 tokens (e.g. Qwen's
+        // 151,936) deterministically returned token 65536 regardless of the scores.
+        let vocabSize = 151_936
+        var logits = [Float](repeating: 0.0, count: vocabSize)
+        logits[vocabSize - 1] = 100.0 // Effectively one-hot after softmax
+
+        let scores = MLTensor(shape: [1, 1, vocabSize], scalars: logits)
+        let sampled = await selectNextTokenUsingSampling(from: scores)
+
+        XCTAssertEqual(sampled.shape, [1, 1], "Sampled token should have shape [1, 1]")
+        let tokenId = await sampled.shapedArray(of: Int32.self).scalars.first
+        XCTAssertEqual(tokenId, Int32(vocabSize - 1), "Sampling must select the only token with probability mass, never token 65536")
+    }
 }
 
 // MARK: - Test Helper

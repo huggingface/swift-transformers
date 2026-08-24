@@ -90,7 +90,7 @@ extension Generation {
                 case .greedy:
                     selectNextTokenUsingGreedyDecoding(from: processedScores)
                 case .sample:
-                    selectNextTokenUsingSampling(from: processedScores)
+                    await selectNextTokenUsingSampling(from: processedScores)
                 default:
                     fatalError("Generation mode \(config.generationMode) not implemented yet")
                 }
