@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import TokenizerConfig
 
 /// A namespace struct providing access to Hugging Face Hub functionality.
 ///

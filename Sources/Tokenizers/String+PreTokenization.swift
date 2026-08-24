@@ -1,6 +1,6 @@
 import Foundation
 
-import struct Hub.Config
+import struct TokenizerConfig.Config
 
 enum StringSplitPattern {
     case regexp(regexp: String)

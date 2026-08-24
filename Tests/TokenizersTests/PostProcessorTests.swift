@@ -1,8 +1,9 @@
 import Foundation
 import Testing
+import Tokenizers
 
 @testable import Hub
-@testable import Tokenizers
+@testable import TokenizersCore
 
 @Suite("Post-processor functionality tests")
 struct PostProcessorTests {

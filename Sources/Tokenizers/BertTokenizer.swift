@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A BERT-style tokenizer implementing WordPiece tokenization.
 ///

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A protocol for decoding operations that convert tokens back to readable text.
 ///

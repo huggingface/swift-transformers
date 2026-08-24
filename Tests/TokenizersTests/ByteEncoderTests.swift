@@ -10,7 +10,8 @@
 import Foundation
 import Testing
 
-@testable import Tokenizers
+import Tokenizers
+@testable import TokenizersCore
 
 @Suite("Byte encoder tables")
 struct ByteEncoderTests {

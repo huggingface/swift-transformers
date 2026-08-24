@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import TokenizerConfig
 import yyjson
 
 /// A high-performance JSON parser using yyjson.

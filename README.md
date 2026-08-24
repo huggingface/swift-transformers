@@ -141,6 +141,22 @@ targets: [
 ]
 ```
 
+Applications that provide their own tokenizer configuration files can avoid compiling and linking the Hub client and its
+networking dependencies by selecting `TokenizersCore`:
+
+```swift
+.product(name: "TokenizersCore", package: "swift-transformers")
+```
+
+Import `TokenizersCore` and construct the tokenizer from the parsed `tokenizer_config.json` and `tokenizer.json` values:
+
+```swift
+let tokenizer = try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData)
+```
+
+SwiftPM still resolves all package-level dependencies declared by `swift-transformers`, but Hub, HuggingFace, EventSource,
+and SwiftNIO are not compiled or linked when only `TokenizersCore` is selected.
+
 ### Optional Xet trait
 
 `swift-transformers` includes an `Xet` [package trait](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0450-swiftpm-package-traits.md)

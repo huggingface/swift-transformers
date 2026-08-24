@@ -8,7 +8,8 @@ import Foundation
 import Hub
 import Testing
 
-@testable import Tokenizers
+import Tokenizers
+@testable import TokenizersCore
 
 @Suite("Pre-Tokenizer Tests")
 struct PreTokenizerTests {

@@ -14,6 +14,7 @@ let package = Package(
     products: [
         .library(name: "Hub", targets: ["Hub"]),
         .library(name: "Tokenizers", targets: ["Tokenizers"]),
+        .library(name: "TokenizersCore", targets: ["TokenizersCore"]),
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
     ],
     dependencies: [
@@ -28,7 +29,7 @@ let package = Package(
         .target(
             name: "Hub",
             dependencies: [
-                .product(name: "Jinja", package: "swift-jinja"),
+                "TokenizerConfig",
                 .product(name: "HuggingFace", package: "swift-huggingface"),
                 .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "Crypto", package: "swift-crypto"),
@@ -40,11 +41,21 @@ let package = Package(
             swiftSettings: swiftSettings
         ),
         .target(name: "Models", dependencies: ["Tokenizers", "Generation"]),
-        .target(name: "Tokenizers", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")]),
-        .testTarget(name: "Benchmarks", dependencies: ["Hub", "Tokenizers", .product(name: "yyjson", package: "yyjson")]),
+        .target(
+            name: "TokenizerConfig",
+            dependencies: [.product(name: "Jinja", package: "swift-jinja")]
+        ),
+        .target(
+            name: "TokenizersCore",
+            dependencies: ["TokenizerConfig", .product(name: "Jinja", package: "swift-jinja")],
+            path: "Sources/Tokenizers"
+        ),
+        .target(name: "Tokenizers", dependencies: ["Hub", "TokenizersCore"], path: "Sources/TokenizersShim"),
+        .testTarget(name: "Benchmarks", dependencies: ["Hub", "Tokenizers", "TokenizersCore", .product(name: "yyjson", package: "yyjson")]),
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersCoreTests", dependencies: ["TokenizersCore"]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "TokenizersCore", "Models", "Hub"], resources: [.process("Resources")]),
     ]
 )

@@ -8,7 +8,8 @@
 import Foundation
 import Testing
 
-@testable import Tokenizers
+import Tokenizers
+@testable import TokenizersCore
 
 @Suite("Trie data structure functionality")
 struct TrieTests {

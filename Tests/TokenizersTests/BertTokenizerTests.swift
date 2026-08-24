@@ -8,9 +8,10 @@
 
 import Foundation
 import Testing
+import Tokenizers
 
 @testable import Hub
-@testable import Tokenizers
+@testable import TokenizersCore
 
 /// Stanford Question Answering Dataset (SQuAD)
 private enum Squad {

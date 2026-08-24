@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A protocol for text normalization operations applied before tokenization.
 ///

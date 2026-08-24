@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
 struct BytePair: Hashable, Sendable {

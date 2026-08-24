@@ -8,10 +8,11 @@
 
 import Foundation
 import Testing
+import Tokenizers
 
 @testable import Hub
 @testable import Models
-@testable import Tokenizers
+@testable import TokenizersCore
 
 private let downloadDestination: URL = {
     let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!

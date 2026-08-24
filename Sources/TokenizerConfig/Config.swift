@@ -176,7 +176,7 @@ public struct Config: Hashable, Sendable,
         }
     }
 
-    init() {
+    package init() {
         self.value = .null
     }
 

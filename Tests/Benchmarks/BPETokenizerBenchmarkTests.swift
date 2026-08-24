@@ -9,7 +9,8 @@ import Foundation
 import Hub
 import Testing
 
-@testable import Tokenizers
+import Tokenizers
+@testable import TokenizersCore
 
 @Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["RUN_BENCHMARKS"] == "1"))
 struct BPETokenizerBenchmarkTests {

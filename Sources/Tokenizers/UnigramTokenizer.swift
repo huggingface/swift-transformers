@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A Unigram tokenizer implementation based on the SentencePiece algorithm.
 ///

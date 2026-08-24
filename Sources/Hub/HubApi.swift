@@ -8,6 +8,7 @@
 import Crypto
 import Foundation
 import HuggingFace
+import TokenizerConfig
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Hub
+import TokenizerConfig
 
 /// A protocol for post-processing operations applied after tokenization.
 ///
