@@ -26,13 +26,7 @@ func selectNextTokenUsingSampling(from scores: MLTensor) async -> MLTensor {
 
     // Multinomial sampling via inverse CDF, searched on the CPU.
     //
-    // The previous implementation built a Bool mask (cumsum < rnd) and combined
-    // it with arithmetic ops to feed argmin. Those Bool tensor ops truncate at
-    // 2^16 elements: with vocabularies larger than 65,536 (e.g. Qwen's 151,936)
-    // the mask saturates, so the sampler deterministically returned token 65536,
-    // and the same op sequence can crash in libBNNS (issue #365). Reading the
-    // cumulative distribution back and searching it on the CPU is correct for
-    // any vocabulary size.
+    // CPU inverse-CDF search, replacing optimized tensor argmin path that breaks for vocabs > 2^16 (#365).
     let cumulativeProbs = probs.cumulativeSum(alongAxis: -1)
     let floatCumulativeProbs = cumulativeProbs.scalarType == Float.self ? cumulativeProbs : cumulativeProbs.cast(to: Float.self)
     let cdf = await floatCumulativeProbs.shapedArray(of: Float.self).scalars
