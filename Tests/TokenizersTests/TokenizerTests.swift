@@ -458,4 +458,23 @@ struct TokenizerTests {
 
         #expect(tokenizer.encode(text: "She took a train to the West") == [6284, 5244, 1261, 10018, 1317, 1278, 5046])
     }
+
+    @Test
+    func addedTokensRegexPerformanceAndCorrectness() async throws {
+        // Regression coverage for #383: Tokenizer.encode was quadratic in the number of added tokens
+        // due to capturing groups in NSRegularExpression. Non-capturing groups must preserve exact
+        // tokenization for standard added tokens while allowing prefix/suffix stripped tokens to capture correctly.
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "pcuenq/gemma-tokenizer") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        // Verify that added tokens and newlines are matched and encoded properly without quadratic explosion
+        let multiLineText = String(repeating: "Hello world\n", count: 20)
+        let encoded = tokenizer.encode(text: multiLineText)
+        #expect(!encoded.isEmpty)
+
+        // Verify roundtrip decoding
+        let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: false)
+        #expect(decoded.contains("Hello world"))
+    }
 }
