@@ -57,6 +57,9 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether consecutive unknown tokens should be fused (always true for Unigram).
     let fuseUnknownTokens: Bool = true
 
+    /// Whether the model declares SentencePiece byte fallback.
+    let byteFallback: Bool
+
     private let trie: Trie<Unicode.Scalar>
 
     /// Initializes a Unigram tokenizer from configuration data.
@@ -99,6 +102,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
 
         guard let unknownTokenId = tokenizerData.model["unkId"].integer() else { throw TokenizerError.malformedVocab }
         self.unknownTokenId = unknownTokenId
+        byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
         unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
 
         tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token as NSString }.enumerated().map { ($1, $0) })
@@ -162,6 +166,13 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             beginPos += mblen
         }
 
-        return lattice.tokens
+        guard byteFallback else { return lattice.tokens }
+        return lattice.tokens.flatMap { piece -> [String] in
+            if tokensToIds[piece as NSString] != nil { return [piece] }
+            let bytePieces = piece.utf8.map { String(format: "<0x%02X>", $0) }
+            guard bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil })
+            else { return [piece] }
+            return bytePieces
+        }
     }
 }
