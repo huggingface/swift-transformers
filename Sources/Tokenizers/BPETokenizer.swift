@@ -124,6 +124,9 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether consecutive unknown tokens should be fused together.
     let fuseUnknownTokens: Bool
 
+    /// Whether the model declares SentencePiece byte fallback.
+    let byteFallback: Bool
+
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config else { return nil }
 
@@ -187,6 +190,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
         fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
+        byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
     }
 
     /// Converts a token string to its corresponding numeric ID.
@@ -324,11 +328,15 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         var tokens: [String] = []
         let bpeTokens = bpe(token: text)
         for token in bpeTokens {
-            if convertTokenToId(token) != unknownTokenId {
+            if tokensToIds[token as NSString] != nil {
                 tokens.append(token)
             } else {
-                // TODO: if config.byte_fallback is False, append the unknown token instead
-                tokens.append(contentsOf: hexaEncode(text: token))
+                let bytePieces = byteFallback ? hexaEncode(text: token) : []
+                if byteFallback && bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil }) {
+                    tokens.append(contentsOf: bytePieces)
+                } else if let unknownToken {
+                    tokens.append(unknownToken)
+                }
             }
         }
         return tokens
