@@ -205,9 +205,6 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         idsToTokens[id] as String?
     }
 
-    /// Cached `<0x%02X>` byte fallback strings, indexed by byte value.
-    private static let hexaEncoderTable: [String] = (0..<256).map { String(format: "<0x%02X>", $0) }
-
     func byteEncode(text: String) -> [String] {
         var result: [String] = []
         enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
@@ -225,7 +222,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         var result: [String] = []
         enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
             for byte in token.utf8 {
-                result.append(Self.hexaEncoderTable[Int(byte)])
+                result.append(byteFallbackEncoderTable[Int(byte)])
             }
         }
         return result

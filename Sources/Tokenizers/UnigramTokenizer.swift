@@ -169,7 +169,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         guard byteFallback else { return lattice.tokens }
         return lattice.tokens.flatMap { piece -> [String] in
             if tokensToIds[piece as NSString] != nil { return [piece] }
-            let bytePieces = piece.utf8.map { String(format: "<0x%02X>", $0) }
+            let bytePieces = piece.utf8.map { byteFallbackEncoderTable[Int($0)] }
             guard bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil })
             else { return [piece] }
             return bytePieces

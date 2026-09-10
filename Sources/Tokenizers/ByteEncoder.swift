@@ -8,6 +8,9 @@
 
 import Foundation
 
+/// Cached `<0x%02X>` byte fallback strings, indexed by byte value.
+let byteFallbackEncoderTable: [String] = (0..<256).map { String(format: "<0x%02X>", $0) }
+
 let byteEncoder: [UTF8.CodeUnit: String] = [
     33: "!",
     34: "\"",
