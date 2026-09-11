@@ -47,7 +47,10 @@ public protocol LanguageModelProtocol {
     ///   - input: The input sequence tensor.
     ///   - config: The generation configuration containing model parameters.
     /// - Returns: MLTensor with the raw scores of the next token.
-    func predictNextTokenScores(_ input: MLTensor, config: GenerationConfig) async -> MLTensor
+    /// - Throws: Any error thrown by the underlying model, including `CancellationError`
+    ///           when the enclosing `Task` is cancelled. Callers should propagate or
+    ///           handle `CancellationError` via `withTaskCancellationHandler` or `try/catch`.
+    func predictNextTokenScores(_ input: MLTensor, config: GenerationConfig) async throws -> MLTensor
 }
 
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
@@ -60,8 +63,8 @@ public extension LanguageModelProtocol {
     ///   - input: The input sequence tensor.
     ///   - config: The generation configuration containing model parameters.
     /// - Returns: MLTensor with the raw scores of the next token.
-    func callAsFunction(_ input: MLTensor, config: GenerationConfig) async -> MLTensor {
-        await predictNextTokenScores(input, config: config)
+    func callAsFunction(_ input: MLTensor, config: GenerationConfig) async throws -> MLTensor {
+        try await predictNextTokenScores(input, config: config)
     }
 }
 

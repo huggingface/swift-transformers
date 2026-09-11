@@ -60,7 +60,7 @@ public class LanguageModel {
     public func predictNextTokenScores(
         _ tokens: MLTensor,
         config: GenerationConfig
-    ) async -> MLTensor {
+    ) async throws -> MLTensor {
         assert(tokens.rank == 2) // [batch, current sequence length]
         let tokenCount = tokens.shape[1]
         let padLength = maxContextLength - tokenCount
@@ -72,7 +72,7 @@ public class LanguageModel {
             let attentionMask = MLTensor(shape: inputIDs.shape, scalars: mask)
             inputDictionary[Keys.attentionMask] = attentionMask
         }
-        let outputs = try! await model.prediction(from: inputDictionary)
+        let outputs = try await model.prediction(from: inputDictionary)
 
         assert(outputs.keys.contains(Keys.logits))
 
@@ -468,7 +468,7 @@ extension LanguageModel {
         tokens: InputTokens,
         callback: PredictionTokensCallback? = nil
     ) async throws -> GenerationOutput {
-        return await generate(
+        return try await generate(
             config: config,
             tokens: tokens,
             model: callAsFunction,
@@ -511,14 +511,14 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
     public override func predictNextTokenScores(
         _ tokens: MLTensor,
         config _: GenerationConfig
-    ) async -> MLTensor {
+    ) async throws -> MLTensor {
         assert(tokens.rank == 2) // [batch, current sequence length]
         let tokenCount = tokens.shape[1]
         guard let state else {
             fatalError(
                 """
                 Encountered uninitialized `state`. Ensure `resetState` is called prior to calling \
-                `predictNextTokenScores`. 
+                `predictNextTokenScores`.
                 """)
         }
         let inputIds =
@@ -549,7 +549,7 @@ public class LanguageModelWithStatefulKVCache: LanguageModel {
             fatalError()
             #endif
         }
-        let outputs = try! await model.prediction(from: inputDictionary, using: state)
+        let outputs = try await model.prediction(from: inputDictionary, using: state)
 
         assert(outputs.keys.contains(Keys.logits))
         let scores = outputs[Keys.logits]!
