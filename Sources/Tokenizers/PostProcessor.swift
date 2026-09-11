@@ -212,3 +212,36 @@ class SequenceProcessing: PostProcessor {
         return currentTokens
     }
 }
+
+struct PostProcessedToken {
+    let text: String
+    let offset: Range<Int>?
+}
+
+func postProcessWithOffsets(postProcessor: PostProcessor?, tokens: [PostProcessedToken], addSpecialTokens: Bool = true) -> [PostProcessedToken] {
+    guard let postProcessor else { return tokens }
+
+    let tokenStrings = tokens.map(\.text)
+    let processedStrings = postProcessor.postProcess(tokens: tokenStrings, tokensPair: nil, addSpecialTokens: addSpecialTokens)
+
+    // Map offsets by source token position (not token text) to avoid collisions
+    // with inserted special tokens and to preserve order after post-processing.
+    var sourceIndex = 0
+    return processedStrings.map { token in
+        guard sourceIndex < tokens.count else {
+            return PostProcessedToken(text: token, offset: nil)
+        }
+
+        let sourceToken = tokens[sourceIndex]
+        let isDirectMatch = token == sourceToken.text
+        let isWhitespaceNormalizedMatch = token.trimmingCharacters(in: .whitespaces) == sourceToken.text.trimmingCharacters(in: .whitespaces)
+
+        if isDirectMatch || isWhitespaceNormalizedMatch {
+            sourceIndex += 1
+            return PostProcessedToken(text: token, offset: sourceToken.offset)
+        }
+
+        // Synthetic/special tokens added by post-processing have no source span.
+        return PostProcessedToken(text: token, offset: nil)
+    }
+}

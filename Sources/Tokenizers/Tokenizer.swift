@@ -15,6 +15,36 @@ public typealias Message = [String: any Sendable]
 /// A type alias for tool specifications used in chat templating.
 public typealias ToolSpec = [String: any Sendable]
 
+/// A view over encoded tokens and their source spans.
+public struct TokenEncodingView: RandomAccessCollection, Sendable {
+    /// A token in an encoded sequence.
+    public struct Element: Sendable {
+        /// Token ID.
+        public let id: Int
+        /// Token text.
+        public let token: String
+        /// Span in the original input text when available.
+        /// Special/synthetic tokens or tokens without reliable offset mapping have `nil`.
+        public let span: Range<String.Index>?
+    }
+
+    /// The source text used for encoding.
+    public let text: String
+    private let storage: [Element]
+
+    public var startIndex: Int { storage.startIndex }
+    public var endIndex: Int { storage.endIndex }
+
+    public subscript(position: Int) -> Element {
+        storage[position]
+    }
+
+    init(text: String, storage: [Element]) {
+        self.text = text
+        self.storage = storage
+    }
+}
+
 /// Errors that can occur during tokenizer operations.
 public enum TokenizerError: LocalizedError {
     case missingConfig
@@ -123,6 +153,39 @@ func addedTokenAsString(_ addedToken: Config?) -> String? {
     // This is possibly a serialization of the AddedToken class
     // TODO: support lstrip, rstrip, normalized, etc.
     return addedToken.content.string()
+}
+
+private func splitByAddedTokensRegex(text: String, regex: NSRegularExpression) -> [(String, Range<Int>?)] {
+    let sections = text.split(by: regex)
+    var result: [(String, Range<Int>?)] = []
+    var cursor = text.startIndex
+
+    for section in sections {
+        if section.isEmpty { continue }
+        if let range = text.range(of: section, range: cursor..<text.endIndex) {
+            let lower = text.distance(from: text.startIndex, to: range.lowerBound)
+            let upper = text.distance(from: text.startIndex, to: range.upperBound)
+            result.append((section, lower..<upper))
+            cursor = range.upperBound
+        } else {
+            result.append((section, nil))
+        }
+    }
+    return result
+}
+
+private func canShareCharacterOffsets(original: String, normalized: String) -> Bool {
+    guard original.count == normalized.count else { return false }
+    for (lhs, rhs) in zip(original, normalized) {
+        if lhs == rhs { continue }
+        // Allow one-to-one case changes (e.g. "John" -> "john") while rejecting
+        // transformations that may change grapheme boundary alignment.
+        if String(lhs).lowercased() == String(rhs) || String(rhs).lowercased() == String(lhs) {
+            continue
+        }
+        return false
+    }
+    return true
 }
 
 public extension TokenizingModel {
@@ -394,6 +457,19 @@ public protocol Tokenizer: Sendable {
     ) throws -> [Int]
 }
 
+/// A tokenizer that can return source spans for encoded tokens.
+public protocol OffsetMappingTokenizer: Tokenizer {
+    /// Encodes text into a view of token IDs, token strings, and source spans.
+    ///
+    /// - Parameters:
+    ///   - text: The input text to encode
+    ///   - addSpecialTokens: Whether to add special tokens (e.g., BOS, EOS)
+    /// - Returns: A token encoding view.
+    ///            Spans are `nil` for synthetic/special tokens
+    ///            or when offset mapping is unavailable.
+    func encodeWithOffsets(text: String, addSpecialTokens: Bool) -> TokenEncodingView
+}
+
 extension Tokenizer {
     public var hasChatTemplate: Bool { false }
 
@@ -453,7 +529,7 @@ let specialTokenAttributes: [String] = [
 /// This class provides a complete tokenizer implementation that can be initialized from
 /// Hugging Face Hub configuration files and supports all standard tokenization operations
 /// including chat template application, normalization, pre-tokenization, and post-processing.
-public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
+public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer, OffsetMappingTokenizer {
     let model: TokenizingModel
 
     public var bosToken: String? { model.bosToken }
@@ -613,6 +689,112 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         return fused
     }
 
+    private struct TokenWithOffset {
+        let token: String
+        let offset: Range<Int>?
+    }
+
+    private func fuseUnknown(_ tokens: [TokenWithOffset]) -> [TokenWithOffset] {
+        guard fuseUnknownTokens else { return tokens }
+        let (fused, _) = tokens.reduce((fused: [TokenWithOffset](), previousIsUnknown: false)) { result, token in
+            var (fused, previousIsUnknown) = result
+            let isUnknown = model.convertTokenToId(token.token) == model.unknownTokenId
+            if isUnknown {
+                if !previousIsUnknown {
+                    fused.append(token)
+                } else if let last = fused.last {
+                    let merged: Range<Int>?
+                    switch (last.offset, token.offset) {
+                    case let (.some(lhs), .some(rhs)):
+                        merged = min(lhs.lowerBound, rhs.lowerBound)..<max(lhs.upperBound, rhs.upperBound)
+                    case let (.some(lhs), .none):
+                        merged = lhs
+                    case let (.none, .some(rhs)):
+                        merged = rhs
+                    case (.none, .none):
+                        merged = nil
+                    }
+                    fused[fused.count - 1] = TokenWithOffset(token: last.token, offset: merged)
+                }
+            } else {
+                fused.append(token)
+            }
+            return (fused, isUnknown)
+        }
+        return fused
+    }
+
+    private struct TextIndexLookup {
+        let indices: [String.Index]
+
+        init(text: String) {
+            indices = Array(text.indices) + [text.endIndex]
+        }
+
+        func range(from offset: Range<Int>) -> Range<String.Index>? {
+            guard offset.lowerBound >= 0, offset.upperBound >= offset.lowerBound, offset.upperBound < indices.count else {
+                return nil
+            }
+            return indices[offset.lowerBound]..<indices[offset.upperBound]
+        }
+    }
+
+    private func tokenizeWithOffsets(text: String) -> [TokenWithOffset] {
+        let sections: [(String, Range<Int>?)] =
+            if let regex = addedTokensRegex {
+                splitByAddedTokensRegex(text: text, regex: regex)
+            } else {
+                [(text, 0..<text.count)]
+            }
+
+        let tokens = sections.enumerated().flatMap { section, item -> [TokenWithOffset] in
+            let (sectionText, sectionRange) = item
+            if addedTokens.contains(sectionText) {
+                return [TokenWithOffset(token: sectionText, offset: sectionRange)]
+            }
+
+            let normalized = normalize(sectionText)
+            let preTokenized: [PreTokenizedText] =
+                if let sectionRange, canShareCharacterOffsets(original: sectionText, normalized: normalized) {
+                    preTokenizeWithOffsets(preTokenizer: preTokenizer, text: normalized, options: section == 0 ? [.firstSection] : [], baseOffset: sectionRange.lowerBound)
+                } else {
+                    preTokenize(normalized, options: section == 0 ? [.firstSection] : []).map { PreTokenizedText(text: $0, offset: nil) }
+                }
+
+            return preTokenized.flatMap { item -> [TokenWithOffset] in
+                let subtokens = model(item.text)
+                guard let offset = item.offset else {
+                    return subtokens.map { TokenWithOffset(token: $0, offset: nil) }
+                }
+
+                if model is BertTokenizer {
+                    return zip(subtokens, bertWordPieceOffsets(tokens: subtokens, tokenOffset: offset)).map {
+                        TokenWithOffset(token: $0.0, offset: $0.1)
+                    }
+                }
+                return subtokens.map { TokenWithOffset(token: $0, offset: nil) }
+            }
+        }
+        return fuseUnknown(tokens)
+    }
+
+    private func bertWordPieceOffsets(tokens: [String], tokenOffset: Range<Int>) -> [Range<Int>?] {
+        var cursor = tokenOffset.lowerBound
+        var result: [Range<Int>?] = []
+        for token in tokens {
+            if token == "[UNK]" {
+                result.append(cursor..<tokenOffset.upperBound)
+                cursor = tokenOffset.upperBound
+                continue
+            }
+            let raw = token.hasPrefix("##") ? String(token.dropFirst(2)) : token
+            let next = min(cursor + raw.count, tokenOffset.upperBound)
+            result.append(cursor..<next)
+            cursor = next
+        }
+        return result
+    }
+
     /// Tokenizes input text using the configured normalization and pre-tokenization steps.
     ///
     /// - Parameter text: The input text to tokenize
@@ -649,6 +831,24 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
     /// - Returns: An array of token IDs
     public func encode(text: String) -> [Int] {
         encode(text: text, addSpecialTokens: true)
+    }
+
+    public func encodeWithOffsets(text: String, addSpecialTokens: Bool = true) -> TokenEncodingView {
+        let indexLookup = TextIndexLookup(text: text)
+        let tokenized = tokenizeWithOffsets(text: text)
+        let processed = postProcessWithOffsets(
+            postProcessor: postProcessor,
+            tokens: tokenized.map { PostProcessedToken(text: $0.token, offset: $0.offset) },
+            addSpecialTokens: addSpecialTokens
+        )
+        let storage = processed.map { token in
+            TokenEncodingView.Element(
+                id: model.convertTokenToId(token.text)!,
+                token: token.text,
+                span: token.offset.flatMap { indexLookup.range(from: $0) }
+            )
+        }
+        return TokenEncodingView(text: text, storage: storage)
     }
 
     /// Decodes token IDs back into human-readable text.
