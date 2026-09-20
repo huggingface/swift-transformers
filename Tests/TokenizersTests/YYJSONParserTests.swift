@@ -71,6 +71,25 @@ struct YYJSONParserTests {
     }
 
     @Test
+    func preservesSignedIntegerBoundaries() throws {
+        let json = "{\"min\": \(Int.min), \"max\": \(Int.max)}"
+        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
+
+        #expect(config["min"].integer() == Int.min)
+        #expect(config["max"].integer() == Int.max)
+    }
+
+    @Test
+    func convertsIntegersBeyondSignedRangeToFloat() throws {
+        let json = #"{"above_signed": 9223372036854775808, "unsigned_max": 18446744073709551615, "above_unsigned": 18446744073709551616}"#
+        let config = try YYJSONParser.parseToConfig(Data(json.utf8))
+
+        #expect(config["above_signed"].floating() == Float(UInt64(Int64.max) + 1))
+        #expect(config["unsigned_max"].floating() == Float(UInt64.max))
+        #expect(config["above_unsigned"].floating() == Float(18_446_744_073_709_551_616.0))
+    }
+
+    @Test
     func throwsOnInvalidJSON() {
         let invalidJSON = Data("not valid json".utf8)
 
