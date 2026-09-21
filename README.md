@@ -206,6 +206,11 @@ Before submitting a pull request, please ensure your code:
 
 To format your code, run `swift format -i --recursive .`.
 
+## Benchmarks
+
+See [Benchmarks](Benchmarks/README.md) for standalone tokenizer benchmarks and
+commands to record and compare performance baselines.
+
 ## License
 
 [Apache 2](LICENSE).
