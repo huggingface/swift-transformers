@@ -518,9 +518,10 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
             let token = NSRegularExpression.escapedPattern(for: $0.content)
             let prefix = $0.prefix ? #"\s*"# : ""
             let suffix = $0.suffix ? #"\s*"# : ""
+            guard $0.prefix || $0.suffix else { return "(?:\(token))" }
             return "\(prefix)(\(token))\(suffix)"
         }.joined(separator: "|")
-        addedTokensRegex = try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
+        addedTokensRegex = unwrappedAddedTokens.isEmpty ? nil : try? NSRegularExpression(pattern: addedTokensRegexString, options: [])
 
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
