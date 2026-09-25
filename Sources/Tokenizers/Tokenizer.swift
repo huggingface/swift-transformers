@@ -845,6 +845,13 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
 /// the appropriate tokenizer class based on the configuration.
 public enum AutoTokenizer {}
 
+// Models with incorrect tokenizer_class in their Hub tokenizer_config.json files.
+// These models will be forced to use TokenizersBackend.
+let modelsWithIncorrectHubTokenizerClass: Set<String> = [
+    "deepseek_ocr",
+    "deepseek_ocr2",
+]
+
 enum PreTrainedTokenizerClasses {
     /// Class overrides for custom behaviour
     /// Not to be confused with the TokenizerModel classes defined in TokenizerModel
@@ -854,6 +861,80 @@ enum PreTrainedTokenizerClasses {
 }
 
 public extension AutoTokenizer {
+    private static func tokenizerConfig(
+        from configuration: LanguageModelConfigurationFromHub
+    ) async throws -> Config {
+        guard let tokenizerConfig = try await configuration.tokenizerConfig else {
+            throw TokenizerError.missingConfig
+        }
+        guard
+            let modelType = try await configuration.modelType,
+            modelsWithIncorrectHubTokenizerClass.contains(modelType)
+        else {
+            return tokenizerConfig
+        }
+
+        var dictionary = tokenizerConfig.dictionary(or: [:])
+        dictionary["tokenizer_class"] = "TokenizersBackend"
+        return Config(dictionary)
+    }
+
+    private static func tokenizerData(
+        from configuration: LanguageModelConfigurationFromHub
+    ) async throws -> Config {
+        let tokenizerData = try await configuration.tokenizerData
+        guard
+            try await configuration.modelType == "deepseekocr",
+            tokenizerData.preTokenizer.type.string() == "Metaspace",
+            tokenizerData.model.type.string() == "BPE",
+            tokenizerData.model.vocab["Ġ"].integer() != nil,
+            tokenizerData.model.vocab["▁"].integer() == nil
+        else {
+            return tokenizerData
+        }
+
+        var dictionary = tokenizerData.dictionary(or: [:])
+        dictionary["pre_tokenizer"] = [
+            "type": "Sequence",
+            "pretokenizers": [
+                [
+                    "type": "Split",
+                    "pattern": ["Regex": "\\p{N}{1,3}"],
+                    "behavior": "Isolated",
+                    "invert": false,
+                ],
+                [
+                    "type": "Split",
+                    "pattern": ["Regex": "[一-龥぀-ゟ゠-ヿ]+"],
+                    "behavior": "Isolated",
+                    "invert": false,
+                ],
+                [
+                    "type": "Split",
+                    "pattern": [
+                        "Regex":
+                            ##"[!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~][A-Za-z]+|[^\r\n\p{L}\p{P}\p{S}]?[\p{L}\p{M}]+| ?[\p{P}\p{S}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+"##
+                    ],
+                    "behavior": "Isolated",
+                    "invert": false,
+                ],
+                [
+                    "type": "ByteLevel",
+                    "add_prefix_space": false,
+                    "trim_offsets": true,
+                    "use_regex": false,
+                ],
+            ],
+        ]
+        dictionary["decoder"] = [
+            "type": "ByteLevel",
+            "add_prefix_space": true,
+            "trim_offsets": true,
+            "use_regex": true,
+        ]
+        return Config(dictionary)
+    }
+
     /// Determines the appropriate tokenizer class for the given configuration.
     ///
     /// - Parameter tokenizerConfig: The tokenizer configuration
@@ -917,8 +998,8 @@ public extension AutoTokenizer {
         strict: Bool = true
     ) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelName: model, revision: revision, hubApi: hubApi)
-        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
-        let tokenizerData = try await config.tokenizerData
+        let tokenizerConfig = try await tokenizerConfig(from: config)
+        let tokenizerData = try await tokenizerData(from: config)
 
         return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
@@ -937,10 +1018,10 @@ public extension AutoTokenizer {
         strict: Bool = true
     ) async throws -> Tokenizer {
         let config = LanguageModelConfigurationFromHub(modelFolder: modelFolder, hubApi: hubApi)
-        guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
-        let tokenizerData = try await config.tokenizerData
+        let tokenizerConfig = try await tokenizerConfig(from: config)
+        let tokenizerData = try await tokenizerData(from: config)
 
-        return try PreTrainedTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
+        return try AutoTokenizer.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, strict: strict)
     }
 }
 
