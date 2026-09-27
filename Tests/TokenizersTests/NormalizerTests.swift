@@ -264,4 +264,11 @@ struct NormalizerTests {
         let config = Config(["type": NormalizerType.Strip.rawValue])
         #expect(NormalizerFactory.fromConfig(config: config) as? StripNormalizer != nil)
     }
+
+    @Test("Replace normalizer matches code points, not grapheme clusters")
+    func replaceNormalizerCodePoints() {
+        let normalizer = ReplaceNormalizer(config: Config(["pattern": ["String": " "], "content": "▁"]))
+        #expect(normalizer.normalize(text: "a \u{0301}b") == "a▁\u{0301}b")
+        #expect(normalizer.normalize(text: "skin \u{1F3FD}") == "skin▁\u{1F3FD}")
+    }
 }

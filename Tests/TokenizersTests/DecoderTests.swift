@@ -136,4 +136,16 @@ struct DecoderTests {
             #expect(output.joined() == expected)
         }
     }
+
+    @Test("Metaspace decoder matches Rust on code points")
+    func metaspaceDecoderCodePoints() {
+        let always = MetaspaceDecoder(config: Config(["replacement": "▁", "prepend_scheme": "always"]))
+        #expect(always.decode(tokens: ["▁\u{0301}x"]) == ["\u{0301}x"])
+        #expect(always.decode(tokens: ["▁a", "▁\u{0301}b"]).joined() == "a \u{0301}b")
+        #expect(always.decode(tokens: ["x▁\u{0301}"]) == ["x\u{0301}"])
+        #expect(always.decode(tokens: ["▁hello▁world"]) == ["helloworld"])
+
+        let never = MetaspaceDecoder(config: Config(["replacement": "▁", "prepend_scheme": "never"]))
+        #expect(never.decode(tokens: ["▁\u{0301}x"]) == [" \u{0301}x"])
+    }
 }

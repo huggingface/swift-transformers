@@ -10,6 +10,10 @@ import Foundation
 import Hub
 
 /// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
+///
+/// Equality and hashing compare code units: `String` equality treats canonically
+/// equivalent strings (such as ";" and U+037E) as equal, which would let distinct
+/// merges overwrite each other's ranks.
 struct BytePair: Hashable, Sendable {
     let a: String
     let b: String
@@ -24,12 +28,14 @@ struct BytePair: Hashable, Sendable {
     }
 
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
-        lhs.a == rhs.a && lhs.b == rhs.b
+        lhs.a.utf8.elementsEqual(rhs.a.utf8) && lhs.b.utf8.elementsEqual(rhs.b.utf8)
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(a)
-        hasher.combine(b)
+        for part in [a, b] {
+            hasher.combine(part.utf8.count)
+            for byte in part.utf8 { hasher.combine(byte) }
+        }
     }
 }
 
