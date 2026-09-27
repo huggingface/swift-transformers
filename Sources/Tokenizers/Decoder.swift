@@ -248,14 +248,25 @@ class MetaspaceDecoder: Decoder {
         replacement = config.replacement.string(or: "_")
     }
 
+    /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L132
+    /// Replacements become spaces, except in the first token when a prefix was prepended, where they are dropped.
     func decode(tokens: [String]) -> [String] {
-        var replaced = tokens.map { token in
-            token.replacingOccurrences(of: replacement, with: " ")
+        let marker = Array(replacement.unicodeScalars)
+        return tokens.enumerated().map { index, token in
+            let scalars = Array(token.unicodeScalars)
+            var decoded = String.UnicodeScalarView()
+            var position = 0
+            while position < scalars.count {
+                if !marker.isEmpty, scalars[position...].starts(with: marker) {
+                    if index > 0 || !addPrefixSpace { decoded.append(" ") }
+                    position += marker.count
+                } else {
+                    decoded.append(scalars[position])
+                    position += 1
+                }
+            }
+            return String(decoded)
         }
-        if addPrefixSpace, replaced.first?.starts(with: " ") ?? false {
-            replaced[0].removeFirst()
-        }
-        return replaced
     }
 }
 
