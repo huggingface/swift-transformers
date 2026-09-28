@@ -12,6 +12,39 @@ import Testing
 
 @Suite("Tokenizer Decoder Tests")
 struct DecoderTests {
+    @Test("Byte fallback flushes trailing bytes after text")
+    func byteFallbackTrailingBytes() {
+        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"]))
+        let decoded = decoder.decode(tokens: ["Hello", "<0xE2>", "<0x82>", "<0xAC>"])
+
+        #expect(decoded == ["Hello", "€"])
+        #expect(decoded.joined() == "Hello€")
+    }
+
+    @Test("Byte fallback decodes input consisting only of bytes")
+    func byteFallbackOnlyBytes() {
+        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"]))
+
+        #expect(decoder.decode(tokens: ["<0xE2>", "<0x82>", "<0xAC>"]) == ["€"])
+    }
+
+    @Test("Byte fallback preserves bytes in the middle")
+    func byteFallbackMiddleBytes() {
+        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"]))
+
+        #expect(decoder.decode(tokens: ["Hello", "<0xE2>", "<0x82>", "<0xAC>", "!"]) == ["Hello", "€", "!"])
+    }
+
+    @Test("Byte fallback repairs incomplete UTF-8 consistently", arguments: [false, true])
+    func byteFallbackIncompleteUTF8(trailing: Bool) {
+        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"]))
+        let suffix = trailing ? [] : ["!"]
+
+        // Preserve Swift's existing lossy UTF-8 decoding: the incomplete E2 82
+        // sequence becomes one U+FFFD. Rust instead emits one U+FFFD per byte.
+        #expect(decoder.decode(tokens: ["Hello", "<0xE2>", "<0x82>"] + suffix) == ["Hello", "\u{FFFD}"] + suffix)
+    }
+
     /// https://github.com/huggingface/tokenizers/pull/1357
     @Test("Metaspace decoder with prefix space replacement")
     func metaspaceDecoder() {
