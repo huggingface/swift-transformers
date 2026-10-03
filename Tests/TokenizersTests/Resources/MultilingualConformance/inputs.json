@@ -1,0 +1,417 @@
+[
+  {
+    "id": "latin-diacritics-french",
+    "category": "latin-diacritics",
+    "text": "café résumé naïve façade — crème brûlée was excellent."
+  },
+  {
+    "id": "latin-diacritics-mixed",
+    "category": "latin-diacritics",
+    "text": "Hügel über Brücke. Mañana voy a la peña con José."
+  },
+  {
+    "id": "latin-diacritics-portuguese",
+    "category": "latin-diacritics",
+    "text": "São Paulo é uma cidade interessante; Köln auch."
+  },
+  {
+    "id": "cyrillic-greeting",
+    "category": "cyrillic",
+    "text": "Привет, мир! Это тест токенизатора."
+  },
+  {
+    "id": "cyrillic-prose",
+    "category": "cyrillic",
+    "text": "Москва — столица России. Население более 12 миллионов."
+  },
+  {
+    "id": "greek-greeting",
+    "category": "greek",
+    "text": "Καλημέρα κόσμε! Η γλώσσα είναι όμορφη."
+  },
+  {
+    "id": "cjk-simplified-greeting",
+    "category": "cjk-simplified",
+    "text": "你好,世界!这是分词器测试。"
+  },
+  {
+    "id": "cjk-simplified-prose",
+    "category": "cjk-simplified",
+    "text": "中文是世界上使用人口最多的语言之一。"
+  },
+  {
+    "id": "cjk-traditional-compare",
+    "category": "cjk-traditional",
+    "text": "繁體中文與簡體中文有所不同。"
+  },
+  {
+    "id": "cjk-traditional-hongkong",
+    "category": "cjk-traditional",
+    "text": "香港的繁體中文有獨特的詞彙。"
+  },
+  {
+    "id": "japanese-voiced-kana-greeting",
+    "category": "japanese-voiced-kana",
+    "text": "こんにちは、世界。トークナイザーのテストです。"
+  },
+  {
+    "id": "japanese-voiced-kana-prose",
+    "category": "japanese-voiced-kana",
+    "text": "東京タワーはとても賑やかな観光地です。"
+  },
+  {
+    "id": "hangul-syllables-greeting",
+    "category": "hangul-syllables",
+    "text": "안녕하세요, 세계! 토크나이저 테스트입니다."
+  },
+  {
+    "id": "hangul-syllables-prose",
+    "category": "hangul-syllables",
+    "text": "한국어는 한글로 표기합니다."
+  },
+  {
+    "id": "arabic-greeting",
+    "category": "arabic-rtl",
+    "text": "مرحبا بالعالم! هذا اختبار للمحلل اللغوي."
+  },
+  {
+    "id": "arabic-prose",
+    "category": "arabic-rtl",
+    "text": "اللغة العربية لغة سامية تكتب من اليمين إلى اليسار."
+  },
+  {
+    "id": "hebrew-greeting",
+    "category": "hebrew-rtl",
+    "text": "שלום עולם! זה מבחן של הטוקנייזר."
+  },
+  {
+    "id": "devanagari-hindi",
+    "category": "devanagari",
+    "text": "नमस्ते दुनिया! यह टोकनाइज़र परीक्षण है।"
+  },
+  {
+    "id": "devanagari-sanskrit",
+    "category": "devanagari",
+    "text": "संस्कृत भारत की एक प्राचीन भाषा है।"
+  },
+  {
+    "id": "thai-combining-marks-greeting",
+    "category": "thai-combining-marks",
+    "text": "สวัสดีชาวโลก! นี่คือการทดสอบเครื่องตัดคำ"
+  },
+  {
+    "id": "thai-combining-marks-prose",
+    "category": "thai-combining-marks",
+    "text": "ภาษาไทยไม่ใช้ช่องว่างระหว่างคำ"
+  },
+  {
+    "id": "mixed-script-cjk-latin",
+    "category": "mixed-script",
+    "text": "The 北京 trip in 2026 — très bien!"
+  },
+  {
+    "id": "mixed-script-katakana-code",
+    "category": "mixed-script",
+    "text": "コードレビュー: bug fixed in commit a3f9c2b."
+  },
+  {
+    "id": "math-symbols-summation",
+    "category": "math-symbols",
+    "text": "Result: Σ x_i = 42 (where x ∈ ℝ)."
+  },
+  {
+    "id": "math-symbols-epsilon-delta",
+    "category": "math-symbols",
+    "text": "Theorem: ∀ε>0 ∃δ>0 such that |x-x₀|<δ ⇒ |f(x)-f(x₀)|<ε."
+  },
+  {
+    "id": "currency-symbols-multi",
+    "category": "currency-symbols",
+    "text": "Cost: €12.50 → ¥1,820 ≈ £10.75 (approx, plus ₿0.0004)."
+  },
+  {
+    "id": "box-drawing",
+    "category": "box-drawing-dingbats",
+    "text": "Box: ┌───────┐ │ Hello │ └───────┘ — done."
+  },
+  {
+    "id": "dingbats-chess",
+    "category": "box-drawing-dingbats",
+    "text": "Pieces: ★ ☆ ♠ ♣ ♥ ♦ ♔ ♕ ♖ ♘ ♙ — chess set."
+  },
+  {
+    "id": "math-astral-bold-script",
+    "category": "math-astral-glyphs",
+    "text": "Math bold: 𝐀𝐁𝐂𝐃 𝟎𝟏𝟐𝟑 — math script: 𝓐𝓑𝓒𝓓."
+  },
+  {
+    "id": "astral-egyptian-hieroglyphs",
+    "category": "astral-plane-historic",
+    "text": "Egyptian hieroglyphs: 𓀀 𓂀 𓃀 𓆎𓅓𓏏𓊖."
+  },
+  {
+    "id": "astral-cuneiform",
+    "category": "astral-plane-historic",
+    "text": "Cuneiform: 𒀭 𒈠 𒂗 𒆠 — sign list samples."
+  },
+  {
+    "id": "astral-mahjong",
+    "category": "astral-plane-game-symbols",
+    "text": "Mahjong tiles: 🀀 🀁 🀂 🀃 🀄 🀅 🀆 🀇."
+  },
+  {
+    "id": "astral-cards",
+    "category": "astral-plane-game-symbols",
+    "text": "Cards: 🃁 🃂 🃃 🂡 🂢 🂣."
+  },
+  {
+    "id": "emoji-bmp-and-astral",
+    "category": "emoji-basic",
+    "text": "👋 Hello! 🌍 World 🚀 launch 🎉 party 🎂."
+  },
+  {
+    "id": "emoji-zwj-family-pride-skin",
+    "category": "emoji-zwj-sequence",
+    "text": "Family: 👨‍👩‍👧‍👦 — Pride flag: 🏳️‍🌈 — Skin-tone: 👍🏽 ✊🏿 👶🏻."
+  },
+  {
+    "id": "emoji-zwj-with-text-prefix",
+    "category": "emoji-zwj-sequence",
+    "text": "🏳️‍🌈Pride+👨‍👩‍👧‍👦Family+🇩🇪🇯🇵🇺🇸flags+test"
+  },
+  {
+    "id": "emoji-keycap-and-flags",
+    "category": "emoji-keycap",
+    "text": "Keycaps: 1️⃣ 2️⃣ 3️⃣ — flag: 🇯🇵 🇩🇪 🇺🇸."
+  },
+  {
+    "id": "url-with-query-fragment",
+    "category": "url-hex-base64",
+    "text": "url=https://example.com/path/to/resource?q=foo&bar=baz&n=42#section-3"
+  },
+  {
+    "id": "hex-and-base64",
+    "category": "url-hex-base64",
+    "text": "hex=0xDEADBEEFCAFEBABE base64=YWJjZGVmZ2hpamtsbW5vcA=="
+  },
+  {
+    "id": "sha256-hash",
+    "category": "url-hex-base64",
+    "text": "sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "id": "code-javascript-functional",
+    "category": "programming-code",
+    "text": "arr.map(x => x * 2).filter(x => x > 0).reduce((a, b) => a + b);"
+  },
+  {
+    "id": "code-cplusplus-template",
+    "category": "programming-code",
+    "text": "template<T,U> auto f(T&&t, U&&u) -> decltype(t+u) { return t + u; }"
+  },
+  {
+    "id": "code-bitops",
+    "category": "programming-code",
+    "text": "result = (a >> 2) | (b << 4) & 0xFF;"
+  },
+  {
+    "id": "code-javascript-modern",
+    "category": "programming-code",
+    "text": "if (x !== null && y >= 0) { return x?.foo ?? defaultValue; }"
+  },
+  {
+    "id": "code-python-def",
+    "category": "programming-code",
+    "text": "def fibonacci(n):"
+  },
+  {
+    "id": "code-python-if",
+    "category": "programming-code",
+    "text": "    if n < 2:"
+  },
+  {
+    "id": "code-python-return",
+    "category": "programming-code",
+    "text": "        return n"
+  },
+  {
+    "id": "code-python-recurse",
+    "category": "programming-code",
+    "text": "    return fibonacci(n - 1) + fibonacci(n - 2)"
+  },
+  {
+    "id": "code-go-func",
+    "category": "programming-code",
+    "text": "func greet(name string) {"
+  },
+  {
+    "id": "code-go-tab-if",
+    "category": "programming-code",
+    "text": "\tif name != \"\" {"
+  },
+  {
+    "id": "code-go-tab-printf",
+    "category": "programming-code",
+    "text": "\t\tfmt.Printf(\"Hello, %s!\\n\", name)"
+  },
+  {
+    "id": "code-go-tab-close",
+    "category": "programming-code",
+    "text": "\t}"
+  },
+  {
+    "id": "code-go-close",
+    "category": "programming-code",
+    "text": "}"
+  },
+  {
+    "id": "programming-identifiers-mixed",
+    "category": "programming-identifiers",
+    "text": "get_user_id MAX_BUFFER_SIZE T_pad_token_id NSURLSessionConfiguration"
+  },
+  {
+    "id": "programming-identifiers-cases",
+    "category": "programming-identifiers",
+    "text": "camelCaseVar PascalCase snake_case_var SCREAMING_SNAKE k8s_pod_count_v2"
+  },
+  {
+    "id": "code-string-multiscript",
+    "category": "programming-code",
+    "text": "greeting = \"Привет, мир!\" + \" — from \" + \"東京\""
+  },
+  {
+    "id": "code-comment-diacritics",
+    "category": "programming-code",
+    "text": "// résumé — Swift comment with diacritics"
+  },
+  {
+    "id": "code-comment-greek-math",
+    "category": "programming-code",
+    "text": "/* α + β = γ — Greek-letter math comment */"
+  },
+  {
+    "id": "code-string-multiscript-emoji",
+    "category": "programming-code",
+    "text": "let title = \"🚀 Launch — пуск — 起動\""
+  },
+  {
+    "id": "ipa-phonetic-transcription",
+    "category": "ipa-phonetic",
+    "text": "The IPA transcription /fɪʃ/ for \"fish\" — with stress: ˈfɪʃ."
+  },
+  {
+    "id": "mandarin-tones",
+    "category": "ipa-phonetic",
+    "text": "Tones: má mǎ mà mā (Mandarin tones — high, rising, dipping, falling)."
+  },
+  {
+    "id": "whitespace-runs",
+    "category": "whitespace-edge",
+    "text": "hello    world         .       end"
+  },
+  {
+    "id": "whitespace-trailing-tabs",
+    "category": "whitespace-edge",
+    "text": "trailing whitespace before newline:\t(tab)   (spaces)"
+  },
+  {
+    "id": "punctuation-period",
+    "category": "punctuation-edge",
+    "text": "."
+  },
+  {
+    "id": "punctuation-comma",
+    "category": "punctuation-edge",
+    "text": ","
+  },
+  {
+    "id": "punctuation-exclamation",
+    "category": "punctuation-edge",
+    "text": "!"
+  },
+  {
+    "id": "punctuation-nested-quotes",
+    "category": "punctuation-edge",
+    "text": "\"What?\" she asked — \"really?!\" — yes..."
+  },
+  {
+    "id": "punctuation-dash-variants",
+    "category": "punctuation-edge",
+    "text": "... and ‒ also – and — and ―."
+  },
+  {
+    "id": "multiscript-greetings",
+    "category": "multiscript-stress",
+    "text": "Hello 你好 안녕 こんにちは नमस्ते مرحبا שלום สวัสดี Привет Καλημέρα."
+  },
+  {
+    "id": "multiscript-no-spaces",
+    "category": "multiscript-stress",
+    "text": "α你β안γनδस💫ع👋ש🚀ت∀∃∈⇒"
+  },
+  {
+    "id": "multiscript-zwj-mixed",
+    "category": "multiscript-stress",
+    "text": "中文한글日本語混👋합니다🎉text混合"
+  },
+  {
+    "id": "multiscript-string-concat",
+    "category": "multiscript-stress",
+    "text": "greeting=\"你好\"+🌍+\"안녕\"+नमस्ते+👨‍👩‍👧"
+  },
+  {
+    "id": "multiscript-emoji-arrows",
+    "category": "multiscript-stress",
+    "text": "Σ x_i 🇯🇵 ≠ 北京 → München · Tōkyō · 上海 ✨ end."
+  },
+  {
+    "id": "multiscript-arrow-chain",
+    "category": "multiscript-stress",
+    "text": "🚀नमस्ते→Привет→你好→안녕→مرحبا→❤️"
+  },
+  {
+    "id": "multiscript-function-call",
+    "category": "multiscript-stress",
+    "text": "foo(中文,한글,日本語,हिन्दी,русский)→{∀:∃,⊕:⊗}"
+  },
+  {
+    "id": "multiscript-legacy-symbols",
+    "category": "multiscript-stress",
+    "text": "№42 ™️ © ® ¶ § €¥£₿ Σ∀ 你好 안녕 ال"
+  },
+  {
+    "id": "escape-sequences-with-zwj",
+    "category": "escape-sequences",
+    "text": "NULL\\0and\\ttab\\nnewline混入‍ZWJ️selectors"
+  },
+  {
+    "id": "german-compound-short",
+    "category": "german-compound",
+    "text": "Natürlich. Deutsch zieht jetzt den Kompositahammer aus der Grammatikwerkzeugschublade. 😄"
+  },
+  {
+    "id": "german-compound-long-1",
+    "category": "german-compound",
+    "text": "Im Morgennebelgedankenverästelungswald stand ein Kaffeetassenrandphilosophiebeobachter neben einer Regenschirmvergesslichkeitsstation und notierte in sein Sonntagmorgenideenfangnotizbuch die erstaunliche Häufigkeit von Fensterbankstaubsonnenlichtreflexionen."
+  },
+  {
+    "id": "german-compound-long-2",
+    "category": "german-compound",
+    "text": "Neben ihm summte eine Kühlschrankinnenbeleuchtungserinnerungsmaschine, während ein Marmeladenglasdeckelöffnungsoptimierungsbeauftragter mit einer Treppenhausakustiküberraschungsanalyse beschäftigt war. Aus der Ferne näherte sich ein Wolkenkratzerfahrstuhlmusikkomponist auf einem Einradverkehrsregelmissachtungsgerät und rief: „Achtung, dort vorne liegt eine Gedankenfadenverknotungsgefahrensituation!“"
+  },
+  {
+    "id": "german-compound-long-3",
+    "category": "german-compound",
+    "text": "Plötzlich öffnete sich ein Zeitungsseitenumblätterwindstoßportal, und heraus purzelten drei Büroklammernsortierweltmeisterschaftsteilnehmerinnen, ein Gartenzwergmützenfarbenberater und ein hochgradig verwirrter Suppenlöffelreflexionsmetaphysiker. Gemeinsam gründeten sie den Bundesverband für Nachmittagslichtschattenkantenbetrachtung und improvisierte Sofakissenburgenverteidigungsstrategien."
+  },
+  {
+    "id": "german-compound-long-4",
+    "category": "german-compound",
+    "text": "Am Abend versammelten sich alle im Mondscheinfensterrahmenstaubglitzerzimmer, wo der Kaffeetassenrandphilosophiebeobachter eine feierliche Schlussrede über die Wichtigkeit von Unsinnsproduktionsfreude, Sprachmuskeldehnübungen und Donaudampfschifffahrtsgesellschaftskapitänsmützenknopfersatzteilbeschaffungsproblemen hielt."
+  },
+  {
+    "id": "german-compound-long-5",
+    "category": "german-compound",
+    "text": "Danach herrschte allgemeine Zufriedenheit, außer bei der Kühlschrankinnenbeleuchtungserinnerungsmaschine, die sich über mangelnde Türöffnungsaufmerksamkeitswertschätzung beklagte."
+  }
+]
