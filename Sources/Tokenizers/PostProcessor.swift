@@ -122,6 +122,7 @@ class RobertaProcessing: PostProcessor {
     }
 
     func postProcess(tokens: [String], tokensPair: [String]?, addSpecialTokens: Bool = true) -> [String] {
+        guard addSpecialTokens else { return tokens + (tokensPair ?? []) }
         var outTokens = tokens
         var tokensPair = tokensPair
         if trimOffset {
