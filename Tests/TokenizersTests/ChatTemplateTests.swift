@@ -181,10 +181,13 @@ struct ChatTemplateTests {
             messages: messages, chatTemplate: whitespaceSensitiveTemplate
         )
         let decoded = tokenizer.decode(tokens: encoded)
-        let expected = """
-            Describe the Swift programming language.
-            assistant
-            """
+        // The template ends with a `{% endif %}` block on its own line, so the
+        // rendered text legitimately ends with "\n". Phi's tokenizer encodes that
+        // trailing newline as a `<0x0A>` byte-fallback token; before
+        // `ByteFallbackDecoder` was fixed to flush its pending byte buffer at
+        // end-of-input, the trailing newline was silently dropped and this test
+        // appeared to pass on the truncated string.
+        let expected = "Describe the Swift programming language.\nassistant\n"
         #expect(decoded == expected)
         #expect(!decoded.hasPrefix("\n"))
         #expect(!decoded.contains("\n\n"))
