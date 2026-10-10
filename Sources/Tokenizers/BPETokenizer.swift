@@ -127,6 +127,9 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether the model declares SentencePiece byte fallback.
     let byteFallback: Bool
 
+    /// Whether a word found whole in the vocabulary is returned without applying merges.
+    let ignoreMerges: Bool
+
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config else { return nil }
 
@@ -191,6 +194,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
 
         fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
         byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
+        ignoreMerges = tokenizerData.model["ignoreMerges"].boolean() ?? false
     }
 
     /// Converts a token string to its corresponding numeric ID.
@@ -325,6 +329,10 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of BPE token strings
     func tokenize(text: String) -> [String] {
+        // As in `tokenizers`, the whole word is looked up before any merge.
+        if ignoreMerges, tokensToIds[text as NSString] != nil {
+            return [text]
+        }
         var tokens: [String] = []
         let bpeTokens = bpe(token: text)
         for token in bpeTokens {
