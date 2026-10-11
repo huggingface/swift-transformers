@@ -403,7 +403,7 @@ struct PreTokenizerTests {
                 "prepend_scheme": "always",
             ]))
         #expect(
-            always.preTokenize(text: "") == ["▁"]
+            always.preTokenize(text: "") == []
         )
 
         let never = MetaspacePreTokenizer(
@@ -437,5 +437,19 @@ struct PreTokenizerTests {
                 "Hey", ",", "friend", ",", "0", "99", "what", "\'", "s", "up", "?",
             ]
         )
+    }
+
+    @Test("Metaspace splits on code points when a combining mark follows a space")
+    func metaspaceCombiningMarks() {
+        let preTokenizer = MetaspacePreTokenizer(config: Config(["replacement": "▁", "prepend_scheme": "always"]))
+        #expect(preTokenizer.preTokenize(text: "a \u{0301}b") == ["▁a", "▁\u{0301}b"])
+        #expect(preTokenizer.preTokenize(text: "  \u{0301}") == ["▁", "▁\u{0301}"])
+        #expect(preTokenizer.preTokenize(text: "▁\u{0301}x") == ["▁\u{0301}x"])
+        #expect(preTokenizer.preTokenize(text: " \u{093E}") == ["▁\u{093E}"])
+        #expect(preTokenizer.preTokenize(text: "\u{2581}\u{0301}") == ["▁\u{0301}"])
+
+        let custom = MetaspacePreTokenizer(config: Config(["replacement": "_", "prepend_scheme": "always"]))
+        #expect(custom.preTokenize(text: "a \u{0301}b") == ["_a", "_\u{0301}b"])
+        #expect(custom.preTokenize(text: "_\u{0301}") == ["_\u{0301}"])
     }
 }

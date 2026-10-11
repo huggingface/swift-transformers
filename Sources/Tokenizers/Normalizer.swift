@@ -354,7 +354,7 @@ extension StringReplacePattern {
             )
             return replaced
         case let .string(toReplace, replacement):
-            return text.replacingOccurrences(of: toReplace, with: replacement)
+            return text.replacingOccurrences(of: toReplace, with: replacement, options: .literal)
         }
     }
 }

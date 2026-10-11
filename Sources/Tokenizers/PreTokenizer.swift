@@ -234,12 +234,13 @@ class MetaspacePreTokenizer: PreTokenizer {
     /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
     /// https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
+        guard !text.isEmpty else { return [] }
+        let normalized = text.replacingOccurrences(of: " ", with: stringReplacement, options: .literal)
 
         // Prepend the replacement character based on the prepend scheme.
         // prepend_scheme is the sole authority (add_prefix_space is resolved in init).
         var prepend = ""
-        if !normalized.hasPrefix(replacement) {
+        if !normalized.unicodeScalars.starts(with: replacement.unicodeScalars) {
             switch prependScheme {
             case .always:
                 prepend = stringReplacement
@@ -254,7 +255,24 @@ class MetaspacePreTokenizer: PreTokenizer {
 
         // Split in `MergedWithNext` mode, although usually the input to this function is already pre-tokenized
         // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L127
-        return (prepend + normalized).split(by: replacement, behavior: .mergedWithNext)
+        let separator = Array(replacement.unicodeScalars)
+        let scalars = Array((prepend + normalized).unicodeScalars)
+        var pieces: [String] = []
+        var start = 0
+        var index = 0
+        while index < scalars.count {
+            if !separator.isEmpty, scalars[index...].starts(with: separator) {
+                if index > start {
+                    pieces.append(String(String.UnicodeScalarView(scalars[start..<index])))
+                    start = index
+                }
+                index += separator.count
+            } else {
+                index += 1
+            }
+        }
+        if start < scalars.count { pieces.append(String(String.UnicodeScalarView(scalars[start...]))) }
+        return pieces
     }
 }
 
