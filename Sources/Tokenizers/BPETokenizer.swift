@@ -11,9 +11,7 @@ import Hub
 
 /// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
 ///
-/// Equality and hashing compare code units: `String` equality treats canonically
-/// equivalent strings (such as ";" and U+037E) as equal, which would let distinct
-/// merges overwrite each other's ranks.
+/// Equality and hashing compare code units as in the reference Rust library.
 struct BytePair: Hashable, Sendable {
     let a: String
     let b: String
