@@ -171,6 +171,7 @@ enum TokenizerModel {
         "TokenizersBackend": BPETokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self,
         "Qwen2Tokenizer": BPETokenizer.self,
+        "Qwen3_5Tokenizer": BPETokenizer.self,
         "WhisperTokenizer": BPETokenizer.self,
         "XLMRobertaTokenizer": UnigramTokenizer.self,
         "Xlm-RobertaTokenizer": UnigramTokenizer.self,
