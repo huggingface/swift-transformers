@@ -530,10 +530,15 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
         decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
-        cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
+
+        // Like transformers, skip the clean-up for BPE models
+        // Transformers breaking change: https://github.com/huggingface/transformers/pull/44915
+        let requested = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
+        let forceForBPE = tokenizerConfig.cleanUpTokenizationSpacesForBpeEvenThoughItWillCorruptOutput.boolean(or: false)
+        cleanUpTokenizationSpaces = requested && (!(model is BPETokenizer) || forceForBPE)
     }
 
     private func compiledTemplate(for templateString: String) throws -> Template {
