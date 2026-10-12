@@ -122,8 +122,8 @@ struct PreTokenizerTests {
     }
 
     @Test("Split pre-tokenizer with string and regex patterns")
-    func splitPreTokenizer() {
-        let preTokenizer1 = SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
+    func splitPreTokenizer() throws {
+        let preTokenizer1 = try SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
         #expect(
             preTokenizer1.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
@@ -139,7 +139,7 @@ struct PreTokenizerTests {
             ]
         )
 
-        let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
+        let preTokenizer2 = try SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
         #expect(
             preTokenizer2.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
@@ -155,7 +155,7 @@ struct PreTokenizerTests {
             ]
         )
 
-        let preTokenizer3 = SplitPreTokenizer(
+        let preTokenizer3 = try SplitPreTokenizer(
             config: Config([
                 "pattern": [
                     "Regex":
@@ -177,10 +177,10 @@ struct PreTokenizerTests {
     }
 
     @Test("Split with a regex matches on code points, not grapheme clusters")
-    func splitRegexCodePoints() {
+    func splitRegexCodePoints() throws {
         // Split pattern of ibm-granite/granite-embedding-97m-multilingual-r2. Expected pieces from tokenizers 0.23.2.
         let pattern = #"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+(?i:'s|'t|'re|'ve|'m|'ll|'d)?|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*(?i:'s|'t|'re|'ve|'m|'ll|'d)?|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+"#
-        let preTokenizer = SplitPreTokenizer(
+        let preTokenizer = try SplitPreTokenizer(
             config: Config(["pattern": ["Regex": pattern], "behavior": "Isolated", "invert": false])
         )
         let cases: [(text: String, pieces: [String])] = [

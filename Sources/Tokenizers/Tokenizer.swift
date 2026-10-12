@@ -26,6 +26,7 @@ public enum TokenizerError: LocalizedError {
     case missingChatTemplate
     case tooLong(String)
     case mismatchedConfig(String)
+    case invalidRegex(pattern: String, underlyingError: Error)
 
     public var errorDescription: String? {
         switch self {
@@ -45,6 +46,8 @@ public enum TokenizerError: LocalizedError {
             String(localized: "This tokenizer does not have a chat template, and no template was passed.")
         case let .tooLong(message):
             String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
+        case let .invalidRegex(pattern, underlyingError):
+            "Unable to compile tokenizer regex \(String(reflecting: pattern)): \(underlyingError.localizedDescription)"
         case let .mismatchedConfig(message):
             String(localized: "Tokenizer configuration mismatch: \(message)", comment: "Error when tokenizer configuration is inconsistent")
         }
@@ -526,7 +529,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
 
-        preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
+        preTokenizer = try PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
         normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
         decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)

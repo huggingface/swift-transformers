@@ -3,28 +3,28 @@ import Foundation
 import struct Hub.Config
 
 enum StringSplitPattern {
-    /// `nil` when the pattern does not compile.
-    case regexp(regexp: NSRegularExpression?)
+    case regexp(regexp: NSRegularExpression)
     case string(pattern: String)
 
     func split(_ text: String, invert: Bool = true) -> [String] {
         switch self {
-        case let .regexp(regexp?):
+        case let .regexp(regexp):
             text.split(isolating: regexp)
-        case .regexp(nil):
-            // An invalid regex matches nothing, so the text stays whole, as before.
-            text.isEmpty ? [] : [text]
         case let .string(substring):
             text.split(by: substring, options: [], includeSeparators: !invert)
         }
     }
 
-    static func from(config: Config) -> StringSplitPattern? {
+    static func from(config: Config) throws -> StringSplitPattern? {
         if let pattern = config.pattern.String.string() {
             return .string(pattern: pattern)
         }
         if let pattern = config.pattern.Regex.string() {
-            return .regexp(regexp: try? NSRegularExpression(pattern: pattern))
+            do {
+                return .regexp(regexp: try NSRegularExpression(pattern: pattern))
+            } catch {
+                throw TokenizerError.invalidRegex(pattern: pattern, underlyingError: error)
+            }
         }
         return nil
     }
