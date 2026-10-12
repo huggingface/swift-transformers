@@ -10,7 +10,8 @@ struct RegexCompilationTests {
     func invalidRegex(nested: Bool) throws {
         let pattern = "["
         let split = Config(["type": "Split", "pattern": ["Regex": Config(pattern)]])
-        let preTokenizer = nested
+        let preTokenizer =
+            nested
             ? Config(["type": "Sequence", "pretokenizers": [split]])
             : split
         let data = Config([
