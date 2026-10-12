@@ -384,8 +384,8 @@ struct TokenizerTests {
         let encoded = tokenizer.encode(text: text)
         #expect(encoded == [101, 1048, 1005, 7327, 2890, 102])
         let decoded = tokenizer.decode(tokens: encoded, skipSpecialTokens: true)
-        // Note: this matches the behaviour of the Python "slow" tokenizer, but the fast one produces "l ' eure"
-        #expect(decoded == "l'eure")
+        // Matches Transformers 5.19.0 with its default cleanup setting.
+        #expect(decoded == "l ' eure")
 
         // Reading added_tokens from tokenizer.json
         #expect(tokenizer.convertTokenToId("[PAD]") == 0)

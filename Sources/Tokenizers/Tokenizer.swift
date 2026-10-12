@@ -536,7 +536,7 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
 
         // Like transformers, skip the clean-up for BPE models
         // Transformers breaking change: https://github.com/huggingface/transformers/pull/44915
-        let requested = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
+        let requested = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: false)
         let forceForBPE = tokenizerConfig.cleanUpTokenizationSpacesForBpeEvenThoughItWillCorruptOutput.boolean(or: false)
         cleanUpTokenizationSpaces = requested && (!(model is BPETokenizer) || forceForBPE)
     }
