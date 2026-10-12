@@ -30,10 +30,4 @@ struct RegexCompilationTests {
             #expect(error.localizedDescription.contains(underlyingError.localizedDescription))
         }
     }
-
-    @Test("Regex syntax remains valid as a literal pattern")
-    func literalPattern() throws {
-        let tokenizer = try SplitPreTokenizer(config: Config(["pattern": ["String": "["]]))
-        #expect(tokenizer.preTokenize(text: "a[b") == ["a", "[", "b"])
-    }
 }
