@@ -533,9 +533,8 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
 
-        // Like transformers, skip the clean-up for BPE models: it was written for WordPiece and
-        // deletes legitimate spaces before punctuation, so decode(encode(text)) stops returning
-        // the text. transformers keeps an explicit escape hatch with the same name.
+        // Like transformers, skip the clean-up for BPE models
+        // Transformers breaking change: https://github.com/huggingface/transformers/pull/44915
         let requested = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
         let forceForBPE = tokenizerConfig.cleanUpTokenizationSpacesForBpeEvenThoughItWillCorruptOutput.boolean(or: false)
         cleanUpTokenizationSpaces = requested && (!(model is BPETokenizer) || forceForBPE)
