@@ -176,6 +176,31 @@ struct PreTokenizerTests {
         )
     }
 
+    @Test("Split with a regex matches on code points, not grapheme clusters")
+    func splitRegexCodePoints() {
+        // Split pattern of ibm-granite/granite-embedding-97m-multilingual-r2. Expected pieces from tokenizers 0.23.2.
+        let pattern = #"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+(?i:'s|'t|'re|'ve|'m|'ll|'d)?|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*(?i:'s|'t|'re|'ve|'m|'ll|'d)?|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+"#
+        let preTokenizer = SplitPreTokenizer(
+            config: Config(["pattern": ["Regex": pattern], "behavior": "Isolated", "invert": false])
+        )
+        let cases: [(text: String, pieces: [String])] = [
+            ("0\u{FE0F}\u{20E3}", ["0", "\u{FE0F}\u{20E3}"]),
+            ("#\u{FE0F}\u{20E3}", ["#\u{FE0F}\u{20E3}"]),
+            ("0\u{20E3}", ["0", "\u{20E3}"]),
+            ("Reading\nCongratulations", ["Reading", "\n", "Congratulations"]),
+            ("Reading\n\nCongratulations", ["Reading", "\n\n", "Congratulations"]),
+            ("Reading \nCongratulations", ["Reading", " \n", "Congratulations"]),
+            ("Reading.\nCongratulations", ["Reading", ".\n", "Congratulations"]),
+            ("Reading\nFortunately", ["Reading", "\n", "Fortunately"]),
+            ("line.\r\nThis", ["line", ".\r\n", "This"]),
+            ("reading\ncongratulations", ["reading", "\n", "congratulations"]),
+            ("1\u{301}x", ["1", "\u{301}x"]),
+        ]
+        for (text, pieces) in cases {
+            #expect(preTokenizer.preTokenize(text: text) == pieces, "\(text.debugDescription)")
+        }
+    }
+
     @Test("Split behavior merged with previous")
     func splitBehaviorMergedWithPrevious() {
         #expect(

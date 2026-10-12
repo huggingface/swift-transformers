@@ -252,6 +252,30 @@ struct TokenizerTests {
         #expect(tokenizer.encode(text: "สวัส") == [1, 29871, 30547, 30492, 30510, 30547])
     }
 
+    @Test
+    func graniteSplitRegexCodePoints() async throws {
+        let tokenizer = try await AutoTokenizer.from(
+            pretrained: "ibm-granite/granite-embedding-97m-multilingual-r2",
+            revision: "835ad14087e140460703cf0fae09f97d469d65c2",
+            hubApi: hubApiForTests
+        )
+
+        // tokenizers 0.23.2 keeps ".\r\n" in one piece (5569). Matching on grapheme clusters gave "." and "\r\n" (13, 330).
+        #expect(tokenizer.encode(text: "line.\r\nThis") == [179934, 1090, 5569, 2443, 179938])
+    }
+
+    @Test
+    func llama32SplitRegexCodePoints() async throws {
+        let tokenizer = try await AutoTokenizer.from(
+            pretrained: "pcuenq/Llama-3.2-1B-Instruct-tokenizer",
+            revision: "d78f8d20ca509140987707789acdb63ad259beb9",
+            hubApi: hubApiForTests
+        )
+
+        // tokenizers 0.23.2 keeps ".\r\n" in one piece (3304). Matching on grapheme clusters gave "." and "\r\n" (13, 319).
+        #expect(tokenizer.encode(text: "line.\r\nThis") == [128000, 1074, 3304, 2028])
+    }
+
     /// https://github.com/huggingface/swift-transformers/issues/99
     @Test
     func robertaXLMTokenizer() async throws {
