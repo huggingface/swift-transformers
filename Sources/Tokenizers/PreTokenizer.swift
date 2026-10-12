@@ -255,24 +255,7 @@ class MetaspacePreTokenizer: PreTokenizer {
 
         // Split in `MergedWithNext` mode, although usually the input to this function is already pre-tokenized
         // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L127
-        let separator = Array(replacement.unicodeScalars)
-        let scalars = Array((prepend + normalized).unicodeScalars)
-        var pieces: [String] = []
-        var start = 0
-        var index = 0
-        while index < scalars.count {
-            if !separator.isEmpty, scalars[index...].starts(with: separator) {
-                if index > start {
-                    pieces.append(String(String.UnicodeScalarView(scalars[start..<index])))
-                    start = index
-                }
-                index += separator.count
-            } else {
-                index += 1
-            }
-        }
-        if start < scalars.count { pieces.append(String(String.UnicodeScalarView(scalars[start...]))) }
-        return pieces
+        return (prepend + normalized).split(byLiteral: replacement, behavior: .mergedWithNext)
     }
 }
 

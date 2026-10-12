@@ -134,6 +134,13 @@ extension String {
         return result
     }
 
+    /// Splits on an exact literal, including matches inside a grapheme cluster.
+    /// An empty delimiter leaves nonempty input intact.
+    func split(byLiteral delimiter: String, behavior: SplitDelimiterBehavior) -> [String] {
+        guard !delimiter.isEmpty else { return isEmpty ? [] : [self] }
+        return split(by: delimiter, options: .literal, behavior: behavior)
+    }
+
     func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {
         func mergedWithNext(ranges: [Range<String.Index>]) -> [Range<String.Index>] {
             var merged: [Range<String.Index>] = []
