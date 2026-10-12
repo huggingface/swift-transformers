@@ -148,4 +148,18 @@ struct DecoderTests {
         let never = MetaspaceDecoder(config: Config(["replacement": "▁", "prepend_scheme": "never"]))
         #expect(never.decode(tokens: ["▁\u{0301}x"]) == [" \u{0301}x"])
     }
+
+    @Test("Metaspace decoder treats markers as exact literals")
+    func metaspaceDecoderLiteralMarkers() {
+        let exact = MetaspaceDecoder(config: Config(["replacement": ";", "prepend_scheme": "never"]))
+        #expect(exact.decode(tokens: ["a;b\u{037E}c"]) == ["a b\u{037E}c"])
+
+        let multiScalar = MetaspaceDecoder(config: Config(["replacement": ".*", "prepend_scheme": "always"]))
+        #expect(multiScalar.decode(tokens: [".*a.*b", ".*c"]) == ["ab", " c"])
+
+        let empty = MetaspaceDecoder(config: Config(["replacement": "", "prepend_scheme": "never"]))
+        #expect(empty.decode(tokens: ["abc", ""]) == ["abc", ""])
+        #expect(empty.decode(tokens: []).isEmpty)
+    }
+
 }
