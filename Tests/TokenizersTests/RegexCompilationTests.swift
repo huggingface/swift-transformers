@@ -31,4 +31,30 @@ struct RegexCompilationTests {
             #expect(error.localizedDescription.contains(underlyingError.localizedDescription))
         }
     }
+
+    @Test(
+        "Invalid Replace regex fails tokenizer initialization",
+        arguments: [("normalizer", false), ("normalizer", true), ("decoder", false), ("decoder", true)]
+    )
+    func invalidReplaceRegex(component: String, nested: Bool) throws {
+        let pattern = "("
+        let replace = Config(["type": "Replace", "pattern": ["Regex": Config(pattern)], "content": " "])
+        let sequenceKey = component == "normalizer" ? "normalizers" : "decoders"
+        let config =
+            nested
+            ? Config(["type": "Sequence", BinaryDistinctString(sequenceKey): [replace]])
+            : replace
+        let data = Config([
+            "model": ["type": "WordPiece", "vocab": ["hello": 0]],
+            BinaryDistinctString(component): config,
+        ])
+        do {
+            _ = try AutoTokenizer.from(
+                tokenizerConfig: Config(["tokenizer_class": "BertTokenizer"]), tokenizerData: data
+            )
+            Issue.record("Expected regex compilation to fail")
+        } catch let TokenizerError.invalidRegex(actualPattern, _) {
+            #expect(actualPattern == pattern)
+        }
+    }
 }
