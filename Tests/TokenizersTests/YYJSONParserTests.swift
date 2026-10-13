@@ -70,7 +70,6 @@ struct YYJSONParserTests {
         #expect(config["emptyArray"].array()?.isEmpty == true)
     }
 
-
     @Test
     func throwsOnInvalidJSON() {
         let invalidJSON = Data("not valid json".utf8)
