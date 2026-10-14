@@ -13,12 +13,16 @@ From this directory:
 swift package --disable-sandbox benchmark
 ```
 
-The suite measures local tokenizer loading, encoding a short sentence, encoding
-100 repetitions of that sentence, and decoding the longer input. It covers
+The suite measures local tokenizer loading, encoding a short prompt, a paragraph
+repeated 2 and 20 times, and code with long identifiers, plus decoding the longer
+input. All inputs come from `Tests/Benchmarks/BPETokenizerBenchmarkTests.swift`. It covers
 WordPiece (`sentence-transformers/all-MiniLM-L6-v2`), BPE
 (`mlx-community/Qwen3-0.6B-Base-DQ5`), and Unigram (`FacebookAI/xlm-roberta-base`).
 
-Setup downloads only `tokenizer.json` and `tokenizer_config.json` from the
+Each model is pinned to a commit SHA in the benchmark source so comparisons use
+the same tokenizer files. Record new baselines when changing revisions or inputs.
+
+Setup downloads only `config.json`, `tokenizer.json`, and `tokenizer_config.json` from the
 Hugging Face Hub and caches them locally. Downloads happen outside measurement;
 the load benchmarks read the cached files, and encode/decode benchmarks reuse a
 tokenizer loaded during setup. Decode input tokens are also prepared in setup.

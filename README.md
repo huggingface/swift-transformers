@@ -210,6 +210,9 @@ To format your code, run `swift format -i --recursive .`.
 
 See [Benchmarks](Benchmarks/README.md) for standalone tokenizer benchmarks and
 commands to record and compare performance baselines.
+The existing `Tests/Benchmarks` suite covers internal hot paths and input scaling;
+run it with `RUN_BENCHMARKS=1 swift test --filter Benchmarks`. It prints timing
+statistics and will be folded into the standalone package in a follow-up.
 
 ## License
 
