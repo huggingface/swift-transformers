@@ -738,6 +738,10 @@ public extension HubApi {
         let repoMetadataDestination: URL
         let relativeFilename: String
         let backgroundSession: Bool
+        /// Remote metadata pre-fetched by the caller (e.g. `snapshot` weights
+        /// per-file progress by size). When set, `download` reuses it instead
+        /// of issuing a second `getFileMetadata` request for the same file.
+        var remoteMetadata: FileMetadata? = nil
 
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
@@ -777,7 +781,12 @@ public extension HubApi {
         @discardableResult
         func download(progressHandler: @escaping (Double, Double?) -> Void) async throws -> URL {
             let localMetadata = try hub.readDownloadMetadata(metadataPath: metadataDestination)
-            let remoteMetadata = try await hub.getFileMetadata(url: source)
+            let remoteMetadata: FileMetadata
+            if let prefetched = self.remoteMetadata {
+                remoteMetadata = prefetched
+            } else {
+                remoteMetadata = try await hub.getFileMetadata(url: source)
+            }
 
             let localCommitHash = localMetadata?.commitHash ?? ""
             let remoteCommitHash = remoteMetadata.commitHash ?? ""
@@ -939,10 +948,16 @@ public extension HubApi {
         }
 
         let filenames = try await getFilenames(from: repo, revision: revision, matching: globs)
-        let progress = Progress(totalUnitCount: Int64(filenames.count))
+
+        // Weight per-file progress by byte size rather than file count, so the
+        // aggregate `progress` reflects real download work: a multi-GB weight
+        // shard no longer counts the same as a tiny config.json. Metadata is
+        // fetched once here (reusing each downloader's own `source` URL) and
+        // handed to `download` so it isn't fetched a second time per file.
+        var downloaders: [(downloader: HubFileDownloader, weight: Int64)] = []
+        downloaders.reserveCapacity(filenames.count)
         for filename in filenames {
-            let fileProgress = Progress(totalUnitCount: 100, parent: progress, pendingUnitCount: 1)
-            let downloader = HubFileDownloader(
+            var downloader = HubFileDownloader(
                 hub: self,
                 repo: repo,
                 revision: revision,
@@ -951,9 +966,20 @@ public extension HubApi {
                 relativeFilename: filename,
                 backgroundSession: useBackgroundSession
             )
+            let metadata = try await getFileMetadata(url: downloader.source)
+            downloader.remoteMetadata = metadata
+            // Files with unknown size contribute a minimal weight so they still
+            // advance progress without dominating it.
+            downloaders.append((downloader, Int64(max(metadata.size ?? 1, 1))))
+        }
+
+        let totalWeight = downloaders.reduce(Int64(0)) { $0 + $1.weight }
+        let progress = Progress(totalUnitCount: max(totalWeight, 1))
+        for (downloader, weight) in downloaders {
+            let fileProgress = Progress(totalUnitCount: weight, parent: progress, pendingUnitCount: weight)
 
             try await downloader.download { fractionDownloaded, speed in
-                fileProgress.completedUnitCount = Int64(100 * fractionDownloaded)
+                fileProgress.completedUnitCount = Int64(Double(weight) * fractionDownloaded)
                 if let speed {
                     fileProgress.setUserInfoObject(speed, forKey: .throughputKey)
                     progress.setUserInfoObject(speed, forKey: .throughputKey)
@@ -967,7 +993,7 @@ public extension HubApi {
                 return repoDestination
             }
 
-            fileProgress.completedUnitCount = 100
+            fileProgress.completedUnitCount = weight
         }
 
         progressHandler(progress)
