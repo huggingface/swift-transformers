@@ -242,6 +242,28 @@ struct TokenizerTests {
 
         #expect(tokenizer.encode(text: "1️⃣") == [209, 2, 1])
     }
+
+    /// T5's `Precompiled` normalizer uses the model's `precompiled_charsmap`.
+    /// Expected ids from `tokenizers` 0.23.2.
+    @Test
+    func t5PrecompiledCharsmap() async throws {
+        let tokenizerOpt = try await AutoTokenizer.from(pretrained: "google-t5/t5-small") as? PreTrainedTokenizer
+        #expect(tokenizerOpt != nil)
+        let tokenizer = tokenizerOpt!
+
+        // The charsmap maps these, as NFKC does.
+        #expect(tokenizer.encode(text: "™\u{1E}g") == [3, 2305, 122, 1])
+        #expect(tokenizer.encode(text: "ｈｅｌｌｏ ～ world") == [21820, 3, 2, 296, 1])
+        // Newer compatibility characters that the charsmap leaves alone; NFKC would
+        // map them to "C", "0" and "A", depending on the OS's Unicode version.
+        #expect(tokenizer.encode(text: "\u{A7F2}") == [3, 2, 1])
+        #expect(tokenizer.encode(text: "\u{1FBF0}") == [3, 2, 1])
+        #expect(tokenizer.encode(text: "\u{1CCD6}") == [3, 2, 1])
+        // A grapheme cluster under 6 UTF-8 bytes is replaced as a whole when a prefix of
+        // it is in the charsmap: "\u{2581}\u{0301}" becomes a single space.
+        #expect(tokenizer.encode(text: "\u{2581}\u{0301}x") == [3, 226, 1])
+        #expect(tokenizer.encode(text: "caf\u{2581}\u{0301}") == [212, 89, 1])
+    }
     /// https://github.com/huggingface/swift-transformers/issues/352 (Bug 4)
     @Test
     func llama7bCombiningMarks() async throws {
