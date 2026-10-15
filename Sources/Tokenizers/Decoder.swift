@@ -29,7 +29,8 @@ public protocol Decoder {
     /// Initializes the decoder from configuration.
     ///
     /// - Parameter config: The configuration for this decoder
-    init(config: Config)
+    /// - Throws: An error if a configured regular expression cannot be compiled.
+    init(config: Config) throws
 }
 
 extension Decoder {
@@ -51,15 +52,15 @@ enum DecoderType: String {
 }
 
 struct DecoderFactory {
-    static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
+    static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) throws -> Decoder? {
         // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
         guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
-        case .Sequence: return DecoderSequence(config: config)
+        case .Sequence: return try DecoderSequence(config: config)
         case .ByteLevel: return ByteLevelDecoder(config: config, addedTokens: addedTokens)
-        case .Replace: return ReplaceDecoder(config: config)
+        case .Replace: return try ReplaceDecoder(config: config)
         case .ByteFallback: return ByteFallbackDecoder(config: config)
         case .Fuse: return FuseDecoder(config: config)
         case .Strip: return StripDecoder(config: config)
@@ -103,9 +104,9 @@ class WordPieceDecoder: Decoder {
 class DecoderSequence: Decoder {
     let decoders: [Decoder]
 
-    required init(config: Config) {
+    required init(config: Config) throws {
         guard let configs = config.decoders.array() else { fatalError("No decoders in Sequence") }
-        decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
+        decoders = try configs.compactMap { try DecoderFactory.fromConfig(config: $0) }
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -160,8 +161,8 @@ class ByteLevelDecoder: Decoder {
 class ReplaceDecoder: Decoder {
     let pattern: StringReplacePattern?
 
-    required init(config: Config) {
-        pattern = StringReplacePattern.from(config: config)
+    required init(config: Config) throws {
+        pattern = try StringReplacePattern.from(config: config)
     }
 
     func decode(tokens: [String]) -> [String] {
