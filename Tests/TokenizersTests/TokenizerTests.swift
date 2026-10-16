@@ -114,6 +114,12 @@ struct TokenizerTests {
 
         #expect(tokenizer.tokenize(text: dataset.text) == dataset.bpe_tokens)
         #expect(tokenizer.encode(text: dataset.text) == dataset.token_ids)
+        let encoding = tokenizer.encodeWithOffsets(text: dataset.text)
+        #expect(encoding.map(\.id) == dataset.token_ids)
+        #expect(encoding.allSatisfy { tokenizer.convertTokenToId($0.token) == $0.id })
+        if let span = encoding.first(where: { $0.span != nil })?.span {
+            #expect(!String(encoding.text[span]).isEmpty)
+        }
         #expect(tokenizer.decode(tokens: dataset.token_ids) == dataset.decoded_text)
 
         // Edge cases (if available)
