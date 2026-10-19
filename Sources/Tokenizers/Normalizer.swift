@@ -310,8 +310,19 @@ class PrecompiledNormalizer: Normalizer {
 class StripAccentsNormalizer: Normalizer {
     required init(config: Config) {}
 
+    /// Removes combining marks (Unicode general category M), like `StripAccents` in Rust `tokenizers`.
+    /// Precomposed characters are kept, so it is usually preceded by an `NFD` normalizer.
     func normalize(text: String) -> String {
-        text.precomposedStringWithCompatibilityMapping
+        String(
+            String.UnicodeScalarView(
+                text.unicodeScalars.filter {
+                    switch $0.properties.generalCategory {
+                    case .nonspacingMark, .spacingMark, .enclosingMark: false
+                    default: true
+                    }
+                }
+            )
+        )
     }
 }
 
