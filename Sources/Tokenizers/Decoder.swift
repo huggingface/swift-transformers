@@ -199,6 +199,10 @@ class ByteFallbackDecoder: Decoder {
                 newTokens.append(token)
             }
         }
+        if !byteTokens.isEmpty {
+            let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
+            newTokens.append(String(decoding: codeUnits, as: UTF8.self))
+        }
         return newTokens
     }
 }
