@@ -28,15 +28,16 @@ struct ByteFallbackEndOfInputTests {
     }
 
     private func pipeline() -> Config {
-        Config([
-            "type": "Sequence",
-            "decoders": [
-                ["type": "Replace", "pattern": ["String": "▁"], "content": " "],
-                ["type": "ByteFallback"],
-                ["type": "Fuse"],
-                ["type": "Strip", "content": " ", "start": 0, "stop": 1],
-            ],
-        ] as [NSString: Any])
+        Config(
+            [
+                "type": "Sequence",
+                "decoders": [
+                    ["type": "Replace", "pattern": ["String": "▁"], "content": " "],
+                    ["type": "ByteFallback"],
+                    ["type": "Fuse"],
+                    ["type": "Strip", "content": " ", "start": 0, "stop": 1],
+                ],
+            ] as [NSString: Any])
     }
 
     @Test("A terminal byte-spelled space still passes through downstream Fuse and Strip")
@@ -49,25 +50,29 @@ struct ByteFallbackEndOfInputTests {
 
     @Test("PreTrainedTokenizer preserves terminal bytes, special-token filtering and configured cleanup")
     func configuredTokenizer() throws {
-        let config = Config([
-            "tokenizer_class": "PreTrainedTokenizerFast",
-            "unk_token": "<unk>",
-            "eos_token": "</s>",
-            "clean_up_tokenization_spaces": false,
-        ] as [NSString: Any])
-        let data = Config([
-            "added_tokens": [
-                ["id": 0, "content": "<unk>", "special": true],
-                ["id": 1, "content": "</s>", "special": true],
-            ],
-            "decoder": pipeline(),
-            "model": [
-                "type": "BPE", "unk_token": "<unk>", "byte_fallback": true,
-                "vocab": ["<unk>": 0, "</s>": 1, "a": 2, "▁": 3,
-                          "<0x20>": 4, "<0xF0>": 5, "<0x9F>": 6, "<0x98>": 7, "<0x80>": 8],
-                "merges": [String](),
-            ],
-        ] as [NSString: Any])
+        let config = Config(
+            [
+                "tokenizer_class": "PreTrainedTokenizerFast",
+                "unk_token": "<unk>",
+                "eos_token": "</s>",
+                "clean_up_tokenization_spaces": false,
+            ] as [NSString: Any])
+        let data = Config(
+            [
+                "added_tokens": [
+                    ["id": 0, "content": "<unk>", "special": true],
+                    ["id": 1, "content": "</s>", "special": true],
+                ],
+                "decoder": pipeline(),
+                "model": [
+                    "type": "BPE", "unk_token": "<unk>", "byte_fallback": true,
+                    "vocab": [
+                        "<unk>": 0, "</s>": 1, "a": 2, "▁": 3,
+                        "<0x20>": 4, "<0xF0>": 5, "<0x9F>": 6, "<0x98>": 7, "<0x80>": 8,
+                    ],
+                    "merges": [String](),
+                ],
+            ] as [NSString: Any])
         let tokenizer = try PreTrainedTokenizer(tokenizerConfig: config, tokenizerData: data)
         #expect(tokenizer.decode(tokens: [5, 6, 7, 8]) == "😀")
         #expect(tokenizer.decode(tokens: [4]) == tokenizer.decode(tokens: [3]))
