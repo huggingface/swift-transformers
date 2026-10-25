@@ -531,9 +531,9 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         self.addedTokens = Set(addedTokens.keys)
 
         preTokenizer = try PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
-        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
+        normalizer = try NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
-        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
+        decoder = try DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
@@ -635,10 +635,12 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
             } else {
                 [text]
             }
-        return sections.enumerated().map { section, x in
+        // Unknown tokens are fused per pre-tokenized word, as the `tokenizers` models do:
+        // unknowns from adjacent words stay separate.
+        return sections.enumerated().flatMap { section, x in
             if addedTokens.contains(x) { return [x] }
-            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
-        }.flatMap { fuseUnknown($0) }
+            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { fuseUnknown(model($0)) }
+        }
     }
 
     /// Encodes input text into token IDs with optional special token handling.

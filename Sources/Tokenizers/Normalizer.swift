@@ -29,7 +29,8 @@ public protocol Normalizer {
     /// Initializes the normalizer from configuration.
     ///
     /// - Parameter config: The configuration for this normalizer
-    init(config: Config)
+    /// - Throws: An error if a configured regular expression cannot be compiled.
+    init(config: Config) throws
 }
 
 extension Normalizer {
@@ -56,14 +57,14 @@ enum NormalizerType: String {
 }
 
 struct NormalizerFactory {
-    static func fromConfig(config: Config?) -> Normalizer? {
+    static func fromConfig(config: Config?) throws -> Normalizer? {
         guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = NormalizerType(rawValue: typeName)
         switch type {
-        case .Sequence: return NormalizerSequence(config: config)
+        case .Sequence: return try NormalizerSequence(config: config)
         case .Prepend: return PrependNormalizer(config: config)
-        case .Replace: return ReplaceNormalizer(config: config)
+        case .Replace: return try ReplaceNormalizer(config: config)
         case .Lowercase: return LowercaseNormalizer(config: config)
         case .NFD: return NFDNormalizer(config: config)
         case .NFC: return NFCNormalizer(config: config)
@@ -81,11 +82,11 @@ struct NormalizerFactory {
 class NormalizerSequence: Normalizer {
     let normalizers: [Normalizer]
 
-    required init(config: Config) {
+    required init(config: Config) throws {
         guard let configs = config.normalizers.array() else {
             fatalError("No normalizers in Sequence")
         }
-        normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
+        normalizers = try configs.compactMap { try NormalizerFactory.fromConfig(config: $0) }
     }
 
     func normalize(text: String) -> String {
@@ -110,8 +111,8 @@ class PrependNormalizer: Normalizer {
 class ReplaceNormalizer: Normalizer {
     let pattern: StringReplacePattern?
 
-    required init(config: Config) {
-        pattern = StringReplacePattern.from(config: config)
+    required init(config: Config) throws {
+        pattern = try StringReplacePattern.from(config: config)
     }
 
     func normalize(text: String) -> String {
@@ -386,8 +387,19 @@ class PrecompiledNormalizer: Normalizer {
 class StripAccentsNormalizer: Normalizer {
     required init(config: Config) {}
 
+    /// Removes combining marks (Unicode general category M), like `StripAccents` in Rust `tokenizers`.
+    /// Precomposed characters are kept, so it is usually preceded by an `NFD` normalizer.
     func normalize(text: String) -> String {
-        text.precomposedStringWithCompatibilityMapping
+        String(
+            String.UnicodeScalarView(
+                text.unicodeScalars.filter {
+                    switch $0.properties.generalCategory {
+                    case .nonspacingMark, .spacingMark, .enclosingMark: false
+                    default: true
+                    }
+                }
+            )
+        )
     }
 }
 
@@ -436,16 +448,17 @@ extension StringReplacePattern {
 }
 
 extension StringReplacePattern {
-    static func from(config: Config) -> StringReplacePattern? {
+    static func from(config: Config) throws -> StringReplacePattern? {
         guard let replacement = config.content.string() else { return nil }
         if let pattern = config.pattern.String.string() {
             return StringReplacePattern.string(pattern: pattern, replacement: replacement)
         }
         if let pattern = config.pattern.Regex.string() {
-            guard let regexp = try? NSRegularExpression(pattern: pattern, options: []) else {
-                fatalError("Cannot build regexp from \(pattern)")
+            do {
+                return StringReplacePattern.regexp(regexp: try NSRegularExpression(pattern: pattern), replacement: replacement)
+            } catch {
+                throw TokenizerError.invalidRegex(pattern: pattern, underlyingError: error)
             }
-            return StringReplacePattern.regexp(regexp: regexp, replacement: replacement)
         }
         return nil
     }

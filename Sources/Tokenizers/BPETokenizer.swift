@@ -196,7 +196,8 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         bosToken = addedTokenAsString(tokenizerConfig.bosToken)
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
-        fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
+        // `fuse_unk` is a model setting in tokenizer.json; tokenizer_config.json files don't carry it.
+        fuseUnknownTokens = tokenizerData.model["fuseUnk"].boolean() ?? tokenizerConfig.fuseUnk.boolean(or: false)
         byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
         ignoreMerges = tokenizerData.model["ignoreMerges"].boolean() ?? false
     }
