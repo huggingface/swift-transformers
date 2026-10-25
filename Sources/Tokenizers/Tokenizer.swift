@@ -531,9 +531,9 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         self.addedTokens = Set(addedTokens.keys)
 
         preTokenizer = try PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
-        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
+        normalizer = try NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
-        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
+        decoder = try DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
