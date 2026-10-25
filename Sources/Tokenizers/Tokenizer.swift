@@ -27,6 +27,7 @@ public enum TokenizerError: LocalizedError {
     case tooLong(String)
     case mismatchedConfig(String)
     case invalidRegex(pattern: String, underlyingError: Error)
+    case malformedPrecompiledCharsmap(String)
 
     public var errorDescription: String? {
         switch self {
@@ -48,6 +49,8 @@ public enum TokenizerError: LocalizedError {
             String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
         case let .invalidRegex(pattern, underlyingError):
             "Unable to compile tokenizer regex \(String(reflecting: pattern)): \(underlyingError.localizedDescription)"
+        case let .malformedPrecompiledCharsmap(reason):
+            String(localized: "The precompiled_charsmap is malformed: \(reason)", comment: "Error when the SentencePiece precompiled_charsmap cannot be decoded")
         case let .mismatchedConfig(message):
             String(localized: "Tokenizer configuration mismatch: \(message)", comment: "Error when tokenizer configuration is inconsistent")
         }
