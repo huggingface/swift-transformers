@@ -217,23 +217,30 @@ struct NormalizerTests {
 
     @Test("Strip accents normalizer functionality")
     func stripAccentsNormalizer() throws {
+        // Expected values match `normalizers.StripAccents()` in Rust `tokenizers` 0.23.3.
         let testCases: [(String, String)] = [
             ("café", "café"),
-            ("François", "François"),
+            ("cafe\u{0301}", "cafe"),
+            ("Franc\u{0327}ois", "Francois"),
             ("Ωmega", "Ωmega"),
-            ("über", "über"),
-            ("háček", "háček"),
-            ("Häagen-Dazs", "Häagen-Dazs"),
+            ("u\u{0308}ber", "uber"),
+            ("ha\u{0301}c\u{030C}ek", "hacek"),
             ("你好!", "你好!"),
-            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "ABC⓵⓶⓷{,},i9,i9,アパート,1⁄4"),
+            ("𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼", "𝔄𝔅ℭ⓵⓶⓷︷,︸,i⁹,i₉,㌀,¼"),
             ("\u{00C5}", "\u{00C5}"),
+            ("\u{0915}\u{093F}", "\u{0915}"),
+            ("a\u{20DD}", "a"),
         ]
 
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
             let normalizer = StripAccentsNormalizer(config: config)
-            #expect(normalizer.normalize(text: arg) == expect)
+            // Compare scalars: `String` equality treats canonically equivalent strings as equal.
+            #expect(Array(normalizer.normalize(text: arg).unicodeScalars) == Array(expect.unicodeScalars))
         }
+
+        let sequence = try NormalizerSequence(config: Config(["normalizers": [["type": "NFD"], ["type": "StripAccents"]]]))
+        #expect(Array(sequence.normalize(text: "François háček").unicodeScalars) == Array("Francois hacek".unicodeScalars))
 
         let config = Config(["type": NormalizerType.StripAccents.rawValue])
         #expect(try NormalizerFactory.fromConfig(config: config) as? StripAccentsNormalizer != nil)
