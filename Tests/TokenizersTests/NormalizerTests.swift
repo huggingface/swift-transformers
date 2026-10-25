@@ -239,7 +239,7 @@ struct NormalizerTests {
             #expect(Array(normalizer.normalize(text: arg).unicodeScalars) == Array(expect.unicodeScalars))
         }
 
-        let sequence = NormalizerSequence(config: Config(["normalizers": [["type": "NFD"], ["type": "StripAccents"]]]))
+        let sequence = try NormalizerSequence(config: Config(["normalizers": [["type": "NFD"], ["type": "StripAccents"]]]))
         #expect(Array(sequence.normalize(text: "François háček").unicodeScalars) == Array("Francois hacek".unicodeScalars))
 
         let config = Config(["type": NormalizerType.StripAccents.rawValue])
