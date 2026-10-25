@@ -635,10 +635,12 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
             } else {
                 [text]
             }
-        return sections.enumerated().map { section, x in
+        // Unknown tokens are fused per pre-tokenized word, as the `tokenizers` models do:
+        // unknowns from adjacent words stay separate.
+        return sections.enumerated().flatMap { section, x in
             if addedTokens.contains(x) { return [x] }
-            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
-        }.flatMap { fuseUnknown($0) }
+            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { fuseUnknown(model($0)) }
+        }
     }
 
     /// Encodes input text into token IDs with optional special token handling.
