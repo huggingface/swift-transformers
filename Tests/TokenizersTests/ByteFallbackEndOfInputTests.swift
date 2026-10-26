@@ -42,7 +42,7 @@ struct ByteFallbackEndOfInputTests {
 
     @Test("A terminal byte-spelled space still passes through downstream Fuse and Strip")
     func downstreamCleanup() throws {
-        let decoder = try #require(DecoderFactory.fromConfig(config: pipeline()))
+        let decoder = try #require(try DecoderFactory.fromConfig(config: pipeline()))
         #expect(decoder.decode(tokens: ["<0x20>"]) == [""])
         #expect(decoder.decode(tokens: ["a", "<0x20>"]) == ["a"])
         #expect(decoder.decode(tokens: ["▁"]) == [""])
