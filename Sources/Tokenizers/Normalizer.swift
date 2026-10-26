@@ -71,7 +71,7 @@ struct NormalizerFactory {
         case .NFKD: return NFKDNormalizer(config: config)
         case .NFKC: return NFKCNormalizer(config: config)
         case .Bert, .BertNormalizer: return BertNormalizer(config: config)
-        case .Precompiled: return PrecompiledNormalizer(config: config)
+        case .Precompiled: return try PrecompiledNormalizer(config: config)
         case .StripAccents: return StripAccentsNormalizer(config: config)
         case .Strip: return StripNormalizer(config: config)
         default: fatalError("Unsupported Normalizer type: \(typeName)")
@@ -266,16 +266,112 @@ extension UnicodeScalar {
     }
 }
 
-class PrecompiledNormalizer: Normalizer {
-    // TODO: use `precompiledCharsmap` (base64-encoded string) from the configuration
-    required init(config: Config) {}
+/// SentencePiece `precompiled_charsmap`: a Darts double-array trie keyed by UTF-8
+/// bytes, whose leaves hold offsets into a blob of NUL-terminated replacements.
+///
+/// Port of https://github.com/huggingface/spm_precompiled
+struct PrecompiledCharsmap {
+    private let trie: [UInt32]
+    private let replacements: [UInt8]
 
+    /// Layout: `[u32 LE trie size in bytes][trie: u32 LE units][replacements]`.
+    ///
+    /// - Throws: `TokenizerError.malformedPrecompiledCharsmap` when the data is truncated,
+    ///   the trie is empty, or the replacements are not valid UTF-8, as `Precompiled::from` fails.
+    init(_ data: Data) throws {
+        let bytes = [UInt8](data)
+        guard bytes.count >= 4 else {
+            throw TokenizerError.malformedPrecompiledCharsmap("missing trie size")
+        }
+        func u32(at offset: Int) -> UInt32 {
+            UInt32(bytes[offset]) | UInt32(bytes[offset + 1]) << 8 | UInt32(bytes[offset + 2]) << 16 | UInt32(bytes[offset + 3]) << 24
+        }
+        let unitCount = Int(u32(at: 0)) / 4
+        let blobStart = 4 + unitCount * 4
+        guard unitCount > 0 else {
+            throw TokenizerError.malformedPrecompiledCharsmap("empty trie")
+        }
+        guard blobStart <= bytes.count else {
+            throw TokenizerError.malformedPrecompiledCharsmap("trie extends past the end of the data")
+        }
+        guard String(bytes: bytes[blobStart...], encoding: .utf8) != nil else {
+            throw TokenizerError.malformedPrecompiledCharsmap("replacements are not valid UTF-8")
+        }
+        trie = (0..<unitCount).map { u32(at: 4 + $0 * 4) }
+        replacements = Array(bytes[blobStart...])
+    }
+
+    /// The replacement for the *shortest* prefix of `key` found in the trie, as
+    /// `Precompiled::transform` returns the first `common_prefix_search` result.
+    func transform(_ key: some Sequence<UInt8>) -> String? {
+        func hasLeaf(_ unit: UInt32) -> Bool { (unit >> 8) & 1 == 1 }
+        func value(_ unit: UInt32) -> Int { Int(unit & ((1 << 31) - 1)) }
+        func label(_ unit: UInt32) -> UInt32 { unit & ((1 << 31) | 0xFF) }
+        func offset(_ unit: UInt32) -> Int { Int((unit >> 10) << ((unit & (1 << 9)) >> 6)) }
+
+        var position = offset(trie[0])
+        for byte in key {
+            if byte == 0 { break }
+            position ^= Int(byte)
+            guard position < trie.count, label(trie[position]) == UInt32(byte) else { return nil }
+            let unit = trie[position]
+            position ^= offset(unit)
+            if hasLeaf(unit) {
+                guard position < trie.count else { return nil }
+                let start = value(trie[position])
+                guard start <= replacements.count else { return nil }
+                let end = replacements[start...].firstIndex(of: 0) ?? replacements.count
+                return String(decoding: replacements[start..<end], as: UTF8.self)
+            }
+        }
+        return nil
+    }
+}
+
+class PrecompiledNormalizer: Normalizer {
+    private let charsmap: PrecompiledCharsmap?
+
+    /// - Throws: `TokenizerError.malformedPrecompiledCharsmap` if a charsmap is present
+    ///   but cannot be decoded. Configurations without one use the approximation.
+    required init(config: Config) throws {
+        guard let encoded = config.precompiledCharsmap.string() else {
+            charsmap = nil
+            return
+        }
+        guard let data = Data(base64Encoded: encoded) else {
+            throw TokenizerError.malformedPrecompiledCharsmap("invalid base64")
+        }
+        charsmap = try PrecompiledCharsmap(data)
+    }
+
+    /// https://github.com/huggingface/tokenizers/blob/v0.23.2/tokenizers/src/normalizers/precompiled.rs
+    ///
+    /// A grapheme cluster shorter than 6 UTF-8 bytes is replaced as a whole when any prefix
+    /// of it is in the charsmap, so "\u{2581}\u{0301}" becomes " ". Otherwise each scalar
+    /// is transformed on its own.
     func normalize(text: String) -> String {
-        // TODO: This is a simplified implementation.
+        guard let charsmap else { return approximateNormalize(text: text) }
+        var output = ""
+        for grapheme in text {
+            if grapheme.utf8.count < 6, let replacement = charsmap.transform(grapheme.utf8) {
+                output += replacement
+                continue
+            }
+            for scalar in grapheme.unicodeScalars {
+                if let replacement = charsmap.transform(scalar.utf8) {
+                    output += replacement
+                } else {
+                    output.unicodeScalars.append(scalar)
+                }
+            }
+        }
+        return output
+    }
+
+    /// Approximation for configurations without a `precompiled_charsmap`.
+    private func approximateNormalize(text: String) -> String {
         // - The following comments also apply here:
         // https://github.com/xenova/transformers.js/blob/main/src/tokenizers.js#L2237-L2247
-        // - For a proper implementation, see:
-        // https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/normalizers/precompiled.rs#L36
         var output = ""
         var hasFullwidthTilde = false
 

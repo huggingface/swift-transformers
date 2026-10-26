@@ -207,12 +207,33 @@ struct NormalizerTests {
 
         for (arg, expect) in testCases {
             let config = Config([String: Config]())
-            let normalizer = PrecompiledNormalizer(config: config)
+            let normalizer = try PrecompiledNormalizer(config: config)
             #expect(normalizer.normalize(text: arg) == expect)
         }
 
         let config = Config(["type": NormalizerType.Precompiled.rawValue])
         #expect(try NormalizerFactory.fromConfig(config: config) as? PrecompiledNormalizer != nil)
+    }
+
+    /// `tokenizers` fails to load a tokenizer whose `precompiled_charsmap` cannot be decoded.
+    @Test(
+        "Malformed precompiled_charsmap fails normalizer initialization",
+        arguments: [
+            "not base64!", // invalid base64
+            "AQI=", // shorter than the trie size
+            "AAAAAA==", // empty trie
+            "CAAAAA==", // trie extends past the end of the data
+            "BAAAAAAAAAD/", // replacements are not valid UTF-8
+        ]
+    )
+    func malformedPrecompiledCharsmap(charsmap: String) throws {
+        let config = Config(["type": NormalizerType.Precompiled.rawValue, "precompiled_charsmap": charsmap])
+        #expect {
+            try NormalizerFactory.fromConfig(config: config)
+        } throws: { error in
+            guard case TokenizerError.malformedPrecompiledCharsmap = error else { return false }
+            return true
+        }
     }
 
     @Test("Strip accents normalizer functionality")
