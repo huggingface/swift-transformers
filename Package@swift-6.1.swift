@@ -23,7 +23,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.4.2"),
+        .package(url: "https://github.com/huggingface/swift-jinja.git", "2.4.2"..<"4.0.0"),
         // Work around SwiftPM trait resolution issue for transitive Xet dependency.
         .package(url: "https://github.com/huggingface/swift-xet.git", "0.2.0"..<"2.0.0"),
         .package(
