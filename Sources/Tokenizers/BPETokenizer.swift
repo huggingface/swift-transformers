@@ -164,6 +164,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: [BytePair: Int] = [:]
+        bpeRanks.reserveCapacity(merges.count)
         for (i, merge) in merges.enumerated() {
             let bp = BytePair(tuple: merge)
             bpeRanks[bp] = i
