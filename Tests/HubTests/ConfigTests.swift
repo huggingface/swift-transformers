@@ -437,6 +437,9 @@ struct ConfigTests {
             "config": cfg.jinjaValue()
         ])
 
-        #expect(got == exp)
+        // swift-jinja 3 prints booleans as Python does.
+        let expPython = exp.replacingOccurrences(of: "true", with: "True")
+            .replacingOccurrences(of: "false", with: "False")
+        #expect(got == exp || got == expPython)
     }
 }
