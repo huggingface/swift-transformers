@@ -369,6 +369,26 @@ class SnapshotDownloadTests: XCTestCase {
         return filenames
     }
 
+    /// Snapshot progress is weighted by file byte size, not file count: the
+    /// aggregate `totalUnitCount` should equal the summed remote sizes (so a
+    /// large weight shard dominates the bar), not the number of files.
+    func testSnapshotProgressIsByteWeighted() async throws {
+        let hubApi = HubApi(downloadBase: downloadDestination)
+
+        let metadata = try await hubApi.getFileMetadata(from: repo, matching: "*.json")
+        let expectedTotalBytes = metadata.reduce(Int64(0)) { $0 + Int64(max($1.size ?? 1, 1)) }
+
+        var lastProgress: Progress? = nil
+        _ = try await hubApi.snapshot(from: repo, matching: "*.json") { progress in
+            lastProgress = progress
+        }
+
+        XCTAssertEqual(lastProgress?.fractionCompleted, 1)
+        XCTAssertEqual(lastProgress?.totalUnitCount, expectedTotalBytes)
+        // Byte weighting makes the total far exceed the (old) file-count value.
+        XCTAssertGreaterThan(lastProgress?.totalUnitCount ?? 0, Int64(metadata.count))
+    }
+
     func testDownload() async throws {
         let hubApi = HubApi(downloadBase: downloadDestination)
         var lastProgress: Progress? = nil
@@ -390,7 +410,7 @@ class SnapshotDownloadTests: XCTestCase {
         print("Prefix used in getRelativeFiles: \(downloadDestination.appending(path: "models/\(repo)").path)")
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         XCTAssertEqual(
@@ -415,7 +435,7 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -437,7 +457,7 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -461,7 +481,7 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -501,7 +521,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -558,7 +578,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -605,7 +625,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -682,7 +702,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -742,7 +762,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -772,7 +792,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
@@ -802,7 +822,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
@@ -843,7 +863,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
@@ -894,7 +914,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: lfsRepo)
@@ -945,7 +965,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
@@ -997,7 +1017,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         hubApi = HubApi(downloadBase: downloadDestination, useOfflineMode: true)
@@ -1009,7 +1029,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
     }
 
@@ -1043,7 +1063,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let metadataDestination = downloadedTo.appending(component: ".cache/huggingface/download")
@@ -1080,7 +1100,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 2)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let metadataDestination = downloadedTo.appendingPathComponent(".cache/huggingface/download").appendingPathComponent("x.bin.metadata")
@@ -1120,7 +1140,7 @@ class SnapshotDownloadTests: XCTestCase {
         }
 
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(lfsRepo)"))
 
         let fileDestination = downloadedTo.appendingPathComponent("x.bin")
@@ -1163,7 +1183,7 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
@@ -1202,7 +1222,7 @@ class SnapshotDownloadTests: XCTestCase {
             lastProgress = progress
         }
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 1)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
 
         let fileContents = try String(contentsOfFile: downloadedTo.appendingPathComponent("config.json").path, encoding: .utf8)
@@ -1319,7 +1339,7 @@ class SnapshotDownloadTests: XCTestCase {
 
         let downloadedFilenames = getRelativeFiles(url: downloadDestination, repo: repo)
         XCTAssertEqual(lastProgress?.fractionCompleted, 1)
-        XCTAssertEqual(lastProgress?.completedUnitCount, 6)
+        XCTAssertEqual(lastProgress?.completedUnitCount, lastProgress?.totalUnitCount)
         XCTAssertEqual(downloadedTo, downloadDestination.appending(path: "models/\(repo)"))
         XCTAssertEqual(
             Set(downloadedFilenames),
