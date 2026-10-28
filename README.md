@@ -206,6 +206,33 @@ Before submitting a pull request, please ensure your code:
 
 To format your code, run `swift format -i --recursive .`.
 
+### Offline tokenizer tests
+
+`TokenizersTests` uses in-memory configurations and bundled fixtures. Put tests
+that download models or other Hub files in `TokenizersIntegrationTests`, along
+with any reference fixtures they need. `swift test` runs both targets; integration
+tests require network access.
+
+Run just the offline tokenizer tests with:
+
+```sh
+swift test --filter TokenizersTests
+```
+
+Linux CI runs the offline tests with and without the `Xet` trait. It skips
+`HubTests` and `TokenizersIntegrationTests` because of the existing
+[FoundationNetworking teardown race](https://github.com/swiftlang/swift-corelibs-foundation/issues/3675).
+To reproduce the Linux selection locally using Docker:
+
+```sh
+docker run --rm -t \
+  -v "$PWD":/src -w /src \
+  -v swift-transformers-tests-spm-cache:/root/.cache/org.swift.swiftpm \
+  swift:6.2.3 \
+  swift test --scratch-path .build/linux \
+    --skip HubTests --skip TokenizersIntegrationTests
+```
+
 ## Benchmarks
 
 See [Benchmarks](Benchmarks/README.md) for standalone tokenizer benchmarks and
