@@ -45,6 +45,7 @@ let package = Package(
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersIntegrationTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
     ]
 )

@@ -181,10 +181,7 @@ struct ChatTemplateTests {
             messages: messages, chatTemplate: whitespaceSensitiveTemplate
         )
         let decoded = tokenizer.decode(tokens: encoded)
-        let expected = """
-            Describe the Swift programming language.
-            assistant
-            """
+        let expected = "Describe the Swift programming language.\nassistant\n"
         #expect(decoded == expected)
         #expect(!decoded.hasPrefix("\n"))
         #expect(!decoded.contains("\n\n"))
