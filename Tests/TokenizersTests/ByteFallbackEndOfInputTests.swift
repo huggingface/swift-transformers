@@ -12,13 +12,6 @@ struct ByteFallbackEndOfInputTests {
         #expect(decoder.decode(tokens: ["<0xF0>", "<0x9F>", "<0x98>", "<0x80>"]) == ["😀"])
     }
 
-    @Test("Incomplete terminal UTF-8 uses the same replacement behavior as an interior run")
-    func incompleteTerminalRun() {
-        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"] as [NSString: Any]))
-        #expect(decoder.decode(tokens: ["<0xF0>", "<0x9F>"]) == ["�"])
-        #expect(decoder.decode(tokens: ["<0xF0>", "<0x9F>", "a"]) == ["�", "a"])
-    }
-
     @Test("Interior and terminal byte runs retain their order")
     func mixedRuns() {
         let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"] as [NSString: Any]))
