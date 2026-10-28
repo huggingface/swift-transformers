@@ -31,6 +31,17 @@ private let loneSurrogates: [[UInt16]] = [
     [0xD800], [0xDC00], [0x61, 0xD83D], [0xDE08, 0x62], [0xD83D, 0x61], [0xDBFF, 0xDBFF, 0xDFFF],
 ]
 
+// Darwin's NSString holds raw UTF-16, so it keeps a lone surrogate. swift-corelibs-foundation stores an NSString as a
+// Swift String, so on Linux `String(utf16CodeUnits:count:)` and every NSString repair it to U+FFFD, and the previous
+// implementation did the same.
+private func expectedNSStringUnits(_ units: [UInt16]) -> [UInt16] {
+    #if canImport(Darwin)
+    return units
+    #else
+    return Array(String(decoding: units, as: UTF16.self).utf16)
+    #endif
+}
+
 @Suite("BinaryDistinctString equivalence with the previous implementation")
 struct BinaryDistinctStringTests {
     @Test("Well-formed strings keep identical UTF-16 values through every initializer", arguments: wellFormed)
@@ -92,8 +103,8 @@ struct BinaryDistinctStringTests {
         #expect(Array(new.string.unicodeScalars.map(\.value)) == Array(legacyString.unicodeScalars.map(\.value)))
         #expect(new.string.unicodeScalars.contains("\u{FFFD}"))
         #expect(Array(new.string.utf16) == Array(legacyString.utf16))
-        // The NSString keeps the lone surrogate itself, so a vocabulary key is not folded into U+FFFD.
-        #expect(utf16Units(new.nsString) == units)
+        // On Darwin the NSString keeps the lone surrogate itself, so a vocabulary key is not folded into U+FFFD.
+        #expect(utf16Units(new.nsString) == expectedNSStringUnits(units))
         #expect(utf16Units(new.nsString) == utf16Units(Legacy.nsString(units)))
 
         // Building from an NSString that carries a lone surrogate gives the same value as before.
@@ -119,8 +130,13 @@ struct BinaryDistinctStringTests {
         #expect(tokenizer.vocabCount == 4)
         #expect(tokenizer.convertTokenToId("a") == 1)
         #expect(tokenizer.convertTokenToId("b") == 3)
+        #if canImport(Darwin)
         // The lone-surrogate key is not the U+FFFD key: this lookup misses and falls back to <unk> (id 0).
         #expect(tokenizer.convertTokenToId("\u{FFFD}") == 0)
+        #else
+        // The NSString key is already repaired to U+FFFD, so the lookup finds the token.
+        #expect(tokenizer.convertTokenToId("\u{FFFD}") == 2)
+        #endif
         // Decoding the token yields the repaired string.
         #expect(tokenizer.convertIdToToken(2).map { Array($0.utf16) } == [0xFFFD])
     }
