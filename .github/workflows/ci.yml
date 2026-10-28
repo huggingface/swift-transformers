@@ -68,6 +68,10 @@ jobs:
               # See: https://github.com/swiftlang/swift-corelibs-foundation/issues/3675
               run: |
                   swift test --skip HubTests --skip TokenizersTests${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
+
+            - name: Run offline string tests
+              run: |
+                  swift test --filter BinaryDistinctStringTests${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
     lint:
         permissions:
           contents: read
