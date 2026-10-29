@@ -1,0 +1,650 @@
+{
+  "_meta": {
+    "source": "transformers.models.whisper.english_normalizer",
+    "transformers_version": "5.5.0",
+    "english_json_url": "https://raw.githubusercontent.com/openai/whisper/main/whisper/normalizers/english.json",
+    "regenerate_with": "python Tools/generate_whisper_normalizer_baselines.py"
+  },
+  "fixtures": [
+    {
+      "id": "empty",
+      "input": "",
+      "basic": "",
+      "basic_remove_diacritics": "",
+      "basic_split_letters": "",
+      "english": ""
+    },
+    {
+      "id": "single_space",
+      "input": " ",
+      "basic": " ",
+      "basic_remove_diacritics": " ",
+      "basic_split_letters": " ",
+      "english": ""
+    },
+    {
+      "id": "all_whitespace",
+      "input": "  \t\n  ",
+      "basic": " ",
+      "basic_remove_diacritics": " ",
+      "basic_split_letters": " ",
+      "english": ""
+    },
+    {
+      "id": "plain_ascii",
+      "input": "Hello world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "plain_lowercase",
+      "input": "hello world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "mixed_case",
+      "input": "MiXeD CaSe TeXt",
+      "basic": "mixed case text",
+      "basic_remove_diacritics": "mixed case text",
+      "basic_split_letters": "m i x e d c a s e t e x t",
+      "english": "mixed case text"
+    },
+    {
+      "id": "uppercase",
+      "input": "HELLO WORLD",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "brackets_square",
+      "input": "Hello [music] world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "brackets_angle",
+      "input": "Hello <noise> world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "brackets_paren",
+      "input": "Hello (laughter) world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "brackets_mixed",
+      "input": "<intro> Welcome [music] to (laughter) the show",
+      "basic": " welcome to the show",
+      "basic_remove_diacritics": " welcome to the show",
+      "basic_split_letters": " w e l c o m e t o t h e s h o w",
+      "english": "welcome to the show"
+    },
+    {
+      "id": "brackets_nested_text",
+      "input": "Hello [music with drums] world",
+      "basic": "hello world",
+      "basic_remove_diacritics": "hello world",
+      "basic_split_letters": "h e l l o w o r l d",
+      "english": "hello world"
+    },
+    {
+      "id": "filler_um",
+      "input": "He's like, um, gonna do it",
+      "basic": "he s like um gonna do it",
+      "basic_remove_diacritics": "he s like um gonna do it",
+      "basic_split_letters": "h e s l i k e u m g o n n a d o i t",
+      "english": "he is like going to do it"
+    },
+    {
+      "id": "filler_uh",
+      "input": "uh I think so",
+      "basic": "uh i think so",
+      "basic_remove_diacritics": "uh i think so",
+      "basic_split_letters": "u h i t h i n k s o",
+      "english": "i think so"
+    },
+    {
+      "id": "filler_all",
+      "input": "hmm mm mhm mmm uh um",
+      "basic": "hmm mm mhm mmm uh um",
+      "basic_remove_diacritics": "hmm mm mhm mmm uh um",
+      "basic_split_letters": "h m m m m m h m m m m u h u m",
+      "english": ""
+    },
+    {
+      "id": "contr_apostrophe_s",
+      "input": "He's going",
+      "basic": "he s going",
+      "basic_remove_diacritics": "he s going",
+      "basic_split_letters": "h e s g o i n g",
+      "english": "he is going"
+    },
+    {
+      "id": "contr_negative",
+      "input": "I can't believe",
+      "basic": "i can t believe",
+      "basic_remove_diacritics": "i can t believe",
+      "basic_split_letters": "i c a n t b e l i e v e",
+      "english": "i can not believe"
+    },
+    {
+      "id": "contr_will_not",
+      "input": "won't worry",
+      "basic": "won t worry",
+      "basic_remove_diacritics": "won t worry",
+      "basic_split_letters": "w o n t w o r r y",
+      "english": "will not worry"
+    },
+    {
+      "id": "contr_let_us",
+      "input": "Let's go",
+      "basic": "let s go",
+      "basic_remove_diacritics": "let s go",
+      "basic_split_letters": "l e t s g o",
+      "english": "let us go"
+    },
+    {
+      "id": "contr_have_not",
+      "input": "haven't seen",
+      "basic": "haven t seen",
+      "basic_remove_diacritics": "haven t seen",
+      "basic_split_letters": "h a v e n t s e e n",
+      "english": "have not seen"
+    },
+    {
+      "id": "contr_are",
+      "input": "they're here",
+      "basic": "they re here",
+      "basic_remove_diacritics": "they re here",
+      "basic_split_letters": "t h e y r e h e r e",
+      "english": "they are here"
+    },
+    {
+      "id": "contr_would",
+      "input": "I'd say",
+      "basic": "i d say",
+      "basic_remove_diacritics": "i d say",
+      "basic_split_letters": "i d s a y",
+      "english": "i would say"
+    },
+    {
+      "id": "contr_will",
+      "input": "we'll go",
+      "basic": "we ll go",
+      "basic_remove_diacritics": "we ll go",
+      "basic_split_letters": "w e l l g o",
+      "english": "we will go"
+    },
+    {
+      "id": "contr_have",
+      "input": "I've seen",
+      "basic": "i ve seen",
+      "basic_remove_diacritics": "i ve seen",
+      "basic_split_letters": "i v e s e e n",
+      "english": "i have seen"
+    },
+    {
+      "id": "contr_am",
+      "input": "I'm here",
+      "basic": "i m here",
+      "basic_remove_diacritics": "i m here",
+      "basic_split_letters": "i m h e r e",
+      "english": "i am here"
+    },
+    {
+      "id": "contr_ma_am",
+      "input": "Yes ma'am",
+      "basic": "yes ma am",
+      "basic_remove_diacritics": "yes ma am",
+      "basic_split_letters": "y e s m a a m",
+      "english": "yes madam"
+    },
+    {
+      "id": "contr_titles",
+      "input": "Mr. Smith met Dr. Jones and Mrs. Brown",
+      "basic": "mr smith met dr jones and mrs brown",
+      "basic_remove_diacritics": "mr smith met dr jones and mrs brown",
+      "basic_split_letters": "m r s m i t h m e t d r j o n e s a n d m r s b r o w n",
+      "english": "mister smith met doctor jones and missus brown"
+    },
+    {
+      "id": "contr_gonna",
+      "input": "I'm gonna do it",
+      "basic": "i m gonna do it",
+      "basic_remove_diacritics": "i m gonna do it",
+      "basic_split_letters": "i m g o n n a d o i t",
+      "english": "i am going to do it"
+    },
+    {
+      "id": "contr_wanna_gotta",
+      "input": "I wanna go but I gotta wait",
+      "basic": "i wanna go but i gotta wait",
+      "basic_remove_diacritics": "i wanna go but i gotta wait",
+      "basic_split_letters": "i w a n n a g o b u t i g o t t a w a i t",
+      "english": "i want to go but i got to wait"
+    },
+    {
+      "id": "contr_yall",
+      "input": "y'all come back",
+      "basic": "y all come back",
+      "basic_remove_diacritics": "y all come back",
+      "basic_split_letters": "y a l l c o m e b a c k",
+      "english": "you all come back"
+    },
+    {
+      "id": "contr_ima",
+      "input": "i'ma do it",
+      "basic": "i ma do it",
+      "basic_remove_diacritics": "i ma do it",
+      "basic_split_letters": "i m a d o i t",
+      "english": "i am going to do it"
+    },
+    {
+      "id": "contr_woulda_coulda_shoulda",
+      "input": "you woulda coulda shoulda",
+      "basic": "you woulda coulda shoulda",
+      "basic_remove_diacritics": "you woulda coulda shoulda",
+      "basic_split_letters": "y o u w o u l d a c o u l d a s h o u l d a",
+      "english": "you would have could have should have"
+    },
+    {
+      "id": "space_apostrophe",
+      "input": "He 's going",
+      "basic": "he s going",
+      "basic_remove_diacritics": "he s going",
+      "basic_split_letters": "h e s g o i n g",
+      "english": "he is going"
+    },
+    {
+      "id": "num_one",
+      "input": "I have one apple",
+      "basic": "i have one apple",
+      "basic_remove_diacritics": "i have one apple",
+      "basic_split_letters": "i h a v e o n e a p p l e",
+      "english": "i have one apple"
+    },
+    {
+      "id": "num_twenty_seven",
+      "input": "twenty-seven dogs",
+      "basic": "twenty seven dogs",
+      "basic_remove_diacritics": "twenty seven dogs",
+      "basic_split_letters": "t w e n t y s e v e n d o g s",
+      "english": "27 dogs"
+    },
+    {
+      "id": "num_five_hundred",
+      "input": "five hundred and twenty-three",
+      "basic": "five hundred and twenty three",
+      "basic_remove_diacritics": "five hundred and twenty three",
+      "basic_split_letters": "f i v e h u n d r e d a n d t w e n t y t h r e e",
+      "english": "523"
+    },
+    {
+      "id": "num_thousand",
+      "input": "ten thousand five hundred",
+      "basic": "ten thousand five hundred",
+      "basic_remove_diacritics": "ten thousand five hundred",
+      "basic_split_letters": "t e n t h o u s a n d f i v e h u n d r e d",
+      "english": "10500"
+    },
+    {
+      "id": "num_million",
+      "input": "twenty million people",
+      "basic": "twenty million people",
+      "basic_remove_diacritics": "twenty million people",
+      "basic_split_letters": "t w e n t y m i l l i o n p e o p l e",
+      "english": "20000000 people"
+    },
+    {
+      "id": "num_ordinal",
+      "input": "the second time",
+      "basic": "the second time",
+      "basic_remove_diacritics": "the second time",
+      "basic_split_letters": "t h e s e c o n d t i m e",
+      "english": "the 2nd time"
+    },
+    {
+      "id": "num_ordinal_th",
+      "input": "the seventh hour",
+      "basic": "the seventh hour",
+      "basic_remove_diacritics": "the seventh hour",
+      "basic_split_letters": "t h e s e v e n t h h o u r",
+      "english": "the 7th hour"
+    },
+    {
+      "id": "num_decimal",
+      "input": "three point one four",
+      "basic": "three point one four",
+      "basic_remove_diacritics": "three point one four",
+      "basic_split_letters": "t h r e e p o i n t o n e f o u r",
+      "english": "3.14"
+    },
+    {
+      "id": "num_currency_dollars",
+      "input": "twenty million dollars",
+      "basic": "twenty million dollars",
+      "basic_remove_diacritics": "twenty million dollars",
+      "basic_split_letters": "t w e n t y m i l l i o n d o l l a r s",
+      "english": "$20000000"
+    },
+    {
+      "id": "num_currency_dollar_symbol",
+      "input": "It's $20 million in revenue",
+      "basic": "it s 20 million in revenue",
+      "basic_remove_diacritics": "it s 20 million in revenue",
+      "basic_split_letters": "i t s 2 0 m i l l i o n i n r e v e n u e",
+      "english": "it is $20000000 in revenue"
+    },
+    {
+      "id": "num_percent",
+      "input": "fifty percent",
+      "basic": "fifty percent",
+      "basic_remove_diacritics": "fifty percent",
+      "basic_split_letters": "f i f t y p e r c e n t",
+      "english": "50%"
+    },
+    {
+      "id": "num_negative",
+      "input": "minus fifty",
+      "basic": "minus fifty",
+      "basic_remove_diacritics": "minus fifty",
+      "basic_split_letters": "m i n u s f i f t y",
+      "english": "-50"
+    },
+    {
+      "id": "num_double",
+      "input": "double four",
+      "basic": "double four",
+      "basic_remove_diacritics": "double four",
+      "basic_split_letters": "d o u b l e f o u r",
+      "english": "44"
+    },
+    {
+      "id": "num_triple",
+      "input": "triple seven",
+      "basic": "triple seven",
+      "basic_remove_diacritics": "triple seven",
+      "basic_split_letters": "t r i p l e s e v e n",
+      "english": "777"
+    },
+    {
+      "id": "num_phone_style",
+      "input": "one oh one",
+      "basic": "one oh one",
+      "basic_remove_diacritics": "one oh one",
+      "basic_split_letters": "o n e o h o n e",
+      "english": "101"
+    },
+    {
+      "id": "num_and_a_half",
+      "input": "two and a half",
+      "basic": "two and a half",
+      "basic_remove_diacritics": "two and a half",
+      "basic_split_letters": "t w o a n d a h a l f",
+      "english": "2.5"
+    },
+    {
+      "id": "digit_year",
+      "input": "1960s music",
+      "basic": "1960s music",
+      "basic_remove_diacritics": "1960s music",
+      "basic_split_letters": "1 9 6 0 s m u s i c",
+      "english": "1960s music"
+    },
+    {
+      "id": "digit_year_plain",
+      "input": "the year 2023",
+      "basic": "the year 2023",
+      "basic_remove_diacritics": "the year 2023",
+      "basic_split_letters": "t h e y e a r 2 0 2 3",
+      "english": "the year 2023"
+    },
+    {
+      "id": "digit_ordinal",
+      "input": "the 100th time",
+      "basic": "the 100th time",
+      "basic_remove_diacritics": "the 100th time",
+      "basic_split_letters": "t h e 1 0 0 t h t i m e",
+      "english": "the 100th time"
+    },
+    {
+      "id": "digit_comma_grouped",
+      "input": "1,000,000 visitors",
+      "basic": "1 000 000 visitors",
+      "basic_remove_diacritics": "1 000 000 visitors",
+      "basic_split_letters": "1 0 0 0 0 0 0 v i s i t o r s",
+      "english": "1000000 visitors"
+    },
+    {
+      "id": "digit_currency",
+      "input": "$1,234.56",
+      "basic": " 1 234 56",
+      "basic_remove_diacritics": " 1 234 56",
+      "basic_split_letters": " 1 2 3 4 5 6",
+      "english": "$1234.56"
+    },
+    {
+      "id": "spell_colour_centre",
+      "input": "The colour of the centre",
+      "basic": "the colour of the centre",
+      "basic_remove_diacritics": "the colour of the centre",
+      "basic_split_letters": "t h e c o l o u r o f t h e c e n t r e",
+      "english": "the color of the center"
+    },
+    {
+      "id": "spell_organise",
+      "input": "I will organise the event",
+      "basic": "i will organise the event",
+      "basic_remove_diacritics": "i will organise the event",
+      "basic_split_letters": "i w i l l o r g a n i s e t h e e v e n t",
+      "english": "i will organize the event"
+    },
+    {
+      "id": "spell_realise",
+      "input": "I realise this",
+      "basic": "i realise this",
+      "basic_remove_diacritics": "i realise this",
+      "basic_split_letters": "i r e a l i s e t h i s",
+      "english": "i realize this"
+    },
+    {
+      "id": "spell_travelling",
+      "input": "she was travelling",
+      "basic": "she was travelling",
+      "basic_remove_diacritics": "she was travelling",
+      "basic_split_letters": "s h e w a s t r a v e l l i n g",
+      "english": "she was traveling"
+    },
+    {
+      "id": "punct_basic",
+      "input": "Hello, world!",
+      "basic": "hello world ",
+      "basic_remove_diacritics": "hello world ",
+      "basic_split_letters": "h e l l o w o r l d ",
+      "english": "hello world"
+    },
+    {
+      "id": "punct_dashes",
+      "input": "twenty-seven--word",
+      "basic": "twenty seven word",
+      "basic_remove_diacritics": "twenty seven word",
+      "basic_split_letters": "t w e n t y s e v e n w o r d",
+      "english": "27 word"
+    },
+    {
+      "id": "punct_quotes",
+      "input": "\"Hello,\" he said.",
+      "basic": " hello he said ",
+      "basic_remove_diacritics": " hello he said ",
+      "basic_split_letters": " h e l l o h e s a i d ",
+      "english": "hello he said"
+    },
+    {
+      "id": "punct_em_dash",
+      "input": "Don't worry — twenty-seven dogs ran past!",
+      "basic": "don t worry twenty seven dogs ran past ",
+      "basic_remove_diacritics": "don t worry twenty seven dogs ran past ",
+      "basic_split_letters": "d o n t w o r r y t w e n t y s e v e n d o g s r a n p a s t ",
+      "english": "do not worry 27 dogs ran past"
+    },
+    {
+      "id": "diac_french",
+      "input": "café résumé naïve",
+      "basic": "café résumé naïve",
+      "basic_remove_diacritics": "cafe resume naive",
+      "basic_split_letters": "c a f é r é s u m é n a ï v e",
+      "english": "cafe resume naive"
+    },
+    {
+      "id": "diac_german",
+      "input": "schöner Tag",
+      "basic": "schöner tag",
+      "basic_remove_diacritics": "schoner tag",
+      "basic_split_letters": "s c h ö n e r t a g",
+      "english": "schoner tag"
+    },
+    {
+      "id": "diac_ligature",
+      "input": "œuvre Œdipe",
+      "basic": "œuvre œdipe",
+      "basic_remove_diacritics": "oeuvre oedipe",
+      "basic_split_letters": "œ u v r e œ d i p e",
+      "english": "oeuvre oedipe"
+    },
+    {
+      "id": "diac_eszett",
+      "input": "Straße",
+      "basic": "straße",
+      "basic_remove_diacritics": "strasse",
+      "basic_split_letters": "s t r a ß e",
+      "english": "strasse"
+    },
+    {
+      "id": "diac_polish",
+      "input": "Łódź",
+      "basic": "łódź",
+      "basic_remove_diacritics": "lodz",
+      "basic_split_letters": "ł ó d ź",
+      "english": "lodz"
+    },
+    {
+      "id": "diac_icelandic_thorn",
+      "input": "þorn ðorn",
+      "basic": "þorn ðorn",
+      "basic_remove_diacritics": "thorn dorn",
+      "basic_split_letters": "þ o r n ð o r n",
+      "english": "thorn dorn"
+    },
+    {
+      "id": "cjk_japanese",
+      "input": "こんにちは 世界",
+      "basic": "こんにちは 世界",
+      "basic_remove_diacritics": "こんにちは 世界",
+      "basic_split_letters": "こ ん に ち は 世 界",
+      "english": "こんにちは 世界"
+    },
+    {
+      "id": "cjk_chinese",
+      "input": "你好世界",
+      "basic": "你好世界",
+      "basic_remove_diacritics": "你好世界",
+      "basic_split_letters": "你 好 世 界",
+      "english": "你好世界"
+    },
+    {
+      "id": "cjk_korean",
+      "input": "안녕하세요 세계",
+      "basic": "안녕하세요 세계",
+      "basic_remove_diacritics": "안녕하세요 세계",
+      "basic_split_letters": "안 녕 하 세 요 세 계",
+      "english": "안녕하세요 세계"
+    },
+    {
+      "id": "cjk_mixed",
+      "input": "Hello 世界 world",
+      "basic": "hello 世界 world",
+      "basic_remove_diacritics": "hello 世界 world",
+      "basic_split_letters": "h e l l o 世 界 w o r l d",
+      "english": "hello 世界 world"
+    },
+    {
+      "id": "rtl_arabic",
+      "input": "مرحبا بالعالم",
+      "basic": "مرحبا بالعالم",
+      "basic_remove_diacritics": "مرحبا بالعالم",
+      "basic_split_letters": "م ر ح ب ا ب ا ل ع ا ل م",
+      "english": "مرحبا بالعالم"
+    },
+    {
+      "id": "rtl_hebrew",
+      "input": "שלום עולם",
+      "basic": "שלום עולם",
+      "basic_remove_diacritics": "שלום עולם",
+      "basic_split_letters": "ש ל ו ם ע ו ל ם",
+      "english": "שלום עולם"
+    },
+    {
+      "id": "real_titles",
+      "input": "Sen. Smith from Rep. Johnson's office",
+      "basic": "sen smith from rep johnson s office",
+      "basic_remove_diacritics": "sen smith from rep johnson s office",
+      "basic_split_letters": "s e n s m i t h f r o m r e p j o h n s o n s o f f i c e",
+      "english": "senator smith from representative johnson is office"
+    },
+    {
+      "id": "real_evals_1",
+      "input": "He's going to the store",
+      "basic": "he s going to the store",
+      "basic_remove_diacritics": "he s going to the store",
+      "basic_split_letters": "h e s g o i n g t o t h e s t o r e",
+      "english": "he is going to the store"
+    },
+    {
+      "id": "real_evals_2",
+      "input": "Don't worry — twenty-seven dogs ran past!",
+      "basic": "don t worry twenty seven dogs ran past ",
+      "basic_remove_diacritics": "don t worry twenty seven dogs ran past ",
+      "basic_split_letters": "d o n t w o r r y t w e n t y s e v e n d o g s r a n p a s t ",
+      "english": "do not worry 27 dogs ran past"
+    },
+    {
+      "id": "real_evals_3",
+      "input": "It costs five hundred and twenty-three dollars",
+      "basic": "it costs five hundred and twenty three dollars",
+      "basic_remove_diacritics": "it costs five hundred and twenty three dollars",
+      "basic_split_letters": "i t c o s t s f i v e h u n d r e d a n d t w e n t y t h r e e d o l l a r s",
+      "english": "it costs $523"
+    },
+    {
+      "id": "real_dictation",
+      "input": "Hello, world! [music] (laughter)",
+      "basic": "hello world ",
+      "basic_remove_diacritics": "hello world ",
+      "basic_split_letters": "h e l l o w o r l d ",
+      "english": "hello world"
+    },
+    {
+      "id": "real_news",
+      "input": "The 100th anniversary is in 2023, said Mr. Smith",
+      "basic": "the 100th anniversary is in 2023 said mr smith",
+      "basic_remove_diacritics": "the 100th anniversary is in 2023 said mr smith",
+      "basic_split_letters": "t h e 1 0 0 t h a n n i v e r s a r y i s i n 2 0 2 3 s a i d m r s m i t h",
+      "english": "the 100th anniversary is in 2023 said mister smith"
+    }
+  ]
+}
