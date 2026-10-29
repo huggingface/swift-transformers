@@ -23,12 +23,19 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
 
     /// The NSString representation of this binary-distinct string.
     public var nsString: NSString {
-        String(utf16CodeUnits: value, count: value.count) as NSString
+        let native = string
+        // Well-formed UTF-16 (every real vocabulary) takes the native-string path. A lone surrogate
+        // would be repaired to U+FFFD there, so it keeps the exact NSString it always produced.
+        if native.utf16.elementsEqual(value) { return native as NSString }
+        return String(utf16CodeUnits: value, count: value.count) as NSString
     }
 
     /// The Swift String representation of this binary-distinct string.
     public var string: String {
-        String(nsString)
+        // A native Swift String. Going through `String(utf16CodeUnits:count:) as NSString` makes a
+        // bridged (foreign) string, and every hash and comparison of those takes the slow
+        // UTF-16-via-CoreFoundation path. Lone surrogates decode to U+FFFD.
+        String(decoding: value, as: UTF16.self)
     }
 
     /// The character count of the string.
@@ -52,14 +59,14 @@ public struct BinaryDistinctString: Equatable, Hashable, Sendable, Comparable, C
     ///
     /// - Parameter str: The NSString to convert
     public init(_ str: NSString) {
-        value = Array(str as String).flatMap { $0.utf16 }
+        value = Array((str as String).utf16)
     }
 
     /// Creates a binary-distinct string from a Swift String.
     ///
     /// - Parameter str: The String to convert
     public init(_ str: String) {
-        self.init(str as NSString)
+        value = Array(str.utf16)
     }
 
     /// Creates a binary-distinct string from a single character.

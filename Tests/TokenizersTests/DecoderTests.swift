@@ -114,6 +114,14 @@ struct DecoderTests {
         #expect(decoded.joined() == "How are you?")
     }
 
+    @Test("WordPiece decoder no-ops on empty input")
+    func wordPieceDecoderEmptyInput() {
+        let decoder = WordPieceDecoder(config: Config(["prefix": "##", "cleanup": true]))
+        #expect(decoder.decode(tokens: []) == [])
+        let decoderNoCleanup = WordPieceDecoder(config: Config(["prefix": "##", "cleanup": false]))
+        #expect(decoderNoCleanup.decode(tokens: []) == [])
+    }
+
     @Test("WordPiece decoder with prefix and cleanup")
     func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
@@ -136,4 +144,30 @@ struct DecoderTests {
             #expect(output.joined() == expected)
         }
     }
+
+    @Test("Metaspace decoder matches Rust on code points")
+    func metaspaceDecoderCodePoints() {
+        let always = MetaspaceDecoder(config: Config(["replacement": "▁", "prepend_scheme": "always"]))
+        #expect(always.decode(tokens: ["▁\u{0301}x"]) == ["\u{0301}x"])
+        #expect(always.decode(tokens: ["▁a", "▁\u{0301}b"]).joined() == "a \u{0301}b")
+        #expect(always.decode(tokens: ["x▁\u{0301}"]) == ["x\u{0301}"])
+        #expect(always.decode(tokens: ["▁hello▁world"]) == ["helloworld"])
+
+        let never = MetaspaceDecoder(config: Config(["replacement": "▁", "prepend_scheme": "never"]))
+        #expect(never.decode(tokens: ["▁\u{0301}x"]) == [" \u{0301}x"])
+    }
+
+    @Test("Metaspace decoder treats markers as exact literals")
+    func metaspaceDecoderLiteralMarkers() {
+        let exact = MetaspaceDecoder(config: Config(["replacement": ";", "prepend_scheme": "never"]))
+        #expect(exact.decode(tokens: ["a;b\u{037E}c"]) == ["a b\u{037E}c"])
+
+        let multiScalar = MetaspaceDecoder(config: Config(["replacement": ".*", "prepend_scheme": "always"]))
+        #expect(multiScalar.decode(tokens: [".*a.*b", ".*c"]) == ["ab", " c"])
+
+        let empty = MetaspaceDecoder(config: Config(["replacement": "", "prepend_scheme": "never"]))
+        #expect(empty.decode(tokens: ["abc", ""]) == ["abc", ""])
+        #expect(empty.decode(tokens: []).isEmpty)
+    }
+
 }

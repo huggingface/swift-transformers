@@ -24,6 +24,8 @@ jobs:
             HF_HUB_READ_TOKEN: ${{ secrets.HF_HUB_READ_TOKEN }}
 
     test-linux:
+        permissions:
+          contents: read
         name: Test (Linux)${{ matrix.traits != '' && format(' with --traits {0}', matrix.traits) || '' }}
         runs-on: ubuntu-latest
         container: swift:${{ matrix.swift }}
@@ -59,14 +61,14 @@ jobs:
               run: swift build${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
 
             - name: Run tests
-              env:
-                  CI_DISABLE_NETWORK_MONITOR: "1"
-              # Skip test targets that use URLSession on Linux due to a
+              # Run offline tokenizer tests, but skip download-dependent targets due to a
               # FoundationNetworking race condition that crashes during teardown.
               # See: https://github.com/swiftlang/swift-corelibs-foundation/issues/3675
               run: |
-                  swift test --skip HubTests --skip TokenizersTests${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
+                  swift test --skip HubTests --skip TokenizersIntegrationTests${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
     lint:
+        permissions:
+          contents: read
         name: Lint
         runs-on: macos-latest
 

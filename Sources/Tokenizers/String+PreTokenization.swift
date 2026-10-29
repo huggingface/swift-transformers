@@ -3,24 +3,28 @@ import Foundation
 import struct Hub.Config
 
 enum StringSplitPattern {
-    case regexp(regexp: String)
+    case regexp(regexp: NSRegularExpression)
     case string(pattern: String)
 
     func split(_ text: String, invert: Bool = true) -> [String] {
         switch self {
         case let .regexp(regexp):
-            text.split(by: regexp, includeSeparators: true)
+            text.split(isolating: regexp)
         case let .string(substring):
             text.split(by: substring, options: [], includeSeparators: !invert)
         }
     }
 
-    static func from(config: Config) -> StringSplitPattern? {
+    static func from(config: Config) throws -> StringSplitPattern? {
         if let pattern = config.pattern.String.string() {
             return .string(pattern: pattern)
         }
         if let pattern = config.pattern.Regex.string() {
-            return .regexp(regexp: pattern)
+            do {
+                return .regexp(regexp: try NSRegularExpression(pattern: pattern))
+            } catch {
+                throw TokenizerError.invalidRegex(pattern: pattern, underlyingError: error)
+            }
         }
         return nil
     }
@@ -104,6 +108,37 @@ extension String {
         }
 
         return result
+    }
+
+    /// Splits around every match of `regex` and keeps the matches, like the `Isolated` behavior in `tokenizers`.
+    ///
+    /// `NSRegularExpression` matches on code points, as `tokenizers` does. `range(of:options: .regularExpression)`
+    /// can match whole grapheme clusters instead, so it may not split "0\u{FE0F}\u{20E3}" after the digit.
+    func split(isolating regex: NSRegularExpression) -> [String] {
+        let nsText = self as NSString
+        var result: [String] = []
+        var start = 0
+        regex.enumerateMatches(in: self, range: NSRange(location: 0, length: nsText.length)) { match, _, _ in
+            guard let range = match?.range else { return }
+            if start < range.location {
+                result.append(nsText.substring(with: NSRange(location: start, length: range.location - start)))
+            }
+            if range.length > 0 {
+                result.append(nsText.substring(with: range))
+            }
+            start = NSMaxRange(range)
+        }
+        if start < nsText.length {
+            result.append(nsText.substring(from: start))
+        }
+        return result
+    }
+
+    /// Splits on an exact literal, including matches inside a grapheme cluster.
+    /// An empty delimiter leaves nonempty input intact.
+    func split(byLiteral delimiter: String, behavior: SplitDelimiterBehavior) -> [String] {
+        guard !delimiter.isEmpty else { return isEmpty ? [] : [self] }
+        return split(by: delimiter, options: .literal, behavior: behavior)
     }
 
     func split(by string: String, options: CompareOptions = .regularExpression, behavior: SplitDelimiterBehavior) -> [String] {

@@ -122,8 +122,8 @@ struct PreTokenizerTests {
     }
 
     @Test("Split pre-tokenizer with string and regex patterns")
-    func splitPreTokenizer() {
-        let preTokenizer1 = SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
+    func splitPreTokenizer() throws {
+        let preTokenizer1 = try SplitPreTokenizer(config: Config(["pattern": ["String": " "]]))
         #expect(
             preTokenizer1.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
@@ -139,7 +139,7 @@ struct PreTokenizerTests {
             ]
         )
 
-        let preTokenizer2 = SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
+        let preTokenizer2 = try SplitPreTokenizer(config: Config(["pattern": ["Regex": "\\s"]]))
         #expect(
             preTokenizer2.preTokenize(text: "Hey friend!") == ["Hey", " ", "friend!"]
         )
@@ -155,7 +155,7 @@ struct PreTokenizerTests {
             ]
         )
 
-        let preTokenizer3 = SplitPreTokenizer(
+        let preTokenizer3 = try SplitPreTokenizer(
             config: Config([
                 "pattern": [
                     "Regex":
@@ -174,6 +174,31 @@ struct PreTokenizerTests {
                 "Hey", " friend", "!", "    ", " How", " are", " you", "?!?",
             ]
         )
+    }
+
+    @Test("Split with a regex matches on code points, not grapheme clusters")
+    func splitRegexCodePoints() throws {
+        // Split pattern of ibm-granite/granite-embedding-97m-multilingual-r2. Expected pieces from tokenizers 0.23.2.
+        let pattern = #"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+(?i:'s|'t|'re|'ve|'m|'ll|'d)?|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*(?i:'s|'t|'re|'ve|'m|'ll|'d)?|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+"#
+        let preTokenizer = try SplitPreTokenizer(
+            config: Config(["pattern": ["Regex": pattern], "behavior": "Isolated", "invert": false])
+        )
+        let cases: [(text: String, pieces: [String])] = [
+            ("0\u{FE0F}\u{20E3}", ["0", "\u{FE0F}\u{20E3}"]),
+            ("#\u{FE0F}\u{20E3}", ["#\u{FE0F}\u{20E3}"]),
+            ("0\u{20E3}", ["0", "\u{20E3}"]),
+            ("Reading\nCongratulations", ["Reading", "\n", "Congratulations"]),
+            ("Reading\n\nCongratulations", ["Reading", "\n\n", "Congratulations"]),
+            ("Reading \nCongratulations", ["Reading", " \n", "Congratulations"]),
+            ("Reading.\nCongratulations", ["Reading", ".\n", "Congratulations"]),
+            ("Reading\nFortunately", ["Reading", "\n", "Fortunately"]),
+            ("line.\r\nThis", ["line", ".\r\n", "This"]),
+            ("reading\ncongratulations", ["reading", "\n", "congratulations"]),
+            ("1\u{301}x", ["1", "\u{301}x"]),
+        ]
+        for (text, pieces) in cases {
+            #expect(preTokenizer.preTokenize(text: text) == pieces, "\(text.debugDescription)")
+        }
     }
 
     @Test("Split behavior merged with previous")
@@ -403,7 +428,7 @@ struct PreTokenizerTests {
                 "prepend_scheme": "always",
             ]))
         #expect(
-            always.preTokenize(text: "") == ["▁"]
+            always.preTokenize(text: "") == []
         )
 
         let never = MetaspacePreTokenizer(
@@ -437,5 +462,19 @@ struct PreTokenizerTests {
                 "Hey", ",", "friend", ",", "0", "99", "what", "\'", "s", "up", "?",
             ]
         )
+    }
+
+    @Test("Metaspace splits on code points when a combining mark follows a space")
+    func metaspaceCombiningMarks() {
+        let preTokenizer = MetaspacePreTokenizer(config: Config(["replacement": "▁", "prepend_scheme": "always"]))
+        #expect(preTokenizer.preTokenize(text: "a \u{0301}b") == ["▁a", "▁\u{0301}b"])
+        #expect(preTokenizer.preTokenize(text: "  \u{0301}") == ["▁", "▁\u{0301}"])
+        #expect(preTokenizer.preTokenize(text: "▁\u{0301}x") == ["▁\u{0301}x"])
+        #expect(preTokenizer.preTokenize(text: " \u{093E}") == ["▁\u{093E}"])
+        #expect(preTokenizer.preTokenize(text: "\u{2581}\u{0301}") == ["▁\u{0301}"])
+
+        let custom = MetaspacePreTokenizer(config: Config(["replacement": "_", "prepend_scheme": "always"]))
+        #expect(custom.preTokenize(text: "a \u{0301}b") == ["_a", "_\u{0301}b"])
+        #expect(custom.preTokenize(text: "_\u{0301}") == ["_\u{0301}"])
     }
 }
