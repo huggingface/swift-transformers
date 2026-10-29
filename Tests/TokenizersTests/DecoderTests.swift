@@ -114,6 +114,14 @@ struct DecoderTests {
         #expect(decoded.joined() == "How are you?")
     }
 
+    @Test("WordPiece decoder no-ops on empty input")
+    func wordPieceDecoderEmptyInput() {
+        let decoder = WordPieceDecoder(config: Config(["prefix": "##", "cleanup": true]))
+        #expect(decoder.decode(tokens: []) == [])
+        let decoderNoCleanup = WordPieceDecoder(config: Config(["prefix": "##", "cleanup": false]))
+        #expect(decoderNoCleanup.decode(tokens: []) == [])
+    }
+
     @Test("WordPiece decoder with prefix and cleanup")
     func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])

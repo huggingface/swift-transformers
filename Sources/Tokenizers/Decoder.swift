@@ -85,7 +85,8 @@ class WordPieceDecoder: Decoder {
     }
 
     func decode(tokens: [String]) -> [String] {
-        let firstToken = cleanup ? cleanUpTokenization(tokens.first!) : tokens.first!
+        guard let first = tokens.first else { return [] }
+        let firstToken = cleanup ? cleanUpTokenization(first) : first
         return [firstToken]
             + tokens.dropFirst().map { token in
                 let token = token.hasPrefix(prefix) ? token.replacingCharacters(in: token.range(of: prefix)!, with: "") : " \(token)"
@@ -187,23 +188,22 @@ class ByteFallbackDecoder: Decoder {
             return Int(token[startIndex..<endIndex], radix: 16)
         }
 
+        func flushPendingBytes() {
+            guard !byteTokens.isEmpty else { return }
+            let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
+            newTokens.append(String(decoding: codeUnits, as: UTF8.self))
+            byteTokens.removeAll()
+        }
+
         for token in tokens {
             if let byte = parseByte(token) {
                 byteTokens.append(byte)
             } else {
-                if !byteTokens.isEmpty {
-                    // decode as utf8 and append
-                    let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
-                    newTokens.append(String(decoding: codeUnits, as: UTF8.self))
-                    byteTokens.removeAll()
-                }
+                flushPendingBytes()
                 newTokens.append(token)
             }
         }
-        if !byteTokens.isEmpty {
-            let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
-            newTokens.append(String(decoding: codeUnits, as: UTF8.self))
-        }
+        flushPendingBytes()
         return newTokens
     }
 }
