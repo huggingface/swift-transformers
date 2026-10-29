@@ -114,13 +114,6 @@ struct DecoderTests {
         #expect(decoded.joined() == "How are you?")
     }
 
-    /// Regression coverage: `WordPieceDecoder.decode(tokens: [])` previously crashed
-    /// with `Fatal error: Unexpectedly found nil while unwrapping an Optional value`
-    /// because of `tokens.first!`. An empty token list can legitimately reach the
-    /// decoder when `Tokenizer.decode(tokens:, skipSpecialTokens: true)` is called
-    /// on an id sequence whose non-special-token ids all fail vocab lookup (the
-    /// `compactMap` upstream drops them silently), so the decoder has to no-op
-    /// instead of asserting.
     @Test("WordPiece decoder no-ops on empty input")
     func wordPieceDecoderEmptyInput() {
         let decoder = WordPieceDecoder(config: Config(["prefix": "##", "cleanup": true]))
