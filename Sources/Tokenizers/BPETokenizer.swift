@@ -101,8 +101,10 @@ private struct BPEMergeCandidate: Comparable {
 /// including GPT-2, RoBERTa, and other transformer models.
 class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     let bpeRanks: [BytePair: Int]
-    private let tokensToIds: [NSString: Int]
-    private let idsToTokens: [Int: NSString]
+    // NSString equality and hashing disagree for some canonically equivalent strings on Linux.
+    // Preserve the exact vocabulary keys on every platform.
+    private let tokensToIds: [BinaryDistinctString: Int]
+    private let idsToTokens: [Int: String]
 
     /// The total number of tokens in the vocabulary.
     var vocabCount: Int { tokensToIds.count }
@@ -174,28 +176,26 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         let addedTokens = addedTokens.reduce(into: [BinaryDistinctString: Config]()) { result, element in
             result[BinaryDistinctString(element.key)] = .init(element.value)
         }
-        tokensToIds = vocab.merging(addedTokens) { $1 }.reduce(into: [NSString: Int]()) { result, element in
-            result[element.key.nsString] = element.value.integer()
-        }
+        tokensToIds = vocab.merging(addedTokens) { $1 }.compactMapValues { $0.integer() }
 
-        idsToTokens = tokensToIds.reduce(into: [Int: NSString]()) { result, element in
-            result[element.value] = element.key
+        idsToTokens = tokensToIds.reduce(into: [Int: String]()) { result, element in
+            result[element.value] = element.key.string
         }
 
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
             self.unknownToken = unknownToken
-            unknownTokenId = tokensToIds[unknownToken as NSString]
+            unknownTokenId = tokensToIds[BinaryDistinctString(unknownToken)]
         } else {
             unknownToken = nil
             unknownTokenId = nil
         }
 
         eosToken = addedTokenAsString(tokenizerConfig.eosToken)
-        eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
+        eosTokenId = eosToken == nil ? nil : tokensToIds[BinaryDistinctString(eosToken!)]
 
         bosToken = addedTokenAsString(tokenizerConfig.bosToken)
-        bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
+        bosTokenId = bosToken == nil ? nil : tokensToIds[BinaryDistinctString(bosToken!)]
 
         // `fuse_unk` is a model setting in tokenizer.json; tokenizer_config.json files don't carry it.
         fuseUnknownTokens = tokenizerData.model["fuseUnk"].boolean() ?? tokenizerConfig.fuseUnk.boolean(or: false)
@@ -208,7 +208,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter token: The token string to convert
     /// - Returns: The numeric ID, or the unknown token ID if not found
     func convertTokenToId(_ token: String) -> Int? {
-        tokensToIds[token as NSString] ?? unknownTokenId
+        tokensToIds[BinaryDistinctString(token)] ?? unknownTokenId
     }
 
     /// Converts a numeric token ID back to its string representation.
@@ -216,7 +216,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter id: The numeric token ID to convert
     /// - Returns: The token string, or nil if the ID is invalid
     func convertIdToToken(_ id: Int) -> String? {
-        idsToTokens[id] as String?
+        idsToTokens[id]
     }
 
     func byteEncode(text: String) -> [String] {
@@ -336,17 +336,17 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Returns: An array of BPE token strings
     func tokenize(text: String) -> [String] {
         // As in `tokenizers`, the whole word is looked up before any merge.
-        if ignoreMerges, tokensToIds[text as NSString] != nil {
+        if ignoreMerges, tokensToIds[BinaryDistinctString(text)] != nil {
             return [text]
         }
         var tokens: [String] = []
         let bpeTokens = bpe(token: text)
         for token in bpeTokens {
-            if tokensToIds[token as NSString] != nil {
+            if tokensToIds[BinaryDistinctString(token)] != nil {
                 tokens.append(token)
             } else {
                 let bytePieces = byteFallback ? hexaEncode(text: token) : []
-                if byteFallback && bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil }) {
+                if byteFallback && bytePieces.allSatisfy({ tokensToIds[BinaryDistinctString($0)] != nil }) {
                     tokens.append(contentsOf: bytePieces)
                 } else if let unknownToken {
                     tokens.append(unknownToken)
