@@ -39,8 +39,8 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// The minimum score found in the vocabulary (used for score calculations).
     let minScore: Float
 
-    /// Mapping from token strings to their numeric IDs.
-    let tokensToIds: [NSString: Int]
+    /// Mapping from exact token code units to their numeric IDs, without canonical equivalence.
+    let tokensToIds: [BinaryDistinctString: Int]
 
     /// The beginning-of-sequence token (hardcoded as space for Unigram).
     let bosToken: String? = " "
@@ -105,11 +105,11 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
         unknownPiece = SentencePieceToken(token: vocab[unknownTokenId].token, score: minScore - 10)
 
-        tokensToIds = Dictionary(uniqueKeysWithValues: vocab.map { $0.token as NSString }.enumerated().map { ($1, $0) })
-        bosTokenId = tokensToIds[bosToken! as NSString] // May be nil
+        tokensToIds = Dictionary(uniqueKeysWithValues: vocab.enumerated().map { (BinaryDistinctString($0.element.token), $0.offset) })
+        bosTokenId = tokensToIds[BinaryDistinctString(bosToken!)] // May be nil
 
         eosToken = tokenizerConfig.eosToken.string()
-        eosTokenId = eosToken == nil ? nil : tokensToIds[eosToken! as NSString]
+        eosTokenId = eosToken == nil ? nil : tokensToIds[BinaryDistinctString(eosToken!)]
 
         trie = Trie()
         trie.append(contentsOf: vocab.map { $0.token.unicodeScalars })
@@ -120,7 +120,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter token: The token string to convert
     /// - Returns: The numeric ID, or the unknown token ID if not found
     func convertTokenToId(_ token: String) -> Int? {
-        tokensToIds[token as NSString] ?? unknownTokenId
+        tokensToIds[BinaryDistinctString(token)] ?? unknownTokenId
     }
 
     /// Converts a numeric token ID back to its string representation.
@@ -153,7 +153,7 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             for tokenChars in trie.commonPrefixSearchIterator(suffix) {
                 let tokenLength = tokenChars.count
                 let token = String(String.UnicodeScalarView(tokenChars))
-                guard let tokenId = tokensToIds[token as NSString] else { fatalError("Token not in vocab: \(token)") }
+                guard let tokenId = tokensToIds[BinaryDistinctString(token)] else { fatalError("Token not in vocab: \(token)") }
                 let tokenScore = vocab[tokenId].score
                 lattice.insert(startOffset: beginPos, length: tokenLength, score: tokenScore, tokenId: tokenId)
                 if !hasSingleNode, tokenLength == mblen {
@@ -168,9 +168,9 @@ class UnigramTokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
 
         guard byteFallback else { return lattice.tokens }
         return lattice.tokens.flatMap { piece -> [String] in
-            if tokensToIds[piece as NSString] != nil { return [piece] }
+            if tokensToIds[BinaryDistinctString(piece)] != nil { return [piece] }
             let bytePieces = piece.utf8.map { byteFallbackEncoderTable[Int($0)] }
-            guard bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil })
+            guard bytePieces.allSatisfy({ tokensToIds[BinaryDistinctString($0)] != nil })
             else { return [piece] }
             return bytePieces
         }

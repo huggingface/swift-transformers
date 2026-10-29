@@ -111,7 +111,7 @@ struct BinaryDistinctStringTests {
         #expect(BinaryDistinctString(ns).value == Legacy.value(ns))
     }
 
-    @Test("A lone-surrogate token in a BPE vocabulary maps exactly as before")
+    @Test("A lone-surrogate vocabulary key stays distinct from the replacement character")
     func loneSurrogateInVocab() throws {
         // yyjson rejects a lone `\ud800` escape ("no low surrogate in string"), so a tokenizer.json
         // cannot carry one; a `Config` built in code can.
@@ -130,13 +130,9 @@ struct BinaryDistinctStringTests {
         #expect(tokenizer.vocabCount == 4)
         #expect(tokenizer.convertTokenToId("a") == 1)
         #expect(tokenizer.convertTokenToId("b") == 3)
-        #if canImport(Darwin)
-        // The lone-surrogate key is not the U+FFFD key: this lookup misses and falls back to <unk> (id 0).
+        // Vocabulary keys retain their original code units on every platform.
+        // A lookup for U+FFFD misses and falls back to <unk> (id 0).
         #expect(tokenizer.convertTokenToId("\u{FFFD}") == 0)
-        #else
-        // The NSString key is already repaired to U+FFFD, so the lookup finds the token.
-        #expect(tokenizer.convertTokenToId("\u{FFFD}") == 2)
-        #endif
         // Decoding the token yields the repaired string.
         #expect(tokenizer.convertIdToToken(2).map { Array($0.utf16) } == [0xFFFD])
     }
