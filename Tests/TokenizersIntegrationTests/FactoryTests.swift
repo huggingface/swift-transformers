@@ -40,6 +40,16 @@ struct FactoryTests {
     }
 
     @Test
+    func qwen3_5() async throws {
+        let (hubApi, downloadDestination) = makeHubApi()
+        defer { try? FileManager.default.removeItem(at: downloadDestination) }
+
+        let tokenizer = try await AutoTokenizer.from(pretrained: "mlx-community/clef-flash-4bit", hubApi: hubApi)
+        let inputIds = tokenizer("Today she took a train to the West")
+        #expect(inputIds == [14917, 1292, 3738, 264, 5257, 310, 279, 4171])
+    }
+
+    @Test
     func fromModelFolder() async throws {
         let (hubApi, downloadDestination) = makeHubApi()
         defer { try? FileManager.default.removeItem(at: downloadDestination) }

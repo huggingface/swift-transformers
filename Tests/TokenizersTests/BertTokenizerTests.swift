@@ -219,6 +219,26 @@ struct BertTokenizerTests {
         }
     }
 
+    /// Regression for https://github.com/huggingface/swift-transformers/issues/352 (Bug 2).
+    /// Exercises `BertTokenizer` directly (bypassing `AutoTokenizer.from(pretrained:)`)
+    /// to verify the `BasicTokenizer.maybeStripAccents` defensive fallback strips Japanese
+    /// voiced-kana dakuten even when a `BertNormalizer` pass hasn't already run. The
+    /// upstream-fix is in `BertNormalizer.stripAccents`; this test guards the direct path.
+    @Test("Direct BertTokenizer strips Japanese voiced-kana dakuten")
+    func bertTokenizerStripsDakuten() {
+        let vocab: [String: Int] = [
+            "[UNK]": 0,
+            "[CLS]": 1,
+            "[SEP]": 2,
+            "サ": 3,
+            "##サ": 4,
+        ]
+        let tokenizer = BertTokenizer(vocab: vocab, merges: nil)
+
+        #expect(tokenizer.tokenize(text: "ザ") == ["サ"])
+        #expect(tokenizer.tokenize(text: "ザザ") == ["サ", "##サ"])
+    }
+
     @Test("BERT encoder/decoder round-trip")
     func encoderDecoder() {
         let text = """

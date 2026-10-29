@@ -108,7 +108,8 @@ public protocol PreTokenizer {
     /// Initializes the pre-tokenizer from configuration.
     ///
     /// - Parameter config: The configuration for this pre-tokenizer
-    init(config: Config)
+    /// - Throws: An error if a configured regular expression cannot be compiled.
+    init(config: Config) throws
 }
 
 extension PreTokenizer {
@@ -140,16 +141,16 @@ enum PreTokenizerType: String {
 }
 
 struct PreTokenizerFactory {
-    static func fromConfig(config: Config?) -> PreTokenizer? {
+    static func fromConfig(config: Config?) throws -> PreTokenizer? {
         guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = PreTokenizerType(rawValue: typeName)
         switch type {
-        case .Sequence: return PreTokenizerSequence(config: config)
+        case .Sequence: return try PreTokenizerSequence(config: config)
         case .ByteLevel: return ByteLevelPreTokenizer(config: config)
         case .Punctuation: return PunctuationPreTokenizer(config: config)
         case .Digits: return DigitsPreTokenizer(config: config)
-        case .Split: return SplitPreTokenizer(config: config)
+        case .Split: return try SplitPreTokenizer(config: config)
         case .Whitespace, .WhitespaceSplit: return WhitespacePreTokenizer(config: config)
         case .Metaspace: return MetaspacePreTokenizer(config: config)
         case .BertPreTokenizer: return BertPreTokenizer(config: config)
@@ -169,9 +170,9 @@ class BertPreTokenizer: PreTokenizer {
 class PreTokenizerSequence: PreTokenizer {
     let preTokenizers: [PreTokenizer]
 
-    required init(config: Config) {
+    required init(config: Config) throws {
         guard let configs = config.pretokenizers.array() else { fatalError("No pretokenizers in Sequence") }
-        preTokenizers = configs.compactMap { PreTokenizerFactory.fromConfig(config: $0) }
+        preTokenizers = try configs.compactMap { try PreTokenizerFactory.fromConfig(config: $0) }
     }
 
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
@@ -234,12 +235,13 @@ class MetaspacePreTokenizer: PreTokenizer {
     /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L114
     /// https://github.com/xenova/transformers.js/blob/b07336d8f7ff57453cc164cc68aead2a79cbd57e/src/tokenizers.js#L2153
     func preTokenize(text: String, options: PreTokenizerOptions = [.firstSection]) -> [String] {
-        let normalized = text.replacingOccurrences(of: " ", with: stringReplacement)
+        guard !text.isEmpty else { return [] }
+        let normalized = text.replacingOccurrences(of: " ", with: stringReplacement, options: .literal)
 
         // Prepend the replacement character based on the prepend scheme.
         // prepend_scheme is the sole authority (add_prefix_space is resolved in init).
         var prepend = ""
-        if !normalized.hasPrefix(replacement) {
+        if !normalized.unicodeScalars.starts(with: replacement.unicodeScalars) {
             switch prependScheme {
             case .always:
                 prepend = stringReplacement
@@ -254,7 +256,7 @@ class MetaspacePreTokenizer: PreTokenizer {
 
         // Split in `MergedWithNext` mode, although usually the input to this function is already pre-tokenized
         // https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L127
-        return (prepend + normalized).split(by: replacement, behavior: .mergedWithNext)
+        return (prepend + normalized).split(byLiteral: replacement, behavior: .mergedWithNext)
     }
 }
 
@@ -354,8 +356,8 @@ class SplitPreTokenizer: PreTokenizer {
     let pattern: StringSplitPattern?
     let invert: Bool
 
-    required init(config: Config) {
-        pattern = StringSplitPattern.from(config: config)
+    required init(config: Config) throws {
+        pattern = try StringSplitPattern.from(config: config)
         invert = config.invert.boolean(or: false)
     }
 

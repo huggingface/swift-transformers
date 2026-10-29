@@ -10,6 +10,8 @@ import Foundation
 import Hub
 
 /// A pair of byte/token strings used in Byte-Pair Encoding (BPE) merge operations.
+///
+/// Equality and hashing compare code units as in the reference Rust library.
 struct BytePair: Hashable, Sendable {
     let a: String
     let b: String
@@ -24,12 +26,14 @@ struct BytePair: Hashable, Sendable {
     }
 
     static func == (lhs: BytePair, rhs: BytePair) -> Bool {
-        lhs.a == rhs.a && lhs.b == rhs.b
+        lhs.a.utf8.elementsEqual(rhs.a.utf8) && lhs.b.utf8.elementsEqual(rhs.b.utf8)
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(a)
-        hasher.combine(b)
+        for part in [a, b] {
+            hasher.combine(part.utf8.count)
+            for byte in part.utf8 { hasher.combine(byte) }
+        }
     }
 }
 
@@ -124,6 +128,12 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether consecutive unknown tokens should be fused together.
     let fuseUnknownTokens: Bool
 
+    /// Whether the model declares SentencePiece byte fallback.
+    let byteFallback: Bool
+
+    /// Whether a word found whole in the vocabulary is returned without applying merges.
+    let ignoreMerges: Bool
+
     static func mergesFromConfig(_ config: Config?) -> [[String]]? {
         guard let config else { return nil }
 
@@ -154,6 +164,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             throw TokenizerError.missingVocab
         }
         var bpeRanks: [BytePair: Int] = [:]
+        bpeRanks.reserveCapacity(merges.count)
         for (i, merge) in merges.enumerated() {
             let bp = BytePair(tuple: merge)
             bpeRanks[bp] = i
@@ -186,7 +197,10 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         bosToken = addedTokenAsString(tokenizerConfig.bosToken)
         bosTokenId = bosToken == nil ? nil : tokensToIds[bosToken! as NSString]
 
-        fuseUnknownTokens = tokenizerConfig.fuseUnk.boolean(or: false)
+        // `fuse_unk` is a model setting in tokenizer.json; tokenizer_config.json files don't carry it.
+        fuseUnknownTokens = tokenizerData.model["fuseUnk"].boolean() ?? tokenizerConfig.fuseUnk.boolean(or: false)
+        byteFallback = tokenizerData.model["byteFallback"].boolean() ?? false
+        ignoreMerges = tokenizerData.model["ignoreMerges"].boolean() ?? false
     }
 
     /// Converts a token string to its corresponding numeric ID.
@@ -205,9 +219,6 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         idsToTokens[id] as String?
     }
 
-    /// Cached `<0x%02X>` byte fallback strings, indexed by byte value.
-    private static let hexaEncoderTable: [String] = (0..<256).map { String(format: "<0x%02X>", $0) }
-
     func byteEncode(text: String) -> [String] {
         var result: [String] = []
         enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
@@ -225,29 +236,29 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
         var result: [String] = []
         enumerateRegexTokens(in: text, with: byteLevelPreTokenizeRegex) { token in
             for byte in token.utf8 {
-                result.append(Self.hexaEncoderTable[Int(byte)])
+                result.append(byteFallbackEncoderTable[Int(byte)])
             }
         }
         return result
     }
 
-    /// Applies the BPE merge sequence to `token` and returns the merged pieces
-    /// joined by a single space.
+    /// Applies the BPE merge sequence to `token` and returns the resulting pieces.
     ///
     /// Equivalent to the canonical greedy "lowest-rank merge first" BPE algorithm
-    /// (e.g. `tiktoken`, `huggingface/tokenizers`). The previous implementation
-    /// rebuilt the entire pair set and scanned the full word on every iteration,
-    /// which is O(N² · M). This version maintains the symbols as an in-place
-    /// linked list and tracks candidate merges in a min-heap keyed by rank, so
-    /// the work per merge step is O(log N) heap ops + O(1) list surgery.
-    func bpe(token: String) -> String {
-        if token.count <= 1 {
-            return token
+    /// (e.g. `tiktoken`, `huggingface/tokenizers`). Maintains the symbols as an
+    /// in-place linked list and tracks candidate merges in a min-heap keyed by
+    /// rank, so the work per merge step is O(log N) heap ops + O(1) list surgery.
+    ///
+    /// Returns an array of pieces rather than a space-joined string: a downstream
+    /// `split(separator: " ")` would be unsafe when a piece begins with a Unicode
+    /// non-spacing mark, because the mark forms a single grapheme cluster with the
+    /// preceding space and the split silently swallows the boundary.
+    func bpe(token: String) -> [String] {
+        var symbols = token.unicodeScalars.map { String($0) }
+        if symbols.count <= 1 {
+            return symbols.isEmpty ? [] : [token]
         }
 
-        // Initial symbols: one entry per Character of `token`. We keep these as
-        // a doubly linked list embedded in parallel arrays of indices.
-        var symbols = Array(token).map { String($0) }
         let initialCount = symbols.count
         var prevIndex = Array(repeating: -1, count: initialCount)
         var nextIndex = Array(repeating: -1, count: initialCount)
@@ -316,7 +327,7 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
             pieces.append(symbols[cursor])
             cursor = nextIndex[cursor]
         }
-        return pieces.joined(separator: " ")
+        return pieces
     }
 
     /// Tokenizes input text using the BPE algorithm.
@@ -324,14 +335,22 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// - Parameter text: The input text to tokenize
     /// - Returns: An array of BPE token strings
     func tokenize(text: String) -> [String] {
+        // As in `tokenizers`, the whole word is looked up before any merge.
+        if ignoreMerges, tokensToIds[text as NSString] != nil {
+            return [text]
+        }
         var tokens: [String] = []
-        let bpeTokens = bpe(token: text).split(separator: " ").map { String($0) }
+        let bpeTokens = bpe(token: text)
         for token in bpeTokens {
-            if convertTokenToId(token) != unknownTokenId {
+            if tokensToIds[token as NSString] != nil {
                 tokens.append(token)
             } else {
-                // TODO: if config.byte_fallback is False, append the unknown token instead
-                tokens.append(contentsOf: hexaEncode(text: token))
+                let bytePieces = byteFallback ? hexaEncode(text: token) : []
+                if byteFallback && bytePieces.allSatisfy({ tokensToIds[$0 as NSString] != nil }) {
+                    tokens.append(contentsOf: bytePieces)
+                } else if let unknownToken {
+                    tokens.append(unknownToken)
+                }
             }
         }
         return tokens

@@ -14,21 +14,20 @@ struct TokenLattice {
     let bosTokenId: Int
     let eosTokenId: Int
 
-    /// `Character` view of the input String for performance.
-    /// Lattice offsets and lengths are in `Character` units, so direct
-    /// access through the array does not pay the cost of
-    /// `String.index(_:offsetBy:)` traversal (O(N) per token, quadratic for sequences).
-    private let chars: [Character]
+    /// `Unicode.Scalar` view of the input String. Lattice offsets and lengths are in
+    /// scalar units so multi-scalar grapheme clusters are addressable at the same
+    /// granularity the SentencePiece vocab uses.
+    private let chars: [Unicode.Scalar]
 
     var nodes: [TokenLatticeNode] = []
     var beginNodes: [[TokenLatticeNode]]
     var endNodes: [[TokenLatticeNode]]
 
     init(sentence: String, bosTokenId: Int, eosTokenId: Int) {
-        self.init(chars: Array(sentence), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
+        self.init(chars: Array(sentence.unicodeScalars), bosTokenId: bosTokenId, eosTokenId: eosTokenId)
     }
 
-    init(chars: [Character], bosTokenId: Int, eosTokenId: Int) {
+    init(chars: [Unicode.Scalar], bosTokenId: Int, eosTokenId: Int) {
         self.chars = chars
         self.bosTokenId = bosTokenId
         self.eosTokenId = eosTokenId
@@ -109,9 +108,9 @@ extension TokenLattice {
     ///
     /// - Parameter node: The node defining the token to be extracted.
     ///
-    /// - Returns: A `String` reconstructed from the cached `Character` array.
+    /// - Returns: A `String` reconstructed from the cached `Unicode.Scalar` array.
     func piece(_ node: TokenLatticeNode) -> any StringProtocol {
-        String(chars[node.startOffset..<(node.startOffset + node.length)])
+        String(String.UnicodeScalarView(chars[node.startOffset..<(node.startOffset + node.length)]))
     }
 }
 

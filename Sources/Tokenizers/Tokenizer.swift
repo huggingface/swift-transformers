@@ -26,6 +26,8 @@ public enum TokenizerError: LocalizedError {
     case missingChatTemplate
     case tooLong(String)
     case mismatchedConfig(String)
+    case invalidRegex(pattern: String, underlyingError: Error)
+    case malformedPrecompiledCharsmap(String)
 
     public var errorDescription: String? {
         switch self {
@@ -45,6 +47,10 @@ public enum TokenizerError: LocalizedError {
             String(localized: "This tokenizer does not have a chat template, and no template was passed.")
         case let .tooLong(message):
             String(localized: "Input is too long: \(message)", comment: "Error when input exceeds maximum length")
+        case let .invalidRegex(pattern, underlyingError):
+            "Unable to compile tokenizer regex \(String(reflecting: pattern)): \(underlyingError.localizedDescription)"
+        case let .malformedPrecompiledCharsmap(reason):
+            String(localized: "The precompiled_charsmap is malformed: \(reason)", comment: "Error when the SentencePiece precompiled_charsmap cannot be decoded")
         case let .mismatchedConfig(message):
             String(localized: "Tokenizer configuration mismatch: \(message)", comment: "Error when tokenizer configuration is inconsistent")
         }
@@ -165,12 +171,14 @@ enum TokenizerModel {
         "FalconTokenizer": BPETokenizer.self,
         "GemmaTokenizer": BPETokenizer.self,
         "GPT2Tokenizer": BPETokenizer.self,
+        "GPTNeoXTokenizer": BPETokenizer.self,
         "LlamaTokenizer": BPETokenizer.self,
         "RobertaTokenizer": BPETokenizer.self,
         "T5Tokenizer": T5Tokenizer.self,
         "TokenizersBackend": BPETokenizer.self,
         "PreTrainedTokenizer": BPETokenizer.self,
         "Qwen2Tokenizer": BPETokenizer.self,
+        "Qwen3_5Tokenizer": BPETokenizer.self,
         "WhisperTokenizer": BPETokenizer.self,
         "XLMRobertaTokenizer": UnigramTokenizer.self,
         "Xlm-RobertaTokenizer": UnigramTokenizer.self,
@@ -525,14 +533,19 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
         self.specialTokens = specialTokens
         self.addedTokens = Set(addedTokens.keys)
 
-        preTokenizer = PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
-        normalizer = NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
+        preTokenizer = try PreTokenizerFactory.fromConfig(config: tokenizerData["preTokenizer"])
+        normalizer = try NormalizerFactory.fromConfig(config: tokenizerData["normalizer"])
         postProcessor = PostProcessorFactory.fromConfig(config: tokenizerData["postProcessor"])
-        decoder = DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
-        cleanUpTokenizationSpaces = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: true)
+        decoder = try DecoderFactory.fromConfig(config: tokenizerData["decoder"], addedTokens: self.addedTokens)
         self.tokenizerConfig = tokenizerConfig
 
         model = try TokenizerModel.from(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: addedTokens, strict: strict)
+
+        // Like transformers, skip the clean-up for BPE models
+        // Transformers breaking change: https://github.com/huggingface/transformers/pull/44915
+        let requested = tokenizerConfig.cleanUpTokenizationSpaces.boolean(or: false)
+        let forceForBPE = tokenizerConfig.cleanUpTokenizationSpacesForBpeEvenThoughItWillCorruptOutput.boolean(or: false)
+        cleanUpTokenizationSpaces = requested && (!(model is BPETokenizer) || forceForBPE)
     }
 
     private func compiledTemplate(for templateString: String) throws -> Template {
@@ -625,10 +638,12 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
             } else {
                 [text]
             }
-        return sections.enumerated().map { section, x in
+        // Unknown tokens are fused per pre-tokenized word, as the `tokenizers` models do:
+        // unknowns from adjacent words stay separate.
+        return sections.enumerated().flatMap { section, x in
             if addedTokens.contains(x) { return [x] }
-            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { model($0) }
-        }.flatMap { fuseUnknown($0) }
+            return preTokenize(normalize(x), options: section == 0 ? [.firstSection] : []).flatMap { fuseUnknown(model($0)) }
+        }
     }
 
     /// Encodes input text into token IDs with optional special token handling.
@@ -898,7 +913,25 @@ public extension AutoTokenizer {
         hubApi: HubApi = .shared,
         strict: Bool = true
     ) async throws -> Tokenizer {
-        let config = LanguageModelConfigurationFromHub(modelName: model, hubApi: hubApi)
+        try await from(pretrained: model, revision: "main", hubApi: hubApi, strict: strict)
+    }
+
+    /// Loads a tokenizer from a pre-trained model on the Hugging Face Hub at a specific revision.
+    ///
+    /// - Parameters:
+    ///   - model: The model identifier (e.g., "bert-base-uncased")
+    ///   - revision: Git revision to load — a branch, tag, commit SHA, or PR ref like `"refs/pr/1"`.
+    ///   - hubApi: The Hub API instance to use for downloading
+    ///   - strict: Whether to enforce strict validation
+    /// - Returns: A configured `Tokenizer` instance
+    /// - Throws: `TokenizerError` if the model cannot be loaded or configured
+    static func from(
+        pretrained model: String,
+        revision: String,
+        hubApi: HubApi = .shared,
+        strict: Bool = true
+    ) async throws -> Tokenizer {
+        let config = LanguageModelConfigurationFromHub(modelName: model, revision: revision, hubApi: hubApi)
         guard let tokenizerConfig = try await config.tokenizerConfig else { throw TokenizerError.missingConfig }
         let tokenizerData = try await config.tokenizerData
 

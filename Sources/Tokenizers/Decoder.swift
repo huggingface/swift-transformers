@@ -29,7 +29,8 @@ public protocol Decoder {
     /// Initializes the decoder from configuration.
     ///
     /// - Parameter config: The configuration for this decoder
-    init(config: Config)
+    /// - Throws: An error if a configured regular expression cannot be compiled.
+    init(config: Config) throws
 }
 
 extension Decoder {
@@ -51,15 +52,15 @@ enum DecoderType: String {
 }
 
 struct DecoderFactory {
-    static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) -> Decoder? {
+    static func fromConfig(config: Config?, addedTokens: Set<String>? = nil) throws -> Decoder? {
         // TODO: not sure if we need to include `addedTokens` in all the decoder initializers (and the protocol)
         guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = DecoderType(rawValue: typeName)
         switch type {
-        case .Sequence: return DecoderSequence(config: config)
+        case .Sequence: return try DecoderSequence(config: config)
         case .ByteLevel: return ByteLevelDecoder(config: config, addedTokens: addedTokens)
-        case .Replace: return ReplaceDecoder(config: config)
+        case .Replace: return try ReplaceDecoder(config: config)
         case .ByteFallback: return ByteFallbackDecoder(config: config)
         case .Fuse: return FuseDecoder(config: config)
         case .Strip: return StripDecoder(config: config)
@@ -110,9 +111,9 @@ class WordPieceDecoder: Decoder {
 class DecoderSequence: Decoder {
     let decoders: [Decoder]
 
-    required init(config: Config) {
+    required init(config: Config) throws {
         guard let configs = config.decoders.array() else { fatalError("No decoders in Sequence") }
-        decoders = configs.compactMap { DecoderFactory.fromConfig(config: $0) }
+        decoders = try configs.compactMap { try DecoderFactory.fromConfig(config: $0) }
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -167,8 +168,8 @@ class ByteLevelDecoder: Decoder {
 class ReplaceDecoder: Decoder {
     let pattern: StringReplacePattern?
 
-    required init(config: Config) {
-        pattern = StringReplacePattern.from(config: config)
+    required init(config: Config) throws {
+        pattern = try StringReplacePattern.from(config: config)
     }
 
     func decode(tokens: [String]) -> [String] {
@@ -208,11 +209,10 @@ class ByteFallbackDecoder: Decoder {
                 newTokens.append(token)
             }
         }
-        // Flush trailing byte tokens — when the input ends with a run of
-        // `<0xHH>` (e.g. multi-byte UTF-8 for a final emoji or CJK character),
-        // the previous implementation dropped them on the floor instead of
-        // appending the decoded UTF-8 string.
-        flushPendingBytes()
+        if !byteTokens.isEmpty {
+            let codeUnits = byteTokens.map { UTF8.CodeUnit($0) }
+            newTokens.append(String(decoding: codeUnits, as: UTF8.self))
+        }
         return newTokens
     }
 }
@@ -262,14 +262,13 @@ class MetaspaceDecoder: Decoder {
         replacement = config.replacement.string(or: "_")
     }
 
+    /// https://github.com/huggingface/tokenizers/blob/accd0650b802f2180df40ef1def3bce32156688e/tokenizers/src/pre_tokenizers/metaspace.rs#L132
+    /// Replacements become spaces, except in the first token when a prefix was prepended, where they are dropped.
     func decode(tokens: [String]) -> [String] {
-        var replaced = tokens.map { token in
-            token.replacingOccurrences(of: replacement, with: " ")
+        tokens.enumerated().map { index, token in
+            let substitute = index == 0 && addPrefixSpace ? "" : " "
+            return token.replacingOccurrences(of: replacement, with: substitute, options: .literal)
         }
-        if addPrefixSpace, replaced.first?.starts(with: " ") ?? false {
-            replaced[0].removeFirst()
-        }
-        return replaced
     }
 }
 

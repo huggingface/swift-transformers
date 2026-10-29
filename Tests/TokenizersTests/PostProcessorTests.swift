@@ -104,5 +104,20 @@ struct PostProcessorTests {
             let output = processor.postProcess(tokens: tokens, tokensPair: tokensPair)
             #expect(output == expect)
         }
+
+        @Test("Should not add special tokens when addSpecialTokens is false")
+        func omitsSpecialTokensWhenDisabled() {
+            let config = Config([
+                "cls": ["[CLS]", 0 as UInt],
+                "sep": ["[SEP]", 0 as UInt],
+                "trimOffset": false,
+                "addPrefixSpace": true,
+            ])
+            let tokens = ["hello", "world"]
+            let tokensPair = ["pair", "tokens"]
+            let processor = RobertaProcessing(config: config)
+            #expect(processor.postProcess(tokens: tokens, tokensPair: nil, addSpecialTokens: false) == tokens)
+            #expect(processor.postProcess(tokens: tokens, tokensPair: tokensPair, addSpecialTokens: false) == tokens + tokensPair)
+        }
     }
 }

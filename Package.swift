@@ -17,8 +17,8 @@ let package = Package(
         .library(name: "Transformers", targets: ["Tokenizers", "Generation", "Models"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/huggingface/swift-jinja.git", from: "2.0.0"),
-        .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.8.1"),
+        .package(url: "https://github.com/huggingface/swift-jinja.git", "2.4.2"..<"4.0.0"),
+        .package(url: "https://github.com/huggingface/swift-huggingface.git", "0.8.1"..<"2.0.0"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "3.0.0"..<"5.0.0"),
         .package(url: "https://github.com/ibireme/yyjson.git", exact: "0.12.0"),
@@ -45,6 +45,7 @@ let package = Package(
         .testTarget(name: "GenerationTests", dependencies: ["Generation"]),
         .testTarget(name: "HubTests", dependencies: ["Hub", .product(name: "Jinja", package: "swift-jinja")], swiftSettings: swiftSettings),
         .testTarget(name: "ModelsTests", dependencies: ["Models", "Hub"], resources: [.process("Resources")]),
-        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersTests", dependencies: ["Tokenizers", "Hub"], resources: [.process("Resources")]),
+        .testTarget(name: "TokenizersIntegrationTests", dependencies: ["Tokenizers", "Models", "Hub"], resources: [.process("Resources")]),
     ]
 )

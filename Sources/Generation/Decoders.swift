@@ -20,36 +20,44 @@ func selectNextTokenUsingGreedyDecoding(from scores: MLTensor) -> MLTensor {
 /// - Parameter scores: Processed logits tensor [batch_size, vocab_size]
 /// - Returns: Sampled token ID tensor [batch_size, 1]
 @available(macOS 15.0, iOS 18.0, tvOS 18.0, visionOS 2.0, watchOS 11.0, *)
-func selectNextTokenUsingSampling(from scores: MLTensor) -> MLTensor {
+func selectNextTokenUsingSampling(from scores: MLTensor) async -> MLTensor {
     // Convert logits to probabilities
     let probs = scores.softmax(alongAxis: -1)
 
-    // Multinomial sampling using cumulative sum method:
-    // 1. Generate random number in [0, 1)
-    // 2. Compute cumulative sum of probabilities
-    // 3. Find first index where cumsum >= random_number
+    // Multinomial sampling via inverse CDF, searched on the CPU.
     //
-    // This is equivalent to torch.multinomial() but using available MLTensor ops
-
-    let batchSize = scores.shape[0]
-    let rndTensor = MLTensor(randomUniform: [batchSize, 1], in: 0..<1, scalarType: Float.self)
+    // CPU inverse-CDF search, replacing optimized tensor argmin path that breaks for vocabs > 2^16 (#365).
     let cumulativeProbs = probs.cumulativeSum(alongAxis: -1)
+    let floatCumulativeProbs = cumulativeProbs.scalarType == Float.self ? cumulativeProbs : cumulativeProbs.cast(to: Float.self)
+    let cdf = await floatCumulativeProbs.shapedArray(of: Float.self).scalars
 
-    // Ensure random tensor matches the type of cumulativeProbs
-    let rnd = cumulativeProbs.scalarType == Float.self ? rndTensor : rndTensor.cast(to: cumulativeProbs.scalarType)
+    let vocabSize = scores.shape.last ?? 1
+    let batchSize = max(cdf.count / vocabSize, 1)
 
-    // Create mask where cumsum >= rnd (these are candidates)
-    // We want the FIRST position where this is true
-    // Strategy: Set all positions where cumsum < rnd to a large value (1000.0)
-    // Set all positions where cumsum >= rnd to their index value
-    // Then argmin will give us the first qualifying index
+    var sampledTokens = [Int32]()
+    sampledTokens.reserveCapacity(batchSize)
+    for batch in 0..<batchSize {
+        let row = cdf[(batch * vocabSize)..<((batch + 1) * vocabSize)]
+        // Scale the draw by the total mass to be robust to floating-point
+        // rounding in the last CDF entry.
+        let rnd = Float.random(in: 0..<1) * (row.last ?? 1)
 
-    let mask = cumulativeProbs .< rnd
-    let penalized = mask * 1000.0 // Large value for positions to skip
-    let indexed = penalized + cumulativeProbs // Positions >= rnd will have small values
+        // Binary search for the first index whose cumulative probability
+        // reaches the drawn value.
+        var low = row.startIndex
+        var high = row.endIndex - 1
+        while low < high {
+            let mid = (low + high) / 2
+            if row[mid] < rnd {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        sampledTokens.append(Int32(low - row.startIndex))
+    }
 
-    let sampledIndex = indexed.argmin(alongAxis: -1).reshaped(to: [1, 1])
-    // Ensure indices are Int32 for concatenation with input tokens
-    return sampledIndex.scalarType == Int32.self ? sampledIndex : sampledIndex.cast(to: Int32.self)
+    // Int32 indices, shaped [batch_size, 1] for concatenation with input tokens
+    return MLTensor(shape: [batchSize, 1], scalars: sampledTokens)
 }
 #endif // canImport(CoreML)

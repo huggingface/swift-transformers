@@ -29,7 +29,8 @@ public protocol Normalizer {
     /// Initializes the normalizer from configuration.
     ///
     /// - Parameter config: The configuration for this normalizer
-    init(config: Config)
+    /// - Throws: An error if a configured regular expression cannot be compiled.
+    init(config: Config) throws
 }
 
 extension Normalizer {
@@ -56,21 +57,21 @@ enum NormalizerType: String {
 }
 
 struct NormalizerFactory {
-    static func fromConfig(config: Config?) -> Normalizer? {
+    static func fromConfig(config: Config?) throws -> Normalizer? {
         guard let config else { return nil }
         guard let typeName = config.type.string() else { return nil }
         let type = NormalizerType(rawValue: typeName)
         switch type {
-        case .Sequence: return NormalizerSequence(config: config)
+        case .Sequence: return try NormalizerSequence(config: config)
         case .Prepend: return PrependNormalizer(config: config)
-        case .Replace: return ReplaceNormalizer(config: config)
+        case .Replace: return try ReplaceNormalizer(config: config)
         case .Lowercase: return LowercaseNormalizer(config: config)
         case .NFD: return NFDNormalizer(config: config)
         case .NFC: return NFCNormalizer(config: config)
         case .NFKD: return NFKDNormalizer(config: config)
         case .NFKC: return NFKCNormalizer(config: config)
         case .Bert, .BertNormalizer: return BertNormalizer(config: config)
-        case .Precompiled: return PrecompiledNormalizer(config: config)
+        case .Precompiled: return try PrecompiledNormalizer(config: config)
         case .StripAccents: return StripAccentsNormalizer(config: config)
         case .Strip: return StripNormalizer(config: config)
         default: fatalError("Unsupported Normalizer type: \(typeName)")
@@ -81,11 +82,11 @@ struct NormalizerFactory {
 class NormalizerSequence: Normalizer {
     let normalizers: [Normalizer]
 
-    required init(config: Config) {
+    required init(config: Config) throws {
         guard let configs = config.normalizers.array() else {
             fatalError("No normalizers in Sequence")
         }
-        normalizers = configs.compactMap { NormalizerFactory.fromConfig(config: $0) }
+        normalizers = try configs.compactMap { try NormalizerFactory.fromConfig(config: $0) }
     }
 
     func normalize(text: String) -> String {
@@ -110,8 +111,8 @@ class PrependNormalizer: Normalizer {
 class ReplaceNormalizer: Normalizer {
     let pattern: StringReplacePattern?
 
-    required init(config: Config) {
-        pattern = StringReplacePattern.from(config: config)
+    required init(config: Config) throws {
+        pattern = try StringReplacePattern.from(config: config)
     }
 
     func normalize(text: String) -> String {
@@ -236,11 +237,18 @@ class BertNormalizer: Normalizer {
     }
 
     private func stripAccents(text: String) -> String {
-        // This might be the same as `text.folding(options: .diacriticInsensitive, locale: nil)`
+        // Equivalent of HF Python's `_run_strip_accents`: NFD-decompose then drop every
+        // nonspacing-mark scalar (Unicode general category Mn). Filtering only
+        // U+0300..U+036F handled Latin diacritics but missed marks in other blocks —
+        // notably the Japanese voiced-kana combining marks U+3099/U+309A.
+        // This matches Rust `tokenizers` and HF Python.
         String(
-            text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
-                !(scalar.value >= 0x0300 && scalar.value <= 0x036F)
-            })
+            String.UnicodeScalarView(
+                text.decomposedStringWithCanonicalMapping.unicodeScalars.filter {
+                    $0.properties.generalCategory != .nonspacingMark
+                }
+            )
+        )
     }
 }
 
@@ -258,16 +266,112 @@ extension UnicodeScalar {
     }
 }
 
-class PrecompiledNormalizer: Normalizer {
-    // TODO: use `precompiledCharsmap` (base64-encoded string) from the configuration
-    required init(config: Config) {}
+/// SentencePiece `precompiled_charsmap`: a Darts double-array trie keyed by UTF-8
+/// bytes, whose leaves hold offsets into a blob of NUL-terminated replacements.
+///
+/// Port of https://github.com/huggingface/spm_precompiled
+struct PrecompiledCharsmap {
+    private let trie: [UInt32]
+    private let replacements: [UInt8]
 
+    /// Layout: `[u32 LE trie size in bytes][trie: u32 LE units][replacements]`.
+    ///
+    /// - Throws: `TokenizerError.malformedPrecompiledCharsmap` when the data is truncated,
+    ///   the trie is empty, or the replacements are not valid UTF-8, as `Precompiled::from` fails.
+    init(_ data: Data) throws {
+        let bytes = [UInt8](data)
+        guard bytes.count >= 4 else {
+            throw TokenizerError.malformedPrecompiledCharsmap("missing trie size")
+        }
+        func u32(at offset: Int) -> UInt32 {
+            UInt32(bytes[offset]) | UInt32(bytes[offset + 1]) << 8 | UInt32(bytes[offset + 2]) << 16 | UInt32(bytes[offset + 3]) << 24
+        }
+        let unitCount = Int(u32(at: 0)) / 4
+        let blobStart = 4 + unitCount * 4
+        guard unitCount > 0 else {
+            throw TokenizerError.malformedPrecompiledCharsmap("empty trie")
+        }
+        guard blobStart <= bytes.count else {
+            throw TokenizerError.malformedPrecompiledCharsmap("trie extends past the end of the data")
+        }
+        guard String(bytes: bytes[blobStart...], encoding: .utf8) != nil else {
+            throw TokenizerError.malformedPrecompiledCharsmap("replacements are not valid UTF-8")
+        }
+        trie = (0..<unitCount).map { u32(at: 4 + $0 * 4) }
+        replacements = Array(bytes[blobStart...])
+    }
+
+    /// The replacement for the *shortest* prefix of `key` found in the trie, as
+    /// `Precompiled::transform` returns the first `common_prefix_search` result.
+    func transform(_ key: some Sequence<UInt8>) -> String? {
+        func hasLeaf(_ unit: UInt32) -> Bool { (unit >> 8) & 1 == 1 }
+        func value(_ unit: UInt32) -> Int { Int(unit & ((1 << 31) - 1)) }
+        func label(_ unit: UInt32) -> UInt32 { unit & ((1 << 31) | 0xFF) }
+        func offset(_ unit: UInt32) -> Int { Int((unit >> 10) << ((unit & (1 << 9)) >> 6)) }
+
+        var position = offset(trie[0])
+        for byte in key {
+            if byte == 0 { break }
+            position ^= Int(byte)
+            guard position < trie.count, label(trie[position]) == UInt32(byte) else { return nil }
+            let unit = trie[position]
+            position ^= offset(unit)
+            if hasLeaf(unit) {
+                guard position < trie.count else { return nil }
+                let start = value(trie[position])
+                guard start <= replacements.count else { return nil }
+                let end = replacements[start...].firstIndex(of: 0) ?? replacements.count
+                return String(decoding: replacements[start..<end], as: UTF8.self)
+            }
+        }
+        return nil
+    }
+}
+
+class PrecompiledNormalizer: Normalizer {
+    private let charsmap: PrecompiledCharsmap?
+
+    /// - Throws: `TokenizerError.malformedPrecompiledCharsmap` if a charsmap is present
+    ///   but cannot be decoded. Configurations without one use the approximation.
+    required init(config: Config) throws {
+        guard let encoded = config.precompiledCharsmap.string() else {
+            charsmap = nil
+            return
+        }
+        guard let data = Data(base64Encoded: encoded) else {
+            throw TokenizerError.malformedPrecompiledCharsmap("invalid base64")
+        }
+        charsmap = try PrecompiledCharsmap(data)
+    }
+
+    /// https://github.com/huggingface/tokenizers/blob/v0.23.2/tokenizers/src/normalizers/precompiled.rs
+    ///
+    /// A grapheme cluster shorter than 6 UTF-8 bytes is replaced as a whole when any prefix
+    /// of it is in the charsmap, so "\u{2581}\u{0301}" becomes " ". Otherwise each scalar
+    /// is transformed on its own.
     func normalize(text: String) -> String {
-        // TODO: This is a simplified implementation.
+        guard let charsmap else { return approximateNormalize(text: text) }
+        var output = ""
+        for grapheme in text {
+            if grapheme.utf8.count < 6, let replacement = charsmap.transform(grapheme.utf8) {
+                output += replacement
+                continue
+            }
+            for scalar in grapheme.unicodeScalars {
+                if let replacement = charsmap.transform(scalar.utf8) {
+                    output += replacement
+                } else {
+                    output.unicodeScalars.append(scalar)
+                }
+            }
+        }
+        return output
+    }
+
+    /// Approximation for configurations without a `precompiled_charsmap`.
+    private func approximateNormalize(text: String) -> String {
         // - The following comments also apply here:
         // https://github.com/xenova/transformers.js/blob/main/src/tokenizers.js#L2237-L2247
-        // - For a proper implementation, see:
-        // https://github.com/huggingface/tokenizers/blob/b58227c7f1ccf8b73ee2268354336da56d91e492/tokenizers/src/normalizers/precompiled.rs#L36
         var output = ""
         var hasFullwidthTilde = false
 
@@ -303,8 +407,19 @@ class PrecompiledNormalizer: Normalizer {
 class StripAccentsNormalizer: Normalizer {
     required init(config: Config) {}
 
+    /// Removes combining marks (Unicode general category M), like `StripAccents` in Rust `tokenizers`.
+    /// Precomposed characters are kept, so it is usually preceded by an `NFD` normalizer.
     func normalize(text: String) -> String {
-        text.precomposedStringWithCompatibilityMapping
+        String(
+            String.UnicodeScalarView(
+                text.unicodeScalars.filter {
+                    switch $0.properties.generalCategory {
+                    case .nonspacingMark, .spacingMark, .enclosingMark: false
+                    default: true
+                    }
+                }
+            )
+        )
     }
 }
 
@@ -347,22 +462,23 @@ extension StringReplacePattern {
             )
             return replaced
         case let .string(toReplace, replacement):
-            return text.replacingOccurrences(of: toReplace, with: replacement)
+            return text.replacingOccurrences(of: toReplace, with: replacement, options: .literal)
         }
     }
 }
 
 extension StringReplacePattern {
-    static func from(config: Config) -> StringReplacePattern? {
+    static func from(config: Config) throws -> StringReplacePattern? {
         guard let replacement = config.content.string() else { return nil }
         if let pattern = config.pattern.String.string() {
             return StringReplacePattern.string(pattern: pattern, replacement: replacement)
         }
         if let pattern = config.pattern.Regex.string() {
-            guard let regexp = try? NSRegularExpression(pattern: pattern, options: []) else {
-                fatalError("Cannot build regexp from \(pattern)")
+            do {
+                return StringReplacePattern.regexp(regexp: try NSRegularExpression(pattern: pattern), replacement: replacement)
+            } catch {
+                throw TokenizerError.invalidRegex(pattern: pattern, underlyingError: error)
             }
-            return StringReplacePattern.regexp(regexp: regexp, replacement: replacement)
         }
         return nil
     }
