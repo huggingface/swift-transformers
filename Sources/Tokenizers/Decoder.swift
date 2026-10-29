@@ -85,12 +85,6 @@ class WordPieceDecoder: Decoder {
     }
 
     func decode(tokens: [String]) -> [String] {
-        // An empty token list can reach this decoder when the calling chain has
-        // filtered out every input — e.g. `decode(tokens:, skipSpecialTokens: true)`
-        // on an id sequence that consisted entirely of special tokens, or after a
-        // `compactMap { convertIdToToken($0) }` drops every entry as out-of-vocab.
-        // The reference Rust implementation no-ops in that case rather than
-        // unwrapping `tokens.first!` (which previously crashed).
         guard let first = tokens.first else { return [] }
         let firstToken = cleanup ? cleanUpTokenization(first) : first
         return [firstToken]
