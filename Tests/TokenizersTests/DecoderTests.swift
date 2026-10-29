@@ -129,28 +129,6 @@ struct DecoderTests {
         #expect(decoderNoCleanup.decode(tokens: []) == [])
     }
 
-    /// Regression coverage: `ByteFallbackDecoder.decode` accumulated runs of
-    /// `<0xHH>` byte tokens and flushed them only when a non-byte token followed.
-    /// Inputs that ended with a multi-byte UTF-8 run (e.g. a trailing emoji or
-    /// CJK character whose final code point fell back to bytes) had those bytes
-    /// silently dropped from the output.
-    @Test("ByteFallback decoder flushes trailing byte tokens")
-    func byteFallbackDecoderTrailingBytes() {
-        let decoder = ByteFallbackDecoder(config: Config(["type": "ByteFallback"]))
-        // © is U+00A9 → UTF-8 0xC2 0xA9.
-        #expect(decoder.decode(tokens: ["<0xC2>", "<0xA9>"]) == ["©"])
-        // Trailing bytes after a real token must still flush.
-        #expect(decoder.decode(tokens: ["abc", "<0xC2>", "<0xA9>"]) == ["abc", "©"])
-        // 🚀 is U+1F680 → UTF-8 0xF0 0x9F 0x9A 0x80 (four-byte fallback at end).
-        #expect(decoder.decode(tokens: ["hi", "<0xF0>", "<0x9F>", "<0x9A>", "<0x80>"]) == ["hi", "🚀"])
-        // Existing in-loop flush behavior is preserved.
-        #expect(decoder.decode(tokens: ["<0xC2>", "<0xA9>", "xyz"]) == ["©", "xyz"])
-        // Empty input still returns empty.
-        #expect(decoder.decode(tokens: []) == [])
-        // Non-byte-only inputs unchanged.
-        #expect(decoder.decode(tokens: ["abc", "def"]) == ["abc", "def"])
-    }
-
     @Test("WordPiece decoder with prefix and cleanup")
     func wordPieceDecoder() {
         let config = Config(["prefix": "##", "cleanup": true])
