@@ -111,6 +111,27 @@ struct BinaryDistinctStringTests {
         #expect(BinaryDistinctString(ns).value == Legacy.value(ns))
     }
 
+    @Test("The string view matches String(decoding:as: UTF16.self) on arbitrary UTF-16, lone surrogates included")
+    func stringViewMatchesStandardDecoding() {
+        // Surrogate-heavy random code units: every pairing of high, low and other units.
+        var state: UInt64 = 0x9E37_79B9_7F4A_7C15
+        func next() -> UInt64 {
+            state = state &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return state >> 33
+        }
+        let pool: [UInt16] = [0x00, 0x41, 0x7F, 0x80, 0x7FF, 0x800, 0x2581, 0xD7FF, 0xD800, 0xDBFF, 0xDC00, 0xDFFF, 0xE000, 0xFFFD, 0xFFFF]
+        var cases: [[UInt16]] = loneSurrogates + wellFormed.map { Array($0.utf16) }
+        for _ in 0..<5000 {
+            let length = Int(next() % 12)
+            cases.append((0..<length).map { _ in next() % 2 == 0 ? pool[Int(next() % UInt64(pool.count))] : UInt16(truncatingIfNeeded: next()) })
+        }
+        for units in cases {
+            let expected = String(decoding: units, as: UTF16.self)
+            let actual = BinaryDistinctString(units).string
+            #expect(Array(actual.utf8) == Array(expected.utf8), "\(units)")
+        }
+    }
+
     @Test("A lone-surrogate vocabulary key stays distinct from the replacement character")
     func loneSurrogateInVocab() throws {
         // yyjson rejects a lone `\ud800` escape ("no low surrogate in string"), so a tokenizer.json

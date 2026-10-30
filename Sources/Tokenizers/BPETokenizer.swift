@@ -30,9 +30,18 @@ struct BytePair: Hashable, Sendable {
     }
 
     func hash(into hasher: inout Hasher) {
-        for part in [a, b] {
-            hasher.combine(part.utf8.count)
-            for byte in part.utf8 { hasher.combine(byte) }
+        Self.combine(a, into: &hasher)
+        Self.combine(b, into: &hasher)
+    }
+
+    /// Feeds the length and UTF-8 bytes of `part` to `hasher`, always through `combine(bytes:)`,
+    /// so equal byte sequences hash the same whether or not the string is natively stored.
+    private static func combine(_ part: String, into hasher: inout Hasher) {
+        hasher.combine(part.utf8.count)
+        if part.utf8.withContiguousStorageIfAvailable({ hasher.combine(bytes: UnsafeRawBufferPointer($0)) }) == nil {
+            var contiguous = part
+            contiguous.makeContiguousUTF8()
+            contiguous.utf8.withContiguousStorageIfAvailable { hasher.combine(bytes: UnsafeRawBufferPointer($0)) }
         }
     }
 }
@@ -136,21 +145,33 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     /// Whether a word found whole in the vocabulary is returned without applying merges.
     let ignoreMerges: Bool
 
-    static func mergesFromConfig(_ config: Config?) -> [[String]]? {
-        guard let config else { return nil }
-
-        if let merges = config.array() {
-            return merges.reduce(into: [[String]]()) { result, element in
-                if let val: [String] = element.get() { // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items
-                    result.append(val)
+    /// Builds the merge ranks straight from the `merges` list, without an intermediate `[[String]]`.
+    ///
+    /// A merge's rank is its position among the entries that are a list or a legacy `"a b"`
+    /// string (anything else is skipped), and a repeated pair keeps its last rank.
+    static func bpeRanks(merges: [Config]) -> [BytePair: Int] {
+        var ranks = [BytePair: Int](minimumCapacity: merges.count)
+        var rank = 0
+        for element in merges {
+            let pair: BytePair
+            if let parts = element.array() {
+                // New format (pushed with tokenizers >= 0.20.0): each merge is a list of 2 items.
+                if parts.count == 2, let a = parts[0].string(), let b = parts[1].string() {
+                    pair = BytePair(a, b)
+                } else if let val: [String] = element.get() {
+                    pair = BytePair(tuple: val)
+                } else {
+                    continue
                 }
-                if let val: String = element.get() { // legacy
-                    result.append(val.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) })
-                }
+            } else if let val: String = element.get() { // legacy
+                pair = BytePair(tuple: val.unicodeScalars.split(separator: " ", omittingEmptySubsequences: false).map { String($0) })
+            } else {
+                continue
             }
+            ranks[pair] = rank
+            rank += 1
         }
-
-        return nil
+        return ranks
     }
 
     /// Initializes a BPE tokenizer from configuration data.
@@ -161,26 +182,24 @@ class BPETokenizer: PreTrainedTokenizerModel, @unchecked Sendable {
     ///   - addedTokens: Additional tokens to include in the vocabulary
     /// - Throws: `TokenizerError` if required configuration is missing
     required init(tokenizerConfig: Config, tokenizerData: Config, addedTokens: [String: Int]) throws {
-        guard let merges = Self.mergesFromConfig(tokenizerData.model.merges) else { fatalError("BPETokenizer requires merges") }
+        guard let merges = tokenizerData.model.merges.array() else { fatalError("BPETokenizer requires merges") }
         guard let vocab = tokenizerData.model.vocab.dictionary() else {
             throw TokenizerError.missingVocab
         }
-        var bpeRanks: [BytePair: Int] = [:]
-        bpeRanks.reserveCapacity(merges.count)
-        for (i, merge) in merges.enumerated() {
-            let bp = BytePair(tuple: merge)
-            bpeRanks[bp] = i
-        }
-        self.bpeRanks = bpeRanks
+        // After the vocabulary check: a malformed merge (fewer than two parts) traps in
+        // `BytePair(tuple:)`, and a tokenizer without a vocabulary throws `missingVocab` first.
+        self.bpeRanks = Self.bpeRanks(merges: merges)
 
         let addedTokens = addedTokens.reduce(into: [BinaryDistinctString: Config]()) { result, element in
             result[BinaryDistinctString(element.key)] = .init(element.value)
         }
         tokensToIds = vocab.merging(addedTokens) { $1 }.compactMapValues { $0.integer() }
 
-        idsToTokens = tokensToIds.reduce(into: [Int: String]()) { result, element in
-            result[element.value] = element.key.string
+        var idsToTokens = [Int: String](minimumCapacity: tokensToIds.count)
+        for (token, id) in tokensToIds {
+            idsToTokens[id] = token.string
         }
+        self.idsToTokens = idsToTokens
 
         // Populate tokens
         if let unknownToken = TokenizerModel.unknownToken(from: tokenizerConfig) {
