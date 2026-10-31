@@ -614,8 +614,6 @@ public class PreTrainedTokenizer: @unchecked Sendable, Tokenizer {
 
     func fuseUnknown(_ tokens: [String]) -> [String] {
         guard fuseUnknownTokens else { return tokens }
-        // A loop, not `reduce` with a tuple accumulator: destructuring the tuple copied the array
-        // on every append, which made a word's fusion quadratic in its token count.
         var fused: [String] = []
         fused.reserveCapacity(tokens.count)
         var previousIsUnknown = false
