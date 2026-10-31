@@ -12,14 +12,16 @@ private func config(_ object: Any) throws -> Config {
 struct BPEMergesTests {
     @Test("Ranks count list and legacy entries, skip anything else, and keep a repeated pair's last rank")
     func ranks() throws {
-        let merges = try config([
-            ["a", "b"],  // 0
-            "c d",  // 1
-            ["e", "f", "g"],  // 2: the first two strings
-            ["h", 1, "i"],  // 3: non-strings dropped
-            7,  // skipped
-            ["a", "b"],  // 4: repeated, last rank wins
-        ] as [Any]).array()!
+        let merges = try config(
+            [
+                ["a", "b"], // 0
+                "c d", // 1
+                ["e", "f", "g"], // 2: the first two strings
+                ["h", 1, "i"], // 3: non-strings dropped
+                7, // skipped
+                ["a", "b"], // 4: repeated, last rank wins
+            ] as [Any]
+        ).array()!
         let ranks = BPETokenizer.bpeRanks(merges: merges)
         #expect(ranks.count == 4)
         #expect(ranks[BytePair("a", "b")] == 4)
