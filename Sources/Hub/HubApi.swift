@@ -75,8 +75,8 @@ extension HTTPURLResponse {
 /// Client for interacting with the Hugging Face Hub API.
 ///
 /// HubApi provides methods for downloading files, retrieving metadata, managing repositories,
-/// and handling authentication with the Hugging Face Hub. It supports offline mode,
-/// background downloads, and automatic retry mechanisms for robust file transfers.
+/// and handling authentication with the Hugging Face Hub. It supports offline mode
+/// and automatic retry mechanisms for file transfers.
 ///
 /// ## Storage model
 ///
@@ -96,16 +96,11 @@ extension HTTPURLResponse {
 public struct HubApi: Sendable {
     var downloadBase: URL
     var endpoint: String
-    var useBackgroundSession: Bool
     var useOfflineMode: Bool?
     private let hostURL: URL
     private let tokenProvider: TokenProvider
     private let foregroundCachedClient: HubClient
     private let foregroundUncachedClient: HubClient
-    #if !canImport(FoundationNetworking)
-    private let backgroundCachedClient: HubClient
-    private let backgroundUncachedClient: HubClient
-    #endif
 
     private let networkMonitor = NetworkMonitor.shared
     public typealias RepoType = Hub.RepoType
@@ -117,16 +112,6 @@ public struct HubApi: Sendable {
     /// exhaustion when many instances are created. Persists for process lifetime.
     private static let redirectSession: RedirectSessionActor = .init()
     private static let hubRepoIdCache: HubRepoIDCacheActor = .init()
-    #if !canImport(FoundationNetworking)
-    private static let backgroundHubSession: URLSession = {
-        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "swift-transformers"
-        let identifier = "\(bundleIdentifier).hub.hubclient.background"
-        let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
-        configuration.isDiscretionary = false
-        configuration.sessionSendsLaunchEvents = true
-        return URLSession(configuration: configuration)
-    }()
-    #endif
 
     /// Initializes a new Hub API client.
     ///
@@ -141,7 +126,8 @@ public struct HubApi: Sendable {
     ///     If `nil`, token resolution uses `TokenProvider.environment`.
     ///   - endpoint: The Hub endpoint URL override.
     ///     If `nil` (or invalid), host resolution follows `HubClient` defaults.
-    ///   - useBackgroundSession: Whether to use background URL sessions for downloads
+    ///   - useBackgroundSession: Ignored. Downloads use a foreground URLSession because
+    ///     HubClient can't download with a background session yet (#341).
     ///   - useOfflineMode: Override for offline mode detection (defaults to automatic detection)
     public init(
         downloadBase: URL? = nil,
@@ -173,38 +159,12 @@ public struct HubApi: Sendable {
             hostURL = HubClient(cache: nil).host
         }
         self.endpoint = hostURL.absoluteString
-        self.useBackgroundSession = useBackgroundSession
         self.useOfflineMode = useOfflineMode
-        self.foregroundCachedClient = Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: cache,
-            useBackgroundSession: false
-        )
-        self.foregroundUncachedClient = Self.buildHubClient(
-            host: hostURL,
-            tokenProvider: tokenProvider,
-            cache: nil,
-            useBackgroundSession: false
-        )
-        #if !canImport(FoundationNetworking)
-        self.backgroundCachedClient =
-            useBackgroundSession
-            ? Self.buildHubClient(
-                host: hostURL,
-                tokenProvider: tokenProvider,
-                cache: cache,
-                useBackgroundSession: true
-            ) : self.foregroundCachedClient
-        self.backgroundUncachedClient =
-            useBackgroundSession
-            ? Self.buildHubClient(
-                host: hostURL,
-                tokenProvider: tokenProvider,
-                cache: nil,
-                useBackgroundSession: true
-            ) : self.foregroundUncachedClient
-        #endif
+        self.foregroundCachedClient = HubClient(host: hostURL, tokenProvider: tokenProvider, cache: cache)
+        self.foregroundUncachedClient = HubClient(host: hostURL, tokenProvider: tokenProvider, cache: nil)
+        if useBackgroundSession {
+            Self.logger.warning("useBackgroundSession is ignored: HubClient can't download with a background URLSession yet (#341)")
+        }
     }
 
     /// The shared Hub API instance with default configuration.
@@ -227,22 +187,6 @@ private struct PrintLogger {
 #endif
 
 private extension HubApi {
-    static func buildHubClient(
-        host: URL,
-        tokenProvider: TokenProvider,
-        cache: HubCache?,
-        useBackgroundSession: Bool
-    ) -> HubClient {
-        #if canImport(FoundationNetworking)
-        return HubClient(host: host, tokenProvider: tokenProvider, cache: cache)
-        #else
-        if useBackgroundSession {
-            return HubClient(session: Self.backgroundHubSession, host: host, tokenProvider: tokenProvider, cache: cache)
-        }
-        return HubClient(host: host, tokenProvider: tokenProvider, cache: cache)
-        #endif
-    }
-
     func resolveHubClientRepoID(for repo: Repo) async throws -> HuggingFace.Repo.ID {
         if let parsed = HuggingFace.Repo.ID(rawValue: repo.id) {
             return parsed
@@ -737,7 +681,6 @@ public extension HubApi {
         let repoDestination: URL
         let repoMetadataDestination: URL
         let relativeFilename: String
-        let backgroundSession: Bool
 
         var source: URL {
             // https://huggingface.co/coreml-projects/Llama-2-7b-chat-coreml/resolve/main/tokenizer.json?download=true
@@ -833,18 +776,7 @@ public extension HubApi {
 
             try await withTaskCancellationHandler {
                 do {
-                    let client: HubClient
-                    #if canImport(FoundationNetworking)
-                    client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
-                    #else
-                    if backgroundSession, !forceDownload {
-                        client = hub.backgroundCachedClient
-                    } else if backgroundSession {
-                        client = hub.backgroundUncachedClient
-                    } else {
-                        client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
-                    }
-                    #endif
+                    let client = !forceDownload ? hub.foregroundCachedClient : hub.foregroundUncachedClient
 
                     let hubRepoID = try await hub.resolveHubClientRepoID(for: repo)
                     _ = try await client.downloadFile(
@@ -948,8 +880,7 @@ public extension HubApi {
                 revision: revision,
                 repoDestination: repoDestination,
                 repoMetadataDestination: repoMetadataDestination,
-                relativeFilename: filename,
-                backgroundSession: useBackgroundSession
+                relativeFilename: filename
             )
 
             try await downloader.download { fractionDownloaded, speed in
