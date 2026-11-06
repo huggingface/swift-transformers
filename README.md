@@ -246,6 +246,7 @@ package traits are unavailable and Xet transport cannot be enabled.
 - [WhisperKit](https://github.com/argmaxinc/WhisperKit): A Swift Package for state-of-the-art speech-to-text systems from [Argmax](https://github.com/argmaxinc)
 - [MLX Swift LM](https://github.com/ml-explore/mlx-swift-lm): LLM and vision-language model inference using MLX Swift.
 - [MLX Swift Examples](https://github.com/ml-explore/mlx-swift-examples): Apps and examples built with MLX Swift.
+- [Murmur](https://www.murmurtts.com): Offline text-to-speech app for Mac that runs Kokoro, Qwen3-TTS and other open models with MLX Swift, using swift-transformers through MLX Swift LM.
 
 Using `swift-transformers` in your project? Let us know and we'll add you to the list!
 
