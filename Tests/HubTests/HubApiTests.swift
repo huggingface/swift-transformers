@@ -23,6 +23,38 @@ class HubApiTests: XCTestCase {
         XCTAssertEqual(hubApi.endpoint, "https://hf-mirror.com")
     }
 
+    /// The default `downloadBase` must not reside under the user's `Documents` directory.
+    ///
+    /// Regression coverage for #339: on macOS Sequoia+, resolving `.documentDirectory`
+    /// triggers a TCC consent prompt for "Documents folder" even when the directory
+    /// is never actually used (e.g. tokenizer-only flows that go through `HubApi.shared`
+    /// via a default parameter).
+    func testDefaultDownloadBaseIsNotInDocumentsFolder() {
+        let hubApi = HubApi()
+
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        XCTAssertFalse(
+            hubApi.downloadBase.path.hasPrefix(documents.path),
+            "Default downloadBase \(hubApi.downloadBase.path) should not live under \(documents.path)"
+        )
+    }
+
+    /// The default `downloadBase` resolves to `Application Support/huggingface`.
+    func testDefaultDownloadBaseIsApplicationSupportHuggingface() {
+        let hubApi = HubApi()
+
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let expected = support.appending(component: "huggingface")
+        XCTAssertEqual(hubApi.downloadBase.standardizedFileURL, expected.standardizedFileURL)
+    }
+
+    /// An explicit `downloadBase` argument is preserved verbatim.
+    func testExplicitDownloadBaseIsRespected() {
+        let custom = URL(fileURLWithPath: "/tmp/swift-transformers-tests/custom-download-base", isDirectory: true)
+        let hubApi = HubApi(downloadBase: custom)
+        XCTAssertEqual(hubApi.downloadBase.standardizedFileURL, custom.standardizedFileURL)
+    }
+
     /// Test that revision values containing slashes (like "pr/1") are properly URL encoded.
     /// The Hub API requires "pr/1" to be encoded as "pr%2F1" - otherwise it returns 404.
     func testGetFilenamesWithPRRevision() async throws {

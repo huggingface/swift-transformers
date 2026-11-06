@@ -132,7 +132,7 @@ public struct HubApi: Sendable {
     ///
     /// - Parameters:
     ///   - downloadBase: The base directory for local snapshot outputs.
-    ///     Defaults to `Documents/huggingface` to preserve historical behavior.
+    ///     Defaults to `Application Support/huggingface`.
     ///     This location is independent from `HubCache` storage used by cached
     ///     `HubClient` requests, and is the location used by offline snapshot checks.
     ///   - cache: The cache used by cached `HubClient` requests.
@@ -157,12 +157,7 @@ public struct HubApi: Sendable {
             } else {
                 .environment
             }
-        if let downloadBase {
-            self.downloadBase = downloadBase
-        } else {
-            let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            self.downloadBase = documents.appending(component: "huggingface")
-        }
+        self.downloadBase = downloadBase ?? Self.defaultDownloadBase
         if let endpoint,
             let parsed = URL(string: endpoint),
             let scheme = parsed.scheme, !scheme.isEmpty,
@@ -209,6 +204,18 @@ public struct HubApi: Sendable {
 
     /// The shared Hub API instance with default configuration.
     public static let shared = HubApi()
+
+    /// The default base directory used when no `downloadBase` is supplied.
+    ///
+    /// Resolves to `Application Support/huggingface` so that snapshot outputs are
+    /// stored in the standard Apple location for app data. This avoids the
+    /// macOS Sequoia+ TCC consent prompt for the user's `Documents` folder
+    /// triggered by `.documentDirectory`, which used to fire even for callers
+    /// that only used `Tokenizers` for local model loading.
+    static var defaultDownloadBase: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return support.appending(component: "huggingface")
+    }
 
     #if canImport(os)
     private static let logger = Logger()
