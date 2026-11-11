@@ -1016,9 +1016,14 @@ class LlamaPreTrainedTokenizer: PreTrainedTokenizer, @unchecked Sendable {
         isLegacy = tokenizerConfig.legacy.boolean(or: true)
         var configDictionary = tokenizerData.dictionary(or: [:])
         if !isLegacy {
+            // transformers' LlamaConverter builds this pre-tokenizer with split=False. A Metaspace
+            // pre-tokenizer in tokenizer.json keeps its own setting, which defaults to true.
+            let preTokenizer = tokenizerData["preTokenizer"]
+            let split = preTokenizer.type.string() == "Metaspace" ? preTokenizer.split.boolean(or: true) : false
             _ = configDictionary.removeValue(forKey: "normalizer")
             configDictionary["pre_tokenizer"] = [
                 "type": "Metaspace", "replacement": .init(sentencePieceUnderline), "add_prefix_space": true, "prepend_scheme": "first",
+                "split": .init(split),
             ]
         }
 
