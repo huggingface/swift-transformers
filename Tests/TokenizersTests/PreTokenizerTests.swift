@@ -338,6 +338,43 @@ struct PreTokenizerTests {
         )
     }
 
+    /// Mistral-7B-Instruct-v0.3 and other non-legacy Llama tokenizers set `"split": false`.
+    /// Expected values come from the Python `tokenizers` Metaspace pre-tokenizer.
+    @Test("Metaspace split false keeps the section in one piece")
+    func metaspaceSplitFalse() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "first",
+                "split": false,
+            ]))
+
+        #expect(preTokenizer.preTokenize(text: "Hello world") == ["▁Hello▁world"])
+        #expect(preTokenizer.preTokenize(text: "Hey   my friend") == ["▁Hey▁▁▁my▁friend"])
+        #expect(preTokenizer.preTokenize(text: "▁Hello  world") == ["▁Hello▁▁world"])
+
+        let neverPrepend = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "never",
+                "split": false,
+            ]))
+        #expect(neverPrepend.preTokenize(text: "Hey   my friend") == ["Hey▁▁▁my▁friend"])
+    }
+
+    @Test("Metaspace split true splits before each replacement")
+    func metaspaceSplitTrue() {
+        let preTokenizer = MetaspacePreTokenizer(
+            config: Config([
+                "replacement": "▁",
+                "prepend_scheme": "first",
+                "split": true,
+            ]))
+
+        #expect(preTokenizer.preTokenize(text: "Hey   my friend") == ["▁Hey", "▁", "▁", "▁my", "▁friend"])
+        #expect(preTokenizer.preTokenize(text: "▁Hello  world") == ["▁Hello", "▁", "▁world"])
+    }
+
     @Test("Metaspace legacy add_prefix_space without prepend_scheme")
     func metaspaceLegacyAddPrefixSpace() {
         // add_prefix_space: true, no prepend_scheme → behaves like "always"
