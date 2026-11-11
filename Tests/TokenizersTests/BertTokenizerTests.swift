@@ -162,6 +162,39 @@ struct BertTokenizerTests {
         #expect(tokens == expectedTokens)
     }
 
+    @Test("WordPiece matches vocabulary entries by exact Unicode scalars")
+    func wordpieceExactMatch() {
+        // Python: tokenizers WordPiece with the same vocabulary. Swift String equality would treat
+        // "a\u{0308}" as "\u{00E4}" and U+F900 as U+8C48 (canonical equivalence).
+        let wordpiece = WordpieceTokenizer(vocab: ["[UNK]": 0, "\u{00E4}": 1, "a": 2, "\u{8C48}": 3, "b": 4, "##b": 5])
+        #expect(wordpiece.tokenize(word: "\u{00E4}") == ["\u{00E4}"])
+        #expect(wordpiece.tokenize(word: "\u{00E4}b") == ["\u{00E4}", "##b"])
+        #expect(wordpiece.tokenize(word: "a\u{0308}") == ["[UNK]"])
+        #expect(wordpiece.tokenize(word: "\u{F900}") == ["[UNK]"])
+    }
+
+    @Test("Canonically equivalent vocabulary entries keep their own IDs")
+    func canonicallyEquivalentVocabEntries() throws {
+        // ";" and U+037E GREEK QUESTION MARK are canonically equivalent but separate entries, as in LaBSE.
+        // Python: tokenizers WordPiece with this vocabulary, BertNormalizer(lowercase=False) and BertPreTokenizer.
+        let json = #"{"model": {"type": "WordPiece", "unk_token": "[UNK]", "vocab": {"[UNK]": 0, "[CLS]": 1, "[SEP]": 2, "a": 3, ";": 4, "\u037e": 5, "b": 6}}}"#
+        let tokenizerData = try YYJSONParser.parseToConfig(Data(json.utf8))
+        let tokenizerConfig = try JSONDecoder().decode(Config.self, from: Data(#"{"do_lower_case": false}"#.utf8))
+        let tokenizer = try BertTokenizer(tokenizerConfig: tokenizerConfig, tokenizerData: tokenizerData, addedTokens: [:])
+        #expect(tokenizer.tokenizeToIds(text: "a;b") == [3, 4, 6])
+        #expect(tokenizer.tokenizeToIds(text: "a\u{037E}b") == [3, 5, 6])
+        #expect(tokenizer.convertTokenToId(";") == 4)
+        #expect(tokenizer.convertTokenToId("\u{037E}") == 5)
+        #expect(tokenizer.convertIdToToken(5)?.unicodeScalars.map(\.value) == [0x037E])
+    }
+
+    @Test("Chinese character in the same Character as the previous scalar")
+    func chineseCharacterAfterPrependScalar() {
+        // U+0D4E has Grapheme_Cluster_Break=Prepend, so "\u{0D4E}\u{4E2D}" is a single Character.
+        // Python: Tokenizer.from_pretrained("bert-base-uncased").encode("\u0d4e\u4e2d", add_special_tokens=False).tokens
+        #expect(bertTokenizer.tokenize(text: "\u{0D4E}\u{4E2D}") == ["[UNK]", "中"])
+    }
+
     @Test("Pure Chinese text tokenization")
     func pureChineseTokenization() {
         let tokenizer = bertTokenizer
