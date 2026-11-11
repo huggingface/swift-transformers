@@ -188,6 +188,13 @@ struct BertTokenizerTests {
         #expect(tokenizer.convertIdToToken(5)?.unicodeScalars.map(\.value) == [0x037E])
     }
 
+    @Test("Chinese character in the same Character as the previous scalar")
+    func chineseCharacterAfterPrependScalar() {
+        // U+0D4E has Grapheme_Cluster_Break=Prepend, so "\u{0D4E}\u{4E2D}" is a single Character.
+        // Python: Tokenizer.from_pretrained("bert-base-uncased").encode("\u0d4e\u4e2d", add_special_tokens=False).tokens
+        #expect(bertTokenizer.tokenize(text: "\u{0D4E}\u{4E2D}") == ["[UNK]", "中"])
+    }
+
     @Test("Pure Chinese text tokenization")
     func pureChineseTokenization() {
         let tokenizer = bertTokenizer

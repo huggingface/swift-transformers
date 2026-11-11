@@ -164,6 +164,54 @@ struct NormalizerTests {
         #expect(try NormalizerFactory.fromConfig(config: config) as? BertNormalizer != nil)
     }
 
+    @Test("Bert normalizer clean_text drops control characters and maps whitespace")
+    func bertNormalizerCleanText() {
+        // Python verification: BertNormalizer(clean_text=True).normalize_str(...); lowercasing does not change these.
+        let testCases: [(String, String)] = [
+            ("hello\u{200B}world", "helloworld"),
+            ("data\u{200D}base", "database"),
+            ("\u{FEFF}hello", "hello"),
+            ("co\u{00AD}operate", "cooperate"),
+            ("bell\u{07}ring", "bellring"),
+            ("a\u{00}b\u{FFFD}c", "abc"),
+            ("tab\there\nnew\rline", "tab here new line"),
+            ("nbsp\u{00A0}here", "nbsp here"),
+            ("ideo\u{3000}space", "ideo space"),
+            // Private use is removed, unassigned is kept.
+            ("a\u{E000}b", "ab"),
+            ("a\u{0378}b", "a\u{0378}b"),
+            // Format characters up to Unicode 8.0 are removed, later ones are kept, as in the Rust normalizer.
+            ("a\u{1BCA0}b", "ab"),
+            ("a\u{08E2}b", "a\u{08E2}b"),
+        ]
+
+        let normalizer = BertNormalizer(config: Config(["stripAccents": false]))
+        for (arg, expect) in testCases {
+            // Compare scalars: String == treats canonically equivalent strings as equal.
+            #expect(Array(normalizer.normalize(text: arg).unicodeScalars) == Array(expect.unicodeScalars))
+        }
+    }
+
+    @Test("Bert normalizer pads each CJK scalar")
+    func bertNormalizerChineseChars() {
+        // Python verification: BertNormalizer(handle_chinese_chars=True).normalize_str(...)
+        let testCases: [(String, String)] = [
+            // U+0D4E has Grapheme_Cluster_Break=Prepend, so it shares a Character with the next scalar.
+            ("\u{0D4E}\u{4E2D}", "\u{0D4E} \u{4E2D} "),
+            // Same ranges as is_chinese_char in the Rust normalizer.
+            ("a\u{2B820}b", "a\u{2B820}b"),
+            ("a\u{2B920}b", "a \u{2B920} b"),
+            // Removing U+200B leaves U+4E2D in the same Character as U+0D4E; it is still padded.
+            ("\u{0D4E}\u{200B}\u{4E2D}", "\u{0D4E} \u{4E2D} "),
+        ]
+
+        let normalizer = BertNormalizer(config: Config(["stripAccents": false]))
+        for (arg, expect) in testCases {
+            // Compare scalars: String == treats canonically equivalent strings as equal.
+            #expect(Array(normalizer.normalize(text: arg).unicodeScalars) == Array(expect.unicodeScalars))
+        }
+    }
+
     @Test("Bert normalizer defaults functionality")
     func bertNormalizerDefaults() throws {
         // Python verification: t._tokenizer.normalizer.normalize_str("Café")

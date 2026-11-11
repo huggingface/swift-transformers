@@ -192,22 +192,18 @@ class BertNormalizer: Normalizer {
         return output
     }
 
+    /// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/normalizers/bert.rs
+    /// Works on Unicode scalars: a format character such as U+200D joins the previous character's
+    /// grapheme cluster, so checking only the first scalar of each `Character` would miss it.
     private func cleanText(text: String) -> String {
-        text.map { c in
-            guard let scalar = c.unicodeScalars.first,
-                scalar.value != 0x0,
-                scalar.value != 0xFFFD,
-                !isControl(scalar)
-            else { return "\(c)" }
-
-            // Replace whitespace: \t, \n, \r
-            if scalar.value == 0x009 || scalar.value == 0x00A || scalar.value == 0x000D {
-                return " "
-            } else {
-                return "\(c)"
+        var scalars = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if scalar.value == 0x0 || scalar.value == 0xFFFD || isControl(scalar) {
+                continue
             }
+            scalars.append(scalar.properties.isWhitespace ? " " : scalar)
         }
-        .joined()
+        return String(scalars)
     }
 
     private func isControl(_ c: UnicodeScalar) -> Bool {
@@ -215,25 +211,36 @@ class BertNormalizer: Normalizer {
             // Except \t, \n, \r that will be spaces.
             false
         } else {
-            // https://unicode.org/reports/tr44/#GC_Values_Table
-            // Other Cc | Cf | Cs | Co | Cn
-            isOther(c.properties.generalCategory)
+            isOther(c)
         }
     }
 
-    private func isOther(_ c: Unicode.GeneralCategory) -> Bool {
-        c == .control || c == .format || c == .surrogate || c == .privateUse || c == .unassigned
+    /// Cc, Cf and Co as the Rust normalizer sees them (https://unicode.org/reports/tr44/#GC_Values_Table).
+    /// Its category tables predate Unicode 9.0, so it keeps format characters added later, and it keeps
+    /// unassigned (Cn) code points.
+    private func isOther(_ c: UnicodeScalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .control, .privateUse:
+            true
+        case .format:
+            c.properties.age.map { ($0.major, $0.minor) <= (8, 0) } ?? false
+        default:
+            false
+        }
     }
 
     private func handleChineseChars(text: String) -> String {
-        text.map { c in
-            if let scalar = c.unicodeScalars.first, scalar.isCJKUnifiedIdeograph {
-                " \(c) "
+        var scalars = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if scalar.isCJKUnifiedIdeograph {
+                scalars.append(" ")
+                scalars.append(scalar)
+                scalars.append(" ")
             } else {
-                "\(c)"
+                scalars.append(scalar)
             }
         }
-        .joined()
+        return String(scalars)
     }
 
     private func stripAccents(text: String) -> String {
@@ -254,13 +261,15 @@ class BertNormalizer: Normalizer {
 
 extension UnicodeScalar {
     /// https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
+    /// The ranges of `is_chinese_char` in the Rust BERT normalizer.
+    /// It starts the Extension E range at U+2B920, so U+2B820 to U+2B91F are not padded.
     var isCJKUnifiedIdeograph: Bool {
         (value >= 0x4E00 && value <= 0x9FFF)
             || (value >= 0x3400 && value <= 0x4DBF)
             || (value >= 0x20000 && value <= 0x2A6DF)
             || (value >= 0x2A700 && value <= 0x2B73F)
             || (value >= 0x2B740 && value <= 0x2B81F)
-            || (value >= 0x2B820 && value <= 0x2CEAF)
+            || (value >= 0x2B920 && value <= 0x2CEAF)
             || (value >= 0xF900 && value <= 0xFAFF)
             || (value >= 0x2F800 && value <= 0x2FA1F)
     }

@@ -194,13 +194,17 @@ public final class BertTokenizer: Sendable {
             return text
         }
 
-        return text.map { c in
-            if let scalar = c.unicodeScalars.first, scalar.isCJKUnifiedIdeograph {
-                " \(c) "
+        var scalars = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if scalar.isCJKUnifiedIdeograph {
+                scalars.append(" ")
+                scalars.append(scalar)
+                scalars.append(" ")
             } else {
-                "\(c)"
+                scalars.append(scalar)
             }
-        }.joined()
+        }
+        return String(scalars)
     }
 }
 
