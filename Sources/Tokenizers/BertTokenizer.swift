@@ -20,8 +20,9 @@ public final class BertTokenizer: Sendable {
     private let maxLen = 512
     private let tokenizeChineseChars: Bool
 
-    /// The vocabulary mapping token strings to IDs.
-    private let vocab: [String: Int]
+    /// The vocabulary mapping token strings to IDs. Keys compare by code units, as in the Rust
+    /// tokenizers: some vocabularies hold canonically equivalent spellings with different IDs.
+    private let vocab: [BinaryDistinctString: Int]
 
     /// The reverse vocabulary mapping IDs to token strings.
     private let ids_to_tokens: [Int: String]
@@ -51,7 +52,7 @@ public final class BertTokenizer: Sendable {
     ///   - eosToken: The end-of-sequence token
     ///   - fuseUnknownTokens: Whether to fuse consecutive unknown tokens
     ///   - doLowerCase: Whether to convert text to lowercase during basic tokenization
-    public init(
+    public convenience init(
         vocab: [String: Int],
         merges: [String]?,
         tokenizeChineseChars: Bool = true,
@@ -60,17 +61,32 @@ public final class BertTokenizer: Sendable {
         fuseUnknownTokens: Bool = false,
         doLowerCase: Bool = true
     ) {
-        self.vocab = vocab
-        ids_to_tokens = vocab.reduce(into: [Int: String]()) { result, element in
-            result[element.value] = element.key
+        self.init(
+            vocabulary: Dictionary(uniqueKeysWithValues: vocab.map { (BinaryDistinctString($0.key), $0.value) }),
+            tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
+            fuseUnknownTokens: fuseUnknownTokens, doLowerCase: doLowerCase
+        )
+    }
+
+    private init(
+        vocabulary: [BinaryDistinctString: Int],
+        tokenizeChineseChars: Bool,
+        bosToken: String?,
+        eosToken: String?,
+        fuseUnknownTokens: Bool,
+        doLowerCase: Bool
+    ) {
+        vocab = vocabulary
+        ids_to_tokens = vocabulary.reduce(into: [Int: String]()) { result, element in
+            result[element.value] = element.key.string
         }
         basicTokenizer = BasicTokenizer(doLowerCase: doLowerCase)
-        wordpieceTokenizer = WordpieceTokenizer(vocab: self.vocab)
+        wordpieceTokenizer = WordpieceTokenizer(vocab: vocabulary)
         self.tokenizeChineseChars = tokenizeChineseChars
         self.bosToken = bosToken
-        bosTokenId = bosToken == nil ? nil : vocab[bosToken!]
+        bosTokenId = bosToken.flatMap { vocabulary[BinaryDistinctString($0)] }
         self.eosToken = eosToken
-        eosTokenId = eosToken == nil ? nil : vocab[eosToken!]
+        eosTokenId = eosToken.flatMap { vocabulary[BinaryDistinctString($0)] }
         self.fuseUnknownTokens = fuseUnknownTokens
     }
 
@@ -86,34 +102,26 @@ public final class BertTokenizer: Sendable {
             throw TokenizerError.missingVocab
         }
 
-        let merges: [String]? = tokenizerData.model.merges.get()
         let tokenizeChineseChars = tokenizerConfig.handleChineseChars.boolean(or: true)
         let eosToken = tokenizerConfig.eosToken.string()
         let bosToken = tokenizerConfig.bosToken.string()
         let fuseUnknown = tokenizerConfig.fuseUnk.boolean(or: false)
         let doLowerCase = tokenizerConfig.doLowerCase.boolean(or: true)
 
-        var vocabulary = vocab.reduce(into: [String: Int]()) { result, element in
-            if let val = element.value.integer() {
-                result[element.key.string] = val
-            }
+        // Keep the vocabulary keyed by code units; converting to [String: Int] would merge
+        // canonically equivalent entries such as ";" and U+037E GREEK QUESTION MARK.
+        var vocabulary = vocab.compactMapValues { $0.integer() }
+        for element in tokenizerData.addedTokens.array() ?? [] {
+            guard let val = element["id"].integer() else { continue }
+            guard let key = element["content"].string() else { continue }
+            vocabulary[BinaryDistinctString(key)] = val
         }
-        if let pairs = tokenizerData.addedTokens.array()?.reduce(
-            into: [String: Int](),
-            { result, element in
-                guard let val = element["id"].integer() else { return }
-                guard let key = element["content"].string() else { return }
-
-                result[key] = val
-            }
-        ) {
-            vocabulary.merge(pairs, uniquingKeysWith: { $1 })
+        for (key, val) in addedTokens {
+            vocabulary[BinaryDistinctString(key)] = val
         }
-
-        vocabulary.merge(addedTokens, uniquingKeysWith: { $1 })
 
         self.init(
-            vocab: vocabulary, merges: merges, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
+            vocabulary: vocabulary, tokenizeChineseChars: tokenizeChineseChars, bosToken: bosToken, eosToken: eosToken,
             fuseUnknownTokens: fuseUnknown, doLowerCase: doLowerCase
         )
     }
@@ -143,7 +151,7 @@ public final class BertTokenizer: Sendable {
                 """
             )
         }
-        return tokens.compactMap { vocab[$0] }
+        return tokens.compactMap { vocab[BinaryDistinctString($0)] }
     }
 
     /// Main entry point
@@ -152,7 +160,7 @@ public final class BertTokenizer: Sendable {
     }
 
     func tokenToId(token: String) -> Int {
-        vocab[token]!
+        vocab[BinaryDistinctString(token)]!
     }
 
     /// Un-tokenization: get tokens from tokenIds
@@ -201,7 +209,7 @@ extension BertTokenizer: PreTrainedTokenizerModel {
     public var unknownToken: String? { wordpieceTokenizer.unkToken }
 
     /// The numeric ID of the unknown token.
-    public var unknownTokenId: Int? { vocab[unknownToken!] }
+    public var unknownTokenId: Int? { vocab[BinaryDistinctString(unknownToken!)] }
 
     func encode(text: String) -> [Int] { tokenizeToIds(text: text) }
 
@@ -215,7 +223,7 @@ extension BertTokenizer: PreTrainedTokenizerModel {
     /// - Parameter token: The token string to convert
     /// - Returns: The numeric ID, or the unknown token ID if not found
     public func convertTokenToId(_ token: String) -> Int? {
-        vocab[token] ?? unknownTokenId
+        vocab[BinaryDistinctString(token)] ?? unknownTokenId
     }
 
     /// Converts a numeric token ID back to its string representation.
@@ -308,9 +316,9 @@ private extension Character {
 final class WordpieceTokenizer: Sendable {
     let unkToken = "[UNK]"
     private let maxInputCharsPerWord = 100
-    private let vocab: [String: Int]
+    private let vocab: [BinaryDistinctString: Int]
 
-    init(vocab: [String: Int]) {
+    init(vocab: [BinaryDistinctString: Int]) {
         self.vocab = vocab
     }
 
@@ -335,7 +343,9 @@ final class WordpieceTokenizer: Sendable {
                 if start > 0 {
                     substr = "##\(substr)"
                 }
-                if vocab[substr] != nil {
+                // Exact code units, as in the Rust WordPiece: String keys would also match canonically
+                // equivalent spellings ("a\u{0308}" and "\u{00E4}", or U+F900 and U+8C48).
+                if vocab[BinaryDistinctString(substr)] != nil {
                     cur_substr = substr
                     break
                 }
